@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { isOerebSupportedCanton } from "@/lib/oereb/cantons";
 
 const CANTONS = [
   "AG","AI","AR","BE","BL","BS","FR","GE","GL","GR",
@@ -62,36 +63,12 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
   const [municipality, setMunicipality] = useState("");
   const [parcelNumber, setParcelNumber] = useState("");
   const [bauzone, setBauzone]           = useState("");
-  const [lookupState, setLookupState]   = useState<"idle" | "loading" | "found" | "notfound">("idle");
   const [error, setError]               = useState<string | null>(null);
   const [loading, setLoading]           = useState(false);
-  const lookupTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  useEffect(() => {
-    if (!parcelNumber.trim() || !municipality.trim()) {
-      setLookupState("idle");
-      return;
-    }
-    setLookupState("loading");
-    if (lookupTimer.current) clearTimeout(lookupTimer.current);
-    lookupTimer.current = setTimeout(async () => {
-      try {
-        const result = await api.post<{ bauzone: string | null }>(
-          "/geoportal/lookup",
-          { parcel_number: parcelNumber, municipality, canton }
-        );
-        if (result?.bauzone) {
-          setBauzone(result.bauzone);
-          setLookupState("found");
-        } else {
-          setLookupState("notfound");
-        }
-      } catch {
-        setLookupState("notfound");
-      }
-    }, 800);
-    return () => { if (lookupTimer.current) clearTimeout(lookupTimer.current); };
-  }, [parcelNumber, municipality, canton]);
+  // Bei angebundenen Kantonen kommt die Bauzone nach dem Anlegen aus dem ÖREB-Auszug;
+  // nur ohne Anbindung bleibt das manuelle Feld.
+  const oerebSupported = isOerebSupportedCanton(canton);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -104,7 +81,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
         domain: "bau",
         location: { canton, municipality: municipality.trim(), country: "CH" },
         parcel_number: parcelNumber.trim(),
-        bauzone: bauzone.trim() || null,
+        bauzone: oerebSupported ? null : (bauzone.trim() || null),
       });
       onCreated();
       onClose();
@@ -153,35 +130,31 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           <Field label="Parzellennummer">
             <TextInput
               value={parcelNumber}
-              onChange={v => { setParcelNumber(v); setBauzone(""); setLookupState("idle"); }}
+              onChange={setParcelNumber}
               placeholder="z.B. 1234"
               required
             />
           </Field>
 
-          <Field label="Bauzone" hint="(optional)">
-            <div style={{ position: "relative" }}>
-              <input
-                type="text"
-                value={bauzone}
-                onChange={e => { setBauzone(e.target.value); setLookupState("idle"); }}
-                style={inputStyle}
-                onFocus={e => { e.currentTarget.style.borderColor = "#2862D7"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40,98,215,0.2)"; }}
-                onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(133,166,233,0.25)"; e.currentTarget.style.boxShadow = "none"; }}
-              />
-              {lookupState === "loading" && (
-                <div style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", width: 14, height: 14, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
-              )}
-              {lookupState === "found" && (
-                <span style={{ position: "absolute", right: 13, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: "#34d399", fontWeight: 600 }}>✓ Geoportal</span>
-              )}
-            </div>
-            {lookupState === "notfound" && (
+          {oerebSupported ? (
+            <Field label="Bauzone">
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, border: "1px solid rgba(133,166,233,0.15)", background: "rgba(23,37,64,0.35)", borderRadius: 10, padding: "9px 13px" }}>
+                <svg style={{ width: 14, height: 14, color: "#85A6E9", marginTop: 2, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.45 }}>
+                  Wird nach dem Anlegen automatisch aus dem ÖREB-Kataster ermittelt (Kanton {canton}).
+                </p>
+              </div>
+            </Field>
+          ) : (
+            <Field label="Bauzone" hint="(optional)">
+              <TextInput value={bauzone} onChange={setBauzone} placeholder="z.B. W2" />
               <p style={{ fontSize: 11, color: "#7B8299", margin: "5px 0 0", lineHeight: 1.4 }}>
-                Parzelle nicht im Geoportal gefunden — Bauzone kann manuell eingegeben oder leer gelassen werden.
+                Für Kanton {canton} ist noch keine automatische Zonenermittlung angebunden — Bauzone manuell eingeben oder leer lassen.
               </p>
-            )}
-          </Field>
+            </Field>
+          )}
 
           {error && (
             <div style={{ fontSize: 13, color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "10px 14px" }}>
@@ -214,7 +187,6 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           </div>
         </form>
 
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   );

@@ -1,0 +1,164 @@
+{
+  "GetExtractByIdResponse": {
+    "extract": {
+      "CreationDate": "2026-09-12T12:57:39",
+      "ExtractIdentifier": "11bb0a8c-0861-450b-b7ef-d6630a2bed08",
+      "PLRCadastreAuthority": {
+        "Name": [{ "Language": "de", "Text": "Amt für Raumentwicklung und Geoinformation" }],
+        "OfficeAtWeb": [{ "Language": "de", "Text": "https://www.sg.ch/bauen/raumentwicklung.html" }]
+      },
+      "RealEstate": {
+        "Type": { "Code": "RealEstate", "Text": [{ "Language": "de", "Text": "Liegenschaft" }] },
+        "Canton": "SG",
+        "MunicipalityName": "Mels",
+        "MunicipalityCode": 3293,
+        "LandRegistryArea": 812,
+        "Number": "1234",
+        "IdentDN": "SG0200329300",
+        "EGRID": "CH123456789012",
+        "RestrictionOnLandownership": [
+          {
+            "Theme": { "Code": "ch.Nutzungsplanung", "Text": [{ "Language": "de", "Text": "Nutzungsplanung Zonenplan" }] },
+            "Lawstatus": { "Code": "inForce", "Text": [{ "Language": "de", "Text": "Rechtskräftig" }] },
+            "AreaShare": 747,
+            "PartInPercent": 92.0,
+            "TypeCode": "1104101",
+            "TypeCodelist": "https://models.geo.sg.ch/1_Grundlagen_und_Planung/E_Raumplanung_Grundstueckskataster/SG_Nutzungsplanung_kt_V2_1.ili",
+            "LegendText": [{ "Language": "de", "Text": "BauG Wohnzone W2" }],
+            "SymbolRef": "https://oereb.geo.sg.ch/ktsg/wsgi/oereb/image/symbol/ch.Nutzungsplanung/1104101",
+            "Map": { "ReferenceWMS": [{ "Language": "de", "Text": "https://example.invalid/wms" }], "OtherLegend": [] },
+            "LegalProvisions": [
+              {
+                "Type": { "Code": "LegalProvision", "Text": [{ "Language": "de", "Text": "Rechtsvorschrift" }] },
+                "Title": [{ "Language": "de", "Text": "Baureglement" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://oereblex.sg.ch/api/attachments/17273" }]
+              },
+              {
+                "Type": { "Code": "Law", "Text": [{ "Language": "de", "Text": "Gesetzliche Grundlage" }] },
+                "Title": [{ "Language": "de", "Text": "Planungs- und Baugesetz" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://www.lexfind.ch/tolv/258420/de" }]
+              }
+            ],
+            "ResponsibleOffice": {
+              "Name": [{ "Language": "de", "Text": "Gemeinde Mels" }],
+              "OfficeAtWeb": [{ "Language": "de", "Text": "http://www.mels.ch" }],
+              "Street": "Platz",
+              "Number": "2",
+              "PostalCode": "8887",
+              "City": "Mels"
+            }
+          },
+          {
+            "Theme": { "Code": "ch.Nutzungsplanung", "Text": [{ "Language": "de", "Text": "Nutzungsplanung Zonenplan" }] },
+            "Lawstatus": { "Code": "inForce", "Text": [{ "Language": "de", "Text": "Rechtskräftig" }] },
+            "AreaShare": 65,
+            "PartInPercent": 8.0,
+            "TypeCode": "4201101",
+            "LegendText": [{ "Language": "de", "Text": "Hinweis Verkehrsflaeche aB" }],
+            "LegalProvisions": [
+              {
+                "Type": { "Code": "LegalProvision", "Text": [{ "Language": "de", "Text": "Rechtsvorschrift" }] },
+                "Title": [{ "Language": "de", "Text": "Baureglement" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://oereblex.sg.ch/api/attachments/17273" }]
+              }
+            ],
+            "ResponsibleOffice": {
+              "Name": [{ "Language": "de", "Text": "Gemeinde Mels" }],
+              "OfficeAtWeb": [{ "Language": "de", "Text": "http://www.mels.ch" }]
+            }
+          },
+          {
+            "Theme": { "Code": "ch.Laermempfindlichkeitsstufen", "Text": [{ "Language": "de", "Text": "Lärmempfindlichkeitsstufen (in Nutzungszonen)" }] },
+            "Lawstatus": { "Code": "inForce", "Text": [{ "Language": "de", "Text": "Rechtskräftig" }] },
+            "AreaShare": 812,
+            "PartInPercent": 100,
+            "TypeCode": "II",
+            "LegendText": [{ "Language": "de", "Text": "Empfindlichkeitsstufe II" }],
+            "LegalProvisions": [
+              {
+                "Type": { "Code": "Law", "Text": [{ "Language": "de", "Text": "Gesetzliche Grundlage" }] },
+                "Title": [{ "Language": "de", "Text": "Lärmschutz-Verordnung" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://www.fedlex.admin.ch/eli/cc/1987/338_338_338/de" }]
+              }
+            ],
+            "ResponsibleOffice": {
+              "Name": [{ "Language": "de", "Text": "Gemeinde Mels" }],
+              "OfficeAtWeb": [{ "Language": "de", "Text": "http://www.mels.ch" }]
+            }
+          },
+          {
+            "Theme": {
+              "Code": "ch.Gewaesserraum",
+              "Text": [{ "Language": "de", "Text": "Zusatzinformation Gewässerraum (Zusatzinformation nach Art. 8b Abs. 1 Bst. b ÖREBKV)" }],
+              "SubCode": "Wasser_Zusatz"
+            },
+            "Lawstatus": { "Code": "inForce", "Text": [{ "Language": "de", "Text": "Rechtskräftig" }] },
+            "AreaShare": 41,
+            "PartInPercent": 5.1,
+            "TypeCode": "5833",
+            "LegendText": [{ "Language": "de", "Text": "Potenzieller Gewässerraum nach Übergangsrecht" }],
+            "LegalProvisions": [
+              {
+                "Type": { "Code": "LegalProvision", "Text": [{ "Language": "de", "Text": "Rechtsvorschrift" }] },
+                "Title": [{ "Language": "de", "Text": "Gewässerräume nach Übergangsrecht" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://oereblex.sg.ch/api/attachments/19526" }]
+              },
+              {
+                "Type": { "Code": "Law", "Text": [{ "Language": "de", "Text": "Gesetzliche Grundlage" }] },
+                "Title": [{ "Language": "de", "Text": "Bundesgesetz über den Schutz der Gewässer" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://www.lexfind.ch/tolv/258414/de" }]
+              },
+              {
+                "Type": { "Code": "Law", "Text": [{ "Language": "de", "Text": "Gesetzliche Grundlage" }] },
+                "Title": [{ "Language": "de", "Text": "Gewässerschutzverordnung" }],
+                "TextAtWeb": [{ "Language": "de", "Text": "https://www.lexfind.ch/tolv/256387/de" }]
+              }
+            ],
+            "ResponsibleOffice": {
+              "Name": [{ "Language": "de", "Text": "Amt für Wasser und Energie" }],
+              "OfficeAtWeb": [{ "Language": "de", "Text": "https://www.sg.ch/umwelt-natur/wasser.html" }]
+            }
+          }
+        ]
+      },
+      "ConcernedTheme": [
+        { "Code": "ch.Nutzungsplanung", "Text": [{ "Language": "de", "Text": "Nutzungsplanung Zonenplan" }] },
+        { "Code": "ch.Gewaesserraum", "Text": [{ "Language": "de", "Text": "Gewässerraum" }] },
+        { "Code": "ch.Laermempfindlichkeitsstufen", "Text": [{ "Language": "de", "Text": "Lärmempfindlichkeitsstufen (in Nutzungszonen)" }] }
+      ],
+      "NotConcernedTheme": [
+        { "Code": "ch.SG.KantonalePlanungszonen", "Text": [{ "Language": "de", "Text": "Kantonale Planungszonen" }] },
+        { "Code": "ch.ProjektierungszonenNationalstrassen", "Text": [{ "Language": "de", "Text": "Projektierungszonen Nationalstrassen" }] },
+        { "Code": "ch.BaulinienNationalstrassen", "Text": [{ "Language": "de", "Text": "Baulinien Nationalstrassen" }] },
+        { "Code": "ch.ProjektierungszonenEisenbahnanlagen", "Text": [{ "Language": "de", "Text": "Projektierungszonen Eisenbahnanlagen" }] },
+        { "Code": "ch.BaulinienEisenbahnanlagen", "Text": [{ "Language": "de", "Text": "Baulinien Eisenbahnanlagen" }] },
+        { "Code": "ch.ProjektierungszonenFlughafenanlagen", "Text": [{ "Language": "de", "Text": "Projektierungszonen Flughafenanlagen" }] },
+        { "Code": "ch.BaulinienFlughafenanlagen", "Text": [{ "Language": "de", "Text": "Baulinien Flughafenanlagen" }] },
+        { "Code": "ch.Sicherheitszonenplan", "Text": [{ "Language": "de", "Text": "Sicherheitszonenplan Flughafen" }] },
+        { "Code": "ch.BelasteteStandorte", "Text": [{ "Language": "de", "Text": "Kataster der belasteten Standorte" }] },
+        { "Code": "ch.BelasteteStandorteMilitaer", "Text": [{ "Language": "de", "Text": "Kataster der belasteten Standorte im Bereich des Militärs" }] },
+        { "Code": "ch.BelasteteStandorteZivileFlugplaetze", "Text": [{ "Language": "de", "Text": "Kataster der belasteten Standorte im Bereich der zivilen Flugplätze" }] },
+        { "Code": "ch.BelasteteStandorteOeffentlicherVerkehr", "Text": [{ "Language": "de", "Text": "Kataster der belasteten Standorte im Bereich des öffentlichen Verkehrs" }] },
+        { "Code": "ch.Grundwasserschutzzonen", "Text": [{ "Language": "de", "Text": "Grundwasserschutzzonen" }] },
+        { "Code": "ch.Grundwasserschutzareale", "Text": [{ "Language": "de", "Text": "Grundwasserschutzareale" }] },
+        { "Code": "ch.Gewaesserraum", "Text": [{ "Language": "de", "Text": "Gewässerraum: Kantonaler Gewässerraum nach WBG" }], "SubCode": "Wasser_Kan_WBG" },
+        { "Code": "ch.Gewaesserraum", "Text": [{ "Language": "de", "Text": "Gewässerraum: Kommunaler Gewässerraum nach PBG" }], "SubCode": "Wasser_Kom_PBG" },
+        { "Code": "ch.StatischeWaldgrenzen", "Text": [{ "Language": "de", "Text": "Statische Waldgrenzen" }] },
+        { "Code": "ch.Waldabstandslinien", "Text": [{ "Language": "de", "Text": "Waldabstandslinien" }] },
+        { "Code": "ch.Waldreservate", "Text": [{ "Language": "de", "Text": "Waldreservate" }] }
+      ],
+      "ThemeWithoutData": [
+        { "Code": "ch.SG.BaulinienStrassengesetz", "Text": [{ "Language": "de", "Text": "Baulinien nach Strassengesetz" }] },
+        { "Code": "ch.SG.Gemeindestrassenplan", "Text": [{ "Language": "de", "Text": "Gemeindestrassenplan" }] }
+      ],
+      "LogoPLRCadastreRef": "data:image/png;base64,iVBORw0KGgo=",
+      "FederalLogoRef": "data:image/png;base64,iVBORw0KGgo=",
+      "CantonalLogoRef": "data:image/png;base64,iVBORw0KGgo=",
+      "MunicipalityLogoRef": "data:image/png;base64,iVBORw0KGgo=",
+      "QRCodeRef": "data:image/png;base64,iVBORw0KGgo=",
+      "GeneralInformation": [{ "Language": "de", "Text": "Der ÖREB-Kataster enthält …" }],
+      "Disclaimer": [{ "Language": "de", "Text": "Haftungsausschluss …" }],
+      "Glossary": []
+    }
+  }
+}

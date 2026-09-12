@@ -154,6 +154,228 @@ function NormRow({
   );
 }
 
+
+// ── ÖREB-Mapping (Bundes-Pflichtthema → norms.category-Muster) ───────────────
+
+const OEREB_FEDERAL_THEMES: { code: string; label: string }[] = [
+  { code: "ch.Nutzungsplanung",                        label: "Nutzungsplanung" },
+  { code: "ch.ProjektierungszonenNationalstrassen",    label: "Projektierungszonen Nationalstrassen" },
+  { code: "ch.BaulinienNationalstrassen",              label: "Baulinien Nationalstrassen" },
+  { code: "ch.ProjektierungszonenEisenbahnanlagen",    label: "Projektierungszonen Eisenbahnanlagen" },
+  { code: "ch.BaulinienEisenbahnanlagen",              label: "Baulinien Eisenbahnanlagen" },
+  { code: "ch.ProjektierungszonenFlughafenanlagen",    label: "Projektierungszonen Flughafenanlagen" },
+  { code: "ch.BaulinienFlughafenanlagen",              label: "Baulinien Flughafenanlagen" },
+  { code: "ch.Sicherheitszonenplan",                   label: "Sicherheitszonenplan" },
+  { code: "ch.BelasteteStandorte",                     label: "Belastete Standorte" },
+  { code: "ch.BelasteteStandorteMilitaer",             label: "Belastete Standorte Militär" },
+  { code: "ch.BelasteteStandorteZivileFlugplaetze",    label: "Belastete Standorte zivile Flugplätze" },
+  { code: "ch.BelasteteStandorteOeffentlicherVerkehr", label: "Belastete Standorte öffentlicher Verkehr" },
+  { code: "ch.Grundwasserschutzzonen",                 label: "Grundwasserschutzzonen" },
+  { code: "ch.Grundwasserschutzareale",                label: "Grundwasserschutzareale" },
+  { code: "ch.Laermempfindlichkeitsstufen",            label: "Lärmempfindlichkeitsstufen" },
+  { code: "ch.StatischeWaldgrenzen",                   label: "Statische Waldgrenzen" },
+  { code: "ch.Waldabstandslinien",                     label: "Waldabstandslinien" },
+  { code: "ch.Waldreservate",                          label: "Waldreservate" },
+];
+
+interface OerebMapping {
+  id: string;
+  theme_code: string;
+  category_pattern: string;
+  org_id: string | null;
+  active: boolean;
+}
+
+function OerebMappingSection({ inputCls }: { inputCls: string }) {
+  const [mappings, setMappings] = useState<OerebMapping[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [themeCode, setThemeCode] = useState(OEREB_FEDERAL_THEMES[0].code);
+  const [pattern, setPattern] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await api.get<OerebMapping[]>("/admin/oereb-mappings");
+      setMappings(data ?? []);
+      setLoadError(null);
+    } catch (e: unknown) {
+      setMappings([]);
+      setLoadError(e instanceof Error ? e.message : "Mappings konnten nicht geladen werden");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    const p = pattern.trim().toLowerCase();
+    if (!p) { setFormError("Bitte ein Kategorie-Muster eingeben."); return; }
+    setFormError(null);
+    setAdding(true);
+    try {
+      const created = await api.post<OerebMapping>("/admin/oereb-mappings", { theme_code: themeCode, category_pattern: p });
+      setMappings((prev) =>
+        [...prev, created].sort((a, b) => a.theme_code.localeCompare(b.theme_code) || a.category_pattern.localeCompare(b.category_pattern))
+      );
+      setPattern("");
+    } catch (err: unknown) {
+      setFormError(err instanceof Error ? err.message : "Unbekannter Fehler");
+    } finally {
+      setAdding(false);
+    }
+  }
+
+  async function handleToggle(m: OerebMapping) {
+    setBusyId(m.id);
+    try {
+      const updated = await api.patch<OerebMapping>("/admin/oereb-mappings", { id: m.id, active: !m.active });
+      setMappings((prev) => prev.map((x) => (x.id === m.id ? { ...x, ...updated } : x)));
+    } catch { /* Zustand behalten */ } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function handleDelete(m: OerebMapping) {
+    if (!confirm(`Mapping ${m.theme_code} → «${m.category_pattern}» löschen?`)) return;
+    setBusyId(m.id);
+    try {
+      await api.delete("/admin/oereb-mappings", { id: m.id });
+      setMappings((prev) => prev.filter((x) => x.id !== m.id));
+    } catch { /* ignore */ } finally {
+      setBusyId(null);
+    }
+  }
+
+  const themeLabel = (code: string) => OEREB_FEDERAL_THEMES.find((t) => t.code === code)?.label ?? code;
+
+  return (
+    <section className="mt-12">
+      <div className="mb-4">
+        <h2 className="text-base font-semibold text-white">ÖREB-Mapping</h2>
+        <p className="text-sm text-[#7B8299] mt-1">
+          Verknüpft Bundes-Pflichtthemen des ÖREB-Katasters mit Normen: Betrifft ein Thema die Parzelle, werden alle
+          Normen zugewiesen, deren Kategorie das Muster enthält (Teilstring, Gross-/Kleinschreibung egal).
+        </p>
+      </div>
+
+      <div className="flex gap-8 items-start">
+        <div className="w-72 shrink-0">
+          <h3 className="text-sm font-semibold text-white mb-3">Zeile hinzufügen</h3>
+          <form onSubmit={handleAdd} className="space-y-3">
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">ÖREB-Thema</label>
+              <select value={themeCode} onChange={(e) => setThemeCode(e.target.value)} className={`${inputCls} appearance-none`}>
+                {OEREB_FEDERAL_THEMES.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
+              </select>
+              <p className="text-[11px] text-[#7B8299] mt-1 font-mono">{themeCode}</p>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">
+                Kategorie-Muster <span className="text-red-400">*</span>
+              </label>
+              <input
+                type="text"
+                value={pattern}
+                onChange={(e) => setPattern(e.target.value)}
+                placeholder="z.B. gewässer, lärm, wald"
+                className={inputCls}
+              />
+            </div>
+            {formError && (
+              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{formError}</p>
+            )}
+            <button
+              type="submit"
+              disabled={adding || !pattern.trim()}
+              className="w-full bg-[#2862D7] hover:bg-[#3470E8] text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+            >
+              {adding ? "Wird gespeichert…" : "Mapping hinzufügen"}
+            </button>
+          </form>
+        </div>
+
+        <div className="flex-1 min-w-0">
+          {loading ? (
+            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 animate-pulse">
+              <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-1/3 mb-2" />
+              <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-2/3" />
+            </div>
+          ) : loadError ? (
+            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-6 text-sm text-[#ABAEBB]">
+              {loadError}
+              <p className="text-xs text-[#7B8299] mt-1">Ist die Migration 20260902000001_oereb.sql eingespielt?</p>
+            </div>
+          ) : mappings.length === 0 ? (
+            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-10 text-center text-sm text-[#ABAEBB]">
+              Noch keine Mappings vorhanden.
+            </div>
+          ) : (
+            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-[#7B8299] border-b border-[rgba(60,63,68,0.5)]">
+                    <th className="px-5 py-3 font-semibold">Thema</th>
+                    <th className="px-5 py-3 font-semibold">Kategorie-Muster</th>
+                    <th className="px-5 py-3 font-semibold">Geltung</th>
+                    <th className="px-5 py-3 font-semibold">Aktiv</th>
+                    <th className="px-5 py-3" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {mappings.map((m) => (
+                    <tr key={m.id} className={`border-b border-[rgba(60,63,68,0.3)] last:border-0 ${m.active ? "" : "opacity-50"}`}>
+                      <td className="px-5 py-3 align-top">
+                        <p className="text-white font-medium">{themeLabel(m.theme_code)}</p>
+                        <p className="text-[11px] text-[#7B8299] font-mono">{m.theme_code}</p>
+                      </td>
+                      <td className="px-5 py-3 align-top">
+                        <span className="text-xs bg-[rgba(60,63,68,0.5)] text-[#ABAEBB] px-2 py-0.5 rounded-full font-mono">{m.category_pattern}</span>
+                      </td>
+                      <td className="px-5 py-3 align-top">
+                        {m.org_id ? (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]">Organisation</span>
+                        ) : (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">Plattformweit</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-3 align-top">
+                        <button
+                          onClick={() => handleToggle(m)}
+                          disabled={busyId === m.id}
+                          title={m.active ? "Deaktivieren" : "Aktivieren"}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-40 ${m.active ? "bg-[#2862D7]" : "bg-[rgba(60,63,68,0.7)]"}`}
+                        >
+                          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${m.active ? "translate-x-4" : "translate-x-0.5"}`} />
+                        </button>
+                      </td>
+                      <td className="px-5 py-3 align-top text-right">
+                        <button
+                          onClick={() => handleDelete(m)}
+                          disabled={busyId === m.id}
+                          className="text-[#7B8299] hover:text-red-400 transition-colors text-lg leading-none px-1 disabled:opacity-40"
+                          title="Löschen"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function AdminNormsPage() {
   const [userEmail, setUserEmail] = useState("");
   const [norms, setNorms] = useState<AdminNorm[]>([]);
@@ -479,6 +701,8 @@ export default function AdminNormsPage() {
             )}
           </div>
         </div>
+
+        <OerebMappingSection inputCls={inputCls} />
       </main>
     </>
   );

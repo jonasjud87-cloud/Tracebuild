@@ -12,6 +12,15 @@ interface Project {
   status: string;
   parcel_number: string | null;
   bauzone: string | null;
+  zone_source?: "oereb" | "manual" | null;
+  zone_confidence?: "exact" | "coarse" | null;
+}
+
+function zoneOriginLabel(p: Project | null): string | null {
+  if (!p?.bauzone) return null;
+  if (p.zone_source === "manual") return "manuell gesetzt";
+  if (p.zone_source === "oereb") return p.zone_confidence === "coarse" ? "Grobklasse aus ÖREB-Auszug" : "aus ÖREB-Auszug";
+  return null;
 }
 
 const CANTONS = [
@@ -52,11 +61,21 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
     setSuccess(false);
     setSaving(true);
     try {
-      await api.patch(`/projects/${params.id}`, {
+      // Bauzone nur mitschicken, wenn sie tatsächlich geändert wurde — das PATCH setzt
+      // damit zone_source = 'manual', und eine ÖREB-Zone soll nicht unbeabsichtigt
+      // als manuell markiert werden.
+      const newZone = bauzone.trim() || null;
+      const zoneChanged = newZone !== (project?.bauzone ?? null);
+      const updated = await api.patch<Project>(`/projects/${params.id}`, {
         name,
         location: { canton, municipality, country: project?.location?.country ?? "CH" },
         parcel_number: parcelNumber.trim() || null,
-        bauzone: bauzone.trim() || null,
+        ...(zoneChanged ? { bauzone: newZone } : {}),
+      });
+      setProject((prev) => {
+        const base = prev ? { ...prev, ...(updated ?? {}) } : (updated ?? prev);
+        if (!base) return prev;
+        return zoneChanged ? { ...base, bauzone: newZone, zone_source: newZone ? "manual" : null, zone_confidence: null } : base;
       });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
@@ -139,7 +158,20 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Bauzone</label>
+            <label className="block text-xs font-medium text-[#7B8299] mb-1">
+              Bauzone
+              {zoneOriginLabel(project) && (
+                <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                  project?.zone_source === "manual"
+                    ? "bg-[rgba(133,166,233,0.1)] text-[#ABAEBB]"
+                    : project?.zone_confidence === "coarse"
+                      ? "bg-amber-500/10 text-amber-400"
+                      : "bg-orange-500/10 text-orange-400"
+                }`}>
+                  {zoneOriginLabel(project)}
+                </span>
+              )}
+            </label>
             <input
               type="text"
               value={bauzone}
@@ -147,6 +179,11 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
               placeholder="z.B. W2"
               className={inputCls}
             />
+            <p className="text-[11px] text-[#7B8299] mt-1 leading-snug">
+              {project?.zone_source === "oereb"
+                ? "Automatisch aus dem ÖREB-Kataster. Eine Änderung hier gilt als manuelle Zone und überschreibt den Auszug."
+                : "Eine hier gesetzte Zone gilt als manuell und hat Vorrang vor dem ÖREB-Auszug."}
+            </p>
           </div>
         </div>
 
