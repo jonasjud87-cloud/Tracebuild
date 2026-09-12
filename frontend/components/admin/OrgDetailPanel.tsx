@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Organization, OrgCost, PlanTier, OrgStatus } from "./types";
 import { fmtMonth } from "./mockCosts";
 
@@ -459,7 +459,7 @@ function AuditLogTab({ org }: { org: Organization }) {
       ) : entries.length === 0 ? (
         <div className="py-8 text-center text-[#7B8299] text-sm">Noch keine Einträge.</div>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto scrollbar-dark">
           <table className="w-full border-collapse">
             <thead>
               <tr className="border-b border-[rgba(60,63,68,0.4)]">
@@ -735,11 +735,64 @@ function EinstellungenTab({
 
 // ────────────────────────────────────────────────────────────────────────────
 
+const PANEL_WIDTH_KEY = "tb_admin_panel_width";
+const PANEL_WIDTH_DEFAULT = 760;
+const PANEL_WIDTH_MIN = 480;
+const PANEL_WIDTH_MAX = 1100;
+
+function clampPanelWidth(w: number): number {
+  const viewportCap = typeof window !== "undefined" ? window.innerWidth - 48 : PANEL_WIDTH_MAX;
+  return Math.min(Math.max(w, PANEL_WIDTH_MIN), Math.min(PANEL_WIDTH_MAX, viewportCap));
+}
+
 export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("uebersicht");
+  const [panelWidth, setPanelWidthState] = useState(PANEL_WIDTH_DEFAULT);
+  const widthRef = useRef(PANEL_WIDTH_DEFAULT);
+  const resizing = useRef(false);
   const orgId = org?.id;
 
+  function setPanelWidth(w: number) {
+    widthRef.current = w;
+    setPanelWidthState(w);
+  }
+
   useEffect(() => { setActiveTab("uebersicht"); }, [orgId]);
+
+  // Zuletzt gewählte Panel-Breite merken — pro Browser, nicht pro Org.
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(PANEL_WIDTH_KEY));
+      if (saved) setPanelWidth(clampPanelWidth(saved));
+    } catch { /* z.B. privater Modus — Standardbreite bleibt */ }
+  }, []);
+
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!resizing.current) return;
+      setPanelWidth(clampPanelWidth(window.innerWidth - e.clientX));
+    }
+    function onUp() {
+      if (!resizing.current) return;
+      resizing.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try { window.localStorage.setItem(PANEL_WIDTH_KEY, String(widthRef.current)); } catch { /* best effort */ }
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    resizing.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
 
   return (
     <>
@@ -751,10 +804,16 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }:
       />
 
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[560px] bg-[#0E111B] border-l border-[rgba(60,63,68,0.5)] shadow-2xl flex flex-col transform transition-transform duration-300 ${
+        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[var(--tb-panel-w)] bg-[#0E111B] border-l border-[rgba(60,63,68,0.5)] shadow-2xl flex flex-col transform transition-transform duration-300 ${
           org ? "translate-x-0" : "translate-x-full"
         }`}
+        style={{ "--tb-panel-w": `${panelWidth}px` } as React.CSSProperties}
       >
+        <div
+          onMouseDown={startResize}
+          title="Breite anpassen"
+          className="hidden sm:block absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize z-10 hover:bg-[#2862D7]/40 active:bg-[#2862D7]/60 transition-colors"
+        />
         {org && (
           <>
             <div className="flex-shrink-0 px-6 py-5 border-b border-[rgba(60,63,68,0.4)]">
@@ -788,7 +847,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }:
                 </div>
               </div>
 
-              <div className="flex gap-1 mt-4 overflow-x-auto">
+              <div className="flex gap-1 mt-4 overflow-x-auto scrollbar-dark">
                 {TAB_LABELS.map(t => (
                   <button
                     key={t.id}
@@ -805,7 +864,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }:
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5">
+            <div className="flex-1 overflow-y-auto px-6 py-5 scrollbar-dark">
               {activeTab === "uebersicht"     && <UebersichtTab    org={org} costs={costs} />}
               {activeTab === "mitglieder"     && <MitgliederTab    org={org} onToast={onToast} />}
               {activeTab === "auditlog"       && <AuditLogTab      org={org} />}
