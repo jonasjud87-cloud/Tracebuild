@@ -21,6 +21,26 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display, var(--font-sans, Arial, sans-serif));
 }
 
+/* ─── Native <select> dropdowns ────────────────────────── */
+/* The app UI (dashboard/admin) is dark throughout, but a plain <select>'s
+   open option list still falls back to the OS/browser default (light grey,
+   system-blue highlight) unless told otherwise. color-scheme hints the
+   browser to use its dark native-control theme; the option colours pin the
+   popup to the app palette on top of that. */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #172540;
+  color: #ffffff;
+}
+select option:checked,
+select option:hover,
+select option:focus {
+  background-color: #2862d7;
+  color: #ffffff;
+}
+
 
 /* ─── Landing redesign · design tokens ────────────────── */
 /* Palette values are the existing brand tokens, mapped to semantic roles.

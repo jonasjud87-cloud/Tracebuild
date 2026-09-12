@@ -421,6 +421,7 @@ function SortIndicator({ active, dir }: { active: boolean; dir: "asc" | "desc" }
 function AuditLogTab({ org }: { org: Organization }) {
   const [entries, setEntries] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [sort, setSort] = useState<{ key: AuditSortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
 
   const load = useCallback(async () => {
@@ -428,9 +429,16 @@ function AuditLogTab({ org }: { org: Organization }) {
     try {
       const res = await fetch(`/api/v1/admin/orgs/${org.id}/audit-log`);
       const json = await res.json().catch(() => null);
-      setEntries(json?.data ?? []);
+      if (res.ok && !json?.error) {
+        setEntries(json?.data ?? []);
+        setLoadError(null);
+      } else {
+        setEntries([]);
+        setLoadError(json?.error ?? "Audit-Log konnte nicht geladen werden.");
+      }
     } catch {
       setEntries([]);
+      setLoadError("Netzwerkfehler — Audit-Log konnte nicht geladen werden.");
     } finally {
       setLoading(false);
     }
@@ -456,6 +464,8 @@ function AuditLogTab({ org }: { org: Organization }) {
     <div className="space-y-4">
       {loading ? (
         <div className="py-8 text-center text-[#7B8299] text-sm">Lade Einträge…</div>
+      ) : loadError ? (
+        <div className="py-8 text-center text-sm text-red-400">{loadError}</div>
       ) : entries.length === 0 ? (
         <div className="py-8 text-center text-[#7B8299] text-sm">Noch keine Einträge.</div>
       ) : (
