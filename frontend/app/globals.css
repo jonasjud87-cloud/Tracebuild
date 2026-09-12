@@ -319,7 +319,8 @@ h1, h2, h3, h4, h5, h6 {
     mix-blend-mode: screen;
   }
 
-  .scrollbar-dark::-webkit-scrollbar              { width: 5px; }
+  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(133,166,233,0.28) transparent; }
+  .scrollbar-dark::-webkit-scrollbar              { width: 5px; height: 5px; }
   .scrollbar-dark::-webkit-scrollbar-track        { background: transparent; }
   .scrollbar-dark::-webkit-scrollbar-thumb        { background: rgba(133,166,233,0.22); border-radius: 3px; }
   .scrollbar-dark::-webkit-scrollbar-thumb:hover  { background: rgba(133,166,233,0.42); }

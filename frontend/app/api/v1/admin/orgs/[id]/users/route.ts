@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, unauthorized, forbidden, ok, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 const ADMIN_ROLES = ["super_admin"] as const;
-const ALLOWED_ROLES = ["org_admin", "project_manager", "member", "super_admin"];
+const ALLOWED_ROLES = ["org_admin", "project_manager", "member"];
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -46,6 +47,17 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     .single();
 
   if (error || !data) return err("Benutzer nicht gefunden", 404);
+
+  await logAudit(admin, {
+    orgId: params.id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "role_change",
+    targetId: userId,
+    targetEmail: data.email,
+    meta: { newRole: role },
+  });
+
   return ok(data);
 }
 
@@ -59,6 +71,14 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   if (!userId) return err("userId fehlt.");
 
   const admin = createAdminClient();
+
+  const { data: target } = await admin
+    .from("users")
+    .select("email")
+    .eq("id", userId)
+    .eq("org_id", params.id)
+    .maybeSingle();
+
   const { error } = await admin
     .from("users")
     .delete()
@@ -72,6 +92,15 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     await admin.auth.admin.updateUserById(userId, { app_metadata: { org_id: null, invited_role: null }, ban_duration: "876000h" });
   } catch { /* best effort — die users-Zeile ist bereits weg */ }
+
+  await logAudit(admin, {
+    orgId: params.id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "remove",
+    targetId: userId,
+    targetEmail: target?.email,
+  });
 
   return ok({ message: "Benutzer entfernt." });
 }
