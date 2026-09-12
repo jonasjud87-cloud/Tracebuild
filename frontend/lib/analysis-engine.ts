@@ -13,8 +13,15 @@
  * kaputter Teilcall kostet nur seine eigene Norm (deshalb überleben Teilergebnisse).
  *
  * Damit das PDF nicht N-mal bezahlt wird, liegt der Cache-Breakpoint hinter dem
- * stabilen Teil (System-Prompt + PDF). Der variable Teil — der Normtext — steht
- * dahinter. Call 1 schreibt den Cache, die restlichen N-1 lesen ihn für 10 %.
+ * stabilen Teil (System-Prompt + PDF + Referenzrahmen). Der variable Teil — der
+ * Normtext — steht dahinter. Call 1 schreibt den Cache, die restlichen N-1 lesen ihn für 10 %.
+ *
+ * Referenzrahmen: Jeder Norm-Call sieht zusätzlich die kommunalen Normen (Baureglement,
+ * Zonenschema) und die ÖREB-Fakten der Parzelle. Ohne das prüft der PBG-Call ein
+ * Winkelmass, das die Gemeinde gar nicht kennt, und jede Ebene erzeugt ihre eigene
+ * Gebäudehöhe — gemessen: 14 von 41 Prüfpunkten waren Dubletten. Mit Referenzrahmen
+ * gilt die Hierarchieregel (Gemeinde konkretisiert, Rahmennorm schweigt), und ein
+ * abschliessender Konsolidierungs-Call räumt die Reste weg.
  */
 
 import type Anthropic from "@anthropic-ai/sdk";
@@ -55,13 +62,30 @@ const EFFORT: "low" | "medium" | "high" = "medium";
 const RUN_BUDGET_MS = Number(process.env.ANALYSIS_BUDGET_MS ?? 235_000);
 
 /** Deckel für einen einzelnen Norm-Call, damit ein Ausreisser Zeit für den Rettungsversuch lässt. */
-const PER_CALL_BUDGET_MS = 130_000;
+const PER_CALL_BUDGET_MS = 150_000;
 
 /** Ab so viel Restzeit lohnt sich ein zweiter Versuch für eine gescheiterte Norm. */
 const RETRY_MIN_REMAINING_MS = 60_000;
 
 /** Wie lange maximal auf den Cache-Write von Call 1 gewartet wird, bevor gefächert wird. */
 const PREFILL_GATE_MAX_MS = 75_000;
+
+/** Zeit, die für den Konsolidierungs-Call am Ende reserviert wird (nur wenn das Budget das hergibt). */
+const CONSOLIDATION_RESERVE_MS = 40_000;
+const CONSOLIDATION_CALL_MS = 35_000;
+const CONSOLIDATION_MIN_BUDGET_MS = 150_000;
+
+/** Referenzrahmen (kommunale Normtexte) wird gedeckelt, damit der Cache-Prefix nicht explodiert. */
+const REFERENCE_MAX_CHARS = 160_000;
+
+/**
+ * Lange Normen werden an Artikelgrenzen in Teile geschnitten und parallel geprüft.
+ * Gemessen: das Baureglement Mels (53'825 Zeichen) braucht als Ganzes mit der
+ * Pflicht-Checkliste > 150 s Denkzeit — zwei Hälften laufen parallel in einem Bruchteil.
+ * Bundesnormen bleiben ganz: sie sind Rahmenrecht, liefern wenige Prüfpunkte und sind
+ * als Ganzes schnell (17–25 s). Schlüssel = layer.
+ */
+const CHUNK_CHARS_BY_LAYER: Record<number, number> = { 3: 50_000, 4: 25_000, 5: 25_000 };
 
 // ── Kategorien ────────────────────────────────────────────────────────────────
 
@@ -129,6 +153,25 @@ export interface NormInput {
   title: string;
   category: string | null;
   text: string;
+  /** 1 = Bund/International, 3 = Kanton, 4 = Gemeinde, 5 = Spezial/Org. */
+  layer?: number | null;
+  jurisdiction_type?: string | null;
+}
+
+/** Fakten aus dem ÖREB-Auszug der Parzelle — der Prüfer soll wissen, was nachweislich (nicht) gilt. */
+export interface OerebFacts {
+  affects: { code: string; name: string; legend: string | null; typeCode: string | null }[];
+  noData: string[];
+  notAffected: string[];
+}
+
+export interface ConsolidationResult {
+  applied: boolean;
+  raw_count: number;
+  merged: number;
+  downgraded: number;
+  error: string | null;
+  duration_ms: number;
 }
 
 export interface CheckItem {
@@ -146,6 +189,9 @@ export interface CheckItem {
 export interface NormCallResult {
   norm_id: string;
   norm_title: string;
+  /** Teil k von n, wenn die Norm in Teile geschnitten wurde; sonst 1/1. */
+  part: number;
+  parts: number;
   ok: boolean;
   error: string | null;
   stop_reason: string | null;
@@ -175,6 +221,8 @@ export interface AnalysisRunResult {
   model: string;
   /** Normen, für die kein sauberes Ergebnis vorliegt (Fehler, Timeout, max_tokens). */
   failed_norms: { norm_id: string; norm_title: string; error: string }[];
+  /** null = Konsolidierung war nicht vorgesehen (zu wenig Budget). */
+  consolidation: ConsolidationResult | null;
 }
 
 export type FileBlock = Anthropic.DocumentBlockParam | Anthropic.ImageBlockParam;
@@ -184,51 +232,263 @@ export interface ProjectContext {
   canton: string;
   bauzone: string;
   parcel?: string | null;
+  /** 'oereb' | 'manual' | null — sagt dem Prüfer, wie belastbar die Zone ist. */
+  zoneSource?: string | null;
+  oereb?: OerebFacts | null;
 }
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
 
-const SYSTEM_BASE = `Du bist ein Schweizer Baurechtsexperte und prüfst Baupläne auf Normkonformität.
+const SYSTEM_BASE = `Du bist ein Schweizer Baurechtsexperte (Architekt/Bauverwalter) und prüfst Baupläne auf Normkonformität.
 
 Du erhältst in jedem Auftrag:
 - den vollständigen Bauplan als PDF (alle Seiten, 1-basiert nummeriert)
-- den Projektkontext
-- GENAU EINE Norm mit ihrem vollständigen Text
+- den Projektkontext (Gemeinde, Kanton, Bauzone, Parzelle)
+- den REFERENZRAHMEN: ÖREB-Fakten der Parzelle und die kommunalen Normen (Baureglement,
+  Zonenschema). Er dient der Einordnung — er ist NICHT selbst zu prüfen, ausser er ist die
+  zu prüfende Norm.
+- GENAU EINE zu prüfende Norm.
 
-Deine Aufgabe:
-- Prüfe den Bauplan ausschliesslich gegen diese eine Norm. Andere Normen sind nicht dein Auftrag.
-- Zerlege die Norm in ihre prüfbaren Einzelbestimmungen (Artikel/Absätze) und gib pro
-  relevanter Bestimmung genau einen Prüfpunkt aus.
-- status: "ok" = anhand des Plans nachweislich eingehalten. "fail" = nachweislich verletzt.
-  "warn" = aus dem Plan nicht abschliessend beurteilbar oder Nachweis fehlt.
-- finding: was konkret im Plan gemessen/erkannt wurde — mit Massen, Kote, Bauteil und Seite.
-  Keine Wiederholung des Gesetzestextes, keine Floskeln. Ein Architekt liest das.
-- suggestion: eine konkrete, umsetzbare Massnahme. Bei status "ok" ein leerer String.
-- page_reference: PDF-Seitenzahl 1-basiert. 0, wenn kein Bezug auf eine einzelne Seite möglich ist.
+GRUNDREGEL: Prüfe den Bauplan ausschliesslich gegen die zu prüfende Norm.
+
+HIERARCHIE (wichtigste Regel gegen Dubletten):
+- Die Gemeinde konkretisiert Kanton und Bund. Regelt der Referenzrahmen einen Sachverhalt
+  abschliessend (z.B. Gebäude-/Firsthöhe, Geschosszahl, Grenz- und Strassenabstände,
+  Gebäudelänge, Ausnützung, Dachaufbauten, Parkierung, Terrainveränderung im Zonenschema
+  oder in Artikeln des Baureglements), dann erzeugst du in einer kantonalen oder
+  bundesrechtlichen Rahmennorm KEINEN eigenen Prüfpunkt zu diesem Sachverhalt. Der
+  Prüfpunkt entsteht im Auftrag der kommunalen Norm.
+- Nur wenn die Rahmennorm etwas Zusätzliches oder Strengeres verlangt, das kommunal nicht
+  geregelt ist, prüfst du es — und sagst im Befund, warum die Rahmennorm hier greift.
+- Prüfst du die kommunale Norm selbst: Sie ist massgebend; ziehe kantonale Begriffe nur
+  heran, wenn das Baureglement auf sie verweist.
+- Ein Messverfahren, das die Gemeinde nicht kennt (z.B. Winkelmass, wenn das Baureglement
+  mit Gebäude- und Firsthöhe arbeitet), wird nicht geprüft.
+
+RELEVANZ:
+- Nur Prüfpunkte zu Sachverhalten, die im Plan sichtbar sind oder die der Referenzrahmen
+  (ÖREB) belegt. Keine spekulativen Prüfpunkte über nicht ersichtliche Umstände
+  (Altlasten, Rückbau, Inventare, Gewässerraum), wenn ÖREB sie als nicht betroffen ausweist
+  oder nichts darauf hindeutet. Sagt ÖREB "nicht betroffen", darf ein einzelner
+  ok-Prüfpunkt das festhalten — nicht mehrere.
+- Bestimmungen, die auf dieses Projekt nicht anwendbar sind, lässt du weg. Gibt die Norm
+  für diesen Plan keinen relevanten Prüfpunkt her, liefere eine leere Liste.
+- Pro Sachverhalt genau ein Prüfpunkt. Keine drei Prüfpunkte zum selben Thema mit
+  unterschiedlichem Status.
+
+PFLICHT-CHECKLISTE für Bauten in Wohn-/Kern-/Mischzonen — für jeden Punkt, den DIE ZU
+PRÜFENDE NORM regelt, MUSS ein Prüfpunkt entstehen (ok, warn oder fail):
+  1. Geschosszahl inkl. Regeln für Dach- und Untergeschoss (Kniestock, Terrainhöhen,
+     anrechenbare Geschosse) — Grenzfälle explizit benennen.
+  2. Ausnützungs-/Überbauungs-/Baumassenziffer — fehlt die Berechnung oder die
+     Parzellenfläche im Plansatz, ist das ein warn mit dem konkreten Hinweis, was fehlt.
+  3. Gebäudehöhe und Firsthöhe (aus den Koten rechnen: Terrain, OK Fertigboden, First).
+  4. Kleiner und grosser Grenzabstand je Fassade; Strassenabstand; welche Regel vorgeht.
+  5. Gebäudelänge / Fassadenlänge.
+  6. Vorbauten, Dachaufbauten, Dacheinschnitte (Masse und Anteilsregeln).
+  7. Parkierung: Anzahl nach der massgebenden Bezugsgrösse (z.B. anrechenbare
+     Geschossfläche, Wohnungen) inkl. Rundungsregel, Besucherplätze, Vorplatz vor
+     Garagen/Unterständen, Anordnung, Zufahrt.
+  8. Terrainveränderungen, Abgrabungen, Stützmauern.
+  9. Lärmempfindlichkeitsstufe und daraus folgende Anforderungen.
+ 10. Wohnhygiene: Raumhöhen, Mindestflächen, Fensteranteile, Abstellräume, Treppen.
+ 11. Vollständigkeit der Baugesuchsunterlagen (Situationsplan, Kanalisation, Nachweise).
+ 12. Gewässer-, Wald-, Strassenabstände laut ÖREB/Referenzrahmen.
+
+STATUS-REGELN:
+- "ok" NUR, wenn der Plan die Einhaltung positiv belegt (Masse/Koten vorhanden und
+  gerechnet). Fehlt der Nachweis oder muss etwas "nachgewiesen/ergänzt" werden → "warn".
+  Ein "ok" hat deshalb nie eine Empfehlung.
+- "fail" = anhand des Plans nachweislich verletzt (Zahl gegen Grenzwert).
+- "warn" = nicht abschliessend beurteilbar, Nachweis fehlt, oder Grenzfall mit Auslegungsbedarf.
+- Exakt am Grenzwert oder Reserve unter 5 cm: "ok", aber im Befund ausdrücklich
+  "exakt am Limit / Reserve x cm" schreiben und in der confidence "medium" wählen, wenn
+  die Messgenauigkeit des Plans das nicht hergibt.
+- Rundungsregeln der Norm anwenden (z.B. Bruchteile aufrunden).
+
+FORM:
+- norm_title: Artikel und Absatz der geprüften Bestimmung plus Stichwort, z.B.
+  "Art. 15 Abs. 2 BauR Mels – Geschosszahl / Kniestock".
+- finding: was konkret im Plan gemessen/erkannt wurde — Masse, Koten, Bauteil, Seite,
+  und der Vergleich mit dem Grenzwert. Maximal 400 Zeichen. Keine Wiederholung des
+  Gesetzestextes, keine Floskeln. Ein Architekt liest das.
+- suggestion: eine konkrete, umsetzbare Massnahme, maximal 250 Zeichen. Bei "ok" leer.
+- page_reference: PDF-Seitenzahl 1-basiert. 0 nur, wenn kein Seitenbezug möglich ist.
 - confidence: "high" nur, wenn der Plan die Angabe wirklich hergibt.
-- Bestimmungen, die auf dieses Projekt gar nicht anwendbar sind, lässt du weg — ausser die
-  Nichtanwendbarkeit ist selbst ein relevanter Befund (z.B. Schwellenwert knapp unterschritten).
 - Maximal ${MAX_CHECKS_PER_NORM} Prüfpunkte. Priorisiere fail vor warn vor ok.
-- Wähle die category aus der vorgegebenen Liste; "andere" nur, wenn nichts passt.`;
+- category aus der vorgegebenen Liste; "andere" nur, wenn nichts passt.`;
 
 export function buildSystemPrompt(ctx: ProjectContext): string {
+  const zoneNote =
+    ctx.zoneSource === "oereb"
+      ? " (aus dem ÖREB-Kataster, verbindlich)"
+      : ctx.zoneSource === "manual"
+        ? " (manuell erfasst)"
+        : "";
   return (
     `${SYSTEM_BASE}\n\n` +
     `PROJEKTKONTEXT (gilt für alle Prüfungen):\n` +
     `- Gemeinde: ${ctx.municipality || "unbekannt"}\n` +
     `- Kanton: ${ctx.canton || "unbekannt"}\n` +
-    `- Bauzone: ${ctx.bauzone || "unbekannt"}\n` +
+    `- Bauzone: ${ctx.bauzone || "unbekannt"}${ctx.bauzone ? zoneNote : ""}\n` +
     (ctx.parcel ? `- Parzelle: ${ctx.parcel}\n` : "")
   );
 }
 
-export function buildNormBlock(norm: NormInput, index: number, total: number): string {
-  return (
-    `ZU PRÜFENDE NORM (${index + 1} von ${total}):\n` +
+/** Kommunale Normen (Layer 4) bilden den Referenzrahmen — Baureglement, Zonenschema, Sondernutzungspläne. */
+export function isReferenceNorm(norm: NormInput): boolean {
+  return norm.layer === 4 || norm.jurisdiction_type === "municipal";
+}
+
+/**
+ * Referenzrahmen: ÖREB-Fakten + Volltext der kommunalen Normen. Steht in jedem Call
+ * VOR dem Cache-Breakpoint, ist also über alle Calls byte-identisch.
+ */
+export function buildReferenceBlock(ctx: ProjectContext, referenceNorms: NormInput[]): string {
+  const lines: string[] = ["REFERENZRAHMEN (zur Einordnung — nicht selbst zu prüfen, ausser es ist die zu prüfende Norm)"];
+
+  const o = ctx.oereb;
+  if (o) {
+    lines.push("", "ÖREB-Kataster der Parzelle (amtlich):");
+    if (o.affects.length) {
+      lines.push("- Betroffen:");
+      for (const a of o.affects) {
+        lines.push(`  · ${a.name}${a.legend ? `: ${a.legend}` : ""}${a.typeCode ? ` [${a.typeCode}]` : ""}`);
+      }
+    } else {
+      lines.push("- Betroffen: keine Einschränkung erfasst");
+    }
+    if (o.notAffected.length) lines.push(`- Nicht betroffen: ${o.notAffected.join(", ")}`);
+    if (o.noData.length) lines.push(`- Ohne Daten im Kataster: ${o.noData.join(", ")}`);
+  } else {
+    lines.push("", "ÖREB-Kataster: kein Auszug vorhanden.");
+  }
+
+  if (referenceNorms.length === 0) {
+    lines.push("", "Kommunale Normen: keine hinterlegt. Die Hierarchieregel entfällt — prüfe die Rahmennorm vollständig.");
+    return lines.join("\n");
+  }
+
+  let budget = REFERENCE_MAX_CHARS;
+  lines.push("", `Kommunale Normen (${referenceNorms.length}):`);
+  for (const n of referenceNorms) {
+    const text = n.text.length > budget ? n.text.slice(0, Math.max(0, budget)) + "\n[… gekürzt …]" : n.text;
+    budget -= text.length;
+    lines.push("", `=== ${n.title}${n.category ? ` (${n.category})` : ""} ===`, text, `=== ENDE ${n.title} ===`);
+    if (budget <= 0) break;
+  }
+  return lines.join("\n");
+}
+
+/** Ein Prüfauftrag: eine Norm oder ein Artikel-Abschnitt davon. */
+export interface NormPart {
+  norm: NormInput;
+  part: number;
+  parts: number;
+  text: string;
+  /** Erster/letzter Artikel im Teil — nur zur Beschriftung. */
+  range: string | null;
+}
+
+const ARTICLE_RE = /(?:^|\n)\s*(?:Art(?:ikel|\.)\s*\d+[a-z]?)\b/g;
+
+/**
+ * Schneidet einen Normtext an Artikelgrenzen in Stücke von höchstens `limit` Zeichen.
+ * Findet sich keine Artikelstruktur, wird an Absatzgrenzen geschnitten.
+ */
+export function splitNormText(text: string, limit: number): string[] {
+  if (text.length <= limit) return [text];
+
+  const cuts: number[] = [];
+  for (const m of Array.from(text.matchAll(ARTICLE_RE))) {
+    const at = m.index! + (m[0].startsWith("\n") ? 1 : 0);
+    if (at > 0) cuts.push(at);
+  }
+  // Ohne brauchbare Artikelgrenzen: Absätze.
+  const boundaries = cuts.length >= 2 ? cuts : Array.from(text.matchAll(/\n\s*\n/g), (m) => m.index! + m[0].length);
+
+  const parts: string[] = [];
+  let start = 0;
+  let lastCut = 0;
+  for (const b of boundaries) {
+    if (b - start > limit && lastCut > start) {
+      parts.push(text.slice(start, lastCut));
+      start = lastCut;
+    }
+    lastCut = b;
+  }
+  // Rest — notfalls hart schneiden, wenn ein einzelner Abschnitt das Limit sprengt.
+  let rest = text.slice(start);
+  while (rest.length > limit * 1.5) {
+    parts.push(rest.slice(0, limit));
+    rest = rest.slice(limit);
+  }
+  if (rest.trim()) parts.push(rest);
+  const clean = parts.filter((p) => p.trim().length > 0);
+  // Ein winziger Schwanz (Änderungstabelle, Inkrafttreten) ist keinen eigenen Call wert.
+  if (clean.length > 1 && clean[clean.length - 1].length < 2_000) {
+    clean[clean.length - 2] += clean[clean.length - 1];
+    clean.pop();
+  }
+  return clean;
+}
+
+/** Erster Artikel, der im Text als Überschrift auftaucht (nicht ein Querverweis mitten im Satz). */
+function firstArticle(text: string): string | null {
+  const m = text.match(/(?:^|\n)\s*Art(?:ikel|\.)\s*(\d+[a-z]?)\b/);
+  return m ? m[1] : null;
+}
+
+/** Zerlegt die Normen in Prüfaufträge (Teile) gemäss CHUNK_CHARS_BY_LAYER. */
+export function toNormParts(norms: NormInput[]): NormPart[] {
+  const out: NormPart[] = [];
+  for (const norm of norms) {
+    const limit = CHUNK_CHARS_BY_LAYER[norm.layer ?? 0];
+    const pieces = limit ? splitNormText(norm.text, limit) : [norm.text];
+    const starts = pieces.map(firstArticle);
+    pieces.forEach((text, i) => {
+      let range: string | null = null;
+      if (pieces.length > 1) {
+        const from = i === 0 ? "Anfang" : starts[i] ? `Art. ${starts[i]}` : `Teil ${i + 1}`;
+        const next = starts[i + 1];
+        range = i === pieces.length - 1 ? `${from} bis Ende` : next ? `${from} bis vor Art. ${next}` : `${from} ff.`;
+      }
+      out.push({ norm, part: i + 1, parts: pieces.length, text, range });
+    });
+  }
+  return out;
+}
+
+export function partLabel(p: NormPart): string {
+  return p.parts > 1 ? `${p.norm.title} (Teil ${p.part}/${p.parts}${p.range ? `, ${p.range}` : ""})` : p.norm.title;
+}
+
+export function buildNormBlock(p: NormPart, index: number, total: number, inReference: boolean = false): string {
+  const norm = p.norm;
+  const head =
+    `ZU PRÜFENDE NORM (Auftrag ${index + 1} von ${total}):\n` +
     `Titel: ${norm.title}\n` +
-    `Kategorie: ${norm.category ?? "unbekannt"}\n` +
-    `--- NORMTEXT ANFANG ---\n${norm.text}\n--- NORMTEXT ENDE ---\n\n` +
-    `Prüfe den beigefügten Bauplan gegen diese Norm.`
+    `Ebene: ${norm.layer === 4 ? "Gemeinde" : norm.layer === 3 ? "Kanton" : norm.layer === 1 ? "Bund" : "Spezialnorm"}\n` +
+    `Kategorie: ${norm.category ?? "unbekannt"}\n`;
+  const scope =
+    p.parts > 1
+      ? `Diese Norm ist in ${p.parts} Teile aufgeteilt; dieser Auftrag umfasst NUR Teil ${p.part}` +
+        `${p.range ? ` (${p.range})` : ""}. Bestimmungen ausserhalb dieses Teils prüfen andere Aufträge — ` +
+        `erzeuge dafür keine Prüfpunkte.\n`
+      : "";
+  if (inReference) {
+    return (
+      head + scope +
+      `Der vollständige Text dieser Norm steht bereits im Referenzrahmen oben unter "=== ${norm.title} ==="; ` +
+      `sie ist die massgebende kommunale Norm.\n` +
+      (p.parts > 1 ? `--- ZU PRÜFENDER ABSCHNITT ANFANG ---\n${p.text}\n--- ZU PRÜFENDER ABSCHNITT ENDE ---\n\n` : "") +
+      `Prüfe den beigefügten Bauplan gegen ${p.parts > 1 ? "diesen Abschnitt" : "diese Norm"}.`
+    );
+  }
+  return (
+    head + scope +
+    `--- NORMTEXT ANFANG ---\n${p.text}\n--- NORMTEXT ENDE ---\n\n` +
+    `Prüfe den beigefügten Bauplan gegen ${p.parts > 1 ? "diesen Abschnitt" : "diese Norm"}.`
   );
 }
 
@@ -272,6 +532,181 @@ export const CHECK_OUTPUT_SCHEMA = {
     additionalProperties: false,
   },
 };
+
+// ── Konsolidierung ────────────────────────────────────────────────────────────
+
+const CONSOLIDATION_SYSTEM = `Du konsolidierst die Prüfpunkte einer Bauplan-Analyse. Die Prüfpunkte stammen aus
+getrennten Prüfungen je Norm (Bund, Kanton, Gemeinde) und wurden bereits gegen den Plan geprüft.
+
+Aufgaben — und NUR diese:
+1. DUBLETTEN: Zwei oder mehr Prüfpunkte prüfen denselben Sachverhalt am selben Bauteil
+   (z.B. Gebäudehöhe nach PBG und nach Baureglement; kleiner Grenzabstand West aus zwei
+   Normen). Lege sie zusammen: behalte den Prüfpunkt der spezifischsten Norm (Gemeinde vor
+   Kanton vor Bund, bei Gleichstand den mit den konkreteren Zahlen), gib ihm den strengeren
+   Status der Gruppe und einen Titel, der beide Artikel nennt.
+2. WIDERSPRÜCHE: Ein "ok"-Prüfpunkt, dem ein anderer Prüfpunkt widerspricht (z.B.
+   "Unterlagen vollständig" vs. "Kanalisationsplan fehlt") oder dessen eigene Empfehlung
+   einen Nachweis fordert ("nachweisen", "ergänzen", "einreichen") → auf "warn" herabstufen
+   mit kurzer Begründung.
+
+Regeln:
+- Erfinde keine Prüfpunkte, ändere keine Befundtexte, stufe nichts hoch.
+- Verschiedene Bauteile/Fassaden/Seiten sind KEINE Dubletten.
+- Im Zweifel nicht zusammenlegen.`;
+
+const CONSOLIDATION_SCHEMA = {
+  type: "json_schema" as const,
+  schema: {
+    type: "object",
+    properties: {
+      merges: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            keep:  { type: "string", description: "ID des Prüfpunkts, der bleibt" },
+            drop:  { type: "array", items: { type: "string" }, description: "IDs, die darin aufgehen" },
+            title: { type: "string", description: "Neuer Titel mit beiden Artikeln; leer = unverändert" },
+          },
+          required: ["keep", "drop", "title"],
+          additionalProperties: false,
+        },
+      },
+      downgrades: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            id:     { type: "string" },
+            reason: { type: "string", description: "Warum ok → warn, maximal 200 Zeichen" },
+          },
+          required: ["id", "reason"],
+          additionalProperties: false,
+        },
+      },
+    },
+    required: ["merges", "downgrades"],
+    additionalProperties: false,
+  },
+};
+
+const SEVERITY: Record<Status, number> = { fail: 0, warn: 1, ok: 2 };
+
+function layerOf(norms: NormInput[], normId: string | null): number {
+  return norms.find((n) => n.id === normId)?.layer ?? 9;
+}
+
+/**
+ * Ein Call, kein PDF, kein Cache: bekommt alle Prüfpunkte kompakt und liefert nur
+ * Anweisungen (zusammenlegen / herabstufen), die deterministisch angewendet werden.
+ * Wirft nie; ohne Ergebnis bleiben die Items unverändert.
+ */
+async function consolidateItems(
+  items: CheckItem[],
+  norms: NormInput[],
+  deadlineAt: number,
+  cancelSignal: AbortSignal | null,
+): Promise<{ items: CheckItem[]; result: ConsolidationResult; usage: UsageTotals }> {
+  const startedAt = Date.now();
+  const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
+  const base: ConsolidationResult = { applied: false, raw_count: items.length, merged: 0, downgraded: 0, error: null, duration_ms: 0 };
+  const done = (error: string | null, out: CheckItem[], merged = 0, downgraded = 0) => ({
+    items: out,
+    result: { ...base, applied: error === null, merged, downgraded, error, duration_ms: Date.now() - startedAt },
+    usage,
+  });
+
+  if (items.length < 2) return done(null, items);
+  if (cancelSignal?.aborted) return done("Analyse abgebrochen", items);
+
+  const ids = new Map<string, CheckItem>();
+  const listing = items.map((it, i) => {
+    const key = `c${i + 1}`;
+    ids.set(key, it);
+    const layer = layerOf(norms, it.norm_id);
+    const ebene = layer === 4 ? "Gemeinde" : layer === 3 ? "Kanton" : layer === 1 ? "Bund" : "Spezial";
+    return `${key} | ${ebene} | ${it.status} | ${it.category} | ${it.norm_title} | ${it.finding.slice(0, 300)}` +
+      (it.suggestion ? ` | Empfehlung: ${it.suggestion.slice(0, 150)}` : "");
+  });
+
+  const controller = new AbortController();
+  const onCancel = () => controller.abort();
+  cancelSignal?.addEventListener("abort", onCancel, { once: true });
+  const remaining = Math.min(CONSOLIDATION_CALL_MS, deadlineAt - Date.now());
+  const killTimer = setTimeout(() => controller.abort(), Math.max(1_000, remaining));
+
+  try {
+    if (remaining < 8_000) return done("Zeitbudget für Konsolidierung aufgebraucht", items);
+
+    const message = await anthropic.messages.create(
+      {
+        model: ANALYSIS_MODEL,
+        max_tokens: 4_000,
+        system: [{ type: "text", text: CONSOLIDATION_SYSTEM }],
+        messages: [{ role: "user", content: `PRÜFPUNKTE (id | Ebene | status | category | Titel | Befund | Empfehlung):
+${listing.join("\n")}` }],
+        thinking: { type: "adaptive" },
+        output_config: { effort: "low", format: CONSOLIDATION_SCHEMA },
+      },
+      { timeout: Math.max(5_000, remaining), signal: controller.signal },
+    );
+    usage.input_tokens = message.usage.input_tokens ?? 0;
+    usage.output_tokens = message.usage.output_tokens ?? 0;
+
+    if (message.stop_reason !== "end_turn") return done(`Konsolidierung: stop_reason ${message.stop_reason}`, items);
+    const text = message.content.filter((b): b is Anthropic.TextBlock => b.type === "text").map((b) => b.text).join("");
+    const parsed = JSON.parse(text) as {
+      merges: { keep: string; drop: string[]; title: string }[];
+      downgrades: { id: string; reason: string }[];
+    };
+
+    const dropped = new Set<string>();
+    let merged = 0;
+    for (const m of parsed.merges ?? []) {
+      const keep = ids.get(m.keep);
+      if (!keep || dropped.has(m.keep)) continue;
+      const drops = (m.drop ?? []).filter((d) => d !== m.keep && ids.has(d) && !dropped.has(d));
+      if (drops.length === 0) continue;
+      // Strengster Status der Gruppe gewinnt; der Text bleibt der des behaltenen Punkts.
+      let strictest = keep.status;
+      for (const d of drops) {
+        const it = ids.get(d)!;
+        if (SEVERITY[it.status] < SEVERITY[strictest]) strictest = it.status;
+        if (!keep.suggestion && it.suggestion && strictest !== "ok") keep.suggestion = it.suggestion;
+        dropped.add(d);
+        merged++;
+      }
+      keep.status = strictest;
+      if (strictest === "ok") keep.suggestion = null;
+      const title = (m.title ?? "").trim();
+      if (title) keep.norm_title = title.slice(0, 500);
+    }
+
+    let downgraded = 0;
+    for (const d of parsed.downgrades ?? []) {
+      const it = ids.get(d.id);
+      if (!it || dropped.has(d.id) || it.status !== "ok") continue;
+      it.status = "warn";
+      const reason = (d.reason ?? "").trim().slice(0, 200);
+      if (reason && !it.suggestion) it.suggestion = reason;
+      if (it.confidence === "high") it.confidence = "medium";
+      downgraded++;
+    }
+
+    const out = items.filter((_, i) => !dropped.has(`c${i + 1}`));
+    return done(null, out, merged, downgraded);
+  } catch (e) {
+    const msg = cancelSignal?.aborted
+      ? "Analyse abgebrochen"
+      : controller.signal.aborted
+        ? "Zeitbudget für Konsolidierung überschritten"
+        : e instanceof Error ? e.message : String(e);
+    return done(msg, items);
+  } finally {
+    clearTimeout(killTimer);
+    cancelSignal?.removeEventListener("abort", onCancel);
+  }
+}
 
 // ── Parsing ───────────────────────────────────────────────────────────────────
 
@@ -378,16 +813,19 @@ function isTimeoutError(msg: string | null): boolean {
 }
 
 async function analyseOneNorm(
-  norm: NormInput,
+  part: NormPart,
   index: number,
   total: number,
   system: string,
   fileBlock: FileBlock,
+  referenceBlock: string,
+  inReference: boolean,
   runDeadlineAt: number,
   onPrefillDone: (() => void) | null,
   effort: "low" | "medium" | "high" = EFFORT,
   cancelSignal: AbortSignal | null = null,
 ): Promise<CallOutcome> {
+  const norm = part.norm;
   const startedAt = Date.now();
   const deadlineAt = Math.min(runDeadlineAt, startedAt + PER_CALL_BUDGET_MS);
   const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
@@ -417,13 +855,14 @@ async function analyseOneNorm(
     if (remaining <= 5_000) throw new Error("Zeitbudget aufgebraucht, bevor der Call startete");
 
     // Cache-Grenze: alles VOR dem Breakpoint ist über alle Norm-Calls byte-identisch
-    // (system + PDF). Der Normtext steht dahinter und variiert pro Call.
+    // (system + PDF + Referenzrahmen). Der Normtext steht dahinter und variiert pro Call.
     const messages: Anthropic.MessageParam[] = [
       {
         role: "user",
         content: [
-          { ...fileBlock, cache_control: { type: "ephemeral" } } as FileBlock,
-          { type: "text", text: buildNormBlock(norm, index, total) },
+          fileBlock,
+          { type: "text", text: referenceBlock, cache_control: { type: "ephemeral" } },
+          { type: "text", text: buildNormBlock(part, index, total, inReference) },
         ],
       },
     ];
@@ -491,7 +930,8 @@ async function analyseOneNorm(
     fireGate();
   }
 
-  // Auch bei Fehler wird geborgen, was da ist — Prüfpunkte gehen nicht verloren.
+  // Bergung greift, wenn eine Antwort vollständig ankam, aber nicht sauber parst.
+  // Bei Abbruch/Timeout vor finalMessage() ist text leer — dann gibt es nichts zu bergen.
   let items: CheckItem[] = [];
   if (text.trim().length > 0) {
     items = parseChecks(text)
@@ -499,15 +939,16 @@ async function analyseOneNorm(
       .filter((it) => it.finding.length > 0)
       .slice(0, MAX_CHECKS_PER_NORM);
   }
-  if (items.length === 0 && !error) {
-    error = "Modell lieferte keine Prüfpunkte";
-  }
+  // 0 Prüfpunkte bei sauberem end_turn sind ein gültiges Ergebnis: Die Norm hat für
+  // diesen Plan nichts Relevantes (der Prompt erlaubt die leere Liste ausdrücklich).
 
   return {
     items,
     result: {
       norm_id: norm.id,
-      norm_title: norm.title,
+      norm_title: partLabel(part),
+      part: part.part,
+      parts: part.parts,
       ok: error === null,
       error,
       stop_reason: stopReason,
@@ -536,16 +977,35 @@ async function analyseOneNorm(
  * Prüfpunkte bleiben erhalten.
  */
 export async function runNormAnalysis(
-  norms: NormInput[],
+  normsInput: NormInput[],
   fileBlock: FileBlock,
   ctx: ProjectContext,
   budgetMs: number = RUN_BUDGET_MS,
   cancelSignal: AbortSignal | null = null,
 ): Promise<AnalysisRunResult> {
   const startedAt = Date.now();
-  const deadlineAt = startedAt + budgetMs;
+  const runDeadlineAt = startedAt + budgetMs;
+  // Konsolidierung nur, wenn das Budget sie hergibt — sonst bekommt die Norm-Phase alles.
+  const withConsolidation = budgetMs >= CONSOLIDATION_MIN_BUDGET_MS;
+  const deadlineAt = withConsolidation ? runDeadlineAt - CONSOLIDATION_RESERVE_MS : runDeadlineAt;
   const system = buildSystemPrompt(ctx);
-  const total = norms.length;
+  // Reihenfolge: kommunale Normen zuerst (längste Calls, sie schreiben ohnehin den
+  // Cache), dann nach Textlänge — der langsamste Call bekommt das grösste Zeitfenster.
+  const norms = normsInput.slice().sort((a, b) => {
+    const ra = isReferenceNorm(a) ? 0 : 1, rb = isReferenceNorm(b) ? 0 : 1;
+    return ra - rb || b.text.length - a.text.length;
+  });
+  const referenceNorms = norms.filter(isReferenceNorm);
+  const referenceIds = new Set(referenceNorms.map((n) => n.id));
+  const referenceBlock = buildReferenceBlock(ctx, referenceNorms);
+  const units = toNormParts(norms);
+  const total = units.length;
+  const call = (
+    unit: NormPart, index: number, gate: (() => void) | null, effort?: "low" | "medium" | "high",
+  ) => analyseOneNorm(
+    unit, index, total, system, fileBlock, referenceBlock, referenceIds.has(unit.norm.id),
+    deadlineAt, gate, effort ?? EFFORT, cancelSignal,
+  );
 
   const outcomes: CallOutcome[] = [];
 
@@ -554,20 +1014,22 @@ export async function runNormAnalysis(
     let openGate: () => void = () => {};
     const gate = new Promise<void>((resolve) => { openGate = resolve; });
 
-    const firstPromise = analyseOneNorm(norms[0], 0, total, system, fileBlock, deadlineAt, openGate, EFFORT, cancelSignal);
+    const firstPromise = call(units[0], 0, openGate);
 
+    let gateTimer: ReturnType<typeof setTimeout> | null = null;
     await Promise.race([
       gate,
-      new Promise<void>((resolve) => setTimeout(resolve, PREFILL_GATE_MAX_MS)),
+      new Promise<void>((resolve) => { gateTimer = setTimeout(resolve, PREFILL_GATE_MAX_MS); }),
     ]);
+    if (gateTimer) clearTimeout(gateTimer);
 
-    const rest = norms.slice(1);
+    const rest = units.slice(1);
     const restOutcomes: CallOutcome[] = [];
     for (let offset = 0; offset < rest.length; offset += MAX_CONCURRENCY) {
       if (cancelSignal?.aborted) break;
       const wave = rest.slice(offset, offset + MAX_CONCURRENCY);
       const settled = await Promise.all(
-        wave.map((n, k) => analyseOneNorm(n, offset + k + 1, total, system, fileBlock, deadlineAt, null, EFFORT, cancelSignal)),
+        wave.map((n, k) => call(n, offset + k + 1, null)),
       );
       restOutcomes.push(...settled);
     }
@@ -583,13 +1045,15 @@ export async function runNormAnalysis(
       if (cancelSignal?.aborted) break;
       if (deadlineAt - Date.now() < RETRY_MIN_REMAINING_MS) break;
 
-      const normIndex = norms.findIndex((n) => n.id === o.result.norm_id);
-      if (normIndex < 0) continue;
+      // outcomes[i] gehört zu units[i] (gleiche Reihenfolge: erster Call + Wellen).
+      const unit = units[i];
+      if (!unit) continue;
+      // Hinweis: ein anderer effort invalidiert den Prompt-Cache (Doku) — der Retry
+      // schreibt den Prefix neu. Bewusst in Kauf genommen, sonst läuft er in dieselbe Wand.
       const retryEffort = isTimeoutError(o.result.error) ? "low" : EFFORT;
-      const retry = await analyseOneNorm(
-        norms[normIndex], normIndex, total, system, fileBlock, deadlineAt, null, retryEffort, cancelSignal,
-      );
+      const retry = await call(unit, i, null, retryEffort);
       retry.result.retried = true;
+      if (!retry.result.ok && o.result.error) retry.result.error = `${retry.result.error} (1. Versuch: ${o.result.error})`;
       // Der Versuch mit mehr Prüfpunkten gewinnt; die Tokens beider Versuche zählen.
       if (retry.result.ok || retry.items.length > o.items.length) {
         retry.result.input_tokens += o.result.input_tokens;
@@ -616,8 +1080,19 @@ export async function runNormAnalysis(
     usage.output_tokens += o.result.output_tokens;
   }
 
+  // Konsolidierung: Dubletten über Normen hinweg zusammenlegen, widersprüchliche "ok" abstufen.
+  let items = outcomes.flatMap((o) => o.items);
+  let consolidation: ConsolidationResult | null = null;
+  if (withConsolidation && !cancelSignal?.aborted) {
+    const c = await consolidateItems(items, norms, runDeadlineAt, cancelSignal);
+    items = c.items;
+    consolidation = c.result;
+    usage.input_tokens += c.usage.input_tokens;
+    usage.output_tokens += c.usage.output_tokens;
+  }
+
   return {
-    items: outcomes.flatMap((o) => o.items),
+    items,
     calls: outcomes.map((o) => o.result),
     usage,
     cost_usd: computeCost(usage),
@@ -626,5 +1101,6 @@ export async function runNormAnalysis(
     failed_norms: outcomes
       .filter((o) => !o.result.ok)
       .map((o) => ({ norm_id: o.result.norm_id, norm_title: o.result.norm_title, error: o.result.error ?? "unbekannt" })),
+    consolidation,
   };
 }

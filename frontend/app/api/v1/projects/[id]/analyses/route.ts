@@ -8,12 +8,13 @@ import {
   type CheckItem,
   type FileBlock,
   type NormInput,
+  type OerebFacts,
 } from "@/lib/analysis-engine";
 
 export const maxDuration = 300;
 
 /** Zeitdeckel für die Modell-Phase, gemessen ab Beginn der Route (Vercel killt bei 300 s). */
-const ROUTE_MODEL_BUDGET_MS = 250_000;
+const ROUTE_MODEL_BUDGET_MS = 265_000;
 
 // ── Norm-Auswahl ──────────────────────────────────────────────────────────────
 
@@ -25,6 +26,7 @@ interface ProjectNormRow {
     text: string | null;
     layer: number;
     zone: string | null;
+    jurisdiction_type?: string | null;
   } | null;
 }
 
@@ -50,11 +52,53 @@ function selectNorms(
     .filter((n): n is NonNullable<ProjectNormRow["norms"]> => !!n)
     .filter((n) => normMatchesZone(n.zone, projectZone))
     .filter((n) => (n.text ?? "").trim().length > 0)
-    .map<NormInput>((n) => ({ id: n.id, title: n.title, category: n.category, text: n.text ?? "" }));
+    .map<NormInput>((n) => ({
+      id: n.id, title: n.title, category: n.category, text: n.text ?? "",
+      layer: n.layer, jurisdiction_type: n.jurisdiction_type ?? null,
+    }));
 
   return applicable.length > 0
     ? { norms: applicable, source: "project_norms" }
     : { norms: [FALLBACK_NORM], source: "fallback" };
+}
+
+// ── ÖREB-Fakten ──────────────────────────────────────────────────────────────
+
+/**
+ * Was der Kataster über die Parzelle sagt — damit der Prüfer weiss, was amtlich gilt
+ * (Zone, Lärm-ES) und was nachweislich nicht betroffen ist (Gewässer, Wald). Wirft nie;
+ * ohne Auszug oder ohne Migration gibt es einfach keinen ÖREB-Block.
+ */
+async function loadOerebFacts(
+  admin: ReturnType<typeof createAdminClient>,
+  projectId: string,
+): Promise<OerebFacts | null> {
+  try {
+    const { data: extract, error } = await admin
+      .from("oereb_extracts")
+      .select("id, status")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (error || !extract || extract.status !== "ok") return null;
+
+    const { data: themes, error: thErr } = await admin
+      .from("oereb_themes")
+      .select("theme_code, theme_name, concern, legend_text, type_code")
+      .eq("extract_id", extract.id);
+    if (thErr || !themes) return null;
+
+    const affects = themes
+      .filter((t) => t.concern === "affects")
+      .map((t) => ({ code: t.theme_code, name: t.theme_name, legend: t.legend_text ?? null, typeCode: t.type_code ?? null }));
+    const uniq = (xs: string[]) => Array.from(new Set(xs));
+    return {
+      affects,
+      noData: uniq(themes.filter((t) => t.concern === "no_data").map((t) => t.theme_name)),
+      notAffected: uniq(themes.filter((t) => t.concern === "not_affects").map((t) => t.theme_name)),
+    };
+  } catch {
+    return null;
+  }
 }
 
 // ── GET ───────────────────────────────────────────────────────────────────────
@@ -122,32 +166,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const base64Data = fileBytes.toString("base64");
   const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
 
-  // Upload to Supabase Storage
-  const storagePath = `${params.id}/${crypto.randomUUID()}_${file.name}`;
-  const { data: uploadData, error: uploadError } = await admin.storage
-    .from("documents")
-    .upload(storagePath, fileBytes, { contentType: file.type || "application/pdf" });
-
-  if (uploadError) {
-    console.error(`Storage upload failed for ${storagePath}:`, uploadError);
-  }
-
-  // documents.file_url is NOT NULL — fall back to "" (never a bare storage
-  // path) so the frontend's `fileUrl || null` check reliably shows the
-  // "Keine Vorschau verfügbar" state instead of trying to load a non-URL string.
-  const fileUrl = uploadData && !uploadError
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`
-    : "";
-
-  // Create document record
+  // Erst die Datensätze, dann der Upload: Die Analyse-Zeile muss so früh wie möglich
+  // existieren, damit ein Abbruch (POST …/cancel sucht sie über run_id) sie findet.
+  // documents.file_url ist NOT NULL → vorerst "", nach dem Upload nachgetragen.
   const { data: doc, error: docError } = await admin
     .from("documents")
-    .insert({ project_id: params.id, file_url: fileUrl, doc_type: docType })
+    .insert({ project_id: params.id, file_url: "", doc_type: docType })
     .select()
     .single();
   if (docError) return err(docError.message, 500);
 
-  // Create analysis record (status: running)
   const { data: analysis, error: analysisError } = await admin
     .from("analyses")
     .insert({ document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null })
@@ -159,18 +187,50 @@ export async function POST(request: Request, { params }: { params: { id: string 
   let run: AnalysisRunResult | null = null;
 
   // Abbruch durch den Nutzer: die Cancel-Route setzt status = 'cancelled'; wir schauen
-  // regelmässig nach und reissen dann die laufenden Modell-Calls ab.
+  // regelmässig nach und reissen dann die laufenden Modell-Calls ab. Ein DB-Fehler beim
+  // Nachschauen ist KEIN Abbruch — sonst würde ein Netzwackler einen bezahlten Lauf verwerfen.
   const cancel = new AbortController();
-  const cancelPoll = setInterval(async () => {
-    const { data } = await admin.from("analyses").select("status").eq("id", analysis.id).maybeSingle();
+  const checkCancelled = async () => {
+    const { data, error } = await admin.from("analyses").select("status").eq("id", analysis.id).maybeSingle();
+    if (error) { console.warn(`Cancel-Poll für ${analysis.id} fehlgeschlagen:`, error.message); return; }
     if (!data || data.status === "cancelled") cancel.abort();
-  }, 2_500);
+  };
+  const cancelPoll = setInterval(checkCancelled, 2_500);
+
+  /** Abgebrochen: Kosten festhalten, keine Prüfpunkte speichern. */
+  const finishCancelled = async () => {
+    await admin
+      .from("analyses")
+      .update({
+        status: "cancelled",
+        cost_usd: run?.cost_usd ?? 0,
+        result_json: { run_id: runId, cancelled: true, model: run?.model ?? null, usage: run?.usage ?? null, calls: run?.calls ?? [] },
+      })
+      .eq("id", analysis.id);
+    return err("Analyse abgebrochen", 409);
+  };
 
   try {
+    // Upload nach Supabase Storage; Vorschau-URL ins Dokument nachtragen.
+    const storagePath = `${params.id}/${crypto.randomUUID()}_${file.name}`;
+    const { data: uploadData, error: uploadError } = await admin.storage
+      .from("documents")
+      .upload(storagePath, fileBytes, { contentType: file.type || "application/pdf" });
+    if (uploadError) {
+      console.error(`Storage upload failed for ${storagePath}:`, uploadError);
+    } else if (uploadData) {
+      const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`;
+      await admin.from("documents").update({ file_url: fileUrl }).eq("id", doc.id);
+    }
+
+    // Abbruch, der schon während des Uploads kam, nicht erst nach 2.5 s bemerken.
+    await checkCancelled();
+    if (cancel.signal.aborted) return await finishCancelled();
+
     // 1. Normen laden
     const { data: pnRows, error: pnError } = await admin
       .from("project_norms")
-      .select("norms(id, title, category, text, layer, zone)")
+      .select("norms(id, title, category, text, layer, zone, jurisdiction_type)")
       .eq("project_id", params.id);
 
     // Nicht stillschweigend auf die Ersatznorm zurückfallen, wenn die Abfrage
@@ -200,7 +260,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
           },
         };
 
-    // 3. Ein Call pro Norm, parallel, mit Cache-Grenze hinter dem PDF.
+    // 3. Ein Call pro Norm, parallel, mit Cache-Grenze hinter PDF + Referenzrahmen.
+    const oereb = await loadOerebFacts(admin, params.id);
     const budgetMs = Math.max(45_000, ROUTE_MODEL_BUDGET_MS - (Date.now() - routeStart));
     run = await runNormAnalysis(
       norms,
@@ -210,22 +271,14 @@ export async function POST(request: Request, { params }: { params: { id: string 
         canton: project.location?.canton ?? "",
         bauzone: project.bauzone ?? "",
         parcel: project.parcel_number ?? null,
+        zoneSource: project.zone_source ?? null,
+        oereb,
       },
       budgetMs,
       cancel.signal,
     );
 
-    if (cancel.signal.aborted) {
-      await admin
-        .from("analyses")
-        .update({
-          status: "cancelled",
-          cost_usd: run.cost_usd,
-          result_json: { run_id: runId, cancelled: true, model: run.model, usage: run.usage, calls: run.calls },
-        })
-        .eq("id", analysis.id);
-      return err("Analyse abgebrochen", 409);
-    }
+    if (cancel.signal.aborted) return await finishCancelled();
 
     // 4. norm_id gegen die tatsächlich zugewiesenen Normen validieren.
     //    (Die Engine setzt sie serverseitig — das hier ist der Gurt zum Hosenträger,
@@ -261,7 +314,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
     }
 
-    // 6. Analyse abschliessen. Kosten werden immer geschrieben.
+    // 6. Analyse abschliessen. Kosten werden immer geschrieben. Der Status-Guard
+    //    verhindert, dass ein Abbruch, der während des Speicherns eintraf, von "done"
+    //    überschrieben wird — dann räumen wir die Prüfpunkte wieder weg.
     const status = savedCount > 0 ? "done" : "error";
     const { data: finalAnalysis, error: updateError } = await admin
       .from("analyses")
@@ -269,11 +324,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
         status,
         cost_usd: run.cost_usd,
         result_json: {
+          run_id: runId,
           model: run.model,
           norms_source: normsSource,
           norms_error: pnError?.message ?? null,
           norm_count: norms.length,
+          reference_norms: norms.filter((n) => n.layer === 4).map((n) => n.title),
+          oereb_context: !!oereb,
           item_count: run.items.length,
+          raw_item_count: run.consolidation?.raw_count ?? run.items.length,
+          consolidation: run.consolidation,
           saved_count: savedCount,
           duration_ms: run.duration_ms,
           usage: run.usage,
@@ -283,10 +343,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
       })
       .eq("id", analysis.id)
+      .eq("status", "running")
       .select("*, documents(doc_type, file_url)")
-      .single();
+      .maybeSingle();
 
     if (updateError) return err(updateError.message, 500);
+    if (!finalAnalysis) {
+      await admin.from("analysis_items").delete().eq("analysis_id", analysis.id);
+      return await finishCancelled();
+    }
 
     if (savedCount === 0) {
       const reason = run.failed_norms[0]?.error ?? insertErrors[0] ?? "Keine Prüfpunkte erzeugt";
@@ -327,6 +392,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
         // Auch wenn es schiefging: was das Modell gekostet hat, wird verbucht.
         cost_usd: run?.cost_usd ?? 0,
         result_json: {
+          run_id: runId,
           error: message,
           model: run?.model ?? null,
           usage: run?.usage ?? null,
@@ -334,7 +400,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
           failed_norms: run?.failed_norms ?? [],
         },
       })
-      .eq("id", analysis.id);
+      .eq("id", analysis.id)
+      .in("status", ["running", "cancelled"]);
 
     await logAudit(admin, {
       orgId: user.org_id,

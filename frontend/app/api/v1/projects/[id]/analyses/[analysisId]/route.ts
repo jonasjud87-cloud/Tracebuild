@@ -39,6 +39,24 @@ export async function DELETE(
   const { error } = await admin.from("analyses").delete().eq("id", params.analysisId);
   if (error) return err(error.message, 500);
 
+  // Hängt keine andere Analyse mehr am Dokument, gehen Dokument und Storage-Datei mit —
+  // sonst sammeln sich Plan-PDFs an, die nirgends mehr sichtbar sind.
+  const { count } = await admin
+    .from("analyses")
+    .select("id", { count: "exact", head: true })
+    .eq("document_id", analysis.document_id);
+  if ((count ?? 0) === 0) {
+    const { data: docRow } = await admin.from("documents").select("file_url").eq("id", analysis.document_id).maybeSingle();
+    const marker = "/storage/v1/object/public/documents/";
+    const idx = docRow?.file_url?.indexOf(marker) ?? -1;
+    if (idx >= 0) {
+      const storagePath = decodeURIComponent(docRow!.file_url.slice(idx + marker.length));
+      const { error: rmErr } = await admin.storage.from("documents").remove([storagePath]);
+      if (rmErr) console.warn(`Storage-Datei ${storagePath} konnte nicht entfernt werden:`, rmErr.message);
+    }
+    await admin.from("documents").delete().eq("id", analysis.document_id);
+  }
+
   await logAudit(admin, {
     orgId: user.org_id,
     actorId: user.id,

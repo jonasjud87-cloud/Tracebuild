@@ -145,9 +145,15 @@ export function openReportForPrint(meta: ReportMeta, items: AnalysisItem[]): boo
   return true;
 }
 
+/**
+ * Zellen, die mit = + - @ oder Tab beginnen, wertet Excel als Formel (CSV-Injection).
+ * Die Texte kommen vom Modell — "-3.50 m" am Zeilenanfang reicht. Ein führendes
+ * Hochkomma macht daraus Text; Excel zeigt es nicht an.
+ */
 function csvCell(v: unknown): string {
-  const s = String(v ?? "");
-  return /[";\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+  let s = String(v ?? "");
+  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+  return /[";\n\r\t]/.test(s) || s.startsWith("'") ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string {

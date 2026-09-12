@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import {
@@ -51,7 +51,21 @@ interface AnalysisWithDoc {
   planType: string;
   fileUrl: string | null;
   items: AnalysisItem[];
+  /** Fehlertext aus result_json bei status "error". */
+  errorMessage: string | null;
+  /** Normen/Teile, die nicht geprüft werden konnten — das Ergebnis ist dann unvollständig. */
+  failedNorms: { norm_title: string; error: string }[];
 }
+
+/** Planarten werden ohne Rücksicht auf Gross-/Kleinschreibung zusammengeführt ("grundriss" = "Grundriss"). */
+function planKey(name: string): string {
+  return name.trim().toLowerCase();
+}
+
+const STATUS_BADGE: Record<string, { label: string; color: string }> = {
+  running: { label: "Läuft",  color: "#85A6E9" },
+  error:   { label: "Fehler", color: "#F87171" },
+};
 
 interface ProjectInfo {
   name: string;
@@ -67,6 +81,21 @@ interface RawGetAnalysis {
   documents?: { doc_type: string | null; file_url?: string | null } | null;
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
+  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null } | null;
+  failed_norms?: { norm_title: string; error: string }[];
+}
+
+function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDoc {
+  return {
+    id: a.id,
+    status: a.status,
+    created_at: a.created_at,
+    planType: planType ?? a.documents?.doc_type ?? "Grundriss",
+    fileUrl: a.documents?.file_url || null,
+    items: a.items ?? a.analysis_items ?? [],
+    errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
+    failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
+  };
 }
 
 // ── CheckCard ─────────────────────────────────────────────────────────────────
@@ -186,20 +215,24 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
 
+  const loadAnalyses = useCallback(async () => {
+    const data = await api.get<RawGetAnalysis[]>(`/projects/${params.id}/analyses`);
+    setAnalyses((data ?? []).map((a) => normalizeAnalysis(a)));
+  }, [params.id]);
+
   useEffect(() => {
     api.get<ProjectInfo>(`/projects/${params.id}`).then(setProject).catch(() => {});
-    api.get<RawGetAnalysis[]>(`/projects/${params.id}/analyses`).then((data) => {
-      const normalized: AnalysisWithDoc[] = (data ?? []).map((a) => ({
-        id: a.id,
-        status: a.status,
-        created_at: a.created_at,
-        planType: a.documents?.doc_type ?? "Grundriss",
-        fileUrl: a.documents?.file_url || null,
-        items: a.items ?? a.analysis_items ?? [],
-      }));
-      setAnalyses(normalized);
-    });
-  }, [params.id]);
+    loadAnalyses().catch(() => {});
+  }, [params.id, loadAnalyses]);
+
+  // Läuft serverseitig noch eine Analyse (z.B. nach einem Reload), holt die Liste sich
+  // selbst nach — sonst bliebe die "Läuft"-Version stehen, bis der Nutzer neu lädt.
+  const hasRunning = analyses.some((a) => a.status === "running");
+  useEffect(() => {
+    if (!hasRunning || uploading) return;
+    const t = setInterval(() => { loadAnalyses().catch(() => {}); }, 10_000);
+    return () => clearInterval(t);
+  }, [hasRunning, uploading, loadAnalyses]);
 
   useEffect(() => {
     if (!menuOpenId) return;
@@ -208,18 +241,29 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     return () => document.removeEventListener("click", close);
   }, [menuOpenId]);
 
-  const analysisTypes = Array.from(new Set(analyses.map((a) => a.planType)));
+  // Anzeigename je Planart = Schreibweise der neuesten Analyse; Schlüssel = kleingeschrieben.
+  const labelByKey = new Map<string, string>();
+  for (const a of analyses) {
+    const k = planKey(a.planType);
+    if (!labelByKey.has(k)) labelByKey.set(k, a.planType.trim());
+  }
+  const analysisTypes = Array.from(labelByKey.values());
   const allPlanTypes = [
-    ...localPlanTypes.filter((t) => !analysisTypes.includes(t)),
+    ...localPlanTypes.filter((t) => !labelByKey.has(planKey(t))),
     ...analysisTypes,
   ];
 
+  /** Neueste abgeschlossene Analyse je Planart; Fehl-/Laufversionen zählen nicht als Ergebnis. */
   const latestByType: Record<string, AnalysisWithDoc> = {};
+  /** Neueste Version überhaupt (auch error/running) — für den Status-Badge. */
+  const newestByType: Record<string, AnalysisWithDoc> = {};
   for (const a of analyses) {
-    if (!latestByType[a.planType]) latestByType[a.planType] = a;
+    const k = planKey(a.planType);
+    if (!newestByType[k]) newestByType[k] = a;
+    if (a.status === "done" && !latestByType[k]) latestByType[k] = a;
   }
 
-  const typeAnalyses = analyses.filter((a) => a.planType === selectedPlanType);
+  const typeAnalyses = analyses.filter((a) => planKey(a.planType) === planKey(selectedPlanType));
 
   function openPlanType(name: string) {
     setSelectedPlanType(name);
@@ -227,6 +271,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     setView("plantype");
     setDetailFilter("all");
     setError(null);
+    setInfo(null);
+    setPendingFile(null);
   }
 
   function createPlanType() {
@@ -258,6 +304,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
   async function runAnalysis() {
     const file = pendingFile;
+    // Planart beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
+    // wechseln — das Ergebnis gehört trotzdem zur Planart, unter der es gestartet wurde.
+    const planType = selectedPlanType;
     if (!file || uploading) return;
     setError(null);
     setInfo(null);
@@ -274,27 +323,24 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     try {
       const form = new FormData();
       form.append("file", file);
-      form.append("doc_type", selectedPlanType);
+      form.append("doc_type", planType);
       form.append("run_id", runId);
       const raw = await api.postForm<RawGetAnalysis>(`/projects/${params.id}/analyses`, form, controller.signal);
-      const analysis: AnalysisWithDoc = {
-        id: raw.id,
-        status: raw.status,
-        created_at: raw.created_at,
-        planType: selectedPlanType,
-        fileUrl: raw.documents?.file_url || null,
-        items: raw.items ?? raw.analysis_items ?? [],
-      };
+      const analysis = normalizeAnalysis(raw, planType);
       setAnalyses((prev) => [analysis, ...prev]);
-      setLocalPlanTypes((prev) => prev.filter((t) => t !== selectedPlanType));
-      setSelectedAnalysis(analysis);
-      setDetailFilter("all");
+      setLocalPlanTypes((prev) => prev.filter((t) => planKey(t) !== planKey(planType)));
+      if (planKey(planType) === planKey(selectedPlanType)) {
+        setSelectedAnalysis(analysis);
+        setDetailFilter("all");
+      }
       setPendingFile(null);
     } catch (e: unknown) {
       if (controller.signal.aborted) {
         setInfo("Analyse abgebrochen.");
       } else {
         setError(e instanceof Error ? e.message : "Analyse fehlgeschlagen");
+        // Fehlgeschlagene Version in die Liste holen, damit sie mit Status sichtbar ist.
+        loadAnalyses().catch(() => {});
       }
     } finally {
       setUploading(false);
@@ -308,15 +354,27 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     if (!uploading || cancelling) return;
     setCancelling(true);
     const runId = runIdRef.current;
-    // Erst den Server informieren (stoppt die Modell-Calls), dann die eigene Anfrage kappen.
+    const controller = abortRef.current;
+
+    // Den Server so lange informieren, bis er den Lauf gefunden hat: In den ersten
+    // Augenblicken existiert die Analyse-Zeile noch nicht (Upload läuft) — ein einzelner
+    // Cancel-Aufruf ginge dann ins Leere und der Lauf liefe voll durch.
+    let confirmed = false;
     if (runId) {
-      try {
-        await api.post(`/projects/${params.id}/analyses/cancel`, { run_id: runId });
-      } catch {
-        // Abbruch der eigenen Anfrage trotzdem
+      for (let attempt = 0; attempt < 20 && !confirmed; attempt++) {
+        try {
+          const r = await api.post<{ cancelled: number }>(`/projects/${params.id}/analyses/cancel`, { run_id: runId });
+          confirmed = (r?.cancelled ?? 0) > 0;
+        } catch {
+          // nächster Versuch
+        }
+        if (!confirmed) await new Promise((res) => setTimeout(res, 1000));
       }
     }
-    abortRef.current?.abort();
+    controller?.abort();
+    if (!confirmed) {
+      setError("Der Abbruch konnte nicht bestätigt werden — die Analyse läuft möglicherweise im Hintergrund weiter. Bitte die Seite später neu laden.");
+    }
   }
 
   function handleFiles(files: FileList | null) {
@@ -346,9 +404,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   // ── OVERVIEW ──────────────────────────────────────────────────────────────
 
   if (view === "overview") {
-    const typesWithAnalyses = allPlanTypes.filter((t) => !!latestByType[t]);
-    const totalFail = typesWithAnalyses.reduce((n, t) => n + (latestByType[t]?.items.filter(i => i.status === "fail").length ?? 0), 0);
-    const totalWarn = typesWithAnalyses.reduce((n, t) => n + (latestByType[t]?.items.filter(i => i.status === "warn").length ?? 0), 0);
+    const typesWithAnalyses = allPlanTypes.filter((t) => !!latestByType[planKey(t)]);
+    const totalFail = typesWithAnalyses.reduce((n, t) => n + (latestByType[planKey(t)]?.items.filter(i => i.status === "fail").length ?? 0), 0);
+    const totalWarn = typesWithAnalyses.reduce((n, t) => n + (latestByType[planKey(t)]?.items.filter(i => i.status === "warn").length ?? 0), 0);
 
     return (
       <div>
@@ -454,8 +512,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             {overviewOpen && (
               <div style={{ overflowY: "auto", maxHeight: 360 }}>
                 {typesWithAnalyses.map((type) => {
-                  const latest = latestByType[type];
-                  const count = analyses.filter((a) => a.planType === type).length;
+                  const latest = latestByType[planKey(type)];
+                  const count = analyses.filter((a) => planKey(a.planType) === planKey(type)).length;
                   const allItems = latest.items;
                   const visibleItems = allItems.filter(i =>
                     overviewFilter === "all" ? i.status !== "ok" : i.status === overviewFilter
@@ -549,8 +607,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
             {allPlanTypes.map((type) => {
-              const latest = latestByType[type];
-              const count = analyses.filter((a) => a.planType === type).length;
+              const latest = latestByType[planKey(type)];
+              const newest = newestByType[planKey(type)];
+              const newestBadge = newest && newest.status !== "done" ? STATUS_BADGE[newest.status] ?? STATUS_BADGE.error : null;
+              const count = analyses.filter((a) => planKey(a.planType) === planKey(type)).length;
               const latestItems = latest?.items ?? [];
               const failCount = latestItems.filter((i) => i.status === "fail").length;
               const warnCount = latestItems.filter((i) => i.status === "warn").length;
@@ -579,6 +639,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                     </svg>
                   </div>
+                  {newestBadge && (
+                    <p style={{ fontSize: 11, fontWeight: 600, color: newestBadge.color, margin: "0 0 8px" }}>
+                      Neueste Version: {newestBadge.label}
+                    </p>
+                  )}
                   {latest ? (
                     <>
                       <p style={{ fontSize: 11.5, color: "#7B8299", marginBottom: 10 }}>
@@ -603,7 +668,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       </div>
                     </>
                   ) : (
-                    <p style={{ fontSize: 12, color: "#7B8299" }}>Noch kein Plan hochgeladen</p>
+                    <p style={{ fontSize: 12, color: "#7B8299" }}>{newest ? "Noch kein abgeschlossenes Ergebnis" : "Noch kein Plan hochgeladen"}</p>
                   )}
                 </button>
               );
@@ -695,7 +760,12 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     <p style={{ fontSize: 12.5, fontWeight: 500, color: "#fff", margin: 0 }}>
                       {new Date(a.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                     </p>
-                    {aItems.length > 0 && (
+                    {a.status !== "done" && (
+                      <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: (STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color, background: `${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}18`, border: `1px solid ${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}40`, padding: "1px 7px", borderRadius: 50 }}>
+                        {(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).label}
+                      </span>
+                    )}
+                    {a.status === "done" && aItems.length > 0 && (
                       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
                         {f > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#F87171" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#F87171" }} />{f}</span>}
                         {w > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#FBBF24" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#FBBF24" }} />{w}</span>}
@@ -741,7 +811,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         {!selectedAnalysis ? (
           <>
             <div
-              onDragOver={(e) => { if (uploading) return; e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) handleFiles(e.dataTransfer.files); }}
               onClick={() => !uploading && !pendingFile && fileRef.current?.click()}
@@ -868,6 +938,21 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
               {/* Results */}
               <div style={{ flex: "1 1 420px", minWidth: 320, display: "flex", flexDirection: "column", gap: 18 }}>
+              {uploading && (
+                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(40,98,215,0.1)", border: "1px solid rgba(133,166,233,0.25)", borderRadius: 12, padding: "10px 14px" }}>
+                  <div style={{ width: 16, height: 16, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
+                  <p style={{ flex: 1, fontSize: 12.5, color: "#ABAEBB", margin: 0 }}>Eine neue Analyse läuft im Hintergrund…</p>
+                  <button
+                    type="button"
+                    onClick={cancelAnalysis}
+                    disabled={cancelling}
+                    style={{ fontSize: 12, fontWeight: 600, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)", padding: "5px 12px", borderRadius: 8, cursor: cancelling ? "wait" : "pointer", fontFamily: "inherit", opacity: cancelling ? 0.6 : 1 }}
+                  >
+                    {cancelling ? "Wird abgebrochen…" : "Abbrechen"}
+                  </button>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              )}
               {/* Header */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
@@ -916,6 +1001,32 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   </button>
                 </div>
               </div>
+
+              {selectedAnalysis.status !== "done" && (
+                <div style={{ background: `${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}12`, border: `1px solid ${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}40`, borderRadius: 12, padding: "12px 16px" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: (STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color, margin: 0 }}>
+                    {selectedAnalysis.status === "running"
+                      ? "Diese Analyse läuft noch — die Liste aktualisiert sich automatisch."
+                      : "Diese Analyse ist fehlgeschlagen. Es liegen keine Prüfergebnisse vor."}
+                  </p>
+                  {selectedAnalysis.errorMessage && (
+                    <p style={{ fontSize: 12, color: "#ABAEBB", margin: "6px 0 0" }}>{selectedAnalysis.errorMessage}</p>
+                  )}
+                </div>
+              )}
+
+              {selectedAnalysis.status === "done" && selectedAnalysis.failedNorms.length > 0 && (
+                <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "12px 16px" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: "0 0 6px" }}>
+                    Ergebnis unvollständig — {selectedAnalysis.failedNorms.length === 1 ? "eine Norm konnte" : `${selectedAnalysis.failedNorms.length} Normen konnten`} nicht geprüft werden:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#ABAEBB", lineHeight: 1.6 }}>
+                    {selectedAnalysis.failedNorms.map((f, i) => (
+                      <li key={i}><span style={{ color: "#fff" }}>{f.norm_title}</span> — {f.error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
 
               {/* Stat tiles */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
