@@ -150,6 +150,42 @@ const ROLE_LABELS: Record<string, string> = {
   project_manager: "Manager", member: "Mitglied",
 };
 
+function ConfirmModal({
+  title, description, confirmLabel, onConfirm, onClose,
+}: {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  onConfirm: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-[#0E111B] rounded-2xl shadow-2xl w-full max-w-sm p-7 border border-[rgba(60,63,68,0.5)]">
+        <h3 className="text-base font-bold text-white text-center mb-2">{title}</h3>
+        <p className="text-sm text-[#ABAEBB] text-center mb-6">{description}</p>
+        <div className="flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 border border-[rgba(60,63,68,0.4)] rounded-xl py-2.5 text-sm font-medium text-[#ABAEBB] hover:bg-[#1E2D4A] transition-colors"
+          >
+            Abbrechen
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-red-600 text-white hover:bg-red-700 active:scale-[0.97] transition-all"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function MitgliederTab({
   org,
   onToast,
@@ -164,6 +200,8 @@ function MitgliederTab({
   const [addRole, setAddRole] = useState("member");
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [savingRoleId, setSavingRoleId] = useState<string | null>(null);
+  const [confirmRemove, setConfirmRemove] = useState<OrgMember | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -205,6 +243,28 @@ function MitgliederTab({
       onToast("Netzwerkfehler — Einladung nicht gesendet.", "error");
     } finally {
       setAdding(false);
+    }
+  }
+
+  async function handleRoleChange(m: OrgMember, role: string) {
+    setSavingRoleId(m.id);
+    try {
+      const res = await fetch(`/api/v1/admin/orgs/${org.id}/users`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: m.id, role }),
+      });
+      const json = await res.json().catch(() => null);
+      if (res.ok && !json?.error) {
+        setMembers(prev => prev.map(x => x.id === m.id ? { ...x, role } : x));
+        onToast("Rolle aktualisiert.", "success");
+      } else {
+        onToast(json?.error ?? "Fehler.", "error");
+      }
+    } catch {
+      onToast("Netzwerkfehler — Rolle nicht aktualisiert.", "error");
+    } finally {
+      setSavingRoleId(null);
     }
   }
 
@@ -278,15 +338,22 @@ function MitgliederTab({
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                  m.role === "org_admin" || m.role === "super_admin"
-                    ? "bg-[#2862D7]/10 text-[#85A6E9]"
-                    : "bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]"
-                }`}>
-                  {ROLE_LABELS[m.role] ?? m.role}
-                </span>
+                <select
+                  value={m.role}
+                  onChange={e => handleRoleChange(m, e.target.value)}
+                  disabled={savingRoleId === m.id}
+                  className={`text-[10px] font-semibold pl-2 pr-1 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 transition-colors disabled:opacity-50 ${
+                    m.role === "org_admin" || m.role === "super_admin"
+                      ? "bg-[#2862D7]/10 text-[#85A6E9]"
+                      : "bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]"
+                  }`}
+                >
+                  {(["member", "project_manager", "org_admin", "super_admin"] as const).map(r => (
+                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                  ))}
+                </select>
                 <button
-                  onClick={() => handleRemove(m)}
+                  onClick={() => setConfirmRemove(m)}
                   disabled={removingId === m.id}
                   className="w-6 h-6 flex items-center justify-center text-[#7B8299] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors disabled:opacity-40"
                   title="Entfernen"
@@ -299,6 +366,16 @@ function MitgliederTab({
             </div>
           ))}
         </div>
+      )}
+
+      {confirmRemove && (
+        <ConfirmModal
+          title="Mitglied entfernen"
+          description={`${confirmRemove.email} wird aus der Organisation entfernt und kann sich danach nicht mehr anmelden.`}
+          confirmLabel="Entfernen"
+          onConfirm={() => { handleRemove(confirmRemove); setConfirmRemove(null); }}
+          onClose={() => setConfirmRemove(null)}
+        />
       )}
     </div>
   );

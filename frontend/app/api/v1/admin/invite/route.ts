@@ -133,7 +133,7 @@ export async function POST(request: Request) {
     mode = "invite";
     // inviteUserByEmail kann nur user_metadata setzen — die verbindliche
     // Zuordnung wird direkt danach in app_metadata nachgezogen.
-    const { error: claimError } = await admin.auth.admin.updateUserById(targetId, { app_metadata: claim });
+    const { error: claimError } = await admin.auth.admin.updateUserById(targetId, { app_metadata: claim, ban_duration: "none" });
     if (claimError) {
       if (createdNewAuthUser) {
         try { await admin.auth.admin.deleteUser(targetId); } catch { /* best effort */ }
@@ -147,6 +147,7 @@ export async function POST(request: Request) {
     const { error: metaError } = await admin.auth.admin.updateUserById(authUser.id, {
       user_metadata: metadata,
       app_metadata: claim,
+      ban_duration: "none",
     });
     if (metaError) return err(`Konto konnte nicht aktualisiert werden: ${metaError.message}`, 500);
     targetId = authUser.id;
