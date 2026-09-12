@@ -40,17 +40,34 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   if (body.location !== undefined) updates.location = body.location;
   if (body.domain !== undefined) updates.domain = body.domain;
   if (body.status !== undefined) updates.status = body.status;
-  // Zone and parcel are set by hand for now; without these the Bauzone field in the
-  // Normen tab and in the project settings would silently write nothing.
-  if (body.bauzone !== undefined) updates.bauzone = body.bauzone;
+  // Eine über die UI gesetzte Bauzone ist eine manuelle Angabe: sie gilt vor der
+  // ÖREB-Zone (Entscheidung 1) und wird von späteren Abrufen nicht überschrieben.
+  // Wird die Zone geleert, darf ÖREB wieder füllen.
+  if (body.bauzone !== undefined) {
+    updates.bauzone = body.bauzone;
+    updates.zone_source = body.bauzone ? "manual" : null;
+    updates.zone_confidence = null;
+  }
   if (body.parcel_number !== undefined) updates.parcel_number = body.parcel_number;
 
-  const { data, error } = await admin
+  let { data, error } = await admin
     .from("projects")
     .update(updates)
     .eq("id", params.id)
     .select()
     .single();
+
+  // Fallback: ÖREB-Migration noch nicht eingespielt → ohne Herkunftsspalten schreiben.
+  if (error && "zone_source" in updates && error.message.includes("zone_")) {
+    delete updates.zone_source;
+    delete updates.zone_confidence;
+    ({ data, error } = await admin
+      .from("projects")
+      .update(updates)
+      .eq("id", params.id)
+      .select()
+      .single());
+  }
 
   if (error) return err(error.message, 500);
 
