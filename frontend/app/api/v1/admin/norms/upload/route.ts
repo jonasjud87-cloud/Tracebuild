@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractPdfText } from "@/lib/pdf-text";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
+import { logAudit } from "@/lib/auditLog";
 
 const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
@@ -101,6 +102,15 @@ async function handleUpload(request: Request) {
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: null,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_upload_platform",
+    targetId: data.id,
+    meta: { title, category, jurisdictionName },
+  });
 
   // A platform-wide norm applies to every organization, so every org's projects
   // need re-syncing — not just the uploading admin's.

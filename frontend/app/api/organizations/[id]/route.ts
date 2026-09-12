@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateUpdate } from "@/lib/validations/organization";
 import { slugify, uniqueSlug, formatOrg } from "@/lib/organizations";
+import { logAudit } from "@/lib/auditLog";
 
 type RouteContext = { params: { id: string } };
 
@@ -82,6 +83,16 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "org_update",
+    targetId: id,
+    meta: { fields: Object.keys(patch) },
+  });
+
   return ok(formatOrg(data));
 }
 
@@ -111,5 +122,13 @@ export async function DELETE(_req: NextRequest, { params }: RouteContext) {
     .eq("id", id);
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "org_delete",
+  });
+
   return ok(null);
 }

@@ -25,10 +25,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div
         aria-hidden
         style={{
-          position: "fixed", inset: 0, zIndex: -1, pointerEvents: "none",
-          width: "64vmax", height: "64vmax", left: "-16vmax", top: "-20vmax",
+          position: "fixed", zIndex: -1, pointerEvents: "none",
+          width: "90vmax", height: "90vmax", left: "-30vmax", top: "-40vmax",
           background: "radial-gradient(circle,#4fd1ff 0%,transparent 70%)",
-          filter: "blur(50px)", mixBlendMode: "screen", opacity: .16,
+          filter: "blur(60px)", opacity: .22,
           animation: "tbAdminGlowA 22s ease-in-out -4s infinite",
         }}
       />
@@ -36,9 +36,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         aria-hidden
         style={{
           position: "fixed", zIndex: -1, pointerEvents: "none",
-          width: "58vmax", height: "58vmax", right: "-18vmax", top: "8vmax",
+          width: "80vmax", height: "80vmax", right: "-30vmax", top: "-10vmax",
           background: "radial-gradient(circle,#8fb3f5 0%,transparent 70%)",
-          filter: "blur(50px)", mixBlendMode: "screen", opacity: .13,
+          filter: "blur(60px)", opacity: .16,
           animation: "tbAdminGlowB 26s ease-in-out -11s infinite",
         }}
       />
@@ -46,9 +46,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         aria-hidden
         style={{
           position: "fixed", zIndex: -1, pointerEvents: "none",
-          width: "52vmax", height: "52vmax", left: "18vmax", bottom: "-24vmax",
+          width: "76vmax", height: "76vmax", left: "0vmax", bottom: "-42vmax",
           background: "radial-gradient(circle,#c69bf0 0%,transparent 70%)",
-          filter: "blur(50px)", mixBlendMode: "screen", opacity: .12,
+          filter: "blur(60px)", opacity: .15,
           animation: "tbAdminGlowC 29s ease-in-out -7s infinite",
         }}
       />

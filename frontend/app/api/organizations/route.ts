@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateCreate } from "@/lib/validations/organization";
 import { slugify, uniqueSlug, formatOrg } from "@/lib/organizations";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET() {
   const user = await getAuthUser();
@@ -56,5 +57,15 @@ export async function POST(req: NextRequest) {
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: data.id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "org_create",
+    targetId: data.id,
+    meta: { name: data.name },
+  });
+
   return ok(formatOrg(data), 201);
 }

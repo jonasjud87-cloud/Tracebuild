@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic } from "@/lib/anthropic";
+import { logAudit } from "@/lib/auditLog";
 
 export const maxDuration = 120;
 
@@ -159,6 +160,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .select("id")
     .single();
   if (insertError || !insertedMsg) return err(`Nachricht konnte nicht gespeichert werden (${insertError?.message ?? "unbekannt"})`, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "chat_message",
+    targetId: params.id,
+    meta: { threadId },
+  });
 
   // Load history for this thread (last 20 messages)
   let histQuery: any = admin

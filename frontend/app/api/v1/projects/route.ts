@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
 import { lookupParcel } from "@/lib/geoportal";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET() {
   const user = await getAuthUser();
@@ -54,6 +55,16 @@ export async function POST(request: Request) {
   }
 
   if (insertErr) return err(insertErr.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_create",
+    targetId: project.id,
+    targetEmail: undefined,
+    meta: { name: project.name },
+  });
 
   // Assign norms synchronously so the count is in the response
   const assigned_norms_count = await assignNorms(

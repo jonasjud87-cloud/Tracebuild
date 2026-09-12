@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -52,6 +53,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_norm_add",
+    targetId: params.id,
+    meta: { normId: body.norm_id },
+  });
+
   return ok(data, 201);
 }
 
@@ -79,5 +90,15 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     .eq("norm_id", body.norm_id);
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_norm_remove",
+    targetId: params.id,
+    meta: { normId: body.norm_id },
+  });
+
   return ok({ deleted: true });
 }

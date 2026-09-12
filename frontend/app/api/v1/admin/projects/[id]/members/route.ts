@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 async function guardOrgProject(userOrgId: string, projectId: string) {
   const admin = createAdminClient();
@@ -60,6 +61,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .upsert({ project_id: params.id, user_id: body.user_id }, { onConflict: "project_id,user_id" });
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_member_add",
+    targetId: body.user_id,
+    meta: { projectId: params.id },
+  });
+
   return ok({ project_id: params.id, user_id: body.user_id }, 201);
 }
 
@@ -83,5 +94,15 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     .eq("user_id", body.user_id);
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_member_remove",
+    targetId: body.user_id,
+    meta: { projectId: params.id },
+  });
+
   return ok({ project_id: params.id, user_id: body.user_id });
 }
