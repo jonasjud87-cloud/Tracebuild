@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteOrigin } from "@/lib/site-url";
+import { logAudit } from "@/lib/auditLog";
 import type { User } from "@supabase/supabase-js";
 
 type AdminClient = ReturnType<typeof createAdminClient>;
@@ -185,6 +186,16 @@ export async function POST(request: Request) {
       );
     }
   }
+
+  await logAudit(admin, {
+    orgId: targetOrgId,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: mode === "invite" ? "invite" : "reinvite",
+    targetId,
+    targetEmail: email,
+    meta: { role },
+  });
 
   return ok({
     id: targetId,

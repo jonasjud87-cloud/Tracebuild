@@ -12,16 +12,27 @@ interface Props {
   onToast: (msg: string, type: "success" | "error" | "warning" | "info") => void;
 }
 
-type Tab = "uebersicht" | "mitglieder" | "projekte" | "nutzung" | "kosten" | "einstellungen";
+type Tab = "uebersicht" | "mitglieder" | "auditlog" | "projekte" | "nutzung" | "kosten" | "einstellungen";
 
 const TAB_LABELS: { id: Tab; label: string }[] = [
   { id: "uebersicht",     label: "Übersicht"     },
   { id: "mitglieder",    label: "Mitglieder"    },
+  { id: "auditlog",      label: "Audit-Log"      },
   { id: "projekte",      label: "Projekte"       },
   { id: "nutzung",       label: "Nutzung"        },
   { id: "kosten",        label: "Kosten"         },
   { id: "einstellungen", label: "Einstellungen"  },
 ];
+
+interface AuditLogEntry {
+  id: string;
+  actor_email: string;
+  action: "invite" | "reinvite" | "role_change" | "remove";
+  target_id: string | null;
+  target_email: string | null;
+  meta: Record<string, unknown>;
+  created_at: string;
+}
 
 interface OrgMember {
   id: string;
@@ -348,7 +359,7 @@ function MitgliederTab({
                       : "bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]"
                   }`}
                 >
-                  {(["member", "project_manager", "org_admin", "super_admin"] as const).map(r => (
+                  {(["member", "project_manager", "org_admin"] as const).map(r => (
                     <option key={r} value={r}>{ROLE_LABELS[r]}</option>
                   ))}
                 </select>
@@ -376,6 +387,110 @@ function MitgliederTab({
           onConfirm={() => { handleRemove(confirmRemove); setConfirmRemove(null); }}
           onClose={() => setConfirmRemove(null)}
         />
+      )}
+    </div>
+  );
+}
+
+const AUDIT_ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
+  invite: "Eingeladen",
+  reinvite: "Erneut eingeladen",
+  role_change: "Rolle geändert",
+  remove: "Entfernt",
+};
+
+function auditDetails(e: AuditLogEntry): string {
+  if (e.action === "role_change") {
+    const r = e.meta?.newRole;
+    return typeof r === "string" ? (ROLE_LABELS[r] ?? r) : "—";
+  }
+  if (e.action === "invite" || e.action === "reinvite") {
+    const r = e.meta?.role;
+    return typeof r === "string" ? (ROLE_LABELS[r] ?? r) : "—";
+  }
+  return "";
+}
+
+type AuditSortKey = "created_at" | "actor_email" | "action";
+
+function SortIndicator({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
+  if (!active) return null;
+  return <span className="ml-1 text-[9px]">{dir === "asc" ? "▲" : "▼"}</span>;
+}
+
+function AuditLogTab({ org }: { org: Organization }) {
+  const [entries, setEntries] = useState<AuditLogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [sort, setSort] = useState<{ key: AuditSortKey; dir: "asc" | "desc" }>({ key: "created_at", dir: "desc" });
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/v1/admin/orgs/${org.id}/audit-log`);
+      const json = await res.json().catch(() => null);
+      setEntries(json?.data ?? []);
+    } catch {
+      setEntries([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [org.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  function toggleSort(key: AuditSortKey) {
+    setSort(prev => prev.key === key ? { key, dir: prev.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" });
+  }
+
+  const sorted = [...entries].sort((a, b) => {
+    let cmp = 0;
+    if (sort.key === "created_at") cmp = a.created_at.localeCompare(b.created_at);
+    else if (sort.key === "actor_email") cmp = a.actor_email.localeCompare(b.actor_email);
+    else cmp = a.action.localeCompare(b.action);
+    return sort.dir === "asc" ? cmp : -cmp;
+  });
+
+  const thCls = "text-left text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest px-3 py-2 cursor-pointer select-none whitespace-nowrap";
+
+  return (
+    <div className="space-y-4">
+      {loading ? (
+        <div className="py-8 text-center text-[#7B8299] text-sm">Lade Einträge…</div>
+      ) : entries.length === 0 ? (
+        <div className="py-8 text-center text-[#7B8299] text-sm">Noch keine Einträge.</div>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr className="border-b border-[rgba(60,63,68,0.4)]">
+                <th className={thCls} onClick={() => toggleSort("created_at")}>
+                  Zeitpunkt<SortIndicator active={sort.key === "created_at"} dir={sort.dir} />
+                </th>
+                <th className={thCls} onClick={() => toggleSort("actor_email")}>
+                  Wer<SortIndicator active={sort.key === "actor_email"} dir={sort.dir} />
+                </th>
+                <th className={thCls} onClick={() => toggleSort("action")}>
+                  Aktion<SortIndicator active={sort.key === "action"} dir={sort.dir} />
+                </th>
+                <th className={thCls}>Ziel</th>
+                <th className={thCls}>Details</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map(e => (
+                <tr key={e.id} className="border-b border-[rgba(60,63,68,0.3)] last:border-0">
+                  <td className="px-3 py-2.5 text-xs text-[#ABAEBB] whitespace-nowrap">
+                    {new Date(e.created_at).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}
+                  </td>
+                  <td className="px-3 py-2.5 text-sm text-white truncate max-w-[160px]">{e.actor_email}</td>
+                  <td className="px-3 py-2.5 text-sm text-white whitespace-nowrap">{AUDIT_ACTION_LABELS[e.action]}</td>
+                  <td className="px-3 py-2.5 text-xs text-[#7B8299] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-xs text-[#7B8299] whitespace-nowrap">{auditDetails(e)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
@@ -693,6 +808,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }:
             <div className="flex-1 overflow-y-auto px-6 py-5">
               {activeTab === "uebersicht"     && <UebersichtTab    org={org} costs={costs} />}
               {activeTab === "mitglieder"     && <MitgliederTab    org={org} onToast={onToast} />}
+              {activeTab === "auditlog"       && <AuditLogTab      org={org} />}
               {activeTab === "projekte"       && <ProjekteTab      org={org} />}
               {activeTab === "nutzung"        && <NutzungTab       org={org} costs={costs} />}
               {activeTab === "kosten"         && <KostenTab        org={org} costs={costs} />}
