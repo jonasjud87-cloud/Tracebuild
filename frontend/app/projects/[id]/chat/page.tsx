@@ -180,8 +180,8 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       <div style={{
         flexShrink: 0, width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 10, fontWeight: 700, marginTop: 2,
-        background: isUser ? "#B7926A" : "rgba(133,166,233,0.12)",
-        color: isUser ? "#fff" : "#85A6E9",
+        background: isUser ? "#85A6E9" : "rgba(133,166,233,0.12)",
+        color: isUser ? "#0E111B" : "#85A6E9",
         border: isUser ? "none" : "1px solid rgba(133,166,233,0.2)",
       }}>
         {isUser ? "Du" : "KI"}
@@ -190,7 +190,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
       <div style={{
         maxWidth: "80%", borderRadius: 16, padding: "11px 15px",
         ...(isUser
-          ? { background: "#B7926A", color: "#fff", borderTopRightRadius: 4, boxShadow: "0 2px 10px rgba(183,146,106,0.25)" }
+          ? { background: "#85A6E9", color: "#0E111B", borderTopRightRadius: 4, boxShadow: "0 2px 10px rgba(133,166,233,0.3)" }
           : { background: "rgba(23,37,64,0.7)", border: "1px solid rgba(133,166,233,0.15)", borderTopLeftRadius: 4, boxShadow: "0 2px 10px rgba(0,0,0,0.2)" }
         ),
       }}>
@@ -204,7 +204,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
 
         {msg.content !== "" && (
           isUser
-            ? <span style={{ fontSize: 13, lineHeight: 1.6, color: "#fff", whiteSpace: "pre-wrap" }}>{msg.content}</span>
+            ? <span style={{ fontSize: 13, lineHeight: 1.6, color: "#0E111B", whiteSpace: "pre-wrap" }}>{msg.content}</span>
             : <MarkdownContent text={msg.content} />
         )}
 
@@ -445,7 +445,7 @@ export default function ChatPage() {
             onClick={startNewChat}
             disabled={streaming}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "7px 12px", borderRadius: 8, background: "none", border: "1px solid rgba(133,166,233,0.2)", fontSize: 12, fontWeight: 500, color: "#7B8299", cursor: streaming ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: streaming ? 0.4 : 1, transition: "all .15s" }}
-            onMouseEnter={e => { if (!streaming) { (e.currentTarget as HTMLElement).style.borderColor = "#B7926A"; (e.currentTarget as HTMLElement).style.color = "#B7926A"; } }}
+            onMouseEnter={e => { if (!streaming) { (e.currentTarget as HTMLElement).style.borderColor = "#85A6E9"; (e.currentTarget as HTMLElement).style.color = "#85A6E9"; } }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(133,166,233,0.2)"; (e.currentTarget as HTMLElement).style.color = "#7B8299"; }}
           >
             <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -458,7 +458,7 @@ export default function ChatPage() {
         <div className="scrollbar-dark" style={{ flex: 1, overflowY: "auto", padding: 8, display: "flex", flexDirection: "column", gap: 2 }}>
           {threadsLoading ? (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 24 }}>
-              <div className="animate-spin" style={{ width: 16, height: 16, border: "2px solid rgba(133,166,233,0.15)", borderTopColor: "#B7926A", borderRadius: "50%" }} />
+              <div className="animate-spin" style={{ width: 16, height: 16, border: "2px solid rgba(133,166,233,0.15)", borderTopColor: "#85A6E9", borderRadius: "50%" }} />
             </div>
           ) : (
             <>
@@ -497,12 +497,12 @@ export default function ChatPage() {
         <div className="scrollbar-dark" style={{ flex: 1, overflowY: "auto", padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
           {messagesLoading ? (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%" }}>
-              <div className="animate-spin" style={{ width: 24, height: 24, border: "2px solid rgba(133,166,233,0.15)", borderTopColor: "#B7926A", borderRadius: "50%" }} />
+              <div className="animate-spin" style={{ width: 24, height: 24, border: "2px solid rgba(133,166,233,0.15)", borderTopColor: "#85A6E9", borderRadius: "50%" }} />
             </div>
           ) : messages.length === 0 ? (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 12, textAlign: "center" }}>
-              <div style={{ width: 48, height: 48, background: "rgba(183,146,106,0.12)", border: "1px solid rgba(183,146,106,0.2)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <svg style={{ width: 24, height: 24, color: "#B7926A" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div style={{ width: 48, height: 48, background: "rgba(133,166,233,0.12)", border: "1px solid rgba(133,166,233,0.2)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <svg style={{ width: 24, height: 24, color: "#85A6E9" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8.625 12a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H8.25m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0H12m4.125 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm0 0h-.375M21 12c0 4.556-4.03 8.25-9 8.25a9.764 9.764 0 01-2.555-.337A5.972 5.972 0 015.41 20.97a5.969 5.969 0 01-.474-.065 4.48 4.48 0 00.978-2.025c.09-.457-.133-.901-.467-1.226C3.93 16.178 3 14.189 3 12c0-4.556 4.03-8.25 9-8.25s9 3.694 9 8.25z" />
                 </svg>
               </div>
@@ -516,7 +516,7 @@ export default function ChatPage() {
                     key={s}
                     onClick={() => { setInput(s); textareaRef.current?.focus(); }}
                     style={{ fontSize: 12, color: "#7B8299", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 100, padding: "6px 14px", background: "none", cursor: "pointer", fontFamily: "inherit", transition: "all .15s" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#B7926A"; (e.currentTarget as HTMLElement).style.color = "#B7926A"; }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = "#85A6E9"; (e.currentTarget as HTMLElement).style.color = "#85A6E9"; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(133,166,233,0.15)"; (e.currentTarget as HTMLElement).style.color = "#7B8299"; }}
                   >
                     {s}
@@ -558,7 +558,7 @@ export default function ChatPage() {
             <button
               onClick={handleSend}
               disabled={!input.trim() || streaming}
-              style={{ flexShrink: 0, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, background: "#B7926A", color: "#fff", border: "none", cursor: !input.trim() || streaming ? "not-allowed" : "pointer", opacity: !input.trim() || streaming ? 0.4 : 1, transition: "all .15s" }}
+              style={{ flexShrink: 0, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 10, background: "#2862D7", color: "#fff", border: "none", cursor: !input.trim() || streaming ? "not-allowed" : "pointer", opacity: !input.trim() || streaming ? 0.4 : 1, transition: "all .15s" }}
               title="Senden"
             >
               {streaming ? (

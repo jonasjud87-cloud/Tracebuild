@@ -86,6 +86,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .from("analyses")
     .select("*, documents(doc_type, file_url), analysis_items(*)")
     .in("document_id", docIds)
+    .neq("status", "cancelled")
     .order("created_at", { ascending: false });
 
   if (error) return err(error.message, 500);
@@ -114,6 +115,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const file = formData.get("file") as File | null;
   if (!file) return err("Keine Datei hochgeladen");
   const docType = (formData.get("doc_type") as string | null) || "Grundriss";
+  // Vom Client vergebene Lauf-ID: darüber kann er den Lauf per POST …/analyses/cancel abbrechen.
+  const runId = ((formData.get("run_id") as string | null) ?? "").trim() || null;
 
   const fileBytes = Buffer.from(await file.arrayBuffer());
   const base64Data = fileBytes.toString("base64");
@@ -147,13 +150,21 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // Create analysis record (status: running)
   const { data: analysis, error: analysisError } = await admin
     .from("analyses")
-    .insert({ document_id: doc.id, status: "running" })
+    .insert({ document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null })
     .select()
     .single();
   if (analysisError) return err(analysisError.message, 500);
 
   // Kosten müssen auch im Fehlerfall in die DB — deshalb ausserhalb des try.
   let run: AnalysisRunResult | null = null;
+
+  // Abbruch durch den Nutzer: die Cancel-Route setzt status = 'cancelled'; wir schauen
+  // regelmässig nach und reissen dann die laufenden Modell-Calls ab.
+  const cancel = new AbortController();
+  const cancelPoll = setInterval(async () => {
+    const { data } = await admin.from("analyses").select("status").eq("id", analysis.id).maybeSingle();
+    if (!data || data.status === "cancelled") cancel.abort();
+  }, 2_500);
 
   try {
     // 1. Normen laden
@@ -201,7 +212,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
         parcel: project.parcel_number ?? null,
       },
       budgetMs,
+      cancel.signal,
     );
+
+    if (cancel.signal.aborted) {
+      await admin
+        .from("analyses")
+        .update({
+          status: "cancelled",
+          cost_usd: run.cost_usd,
+          result_json: { run_id: runId, cancelled: true, model: run.model, usage: run.usage, calls: run.calls },
+        })
+        .eq("id", analysis.id);
+      return err("Analyse abgebrochen", 409);
+    }
 
     // 4. norm_id gegen die tatsächlich zugewiesenen Normen validieren.
     //    (Die Engine setzt sie serverseitig — das hier ist der Gurt zum Hosenträger,
@@ -299,7 +323,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await admin
       .from("analyses")
       .update({
-        status: "error",
+        status: cancel.signal.aborted ? "cancelled" : "error",
         // Auch wenn es schiefging: was das Modell gekostet hat, wird verbucht.
         cost_usd: run?.cost_usd ?? 0,
         result_json: {
@@ -322,5 +346,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     return err(message, 500);
+  } finally {
+    clearInterval(cancelPoll);
   }
 }

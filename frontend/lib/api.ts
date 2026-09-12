@@ -36,10 +36,11 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return unwrap<T>(res);
 }
 
-async function requestForm<T>(path: string, formData: FormData): Promise<T> {
+async function requestForm<T>(path: string, formData: FormData, signal?: AbortSignal): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     method: "POST",
     body: formData,
+    signal,
   });
   return unwrap<T>(res);
 }
@@ -50,7 +51,7 @@ export const api = {
     request<T>(path, { method: "POST", body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
-  postForm: <T>(path: string, formData: FormData) => requestForm<T>(path, formData),
+  postForm: <T>(path: string, formData: FormData, signal?: AbortSignal) => requestForm<T>(path, formData, signal),
   delete: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),
 };
