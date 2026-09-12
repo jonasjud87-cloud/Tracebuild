@@ -22,7 +22,7 @@ import { anthropic } from "@/lib/anthropic";
 
 // ── Modell & Preise ───────────────────────────────────────────────────────────
 
-export const ANALYSIS_MODEL = "claude-opus-5";
+export const ANALYSIS_MODEL = "claude-sonnet-5";
 
 /** USD pro 1M Tokens. Cache-Write = 1.25x Input, Cache-Read = 0.1x Input. */
 const PRICES: Record<string, { input: number; output: number }> = {
