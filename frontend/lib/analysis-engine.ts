@@ -756,7 +756,7 @@ ${listing.join("\n")}` }],
 
     // Interne IDs (c12) haben im Text nichts verloren — durch den Titel des Punkts ersetzen.
     const deId = (text: string) =>
-      text.replace(/c(\d{1,3})/g, (m, n) => {
+      text.replace(/\bc(\d{1,3})\b/g, (m, n) => {
         const ref = ids.get(`c${n}`);
         return ref ? `«${ref.norm_title.split(" – ")[0].slice(0, 60)}»` : m;
       });
