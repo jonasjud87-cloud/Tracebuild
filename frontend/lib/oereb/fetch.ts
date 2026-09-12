@@ -94,6 +94,13 @@ async function applyZone(projectId: string, zone: ZoneResult): Promise<void> {
   if (updErr) throw new Error(`Bauzone konnte nicht gespeichert werden: ${updErr.message}`);
 }
 
+/**
+ * Hält einen Fehlschlag fest — aber nie auf Kosten eines gültigen Auszugs: Liegt für
+ * das Projekt bereits ein 'ok'-Auszug, bleibt er samt Themen stehen (ein temporärer
+ * Ausfall des Dienstes oder eine fehlende Env-Variable darf keine Daten löschen).
+ * Der Fehler wird dann nur im Rückgabewert gemeldet. Soll ein alter Auszug bewusst
+ * weg (Parzelle gewechselt), vorher invalidateExtract() aufrufen.
+ */
 async function persistFailure(
   projectId: string,
   canton: string,
@@ -103,6 +110,17 @@ async function persistFailure(
   detail: string
 ): Promise<FetchExtractResult> {
   try {
+    const admin = createAdminClient();
+    const { data: existing } = await admin
+      .from("oereb_extracts")
+      .select("status")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (existing?.status === "ok") {
+      console.warn(`ÖREB-Abruf für Projekt ${projectId} fehlgeschlagen (${status}: ${detail}); gültiger Auszug bleibt erhalten`);
+      return summarize(status, detail, egrid);
+    }
+
     await upsertExtractRow(projectId, {
       canton,
       egrid,
@@ -116,6 +134,76 @@ async function persistFailure(
     console.error(`ÖREB-Fehlerstatus für Projekt ${projectId} konnte nicht gespeichert werden:`, e);
   }
   return summarize(status, detail, egrid);
+}
+
+/**
+ * Entfernt den Auszug eines Projekts (Themen hängen per CASCADE daran). Nötig, wenn
+ * Parzelle oder Standort wechseln — der alte Auszug gehört dann zu einem anderen
+ * Grundstück und darf nicht als 'ok' stehen bleiben. Wirft nie.
+ */
+export async function invalidateExtract(projectId: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.from("oereb_extracts").delete().eq("project_id", projectId);
+  // Tabelle fehlt (Migration nicht eingespielt) → nichts zu invalidieren.
+  if (error && !/oereb_extracts/.test(error.message)) {
+    console.error(`ÖREB-Auszug für Projekt ${projectId} konnte nicht entfernt werden:`, error.message);
+  }
+}
+
+/**
+ * Leitet die Bauzone aus dem bereits gespeicherten Auszug erneut ab und schreibt sie
+ * ins Projekt (respektiert 'manual'). Für den Fall, dass der Nutzer die Zone leert:
+ * Der Auszug ist noch gültig, ein neuer Abruf wäre unnötig. Gibt die Zone zurück,
+ * null wenn kein 'ok'-Auszug vorliegt. Wirft nie.
+ */
+export async function reapplyZoneFromStoredExtract(projectId: string): Promise<ZoneResult | null> {
+  try {
+    const admin = createAdminClient();
+    const { data: extract, error } = await admin
+      .from("oereb_extracts")
+      .select("id, canton, egrid, identdn, parcel_number, status")
+      .eq("project_id", projectId)
+      .maybeSingle();
+    if (error || !extract || extract.status !== "ok") return null;
+
+    const adapter = getAdapter(extract.canton);
+    if (!adapter) return null;
+
+    const { data: rows, error: thErr } = await admin
+      .from("oereb_themes")
+      .select("theme_code, theme_name, sub_theme, concern, legal_status, area_pct, area_m2, type_code, legend_text, law_links, authority")
+      .eq("extract_id", extract.id);
+    if (thErr) return null;
+
+    const themes: OerebTheme[] = (rows ?? []).map((r) => ({
+      themeCode: r.theme_code,
+      themeName: r.theme_name,
+      subTheme: r.sub_theme,
+      concern: r.concern,
+      legalStatus: r.legal_status,
+      areaPct: r.area_pct,
+      areaM2: r.area_m2,
+      typeCode: r.type_code,
+      legendText: r.legend_text,
+      lawLinks: r.law_links ?? [],
+      authority: r.authority,
+      raw: null,
+    }));
+    const zone = adapter.extractZone({
+      canton: extract.canton,
+      egrid: extract.egrid,
+      identDn: extract.identdn,
+      parcelNumber: extract.parcel_number,
+      municipality: null,
+      themes,
+      raw: null,
+    });
+    await applyZone(projectId, zone);
+    return zone;
+  } catch (e) {
+    console.error(`Bauzone für Projekt ${projectId} konnte nicht aus dem Auszug abgeleitet werden:`, e);
+    return null;
+  }
 }
 
 function statusOf(e: unknown): { status: ExtractStatus; detail: string } {
