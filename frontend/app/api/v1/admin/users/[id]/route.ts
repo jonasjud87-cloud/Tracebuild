@@ -63,7 +63,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   // Einladungs-Zuordnung mitlöschen. Sonst legt die Selbstheilung in
   // lib/auth.ts die gerade entfernte Zeile beim nächsten Login wieder an.
   try {
-    await admin.auth.admin.updateUserById(params.id, { app_metadata: { org_id: null, invited_role: null } });
+    await admin.auth.admin.updateUserById(params.id, { app_metadata: { org_id: null, invited_role: null }, ban_duration: "876000h" });
   } catch { /* best effort — die users-Zeile ist bereits weg */ }
 
   return ok({ id: params.id });

@@ -3,6 +3,7 @@ import { getAuthUser, unauthorized, forbidden, ok, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const ADMIN_ROLES = ["super_admin"] as const;
+const ALLOWED_ROLES = ["org_admin", "project_manager", "member", "super_admin"];
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -23,6 +24,30 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 }
 
 // Adding members is handled by POST /api/v1/admin/invite (shared invite flow).
+
+export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const user = await getAuthUser();
+  if (!user) return unauthorized();
+  if (!ADMIN_ROLES.includes(user.role as "super_admin")) return forbidden();
+
+  const body = await req.json().catch(() => null);
+  const userId: string | undefined = body?.userId;
+  const role: string | undefined = body?.role;
+  if (!userId) return err("userId fehlt.");
+  if (!role || !ALLOWED_ROLES.includes(role)) return err("Ungültige Rolle");
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("users")
+    .update({ role })
+    .eq("id", userId)
+    .eq("org_id", params.id)
+    .select("id, email, role")
+    .single();
+
+  if (error || !data) return err("Benutzer nicht gefunden", 404);
+  return ok(data);
+}
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -45,7 +70,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   // Einladungs-Zuordnung mitlöschen. Sonst legt die Selbstheilung in
   // lib/auth.ts die gerade entfernte Zeile beim nächsten Login wieder an.
   try {
-    await admin.auth.admin.updateUserById(userId, { app_metadata: { org_id: null, invited_role: null } });
+    await admin.auth.admin.updateUserById(userId, { app_metadata: { org_id: null, invited_role: null }, ban_duration: "876000h" });
   } catch { /* best effort — die users-Zeile ist bereits weg */ }
 
   return ok({ message: "Benutzer entfernt." });
