@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateChangeStatus } from "@/lib/validations/organization";
 import { formatOrg } from "@/lib/organizations";
+import { logAudit } from "@/lib/auditLog";
 
 type RouteContext = { params: { id: string } };
 
@@ -44,5 +45,15 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     .single();
 
   if (error || !data) return err(error?.message ?? "Organisation nicht gefunden", 404);
+
+  await logAudit(admin, {
+    orgId: id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "org_status_change",
+    targetId: id,
+    meta: { status },
+  });
+
   return ok(formatOrg(data));
 }

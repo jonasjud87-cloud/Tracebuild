@@ -27,7 +27,15 @@ const TAB_LABELS: { id: Tab; label: string }[] = [
 interface AuditLogEntry {
   id: string;
   actor_email: string;
-  action: "invite" | "reinvite" | "role_change" | "remove" | "project_create" | "project_delete";
+  action:
+    | "invite" | "reinvite" | "role_change" | "remove"
+    | "project_create" | "project_delete" | "project_update"
+    | "project_member_add" | "project_member_remove"
+    | "org_create" | "org_update" | "org_delete" | "org_status_change"
+    | "norm_delete" | "norm_promote" | "norm_upload_platform"
+    | "norm_upload" | "norm_remove" | "norm_custom_create"
+    | "norm_refresh" | "project_norm_add" | "project_norm_remove"
+    | "analysis_run" | "analysis_delete" | "chat_message";
   target_id: string | null;
   target_email: string | null;
   meta: Record<string, unknown>;
@@ -399,6 +407,25 @@ const AUDIT_ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   remove: "Entfernt",
   project_create: "Projekt erstellt",
   project_delete: "Projekt gelöscht",
+  project_update: "Projekt geändert",
+  project_member_add: "Mitglied zu Projekt hinzugefügt",
+  project_member_remove: "Mitglied aus Projekt entfernt",
+  org_create: "Organisation erstellt",
+  org_update: "Organisation geändert",
+  org_delete: "Organisation gelöscht",
+  org_status_change: "Status geändert",
+  norm_delete: "Norm gelöscht",
+  norm_promote: "Norm plattformweit gemacht",
+  norm_upload_platform: "Plattform-Norm hochgeladen",
+  norm_upload: "Norm hochgeladen",
+  norm_remove: "Norm entfernt",
+  norm_custom_create: "Eigene Norm erstellt",
+  norm_refresh: "Normen aktualisiert",
+  project_norm_add: "Norm zu Projekt hinzugefügt",
+  project_norm_remove: "Norm von Projekt entfernt",
+  analysis_run: "Analyse durchgeführt",
+  analysis_delete: "Analyse gelöscht",
+  chat_message: "Chat-Nachricht gesendet",
 };
 
 function auditDetails(e: AuditLogEntry): string {
@@ -413,6 +440,22 @@ function auditDetails(e: AuditLogEntry): string {
   if (e.action === "project_create" || e.action === "project_delete") {
     const n = e.meta?.name;
     return typeof n === "string" ? n : "—";
+  }
+  if (e.action === "org_update" || e.action === "project_update") {
+    return Array.isArray(e.meta?.fields) ? (e.meta.fields as string[]).join(", ") : "—";
+  }
+  if (e.action === "org_status_change") {
+    const s = e.meta?.status;
+    return typeof s === "string" ? s : "—";
+  }
+  if (e.action === "norm_delete" || e.action === "norm_upload_platform" || e.action === "norm_upload" || e.action === "norm_custom_create") {
+    const t = e.meta?.title;
+    return typeof t === "string" ? t : "—";
+  }
+  if (e.action === "analysis_run") {
+    if (e.meta?.status === "error") return `Fehler: ${e.meta?.error}`;
+    const s = e.meta?.status;
+    return typeof s === "string" ? s : "—";
   }
   return "";
 }

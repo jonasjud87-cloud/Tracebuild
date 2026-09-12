@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 // POST /api/v1/admin/norms/[id]/promote — super_admin only. Makes an org-owned norm
 // platform-wide (org_id -> null) while recording provenance (promoted_from_org_id/at).
@@ -30,5 +31,14 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: norm.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_promote",
+    targetId: params.id,
+  });
+
   return ok(data);
 }

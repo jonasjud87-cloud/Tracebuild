@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 export async function POST(
   request: Request,
@@ -49,5 +50,15 @@ export async function POST(
     .single();
 
   if (pnErr) return err(pnErr.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_custom_create",
+    targetId: norm.id,
+    meta: { projectId: params.id, title: norm.title },
+  });
+
   return ok(pn, 201);
 }

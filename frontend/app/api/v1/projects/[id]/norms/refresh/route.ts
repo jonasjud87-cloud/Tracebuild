@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { lookupParcel } from "@/lib/geoportal";
 import { assignNorms } from "@/lib/norm-assignment";
+import { logAudit } from "@/lib/auditLog";
 
 export async function POST(
   _req: Request,
@@ -38,6 +39,15 @@ export async function POST(
     loc.municipality ?? "",
     project.domain ?? "bau"
   ).catch(() => 0);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_refresh",
+    targetId: params.id,
+    meta: { assigned_norms_count },
+  });
 
   return ok({ zone, assigned_norms_count });
 }
