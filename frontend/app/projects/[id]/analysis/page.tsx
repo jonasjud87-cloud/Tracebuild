@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import {
   type AnalysisItem,
   type Category,
@@ -24,22 +25,44 @@ const CARD = {
   borderRadius: 14,
 };
 
+const SECONDARY_BTN: React.CSSProperties = {
+  display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#ABAEBB",
+  background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
+  padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
+  transition: "all .15s", whiteSpace: "nowrap",
+};
+const secondaryHoverIn = (e: React.MouseEvent<HTMLElement>) => {
+  e.currentTarget.style.background = "rgba(40,98,215,0.12)";
+  e.currentTarget.style.borderColor = "#2862D7";
+  e.currentTarget.style.color = "#85A6E9";
+};
+const secondaryHoverOut = (e: React.MouseEvent<HTMLElement>) => {
+  e.currentTarget.style.background = "rgba(133,166,233,0.08)";
+  e.currentTarget.style.borderColor = "rgba(133,166,233,0.18)";
+  e.currentTarget.style.color = "#ABAEBB";
+};
+
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
 interface AnalysisWithDoc {
   id: string;
   status: string;
-  cost_usd: number | null;
   created_at: string;
   planType: string;
   fileUrl: string | null;
   items: AnalysisItem[];
 }
 
+interface ProjectInfo {
+  name: string;
+  location: { canton?: string; municipality?: string } | null;
+  parcel_number: string | null;
+  bauzone: string | null;
+}
+
 interface RawGetAnalysis {
   id: string;
   status: string;
-  cost_usd: number | null;
   created_at: string;
   documents?: { doc_type: string | null; file_url?: string | null } | null;
   analysis_items?: AnalysisItem[];
@@ -148,7 +171,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisWithDoc | null>(null);
   const [showNewTypeInput, setShowNewTypeInput] = useState(false);
   const [newTypeName, setNewTypeName]       = useState("");
+  const [pendingFile, setPendingFile]       = useState<File | null>(null);
   const [uploading, setUploading]           = useState(false);
+  const [cancelling, setCancelling]         = useState(false);
+  const [info, setInfo]                     = useState<string | null>(null);
+  const [project, setProject]               = useState<ProjectInfo | null>(null);
   const [error, setError]                   = useState<string | null>(null);
   const [dragOver, setDragOver]             = useState(false);
   const [menuOpenId, setMenuOpenId]         = useState<string | null>(null);
@@ -156,13 +183,15 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [overviewOpen, setOverviewOpen]     = useState(true);
   const [detailFilter, setDetailFilter]     = useState<"all" | "fail" | "warn" | "ok">("all");
   const fileRef = useRef<HTMLInputElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef<string | null>(null);
 
   useEffect(() => {
+    api.get<ProjectInfo>(`/projects/${params.id}`).then(setProject).catch(() => {});
     api.get<RawGetAnalysis[]>(`/projects/${params.id}/analyses`).then((data) => {
       const normalized: AnalysisWithDoc[] = (data ?? []).map((a) => ({
         id: a.id,
         status: a.status,
-        cost_usd: a.cost_usd,
         created_at: a.created_at,
         planType: a.documents?.doc_type ?? "Grundriss",
         fileUrl: a.documents?.file_url || null,
@@ -217,22 +246,40 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     } catch { /* ignore */ }
   }
 
-  async function runAnalysis(file: File) {
+  function selectFile(file: File) {
     if (!file.type.includes("pdf") && !file.type.includes("image")) {
       setError("Nur PDF- oder Bilddateien werden unterstützt.");
       return;
     }
     setError(null);
+    setInfo(null);
+    setPendingFile(file);
+  }
+
+  async function runAnalysis() {
+    const file = pendingFile;
+    if (!file || uploading) return;
+    setError(null);
+    setInfo(null);
     setUploading(true);
+    setCancelling(false);
+
+    // Lauf-ID vom Client: darüber kann der Server-Lauf abgebrochen werden, noch bevor
+    // die Analyse-ID mit der Antwort zurückkommt.
+    const runId = crypto.randomUUID();
+    runIdRef.current = runId;
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     try {
       const form = new FormData();
       form.append("file", file);
       form.append("doc_type", selectedPlanType);
-      const raw = await api.postForm<RawGetAnalysis>(`/projects/${params.id}/analyses`, form);
+      form.append("run_id", runId);
+      const raw = await api.postForm<RawGetAnalysis>(`/projects/${params.id}/analyses`, form, controller.signal);
       const analysis: AnalysisWithDoc = {
         id: raw.id,
         status: raw.status,
-        cost_usd: raw.cost_usd,
         created_at: raw.created_at,
         planType: selectedPlanType,
         fileUrl: raw.documents?.file_url || null,
@@ -242,15 +289,58 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       setLocalPlanTypes((prev) => prev.filter((t) => t !== selectedPlanType));
       setSelectedAnalysis(analysis);
       setDetailFilter("all");
+      setPendingFile(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Analyse fehlgeschlagen");
+      if (controller.signal.aborted) {
+        setInfo("Analyse abgebrochen.");
+      } else {
+        setError(e instanceof Error ? e.message : "Analyse fehlgeschlagen");
+      }
     } finally {
       setUploading(false);
+      setCancelling(false);
+      abortRef.current = null;
+      runIdRef.current = null;
     }
   }
 
+  async function cancelAnalysis() {
+    if (!uploading || cancelling) return;
+    setCancelling(true);
+    const runId = runIdRef.current;
+    // Erst den Server informieren (stoppt die Modell-Calls), dann die eigene Anfrage kappen.
+    if (runId) {
+      try {
+        await api.post(`/projects/${params.id}/analyses/cancel`, { run_id: runId });
+      } catch {
+        // Abbruch der eigenen Anfrage trotzdem
+      }
+    }
+    abortRef.current?.abort();
+  }
+
   function handleFiles(files: FileList | null) {
-    if (files?.[0]) runAnalysis(files[0]);
+    if (files?.[0]) selectFile(files[0]);
+  }
+
+  function reportMeta(a: AnalysisWithDoc): ReportMeta {
+    const vIdx = typeAnalyses.findIndex((x) => x.id === a.id);
+    return {
+      projectName: project?.name ?? "Projekt",
+      canton: project?.location?.canton ?? "",
+      municipality: project?.location?.municipality ?? "",
+      parcel: project?.parcel_number ?? null,
+      bauzone: project?.bauzone ?? null,
+      planType: a.planType,
+      version: vIdx >= 0 ? typeAnalyses.length - vIdx : 1,
+      createdAt: a.created_at,
+    };
+  }
+
+  function exportPdf(a: AnalysisWithDoc) {
+    if (!openReportForPrint(reportMeta(a), a.items)) {
+      setError("Der Browser hat das Öffnen des Berichts blockiert (Pop-up-Blocker).");
+    }
   }
 
   // ── OVERVIEW ──────────────────────────────────────────────────────────────
@@ -651,23 +741,75 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         {!selectedAnalysis ? (
           <>
             <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => { if (uploading) return; e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); handleFiles(e.dataTransfer.files); }}
-              onClick={() => !uploading && fileRef.current?.click()}
+              onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) handleFiles(e.dataTransfer.files); }}
+              onClick={() => !uploading && !pendingFile && fileRef.current?.click()}
               style={{
                 width: "100%", border: `2px dashed ${dragOver ? "#2862D7" : "rgba(133,166,233,0.25)"}`,
-                borderRadius: 18, padding: "64px 16px", textAlign: "center", cursor: uploading ? "not-allowed" : "pointer",
+                borderRadius: 18, padding: "64px 16px", textAlign: "center", cursor: uploading || pendingFile ? "default" : "pointer",
                 background: dragOver ? "rgba(40,98,215,0.08)" : "rgba(23,37,64,0.3)",
-                transition: "all .2s", boxSizing: "border-box", opacity: uploading ? 0.7 : 1,
+                transition: "all .2s", boxSizing: "border-box",
               }}
             >
-              <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
+              <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: "none" }} onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               {uploading ? (
                 <div>
                   <div style={{ width: 44, height: 44, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>Claude analysiert gegen Normen…</p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>Das dauert ca. 30–60 Sekunden</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>Analyse läuft – Plan wird gegen die Normen geprüft…</p>
+                  <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>Das kann einige Minuten dauern</p>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); cancelAnalysis(); }}
+                    disabled={cancelling}
+                    style={{
+                      fontSize: 13, fontWeight: 600, color: "#F87171",
+                      background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)",
+                      padding: "8px 18px", borderRadius: 10, cursor: cancelling ? "wait" : "pointer",
+                      fontFamily: "inherit", opacity: cancelling ? 0.6 : 1, transition: "all .15s",
+                    }}
+                  >
+                    {cancelling ? "Wird abgebrochen…" : "Analyse abbrechen"}
+                  </button>
+                </div>
+              ) : pendingFile ? (
+                <div>
+                  <div style={{ width: 60, height: 60, background: "rgba(40,98,215,0.12)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
+                    <svg style={{ width: 30, height: 30, color: "#85A6E9" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                  </div>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pendingFile.name}</p>
+                  <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>
+                    {selectedPlanType} · {(pendingFile.size / 1024 / 1024).toFixed(1)} MB
+                  </p>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); setPendingFile(null); setInfo(null); }}
+                      style={{
+                        fontSize: 13, fontWeight: 500, color: "#ABAEBB",
+                        background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
+                        padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      Andere Datei
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); runAnalysis(); }}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 8,
+                        background: "linear-gradient(90deg,#4fd1ff,#38bdf8 55%,#2862D7)",
+                        color: "#fff", padding: "9px 20px", borderRadius: 10,
+                        fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
+                        fontFamily: "inherit", boxShadow: "0 4px 16px rgba(40,98,215,0.35)",
+                      }}
+                    >
+                      <svg style={{ width: 14, height: 14 }} fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                      Analyse starten
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -678,14 +820,18 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   </div>
                   <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Plan hochladen</p>
                   <p style={{ fontSize: 13, fontWeight: 500, color: "#85A6E9", margin: "0 0 4px" }}>{selectedPlanType}</p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 14px" }}>PDF oder Bild · Drag & Drop oder klicken</p>
-                  <span style={{ fontSize: 11, color: "#7B8299", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.15)", padding: "4px 12px", borderRadius: 50 }}>max. 20 MB</span>
+                  <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>PDF oder Bild · Drag & Drop oder klicken</p>
                 </div>
               )}
             </div>
             {error && (
               <div style={{ marginTop: 12, fontSize: 13, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "10px 16px", textAlign: "center" }}>
                 {error}
+              </div>
+            )}
+            {info && (
+              <div style={{ marginTop: 12, fontSize: 13, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", borderRadius: 12, padding: "10px 16px", textAlign: "center" }}>
+                {info}
               </div>
             )}
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
@@ -731,26 +877,44 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>
                     {new Date(selectedAnalysis.created_at).toLocaleDateString("de-CH", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
                   </h3>
-                  {selectedAnalysis.cost_usd != null && (
-                    <p style={{ fontSize: 11.5, color: "#7B8299", marginTop: 3 }}>Kosten: ${selectedAnalysis.cost_usd.toFixed(4)}</p>
-                  )}
                 </div>
-                <button
-                  onClick={() => setSelectedAnalysis(null)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#ABAEBB",
-                    background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
-                    padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-                    transition: "all .15s",
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(40,98,215,0.12)"; (e.currentTarget as HTMLElement).style.borderColor = "#2862D7"; (e.currentTarget as HTMLElement).style.color = "#85A6E9"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; (e.currentTarget as HTMLElement).style.borderColor = "rgba(133,166,233,0.18)"; (e.currentTarget as HTMLElement).style.color = "#ABAEBB"; }}
-                >
-                  <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Neuer Plan
-                </button>
+                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                  <button
+                    onClick={() => exportPdf(selectedAnalysis)}
+                    title="Prüfbericht als PDF (Druckansicht)"
+                    style={SECONDARY_BTN}
+                    onMouseEnter={secondaryHoverIn}
+                    onMouseLeave={secondaryHoverOut}
+                  >
+                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Bericht (PDF)
+                  </button>
+                  <button
+                    onClick={() => downloadReportCsv(reportMeta(selectedAnalysis), selectedAnalysis.items)}
+                    title="Mängelliste als CSV (Excel)"
+                    style={SECONDARY_BTN}
+                    onMouseEnter={secondaryHoverIn}
+                    onMouseLeave={secondaryHoverOut}
+                  >
+                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M10 4v16M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
+                    </svg>
+                    CSV
+                  </button>
+                  <button
+                    onClick={() => setSelectedAnalysis(null)}
+                    style={SECONDARY_BTN}
+                    onMouseEnter={secondaryHoverIn}
+                    onMouseLeave={secondaryHoverOut}
+                  >
+                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Neuer Plan
+                  </button>
+                </div>
               </div>
 
               {/* Stat tiles */}

@@ -386,6 +386,7 @@ async function analyseOneNorm(
   runDeadlineAt: number,
   onPrefillDone: (() => void) | null,
   effort: "low" | "medium" | "high" = EFFORT,
+  cancelSignal: AbortSignal | null = null,
 ): Promise<CallOutcome> {
   const startedAt = Date.now();
   const deadlineAt = Math.min(runDeadlineAt, startedAt + PER_CALL_BUDGET_MS);
@@ -406,8 +407,12 @@ async function analyseOneNorm(
   // Während einer langen Denkphase (display "omitted") fliesst minutenlang nichts.
   const controller = new AbortController();
   const killTimer = setTimeout(() => controller.abort(), Math.max(1_000, deadlineAt - Date.now()));
+  // Nutzer-Abbruch: reisst den laufenden Call mit, damit keine Tokens mehr verbraucht werden.
+  const onCancel = () => controller.abort();
+  cancelSignal?.addEventListener("abort", onCancel, { once: true });
 
   try {
+    if (cancelSignal?.aborted) throw new Error("Analyse abgebrochen");
     const remaining = deadlineAt - Date.now();
     if (remaining <= 5_000) throw new Error("Zeitbudget aufgebraucht, bevor der Call startete");
 
@@ -475,11 +480,14 @@ async function analyseOneNorm(
       error = `Unerwarteter stop_reason: ${stopReason}`;
     }
   } catch (e) {
-    error = controller.signal.aborted
-      ? "Zeitbudget der Analyse überschritten"
-      : e instanceof Error ? e.message : "Unbekannter Fehler";
+    error = cancelSignal?.aborted
+      ? "Analyse abgebrochen"
+      : controller.signal.aborted
+        ? "Zeitbudget der Analyse überschritten"
+        : e instanceof Error ? e.message : "Unbekannter Fehler";
   } finally {
     clearTimeout(killTimer);
+    cancelSignal?.removeEventListener("abort", onCancel);
     fireGate();
   }
 
@@ -532,6 +540,7 @@ export async function runNormAnalysis(
   fileBlock: FileBlock,
   ctx: ProjectContext,
   budgetMs: number = RUN_BUDGET_MS,
+  cancelSignal: AbortSignal | null = null,
 ): Promise<AnalysisRunResult> {
   const startedAt = Date.now();
   const deadlineAt = startedAt + budgetMs;
@@ -545,7 +554,7 @@ export async function runNormAnalysis(
     let openGate: () => void = () => {};
     const gate = new Promise<void>((resolve) => { openGate = resolve; });
 
-    const firstPromise = analyseOneNorm(norms[0], 0, total, system, fileBlock, deadlineAt, openGate);
+    const firstPromise = analyseOneNorm(norms[0], 0, total, system, fileBlock, deadlineAt, openGate, EFFORT, cancelSignal);
 
     await Promise.race([
       gate,
@@ -555,9 +564,10 @@ export async function runNormAnalysis(
     const rest = norms.slice(1);
     const restOutcomes: CallOutcome[] = [];
     for (let offset = 0; offset < rest.length; offset += MAX_CONCURRENCY) {
+      if (cancelSignal?.aborted) break;
       const wave = rest.slice(offset, offset + MAX_CONCURRENCY);
       const settled = await Promise.all(
-        wave.map((n, k) => analyseOneNorm(n, offset + k + 1, total, system, fileBlock, deadlineAt, null)),
+        wave.map((n, k) => analyseOneNorm(n, offset + k + 1, total, system, fileBlock, deadlineAt, null, EFFORT, cancelSignal)),
       );
       restOutcomes.push(...settled);
     }
@@ -570,13 +580,14 @@ export async function runNormAnalysis(
     for (let i = 0; i < outcomes.length; i++) {
       const o = outcomes[i];
       if (o.result.ok) continue;
+      if (cancelSignal?.aborted) break;
       if (deadlineAt - Date.now() < RETRY_MIN_REMAINING_MS) break;
 
       const normIndex = norms.findIndex((n) => n.id === o.result.norm_id);
       if (normIndex < 0) continue;
       const retryEffort = isTimeoutError(o.result.error) ? "low" : EFFORT;
       const retry = await analyseOneNorm(
-        norms[normIndex], normIndex, total, system, fileBlock, deadlineAt, null, retryEffort,
+        norms[normIndex], normIndex, total, system, fileBlock, deadlineAt, null, retryEffort, cancelSignal,
       );
       retry.result.retried = true;
       // Der Versuch mit mehr Prüfpunkten gewinnt; die Tokens beider Versuche zählen.
