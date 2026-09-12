@@ -1,6 +1,8 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export type AuditAction = "invite" | "reinvite" | "role_change" | "remove";
+export type AuditAction =
+  | "invite" | "reinvite" | "role_change" | "remove"
+  | "project_create" | "project_delete";
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

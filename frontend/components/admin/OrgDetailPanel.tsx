@@ -27,7 +27,7 @@ const TAB_LABELS: { id: Tab; label: string }[] = [
 interface AuditLogEntry {
   id: string;
   actor_email: string;
-  action: "invite" | "reinvite" | "role_change" | "remove";
+  action: "invite" | "reinvite" | "role_change" | "remove" | "project_create" | "project_delete";
   target_id: string | null;
   target_email: string | null;
   meta: Record<string, unknown>;
@@ -397,6 +397,8 @@ const AUDIT_ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   reinvite: "Erneut eingeladen",
   role_change: "Rolle geändert",
   remove: "Entfernt",
+  project_create: "Projekt erstellt",
+  project_delete: "Projekt gelöscht",
 };
 
 function auditDetails(e: AuditLogEntry): string {
@@ -407,6 +409,10 @@ function auditDetails(e: AuditLogEntry): string {
   if (e.action === "invite" || e.action === "reinvite") {
     const r = e.meta?.role;
     return typeof r === "string" ? (ROLE_LABELS[r] ?? r) : "—";
+  }
+  if (e.action === "project_create" || e.action === "project_delete") {
+    const n = e.meta?.name;
+    return typeof n === "string" ? n : "—";
   }
   return "";
 }
