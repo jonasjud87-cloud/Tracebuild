@@ -76,25 +76,35 @@ async function loadOerebFacts(
   try {
     const { data: extract, error } = await admin
       .from("oereb_extracts")
-      .select("id, status")
+      .select("id, status, raw")
       .eq("project_id", projectId)
       .maybeSingle();
     if (error || !extract || extract.status !== "ok") return null;
 
     const { data: themes, error: thErr } = await admin
       .from("oereb_themes")
-      .select("theme_code, theme_name, concern, legend_text, type_code")
+      .select("theme_code, theme_name, concern, legend_text, type_code, area_m2, area_pct")
       .eq("extract_id", extract.id);
     if (thErr || !themes) return null;
 
+    // Grundbuchfläche aus dem (geslimmten) Auszug — Basis für Ausnützungs-/Parkplatzrechnung.
+    const raw = extract.raw as { RealEstate?: { LandRegistryArea?: unknown } } | null;
+    const areaRaw = Number(raw?.RealEstate?.LandRegistryArea);
+    const parcelAreaM2 = Number.isFinite(areaRaw) && areaRaw > 0 ? Math.round(areaRaw) : null;
+
+    const num = (v: unknown): number | null => (v == null || !Number.isFinite(Number(v)) ? null : Number(v));
     const affects = themes
       .filter((t) => t.concern === "affects")
-      .map((t) => ({ code: t.theme_code, name: t.theme_name, legend: t.legend_text ?? null, typeCode: t.type_code ?? null }));
+      .map((t) => ({
+        code: t.theme_code, name: t.theme_name, legend: t.legend_text ?? null, typeCode: t.type_code ?? null,
+        areaM2: num(t.area_m2), areaPct: num(t.area_pct),
+      }));
     const uniq = (xs: string[]) => Array.from(new Set(xs));
     return {
       affects,
       noData: uniq(themes.filter((t) => t.concern === "no_data").map((t) => t.theme_name)),
       notAffected: uniq(themes.filter((t) => t.concern === "not_affects").map((t) => t.theme_name)),
+      parcelAreaM2,
     };
   } catch {
     return null;
@@ -329,7 +339,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
           norms_source: normsSource,
           norms_error: pnError?.message ?? null,
           norm_count: norms.length,
-          reference_norms: norms.filter((n) => n.layer === 4).map((n) => n.title),
+          reference_norms: norms.filter((n) => n.layer === 4 || n.jurisdiction_type === "municipal").map((n) => n.title),
           oereb_context: !!oereb,
           item_count: run.items.length,
           raw_item_count: run.consolidation?.raw_count ?? run.items.length,
@@ -401,7 +411,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
       })
       .eq("id", analysis.id)
-      .in("status", ["running", "cancelled"]);
+      // Ein bereits gesetztes 'cancelled' (Cancel-Route war schneller als der Poll)
+      // bleibt bestehen — nur ein laufender Datensatz wird zum Fehler.
+      .in("status", cancel.signal.aborted ? ["running", "cancelled"] : ["running"]);
 
     await logAudit(admin, {
       orgId: user.org_id,

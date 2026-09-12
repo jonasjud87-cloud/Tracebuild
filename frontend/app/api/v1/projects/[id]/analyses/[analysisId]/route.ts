@@ -41,20 +41,25 @@ export async function DELETE(
 
   // Hängt keine andere Analyse mehr am Dokument, gehen Dokument und Storage-Datei mit —
   // sonst sammeln sich Plan-PDFs an, die nirgends mehr sichtbar sind.
-  const { count } = await admin
+  // Bei einem Zählfehler lieber nichts löschen: ein falsches "0" würde per CASCADE
+  // alle anderen Analysen desselben Dokuments mitreissen.
+  const { count, error: countErr } = await admin
     .from("analyses")
     .select("id", { count: "exact", head: true })
     .eq("document_id", analysis.document_id);
-  if ((count ?? 0) === 0) {
+  if (!countErr && count === 0) {
     const { data: docRow } = await admin.from("documents").select("file_url").eq("id", analysis.document_id).maybeSingle();
     const marker = "/storage/v1/object/public/documents/";
     const idx = docRow?.file_url?.indexOf(marker) ?? -1;
     if (idx >= 0) {
-      const storagePath = decodeURIComponent(docRow!.file_url.slice(idx + marker.length));
+      // file_url wird beim Schreiben nicht URL-kodiert (roher Storage-Pfad); ein
+      // decodeURIComponent könnte bei "%" im Dateinamen werfen — deshalb roh verwenden.
+      const storagePath = docRow!.file_url.slice(idx + marker.length);
       const { error: rmErr } = await admin.storage.from("documents").remove([storagePath]);
       if (rmErr) console.warn(`Storage-Datei ${storagePath} konnte nicht entfernt werden:`, rmErr.message);
     }
-    await admin.from("documents").delete().eq("id", analysis.document_id);
+    const { error: docErr } = await admin.from("documents").delete().eq("id", analysis.document_id);
+    if (docErr) console.warn(`Dokument ${analysis.document_id} konnte nicht entfernt werden:`, docErr.message);
   }
 
   await logAudit(admin, {

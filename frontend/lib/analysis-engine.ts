@@ -46,7 +46,7 @@ const MAX_TOKENS_PER_NORM = 32_000;
 const MAX_CHECKS_PER_NORM = 25;
 
 /** Wie viele Norm-Calls gleichzeitig laufen dürfen. */
-const MAX_CONCURRENCY = Number(process.env.ANALYSIS_MAX_CONCURRENCY ?? 8);
+const MAX_CONCURRENCY = Math.max(1, Number(process.env.ANALYSIS_MAX_CONCURRENCY) || 8);
 
 /**
  * Denktiefe. Gemessen an der Norm Mels_Baureglement (53'825 Zeichen):
@@ -160,9 +160,11 @@ export interface NormInput {
 
 /** Fakten aus dem ÖREB-Auszug der Parzelle — der Prüfer soll wissen, was nachweislich (nicht) gilt. */
 export interface OerebFacts {
-  affects: { code: string; name: string; legend: string | null; typeCode: string | null }[];
+  affects: { code: string; name: string; legend: string | null; typeCode: string | null; areaM2: number | null; areaPct: number | null }[];
   noData: string[];
   notAffected: string[];
+  /** Grundbuchfläche der Parzelle in m² (aus dem Auszug), wenn bekannt. */
+  parcelAreaM2: number | null;
 }
 
 export interface ConsolidationResult {
@@ -295,11 +297,30 @@ PRÜFENDE NORM regelt, MUSS ein Prüfpunkt entstehen (ok, warn oder fail):
  11. Vollständigkeit der Baugesuchsunterlagen (Situationsplan, Kanalisation, Nachweise).
  12. Gewässer-, Wald-, Strassenabstände laut ÖREB/Referenzrahmen.
 
+LESEN, BEVOR DU URTEILST:
+- Bevor du "nicht kotiert / nicht bemasst / nicht ersichtlich" schreibst, hast du ALLE
+  Schnitte, Fassaden, Grundrisse und den Situationsplan durchgesehen. Masse stehen oft nur
+  im Schnitt (Kniestock, lichte Raumhöhe, Geschosshöhe) oder im Situationsplan (Abstände).
+  Nenne im Befund die Seite, auf der das Mass steht — oder auf welchen Seiten du gesucht hast.
+- Was aus Koten berechenbar ist, rechnest du (Terrain, Fertigboden, First; Fassadenmasse;
+  Flächen aus dem Plan; Parzellenfläche aus dem Referenzrahmen). Schreibe die Rechnung.
+- Behaupte keine Angaben, die nicht im Plan stehen (z.B. "Kanalisationsanschluss vorgesehen",
+  wenn kein Kanalisationsplan da ist).
+- Nennt die Norm mehrere Bezugsgrössen (z.B. Abstellplätze je 80 m² Geschossfläche UND je
+  Wohnung), rechnest du beide; die höhere Anforderung gilt.
+- Grenzt eine Fassade an eine Strasse, prüfst du, ob die Norm den Strassenabstand dem
+  (grossen) Grenzabstand vorgehen lässt — und sagst es im Befund.
+- Ein Bauteil innerhalb der Hauptfassaden (z.B. Autounterstand unter dem Obergeschoss) ist
+  kein Anbau/Vorbau/Kleinbaute; Regeln für vorstehende Bauteile gelten nicht.
+
 STATUS-REGELN:
 - "ok" NUR, wenn der Plan die Einhaltung positiv belegt (Masse/Koten vorhanden und
   gerechnet). Fehlt der Nachweis oder muss etwas "nachgewiesen/ergänzt" werden → "warn".
   Ein "ok" hat deshalb nie eine Empfehlung.
-- "fail" = anhand des Plans nachweislich verletzt (Zahl gegen Grenzwert).
+- "fail" = anhand des Plans nachweislich verletzt (Zahl gegen Grenzwert). Das gilt auch,
+  wenn das Mass nicht direkt beschriftet, aber aus Koten oder Massketten ableitbar ist
+  (z.B. Vorplatz = Abstand Garagenfront zur Strassengrenze). "Nicht bemasst" ist kein
+  Ausweg, wenn sich das Mass ableiten lässt.
 - "warn" = nicht abschliessend beurteilbar, Nachweis fehlt, oder Grenzfall mit Auslegungsbedarf.
 - Exakt am Grenzwert oder Reserve unter 5 cm: "ok", aber im Befund ausdrücklich
   "exakt am Limit / Reserve x cm" schreiben und in der confidence "medium" wählen, wenn
@@ -344,40 +365,59 @@ export function isReferenceNorm(norm: NormInput): boolean {
  * Referenzrahmen: ÖREB-Fakten + Volltext der kommunalen Normen. Steht in jedem Call
  * VOR dem Cache-Breakpoint, ist also über alle Calls byte-identisch.
  */
-export function buildReferenceBlock(ctx: ProjectContext, referenceNorms: NormInput[]): string {
+export interface ReferenceBlock {
+  text: string;
+  /** Normen, deren Text VOLLSTÄNDIG im Block steht — nur die dürfen den Text im Norm-Call weglassen. */
+  completeIds: Set<string>;
+}
+
+export function buildReferenceBlock(ctx: ProjectContext, referenceNorms: NormInput[]): ReferenceBlock {
   const lines: string[] = ["REFERENZRAHMEN (zur Einordnung — nicht selbst zu prüfen, ausser es ist die zu prüfende Norm)"];
+  const completeIds = new Set<string>();
 
   const o = ctx.oereb;
   if (o) {
     lines.push("", "ÖREB-Kataster der Parzelle (amtlich):");
+    if (o.parcelAreaM2 != null) lines.push(`- Parzellenfläche (Grundbuch): ${o.parcelAreaM2} m²`);
     if (o.affects.length) {
       lines.push("- Betroffen:");
       for (const a of o.affects) {
-        lines.push(`  · ${a.name}${a.legend ? `: ${a.legend}` : ""}${a.typeCode ? ` [${a.typeCode}]` : ""}`);
+        const area = a.areaM2 != null ? ` — ${a.areaM2} m²${a.areaPct != null ? ` (${a.areaPct} % der Parzelle)` : ""}` : "";
+        lines.push(`  · ${a.name}${a.legend ? `: ${a.legend}` : ""}${a.typeCode ? ` [${a.typeCode}]` : ""}${area}`);
       }
     } else {
       lines.push("- Betroffen: keine Einschränkung erfasst");
     }
     if (o.notAffected.length) lines.push(`- Nicht betroffen: ${o.notAffected.join(", ")}`);
     if (o.noData.length) lines.push(`- Ohne Daten im Kataster: ${o.noData.join(", ")}`);
+    if (o.parcelAreaM2 != null) {
+      lines.push("- Hinweis: Für Ausnützungs-/Überbauungsziffern ist die anrechenbare Fläche der Bauzone massgebend (Zonenanteil oben), nicht zwingend die ganze Parzelle.");
+    }
   } else {
     lines.push("", "ÖREB-Kataster: kein Auszug vorhanden.");
   }
 
   if (referenceNorms.length === 0) {
     lines.push("", "Kommunale Normen: keine hinterlegt. Die Hierarchieregel entfällt — prüfe die Rahmennorm vollständig.");
-    return lines.join("\n");
+    return { text: lines.join("\n"), completeIds };
   }
 
+  // Nur Normen, die ganz hineinpassen, kommen in den Block — eine gekürzte Referenz
+  // wäre für den Call der Norm selbst gefährlich (er würde gegen einen Torso prüfen).
   let budget = REFERENCE_MAX_CHARS;
-  lines.push("", `Kommunale Normen (${referenceNorms.length}):`);
+  const included: NormInput[] = [];
   for (const n of referenceNorms) {
-    const text = n.text.length > budget ? n.text.slice(0, Math.max(0, budget)) + "\n[… gekürzt …]" : n.text;
-    budget -= text.length;
-    lines.push("", `=== ${n.title}${n.category ? ` (${n.category})` : ""} ===`, text, `=== ENDE ${n.title} ===`);
-    if (budget <= 0) break;
+    if (n.text.length > budget) continue;
+    budget -= n.text.length;
+    included.push(n);
+    completeIds.add(n.id);
   }
-  return lines.join("\n");
+  const skipped = referenceNorms.length - included.length;
+  lines.push("", `Kommunale Normen (${included.length}${skipped ? `, ${skipped} weitere aus Platzgründen nicht enthalten` : ""}):`);
+  for (const n of included) {
+    lines.push("", `=== ${n.title}${n.category ? ` (${n.category})` : ""} ===`, n.text, `=== ENDE ${n.title} ===`);
+  }
+  return { text: lines.join("\n"), completeIds };
 }
 
 /** Ein Prüfauftrag: eine Norm oder ein Artikel-Abschnitt davon. */
@@ -397,6 +437,7 @@ const ARTICLE_RE = /(?:^|\n)\s*(?:Art(?:ikel|\.)\s*\d+[a-z]?)\b/g;
  * Findet sich keine Artikelstruktur, wird an Absatzgrenzen geschnitten.
  */
 export function splitNormText(text: string, limit: number): string[] {
+  if (!text.trim()) return [];
   if (text.length <= limit) return [text];
 
   const cuts: number[] = [];
@@ -407,28 +448,41 @@ export function splitNormText(text: string, limit: number): string[] {
   // Ohne brauchbare Artikelgrenzen: Absätze.
   const boundaries = cuts.length >= 2 ? cuts : Array.from(text.matchAll(/\n\s*\n/g), (m) => m.index! + m[0].length);
 
-  const parts: string[] = [];
-  let start = 0;
-  let lastCut = 0;
-  for (const b of boundaries) {
-    if (b - start > limit && lastCut > start) {
-      parts.push(text.slice(start, lastCut));
-      start = lastCut;
+  // Segmente zwischen den Grenzen; ein Segment, das allein das Limit sprengt, wird hart geteilt.
+  const segments: string[] = [];
+  let prev = 0;
+  for (const b of boundaries.concat([text.length])) {
+    if (b <= prev) continue;
+    let seg = text.slice(prev, b);
+    while (seg.length > limit) {
+      segments.push(seg.slice(0, limit));
+      seg = seg.slice(limit);
     }
-    lastCut = b;
+    if (seg) segments.push(seg);
+    prev = b;
   }
-  // Rest — notfalls hart schneiden, wenn ein einzelner Abschnitt das Limit sprengt.
-  let rest = text.slice(start);
-  while (rest.length > limit * 1.5) {
-    parts.push(rest.slice(0, limit));
-    rest = rest.slice(limit);
+
+  // Segmente greedy zu Teilen ≤ limit zusammenfassen.
+  const parts: string[] = [];
+  let current = "";
+  for (const seg of segments) {
+    if (current && current.length + seg.length > limit) {
+      parts.push(current);
+      current = "";
+    }
+    current += seg;
   }
-  if (rest.trim()) parts.push(rest);
+  if (current) parts.push(current);
+
   const clean = parts.filter((p) => p.trim().length > 0);
-  // Ein winziger Schwanz (Änderungstabelle, Inkrafttreten) ist keinen eigenen Call wert.
-  if (clean.length > 1 && clean[clean.length - 1].length < 2_000) {
-    clean[clean.length - 2] += clean[clean.length - 1];
-    clean.pop();
+  // Ein winziger Schwanz (Änderungstabelle, Inkrafttreten) ist keinen eigenen Call wert —
+  // aber nur, wenn er noch ins Limit des Vorgängers passt.
+  if (clean.length > 1) {
+    const tail = clean[clean.length - 1];
+    if (tail.length < 2_000 && clean[clean.length - 2].length + tail.length <= limit * 1.1) {
+      clean[clean.length - 2] += tail;
+      clean.pop();
+    }
   }
   return clean;
 }
@@ -545,12 +599,22 @@ Aufgaben — und NUR diese:
    Kanton vor Bund, bei Gleichstand den mit den konkreteren Zahlen), gib ihm den strengeren
    Status der Gruppe und einen Titel, der beide Artikel nennt.
 2. WIDERSPRÜCHE: Ein "ok"-Prüfpunkt, dem ein anderer Prüfpunkt widerspricht (z.B.
-   "Unterlagen vollständig" vs. "Kanalisationsplan fehlt") oder dessen eigene Empfehlung
-   einen Nachweis fordert ("nachweisen", "ergänzen", "einreichen") → auf "warn" herabstufen
-   mit kurzer Begründung.
+   "Erschliessung gegeben, Kanalisationsanschluss vorgesehen" vs. "Kanalisationsplan fehlt";
+   "Unterlagen vollständig" vs. "Berechnung fehlt") oder dessen eigene Empfehlung einen
+   Nachweis fordert ("nachweisen", "ergänzen", "einreichen") → auf "warn" herabstufen mit
+   kurzer Begründung. Prüfe dafür jeden "ok"-Punkt gegen alle "warn"/"fail"-Punkte.
+   Herabstufen NUR, wenn der Widerspruch denselben Sachverhalt betrifft (gleiches Mass,
+   gleiche Unterlage). Eine allgemeine Unsicherheit (z.B. "Niveaupunkt formell nicht
+   nachgewiesen", "Berechnung fehlt") stuft einen rechnerisch belegten ok-Punkt NICHT herab.
+3. Gleiche Sachverhalte über drei Ebenen (z.B. Terrainveränderung nach Baureglement, nach
+   kantonalem Gesetz und nach Bundesrecht; Gewässerraum nach kantonalem und Bundesrecht)
+   sind Dubletten, auch wenn die Artikel verschieden heissen — ausser sie prüfen wirklich
+   verschiedene Anforderungen (z.B. Abgrabungshöhe vs. Grenzabstand einer Stützmauer).
 
 Regeln:
 - Erfinde keine Prüfpunkte, ändere keine Befundtexte, stufe nichts hoch.
+- Begründungen und Titel in Klartext für den Architekten — nenne Artikel/Norm, nie die
+  internen IDs (c1, c2 …).
 - Verschiedene Bauteile/Fassaden/Seiten sind KEINE Dubletten.
 - Im Zweifel nicht zusammenlegen.`;
 
@@ -661,36 +725,57 @@ ${listing.join("\n")}` }],
     };
 
     const dropped = new Set<string>();
+    /** Wohin ein gedroppter Punkt aufgegangen ist — damit ein Downgrade darauf beim Behaltenen landet. */
+    const mergedInto = new Map<string, string>();
     let merged = 0;
     for (const m of parsed.merges ?? []) {
-      const keep = ids.get(m.keep);
-      if (!keep || dropped.has(m.keep)) continue;
-      const drops = (m.drop ?? []).filter((d) => d !== m.keep && ids.has(d) && !dropped.has(d));
-      if (drops.length === 0) continue;
-      // Strengster Status der Gruppe gewinnt; der Text bleibt der des behaltenen Punkts.
-      let strictest = keep.status;
-      for (const d of drops) {
-        const it = ids.get(d)!;
-        if (SEVERITY[it.status] < SEVERITY[strictest]) strictest = it.status;
-        if (!keep.suggestion && it.suggestion && strictest !== "ok") keep.suggestion = it.suggestion;
-        dropped.add(d);
+      if (!ids.has(m.keep) || dropped.has(m.keep)) continue;
+      const group = Array.from(new Set([m.keep, ...(m.drop ?? [])])).filter((d) => ids.has(d) && !dropped.has(d));
+      if (group.length < 2) continue;
+
+      // Status und Text gehören zusammen: Behalten wird der Punkt mit dem strengsten
+      // Status (bei Gleichstand der vom Modell gewählte). Ein "fail"-Befund darf nie
+      // unter einem "eingehalten"-Text stehen.
+      let keepId = m.keep;
+      for (const g of group) {
+        if (SEVERITY[ids.get(g)!.status] < SEVERITY[ids.get(keepId)!.status]) keepId = g;
+      }
+      const keep = ids.get(keepId)!;
+      for (const g of group) {
+        if (g === keepId) continue;
+        const it = ids.get(g)!;
+        if (!keep.suggestion && it.suggestion && keep.status !== "ok") keep.suggestion = it.suggestion;
+        dropped.add(g);
+        mergedInto.set(g, keepId);
         merged++;
       }
-      keep.status = strictest;
-      if (strictest === "ok") keep.suggestion = null;
+      if (keep.status === "ok") keep.suggestion = null;
       const title = (m.title ?? "").trim();
       if (title) keep.norm_title = title.slice(0, 500);
     }
 
+    // Interne IDs (c12) haben im Text nichts verloren — durch den Titel des Punkts ersetzen.
+    const deId = (text: string) =>
+      text.replace(/c(\d{1,3})/g, (m, n) => {
+        const ref = ids.get(`c${n}`);
+        return ref ? `«${ref.norm_title.split(" – ")[0].slice(0, 60)}»` : m;
+      });
+
     let downgraded = 0;
     for (const d of parsed.downgrades ?? []) {
-      const it = ids.get(d.id);
-      if (!it || dropped.has(d.id) || it.status !== "ok") continue;
+      let id = d.id;
+      while (mergedInto.has(id)) id = mergedInto.get(id)!;
+      const it = ids.get(id);
+      if (!it || it.status !== "ok") continue;
       it.status = "warn";
-      const reason = (d.reason ?? "").trim().slice(0, 200);
+      const reason = deId((d.reason ?? "").trim()).slice(0, 200);
       if (reason && !it.suggestion) it.suggestion = reason;
       if (it.confidence === "high") it.confidence = "medium";
       downgraded++;
+    }
+    for (const it of Array.from(ids.values())) {
+      it.norm_title = deId(it.norm_title);
+      if (it.suggestion) it.suggestion = deId(it.suggestion);
     }
 
     const out = items.filter((_, i) => !dropped.has(`c${i + 1}`));
@@ -996,14 +1081,13 @@ export async function runNormAnalysis(
     return ra - rb || b.text.length - a.text.length;
   });
   const referenceNorms = norms.filter(isReferenceNorm);
-  const referenceIds = new Set(referenceNorms.map((n) => n.id));
-  const referenceBlock = buildReferenceBlock(ctx, referenceNorms);
+  const reference = buildReferenceBlock(ctx, referenceNorms);
   const units = toNormParts(norms);
   const total = units.length;
   const call = (
     unit: NormPart, index: number, gate: (() => void) | null, effort?: "low" | "medium" | "high",
   ) => analyseOneNorm(
-    unit, index, total, system, fileBlock, referenceBlock, referenceIds.has(unit.norm.id),
+    unit, index, total, system, fileBlock, reference.text, reference.completeIds.has(unit.norm.id),
     deadlineAt, gate, effort ?? EFFORT, cancelSignal,
   );
 

@@ -20,3 +20,6 @@ next.log
 next_err.log
 next_out.txt
 next_err.txt
+
+# TypeScript incremental build cache (wird von tsc/next geschrieben, nie committen)
+*.tsbuildinfo

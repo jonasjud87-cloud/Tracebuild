@@ -217,7 +217,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
   const loadAnalyses = useCallback(async () => {
     const data = await api.get<RawGetAnalysis[]>(`/projects/${params.id}/analyses`);
-    setAnalyses((data ?? []).map((a) => normalizeAnalysis(a)));
+    const list = (data ?? []).map((a) => normalizeAnalysis(a));
+    setAnalyses(list);
+    // Die geöffnete Version ist ein Snapshot — nach dem Nachladen den frischen Stand
+    // übernehmen (z.B. "läuft" → "done" mit Items), sonst bleibt der Hinweis stehen.
+    setSelectedAnalysis((prev) => (prev ? list.find((a) => a.id === prev.id) ?? prev : prev));
   }, [params.id]);
 
   useEffect(() => {
@@ -362,6 +366,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     let confirmed = false;
     if (runId) {
       for (let attempt = 0; attempt < 20 && !confirmed; attempt++) {
+        // Der Lauf ist inzwischen fertig (POST zurück, abortRef geräumt) → nichts mehr abzubrechen.
+        if (abortRef.current !== controller) return;
         try {
           const r = await api.post<{ cancelled: number }>(`/projects/${params.id}/analyses/cancel`, { run_id: runId });
           confirmed = (r?.cancelled ?? 0) > 0;
@@ -371,6 +377,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         if (!confirmed) await new Promise((res) => setTimeout(res, 1000));
       }
     }
+    if (abortRef.current !== controller) return;
     controller?.abort();
     if (!confirmed) {
       setError("Der Abbruch konnte nicht bestätigt werden — die Analyse läuft möglicherweise im Hintergrund weiter. Bitte die Seite später neu laden.");
@@ -763,6 +770,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     {a.status !== "done" && (
                       <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: (STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color, background: `${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}18`, border: `1px solid ${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}40`, padding: "1px 7px", borderRadius: 50 }}>
                         {(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).label}
+                      </span>
+                    )}
+                    {a.status === "done" && a.failedNorms.length > 0 && (
+                      <span title={a.failedNorms.map((f) => f.norm_title).join(", ")} style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: "#FBBF24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", padding: "1px 7px", borderRadius: 50 }}>
+                        unvollständig
                       </span>
                     )}
                     {a.status === "done" && aItems.length > 0 && (
