@@ -28,6 +28,10 @@ export const FEDERAL_THEME_CODES: ReadonlySet<string> = new Set([
   "ch.StatischeWaldgrenzen",
   "ch.Waldabstandslinien",
   "ch.Waldreservate",
+  // Seit der ÖREBKV-Revision ebenfalls Bundes-Pflichtthemen (im SG-Auszug bestätigt):
+  "ch.Gewaesserraum",
+  "ch.ProjektierungszonenStarkstromanlagen",
+  "ch.BaulinienStarkstromanlagen",
 ]);
 
 export function isFederalTheme(themeCode: string): boolean {

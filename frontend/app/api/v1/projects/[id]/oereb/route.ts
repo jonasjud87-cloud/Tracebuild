@@ -1,7 +1,8 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms, planOerebAssignment } from "@/lib/norm-assignment";
-import { fetchAndPersistExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
+import { fetchAndPersistExtract, invalidateExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
+import { isSupported } from "@/lib/oereb/registry";
 
 interface ProjectRow {
   id: string;
@@ -123,14 +124,23 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const { data: existing, error: exErr } = await admin
       .from("oereb_extracts")
-      .select("status")
+      .select("status, canton, parcel_number")
       .eq("project_id", project.id)
       .maybeSingle();
     if (exErr) return err(`ÖREB-Auszug konnte nicht gelesen werden: ${exErr.message}`, 500);
 
+    // Auszug zu einer anderen Parzelle / einem anderen Kanton gilt nicht als gültig.
+    const stale =
+      !!existing &&
+      ((existing.parcel_number ?? null) !== (project.parcel_number ?? null) ||
+        (existing.canton ?? "").toUpperCase() !== (loc.canton ?? "").toUpperCase());
+
     let fetched = false;
     let fetchResult: FetchExtractResult | null = null;
-    if (force || !existing || existing.status !== "ok") {
+    // Kanton ohne Adapter: kein Abruf und kein Fehlerdatensatz — die UI zeigt "nicht angebunden".
+    if (isSupported(loc.canton) && (force || stale || !existing || existing.status !== "ok")) {
+      // Ein fremder Auszug darf nicht als Rückfallwert überleben (persistFailure schützt 'ok').
+      if (stale) await invalidateExtract(project.id);
       fetchResult = await fetchAndPersistExtract(
         project.id,
         loc.canton ?? "",

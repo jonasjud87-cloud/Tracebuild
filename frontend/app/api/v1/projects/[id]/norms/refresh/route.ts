@@ -1,7 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
-import { fetchAndPersistExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
+import { fetchAndPersistExtract, invalidateExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
 import { isSupported } from "@/lib/oereb/registry";
 import { logAudit } from "@/lib/auditLog";
 
@@ -34,10 +34,15 @@ export async function POST(
   if (project.parcel_number && isSupported(loc.canton)) {
     const { data: existing, error: exErr } = await admin
       .from("oereb_extracts")
-      .select("id, status")
+      .select("id, status, canton, parcel_number")
       .eq("project_id", params.id)
       .maybeSingle();
-    if (!exErr && (!existing || existing.status !== "ok")) {
+    const stale =
+      !!existing &&
+      ((existing.parcel_number ?? null) !== (project.parcel_number ?? null) ||
+        (existing.canton ?? "").toUpperCase() !== (loc.canton ?? "").toUpperCase());
+    if (!exErr && (!existing || existing.status !== "ok" || stale)) {
+      if (stale) await invalidateExtract(params.id);
       oereb = await fetchAndPersistExtract(
         params.id,
         loc.canton ?? "",
