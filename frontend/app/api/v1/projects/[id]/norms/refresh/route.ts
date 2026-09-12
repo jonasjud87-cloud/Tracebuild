@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
 import { fetchAndPersistExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
 import { isSupported } from "@/lib/oereb/registry";
+import { logAudit } from "@/lib/auditLog";
 
 /**
  * "Normen neu laden": holt für Bestandsprojekte ohne ÖREB-Auszug den Auszug nach
@@ -63,6 +64,15 @@ export async function POST(
     .select("bauzone")
     .eq("id", params.id)
     .single();
+  
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_refresh",
+    targetId: params.id,
+    meta: { assigned_norms_count: assignment?.total ?? 0 },
+  });
 
   return ok({
     zone: fresh?.bauzone ?? project.bauzone ?? null,

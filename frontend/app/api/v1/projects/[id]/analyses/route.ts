@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normMatchesZone } from "@/lib/zone-match";
+import { logAudit } from "@/lib/auditLog";
 import {
   runNormAnalysis,
   type AnalysisRunResult,
@@ -283,6 +284,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return (severity[a.status] ?? 9) - (severity[b.status] ?? 9);
     });
 
+    await logAudit(admin, {
+      orgId: user.org_id,
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "analysis_run",
+      targetId: analysis.id,
+      meta: { projectId: params.id, status: finalAnalysis.status, itemCount: items.length },
+    });
+
     return ok({ ...finalAnalysis, items, failed_norms: run.failed_norms }, 201);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Analyse fehlgeschlagen";
@@ -301,6 +311,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
         },
       })
       .eq("id", analysis.id);
+
+    await logAudit(admin, {
+      orgId: user.org_id,
+      actorId: user.id,
+      actorEmail: user.email,
+      action: "analysis_run",
+      targetId: analysis.id,
+      meta: { projectId: params.id, status: "error", error: message },
+    });
+
     return err(message, 500);
   }
 }

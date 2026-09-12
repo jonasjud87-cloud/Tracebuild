@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractPdfText } from "@/lib/pdf-text";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
+import { logAudit } from "@/lib/auditLog";
 
 const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
@@ -104,6 +105,15 @@ async function handleUpload(request: Request) {
     .single();
 
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "norm_upload",
+    targetId: data.id,
+    meta: { title, category, jurisdictionName },
+  });
 
   // Attach the new norm to the org's existing projects it applies to — otherwise it
   // would only ever reach projects created after this upload.

@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { logAudit } from "@/lib/auditLog";
 
 export async function DELETE(
   _req: Request,
@@ -37,6 +38,15 @@ export async function DELETE(
 
   const { error } = await admin.from("analyses").delete().eq("id", params.analysisId);
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "analysis_delete",
+    targetId: params.analysisId,
+    meta: { projectId: params.id },
+  });
 
   return ok({ deleted: true });
 }

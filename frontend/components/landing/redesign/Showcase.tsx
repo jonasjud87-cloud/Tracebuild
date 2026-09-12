@@ -15,14 +15,26 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "normen", label: "Normen-Datenbank" },
 ];
 
-const COPY: Record<Tab, { h: string; p: string }> = {
+const COPY: Record<Tab, { h: React.ReactNode; p: string }> = {
   plan: {
-    h: "Sehen Sie jeden Konflikt, bevor die Behörde ihn sieht.",
-    p: "Automatische Prüfung gegen SIA-Normen und kantonales Baurecht. Jede Fundstelle mit Massangabe, Normverweis und Kommentar — verortet im Plan.",
+    h: (
+      <>
+        Sehen Sie jeden Konflikt,
+        <br />
+        bevor die Behörde ihn sieht.
+      </>
+    ),
+    p: "PDF hochladen - die KI prüft gegen SIA-Normen und kantonales Recht und erstellt einen Bericht: jeder Befund mit Massangabe, Norm-Verweis und Kommentar. Ändern und freigeben bleibt bei Ihnen.",
   },
   normen: {
-    h: "Alle Normen. Eine Quelle. Immer aktuell.",
-    p: "Durchsuchbar, verlinkt und versioniert. Sie sehen, was gilt — und seit wann. Von SIA über VSS bis zur kantonalen Bauordnung.",
+    h: (
+      <>
+        Alle Normen. Eine Quelle.
+        <br />
+        Zum Nachschlagen.
+      </>
+    ),
+    p: "Übersichtlich, durchsuchbar, verlinkt. Sie sehen schnell, was gilt und seit wann - von SIA über VSS bis zur kantonalen Bauordnung.",
   },
 };
 
@@ -77,7 +89,13 @@ export default function Showcase() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.05 }}
-              style={{ margin: "14px 0 0", fontSize: 15, lineHeight: 1.6, color: "var(--tb-text-secondary)" }}
+              style={{
+                margin: "14px 0 0",
+                fontSize: 15,
+                lineHeight: 1.6,
+                color: "var(--tb-text-secondary)",
+                textWrap: "pretty" as React.CSSProperties["textWrap"],
+              }}
             >
               {COPY[tab].p}
             </motion.p>

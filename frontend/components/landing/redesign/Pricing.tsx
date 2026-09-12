@@ -171,7 +171,7 @@ export default function Pricing() {
         </motion.div>
 
         <p style={{ textAlign: "center", marginTop: 28, fontSize: 12.5, color: "var(--tb-text-tertiary)" }}>
-          Keine Einrichtungsgebühr · monatlich kündbar · Schweizer Vertragspartner
+          Keine Einrichtungsgebühr · Schweizer Vertragspartner
         </p>
       </div>
 

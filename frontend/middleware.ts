@@ -11,9 +11,27 @@ const ADMIN_EMAILS = new Set([
 // Login is desktop/laptop-only — phones are redirected back to the landing page.
 const MOBILE_UA_REGEX = /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera Mini|Windows Phone/i;
 
+// Pages that stay reachable without a session. Exact match (+ optional trailing
+// slash) so a future "/impressum-intern" style route can't ride the prefix.
+const PUBLIC_PATHS = new Set(["/", "/impressum", "/datenschutz"]);
+const isPublicPath = (p: string) => PUBLIC_PATHS.has(p.replace(/\/$/, "") || "/");
+const isAuthPath = (p: string) =>
+  p === "/login" ||
+  p === "/register" ||
+  p.startsWith("/login/") ||
+  p.startsWith("/register/") ||
+  p.startsWith("/auth/callback");
+
 export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // Fail CLOSED: if auth can't be evaluated, only public + auth routes are
+  // served; everything else is sent to /login instead of through un-gated.
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return NextResponse.next();
+    if (isPublicPath(pathname) || isAuthPath(pathname)) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 
   try {
@@ -42,23 +60,23 @@ export async function middleware(request: NextRequest) {
 
     const { data: { user } } = await supabase.auth.getUser();
 
-    const { pathname } = request.nextUrl;
     // Der Callback muss immer durchlaufen — auch mit bestehender Session, sonst
     // geht ein Einladungs-/Passwort-Link verloren, wenn im selben Browser noch
     // jemand angemeldet ist.
     const isCallbackRoute = pathname.startsWith("/auth/callback");
-    const isAuthRoute    = pathname.startsWith("/login") || pathname.startsWith("/register") || isCallbackRoute;
+    const isAuthRoute    = isAuthPath(pathname);
     const isLandingRoute = pathname === "/";
+    const isPublicRoute  = isPublicPath(pathname);
     const isAdmin        = ADMIN_EMAILS.has(user?.email ?? "");
 
-    const isLoginOrRegister = pathname.startsWith("/login") || pathname.startsWith("/register");
+    const isLoginOrRegister = pathname === "/login" || pathname === "/register";
     if (isLoginOrRegister && MOBILE_UA_REGEX.test(request.headers.get("user-agent") ?? "")) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
 
-    if (!user && !isAuthRoute && !isLandingRoute) {
+    if (!user && !isAuthRoute && !isPublicRoute) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       return NextResponse.redirect(url);
@@ -78,7 +96,12 @@ export async function middleware(request: NextRequest) {
 
     return supabaseResponse;
   } catch {
-    return NextResponse.next();
+    // Fail CLOSED on any auth-evaluation error: serve public + auth routes,
+    // bounce everything else to /login rather than leaving it un-gated.
+    if (isPublicPath(pathname) || isAuthPath(pathname)) return NextResponse.next();
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
   }
 }
 

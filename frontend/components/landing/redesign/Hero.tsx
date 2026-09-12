@@ -8,8 +8,8 @@ import {
   useScroll,
   useTransform,
 } from "framer-motion";
-import PruefrasterField from "./PruefrasterField";
-import { GradientButton, GhostButton, WordReveal, Eyebrow } from "./primitives";
+import HeroParticles from "./HeroParticles";
+import { GradientButton, GhostButton, WordReveal } from "./primitives";
 import { EASE_OUT } from "@/lib/landing/motion";
 
 export default function Hero() {
@@ -26,8 +26,6 @@ export default function Hero() {
   });
 
   const fieldOpacity = useTransform(scrollYProgress, [0, 0.9], [1, 0.15]);
-  const contentY = useTransform(scrollYProgress, [0, 1], [0, prefersReduced ? 0 : -120]);
-  const contentOpacity = useTransform(scrollYProgress, [0, 0.75], [1, 0]);
 
   return (
     <section
@@ -41,43 +39,34 @@ export default function Hero() {
         justifyContent: "center",
         padding: "clamp(120px, 20vh, 200px) var(--tb-gutter) 80px",
         overflow: "hidden",
+        background: "var(--tb-canvas)",
       }}
     >
       <motion.div style={{ position: "absolute", inset: 0, opacity: prefersReduced ? 1 : fieldOpacity }}>
-        <PruefrasterField scrollRef={scrollRef} />
+        <HeroParticles scrollRef={scrollRef} />
       </motion.div>
 
-      <motion.div
+      <div
         style={{
           position: "relative",
           zIndex: 2,
           width: "100%",
           maxWidth: 1000,
           textAlign: "center",
-          y: contentY,
-          opacity: prefersReduced ? 1 : contentOpacity,
         }}
       >
-        <motion.div
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, ease: EASE_OUT }}
-        >
-          <Eyebrow>Für Architekturbüros in der Schweiz</Eyebrow>
-        </motion.div>
-
         <h1
           style={{
-            fontSize: "clamp(40px, 6.6vw, 104px)",
-            lineHeight: 1.02,
+            fontSize: "clamp(38px, 6.2vw, 96px)",
+            lineHeight: 1.04,
             letterSpacing: "-0.03em",
-            margin: "22px auto 0",
-            maxWidth: 15 + "ch",
+            margin: 0,
             textWrap: "balance" as React.CSSProperties["textWrap"],
           }}
         >
-          <WordReveal text="Baueingaben, die beim ersten Mal" delay={0.15} />{" "}
-          <WordReveal text="sitzen." accentWord="sitzen" delay={0.15 + 0.04 * 6} />
+          <WordReveal text="Zeichnungen prüfen," accentWord="prüfen" delay={0.15} />
+          <br />
+          <WordReveal text="Normen einhalten." delay={0.15 + 0.04 * 2} />
         </h1>
 
         <motion.p
@@ -92,9 +81,9 @@ export default function Hero() {
             margin: "26px auto 0",
           }}
         >
-          TraceBuild prüft Ihre Eingabepläne automatisch gegen SIA-Normen und kantonales
-          Baurecht — und hält jede Fundstelle nachvollziehbar fest. Dazu eine zentrale,
-          laufend aktualisierte Normen-Datenbank.
+          TraceBuild liest Ihre Zeichnungen, gleicht sie mit geltenden Normen und
+          Vorschriften ab und zeigt jede Abweichung - klar dargestellt und
+          nachvollziehbar belegt.
         </motion.p>
 
         <motion.div
@@ -109,60 +98,10 @@ export default function Hero() {
             marginTop: 34,
           }}
         >
-          <GradientButton href="#kontakt">Demo anfragen →</GradientButton>
-          <GhostButton href="#normen-datenbank">Normen-Datenbank ansehen</GhostButton>
+          <GradientButton href="#kontakt">Loslegen →</GradientButton>
+          <GhostButton href="#produkt">Produktvorschau</GhostButton>
         </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.9 }}
-          style={{
-            fontSize: 13,
-            letterSpacing: "0.01em",
-            color: "var(--tb-text-tertiary)",
-            marginTop: 22,
-          }}
-        >
-          Daten in der Schweiz gehostet · DSG-konform · persönliche Ansprechperson
-        </motion.p>
-      </motion.div>
-
-      {/* scroll cue — motion stilled automatically under reduced-motion */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.1, duration: 0.6 }}
-        style={{
-          position: "absolute",
-          bottom: 28,
-          left: "50%",
-          x: "-50%",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 8,
-          zIndex: 2,
-        }}
-      >
-        <span
-          style={{
-            fontSize: 11,
-            letterSpacing: "0.18em",
-            textTransform: "uppercase",
-            color: "var(--tb-text-tertiary)",
-          }}
-        >
-          Scrollen
-        </span>
-        <span style={{ position: "relative", width: 1, height: 40, background: "var(--tb-hairline)", overflow: "hidden" }}>
-          <motion.span
-            animate={{ y: [-40, 40] }}
-            transition={{ duration: 2, ease: "easeInOut", repeat: Infinity }}
-            style={{ position: "absolute", inset: 0, background: "var(--tb-accent-gradient)" }}
-          />
-        </span>
-      </motion.div>
+      </div>
     </section>
   );
 }

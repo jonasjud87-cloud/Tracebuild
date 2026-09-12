@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
 import { fetchAndPersistExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
 import { isSupported } from "@/lib/oereb/registry";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET() {
   const user = await getAuthUser();
@@ -76,6 +77,15 @@ export async function POST(request: Request) {
     // Spalte fehlt (ÖREB-Migration nicht eingespielt) → still wie bisher weiter.
     if (zsErr && !zsErr.message.includes("zone_source")) console.error("zone_source konnte nicht gesetzt werden:", zsErr.message);
   }
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_create",
+    targetId: project.id,
+    targetEmail: undefined,
+    meta: { name: project.name },
+  });
 
   // Assign norms synchronously so the count is in the response
   const assignment = await assignNorms(

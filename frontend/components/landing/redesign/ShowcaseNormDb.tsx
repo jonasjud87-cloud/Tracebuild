@@ -128,7 +128,7 @@ export default function ShowcaseNormDb({
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Norm, Artikel oder Stichwort suchen — z. B. Grenzabstand"
+            placeholder="Norm, Artikel oder Stichwort suchen - z. B. Grenzabstand"
             style={{
               flex: 1,
               minWidth: 0,

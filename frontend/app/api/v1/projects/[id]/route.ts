@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
+import { logAudit } from "@/lib/auditLog";
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -70,6 +71,15 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   if (error) return err(error.message, 500);
 
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_update",
+    targetId: params.id,
+    meta: { fields: Object.keys(updates) },
+  });
+
   // Canton or municipality changed → the set of applicable norms changed with it.
   const oldLoc = (project.location ?? {}) as { canton?: string; municipality?: string };
   const newLoc = (data.location ?? {}) as { canton?: string; municipality?: string };
@@ -103,7 +113,7 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   // Zugehörigkeit prüfen
   const { data: project } = await admin
     .from("projects")
-    .select("id")
+    .select("id, name")
     .eq("id", params.id)
     .eq("org_id", user.org_id)
     .single();
@@ -112,5 +122,15 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
 
   const { error } = await admin.from("projects").delete().eq("id", params.id);
   if (error) return err(error.message, 500);
+
+  await logAudit(admin, {
+    orgId: user.org_id,
+    actorId: user.id,
+    actorEmail: user.email,
+    action: "project_delete",
+    targetId: params.id,
+    meta: { name: project.name },
+  });
+
   return ok({ id: params.id });
 }

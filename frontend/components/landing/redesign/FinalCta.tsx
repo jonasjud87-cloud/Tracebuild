@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import PruefrasterField from "./PruefrasterField";
+import HeroParticles from "./HeroParticles";
 import { GradientButton, GhostButton } from "./primitives";
 import { EASE_OUT, EASE_EXPO, inView } from "@/lib/landing/motion";
 
@@ -19,8 +19,11 @@ export default function FinalCta() {
         overflow: "hidden",
       }}
     >
-      <div style={{ position: "absolute", inset: 0, opacity: 0.5 }}>
-        <PruefrasterField dim />
+      {/* No own background — transparent like every other section, so the
+          page canvas + ambient light carry straight through. Just the same
+          particle ring as the hero. */}
+      <div aria-hidden style={{ position: "absolute", inset: 0, zIndex: 0 }}>
+        <HeroParticles opacity={0.7} />
       </div>
 
       <motion.div
@@ -46,7 +49,7 @@ export default function FinalCta() {
           }}
           style={{ margin: "22px auto 34px", fontSize: 16, lineHeight: 1.6, color: "var(--tb-text-secondary)", maxWidth: 460 }}
         >
-          Zeigen Sie uns ein Projekt — wir zeigen Ihnen, was TraceBuild findet.
+          Zeigen Sie uns ein Projekt - wir zeigen Ihnen, was TraceBuild findet.
         </motion.p>
         <motion.div
           variants={{
@@ -55,7 +58,7 @@ export default function FinalCta() {
           }}
           style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12 }}
         >
-          <GradientButton href="#kontakt">Demo anfragen →</GradientButton>
+          <GradientButton href="#kontakt">Loslegen →</GradientButton>
           <GhostButton href="mailto:jonas@tracebuild.ch">Mit uns sprechen</GhostButton>
         </motion.div>
       </motion.div>

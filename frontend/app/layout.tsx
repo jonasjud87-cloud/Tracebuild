@@ -15,10 +15,29 @@ const archivo = Archivo({
   display: "swap",
 });
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://tracebuild.vercel.app";
+const TITLE = "TraceBuild - Zeichnungen prüfen, Normen einhalten";
+const DESCRIPTION =
+  "Pläne als PDF hochladen, KI-Prüfung gegen geltende Normen, eine klare Übersicht der Befunde. TraceBuild prüft - ändern und freigeben bleibt bei Ihrem Team.";
+
 export const metadata: Metadata = {
-  title: "TraceBuild — Baueingaben gegen jede Norm prüfen",
-  description:
-    "TraceBuild prüft Eingabepläne automatisch gegen SIA-Normen und kantonales Baurecht — jede Fundstelle nachvollziehbar. Dazu eine zentrale, laufend aktualisierte Normen-Datenbank.",
+  metadataBase: new URL(SITE_URL),
+  title: TITLE,
+  description: DESCRIPTION,
+  applicationName: "TraceBuild",
+  openGraph: {
+    type: "website",
+    locale: "de_CH",
+    siteName: "TraceBuild",
+    title: TITLE,
+    description: DESCRIPTION,
+    url: SITE_URL,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({

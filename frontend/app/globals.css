@@ -2,9 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
-html {
-  scroll-behavior: smooth;
-}
+/* scroll-behavior: smooth removed — Lenis owns smooth scrolling on the
+   landing page (this rule collided with it); /impressum is a short static
+   page that does not need it. */
 
 :root {
   --background: #ffffff;
@@ -19,6 +19,26 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display, var(--font-sans, Arial, sans-serif));
+}
+
+/* ─── Native <select> dropdowns ────────────────────────── */
+/* The app UI (dashboard/admin) is dark throughout, but a plain <select>'s
+   open option list still falls back to the OS/browser default (light grey,
+   system-blue highlight) unless told otherwise. color-scheme hints the
+   browser to use its dark native-control theme; the option colours pin the
+   popup to the app palette on top of that. */
+select {
+  color-scheme: dark;
+}
+select option {
+  background-color: #172540;
+  color: #ffffff;
+}
+select option:checked,
+select option:hover,
+select option:focus {
+  background-color: #2862d7;
+  color: #ffffff;
 }
 
 
@@ -41,7 +61,7 @@ h1, h2, h3, h4, h5, h6 {
   /* text */
   --tb-text: #ffffff;
   --tb-text-secondary: #9a9ba3;
-  --tb-text-tertiary: #7b8299;
+  --tb-text-tertiary: #9aa1b8;
   --tb-text-muted: #6b7086;
   --tb-text-bright: #c7c8d1;
   --tb-text-bright-2: #e4e5ea;
@@ -116,6 +136,25 @@ h1, h2, h3, h4, h5, h6 {
   border-radius: 2px;
 }
 
+.tb-skip {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 200;
+  padding: 10px 16px;
+  border-radius: var(--tb-r-btn);
+  background: var(--tb-float);
+  border: 1px solid var(--tb-border-strong);
+  color: var(--tb-text);
+  font-size: 13px;
+  text-decoration: none;
+  transform: translateY(-160%);
+  transition: transform var(--tb-dur-base) var(--tb-ease-out);
+}
+.tb-skip:focus {
+  transform: translateY(0);
+}
+
 /* Grain overlay — one fixed low-opacity layer, cheap stepped drift on desktop */
 .tb-grain {
   position: fixed;
@@ -141,10 +180,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 /* Word-by-word headline reveal — CSS-driven so it runs at first paint and
-   degrades to plain visible text if JS never hydrates. */
+   degrades to plain visible text if JS never hydrates. Fade + small rise
+   (not a clipping mask) so the text counts as painted immediately for LCP. */
 @keyframes tbWordUp {
-  from { transform: translateY(110%); }
-  to   { transform: translateY(0); }
+  from { opacity: 0; transform: translateY(0.32em); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes tbAccentWipe {
   from { clip-path: inset(0 100% 0 0); }
@@ -152,13 +192,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 .tb-word-mask {
   display: inline-block;
-  overflow: hidden;
   vertical-align: top;
 }
 .tb-word-inner {
   display: inline-block;
-  will-change: transform;
-  animation: tbWordUp 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: tbWordUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .tb-word-accent {
   display: inline-block;
@@ -237,6 +275,33 @@ h1, h2, h3, h4, h5, h6 {
   50%       { transform: translateY(7px); opacity: 1; }
 }
 
+/* ─── Landing redesign · ambient light field ──────────── */
+/* Large blurred colour blobs drifting behind the mid-page sections.
+   transform / opacity only — blur is baked per layer, not animated.
+   Long eased periods (18–26s) with negative delays so no two align. */
+
+@keyframes tbAmbientDrift1 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%       { transform: translate3d(6%, -5%, 0) scale(1.14); }
+}
+@keyframes tbAmbientDrift2 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.05); }
+  50%       { transform: translate3d(-7%, 4%, 0) scale(1.2); }
+}
+@keyframes tbAmbientDrift3 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  33%       { transform: translate3d(4%, 6%, 0) scale(1.1); }
+  66%       { transform: translate3d(-5%, -3%, 0) scale(1.16); }
+}
+@keyframes tbAmbientDrift4 {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1.1); }
+  50%       { transform: translate3d(5%, 5%, 0) scale(1); }
+}
+@keyframes tbAmbientSheen {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
 /* ─── Utility classes ─────────────────────────────────── */
 
 @layer utilities {
@@ -268,7 +333,14 @@ h1, h2, h3, h4, h5, h6 {
     animation: slowSpin 42s linear infinite;
   }
 
-  .scrollbar-dark::-webkit-scrollbar              { width: 5px; }
+  .tb-ambient-blob {
+    position: absolute;
+    border-radius: 50%;
+    mix-blend-mode: screen;
+  }
+
+  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(133,166,233,0.28) transparent; }
+  .scrollbar-dark::-webkit-scrollbar              { width: 5px; height: 5px; }
   .scrollbar-dark::-webkit-scrollbar-track        { background: transparent; }
   .scrollbar-dark::-webkit-scrollbar-thumb        { background: rgba(133,166,233,0.22); border-radius: 3px; }
   .scrollbar-dark::-webkit-scrollbar-thumb:hover  { background: rgba(133,166,233,0.42); }
@@ -284,4 +356,217 @@ h1, h2, h3, h4, h5, h6 {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
   }
+
+  /* Ambient field: freeze drift entirely, keep the static coloured wash */
+  .tb-ambient-blob,
+  .tb-ambient-sheen {
+    animation: none !important;
+  }
+
+  /* Intro overlay: no glow drift / no light sweep (JS also swaps slide for an
+     opacity fade, and skips the particle-house phase entirely) */
+  .tb-intro__glow,
+  .tb-intro__sweep {
+    animation: none !important;
+  }
+}
+
+/* ─── Landing redesign · intro overlay ────────────────── */
+/* Full-viewport blue panel shown once per session, then slides up to reveal
+   the hero. Server-rendered so the hero never flashes first. The pure-CSS
+   auto-exit below keeps the page usable if JS never runs; when JS hydrates it
+   adds .tb-intro--js, which cancels that animation so Framer Motion owns the
+   transform and drives the real unmount. transform / opacity only. */
+
+@keyframes tbIntroRise {
+  from { opacity: 0; transform: translateY(10px) scale(0.94); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@keyframes tbIntroGlowA {
+  0%, 100% { opacity: 0.13; transform: translate3d(0, 0, 0) scale(1); }
+  50%       { opacity: 0.22; transform: translate3d(10%, -7%, 0) scale(1.24); }
+}
+@keyframes tbIntroGlowB {
+  0%, 100% { opacity: 0.10; transform: translate3d(0, 0, 0) scale(1.05); }
+  50%       { opacity: 0.18; transform: translate3d(-11%, 8%, 0) scale(1.28); }
+}
+@keyframes tbIntroGlowC {
+  0%, 100% { opacity: 0.09; transform: translate3d(0, 0, 0) scale(1); }
+  50%       { opacity: 0.17; transform: translate3d(7%, 10%, 0) scale(1.22); }
+}
+
+/* One slow, soft band of light drifting across the panel. transform/opacity
+   only; idle for most of the cycle, a single ~2.4s sweep, then idle again. */
+@keyframes tbIntroSweep {
+  0%, 60%   { opacity: 0; transform: translate3d(-140%, 0, 0) skewX(-14deg); }
+  70%       { opacity: 0.1; }
+  82%, 100% { opacity: 0; transform: translate3d(170%, 0, 0) skewX(-14deg); }
+}
+
+/* No-JS / pre-hydration fallback: leave the viewport and stop intercepting
+   input at ~3.6s so the hero underneath is reachable no matter what. */
+@keyframes tbIntroAutoExit {
+  from { transform: translateY(0); }
+  to   { transform: translateY(-100%); pointer-events: none; }
+}
+
+.tb-intro {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--tb-canvas);
+  animation: tbIntroAutoExit 0.7s cubic-bezier(0.7, 0, 0.2, 1) 3.6s forwards;
+}
+.tb-intro--js {
+  animation: none !important;
+}
+
+.tb-intro__glows {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.tb-intro__glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(40px);
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+.tb-intro__glow--a {
+  width: 64vmax; height: 64vmax;
+  left: -16vmax; top: -20vmax;
+  opacity: 0.16;
+  background: radial-gradient(circle, var(--tb-accent-cyan) 0%, transparent 70%);
+  animation: tbIntroGlowA 18s ease-in-out -4s infinite;
+}
+.tb-intro__glow--b {
+  width: 58vmax; height: 58vmax;
+  right: -18vmax; top: 8vmax;
+  opacity: 0.13;
+  background: radial-gradient(circle, var(--tb-info) 0%, transparent 70%);
+  animation: tbIntroGlowB 21s ease-in-out -11s infinite;
+}
+.tb-intro__glow--c {
+  width: 52vmax; height: 52vmax;
+  left: 18vmax; bottom: -24vmax;
+  opacity: 0.12;
+  background: radial-gradient(circle, var(--tb-lavender) 0%, transparent 70%);
+  animation: tbIntroGlowC 24s ease-in-out -7s infinite;
+}
+
+.tb-intro__sweep {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 42%;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  filter: blur(16px);
+  will-change: transform, opacity;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    var(--tb-info) 45%,
+    var(--tb-accent-cyan) 55%,
+    transparent 100%
+  );
+  animation: tbIntroSweep 13s ease-in-out 2.5s infinite;
+}
+
+.tb-intro__text {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+}
+.tb-intro__text-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tb-intro__stack {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.1rem;
+  padding: 1.5rem;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+.tb-intro__stack--out {
+  opacity: 0;
+  transform: scale(0.9);
+}
+.tb-intro__logo {
+  height: clamp(96px, 18vw, 180px);
+  width: auto;
+  animation: tbIntroRise 0.6s ease-out both;
+}
+.tb-intro__word {
+  margin: 0;
+  font-family: var(--font-display, sans-serif);
+  font-weight: 700;
+  font-size: clamp(22px, 4vw, 36px);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--tb-text);
+  animation: tbIntroRise 0.6s ease-out 0.12s both;
+}
+.tb-intro__word b {
+  font-weight: 700;
+  background: var(--tb-accent-gradient);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ─── Landing redesign · section divider ──────────────── */
+/* One unified treatment: a centered, end-faded hairline with a small
+   accent diamond on it. Defined once here — <SectionDivider /> is propless
+   and renders no <style>. */
+
+.tb-divider {
+  position: relative;
+  width: min(var(--tb-max), calc(100% - 2 * var(--tb-gutter)));
+  height: 1px;
+  margin: clamp(28px, 6vh, 72px) auto;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.14) 50%,
+    transparent 100%
+  );
+}
+
+.tb-divider__node {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  transform: translate(-50%, -50%) rotate(45deg);
+  background: var(--tb-accent);
+  opacity: 0.4;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tb-divider__node {
+    animation: tbDividerPulse 4.5s ease-in-out infinite;
+  }
+}
+
+@keyframes tbDividerPulse {
+  0%, 100% { opacity: 0.3; }
+  50%      { opacity: 0.5; }
 }

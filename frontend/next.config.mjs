@@ -44,6 +44,40 @@ const nextConfig = {
       },
     ],
   },
+  async headers() {
+    const securityHeaders = [
+      // Clickjacking — matters most for /login and /set-password.
+      { key: "X-Frame-Options", value: "DENY" },
+      { key: "X-Content-Type-Options", value: "nosniff" },
+      { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+      {
+        key: "Permissions-Policy",
+        value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
+      },
+      {
+        key: "Strict-Transport-Security",
+        value: "max-age=63072000; includeSubDomains; preload",
+      },
+      // A real CSP still needs a tested, report-only rollout first — the app
+      // uses inline styles / styled-jsx everywhere. Draft to enable later:
+      // {
+      //   key: "Content-Security-Policy-Report-Only",
+      //   value: [
+      //     "default-src 'self'",
+      //     "script-src 'self' 'unsafe-inline'",
+      //     "style-src 'self' 'unsafe-inline'",
+      //     "img-src 'self' data: blob: https://*.supabase.co",
+      //     "font-src 'self' data:",
+      //     "connect-src 'self' https://*.supabase.co",
+      //     "frame-ancestors 'none'",
+      //     "base-uri 'self'",
+      //     "form-action 'self'",
+      //     "object-src 'none'",
+      //   ].join("; "),
+      // },
+    ];
+    return [{ source: "/:path*", headers: securityHeaders }];
+  },
 };
 
 export default nextConfig;

@@ -32,7 +32,13 @@ export function GradientButton({
       href={href}
       onClick={onClick}
       className="tb-btn-grad"
-      style={{ ...btnBase, background: "var(--tb-accent-gradient)", color: "var(--tb-on-accent)" }}
+      style={{
+        ...btnBase,
+        background: "var(--tb-accent-gradient)",
+        color: "var(--tb-on-accent)",
+        border: "none",
+        isolation: "isolate",
+      }}
     >
       {children}
     </a>
@@ -55,8 +61,10 @@ export function GhostButton({
       className="tb-btn-ghost"
       style={{
         ...btnBase,
-        background: "var(--tb-glass)",
-        borderColor: "var(--tb-border)",
+        background: "rgba(12,20,32,0.72)",
+        backdropFilter: "blur(6px)",
+        WebkitBackdropFilter: "blur(6px)",
+        borderColor: "var(--tb-border-strong)",
         color: "var(--tb-text)",
       }}
     >
@@ -91,23 +99,6 @@ export function Eyebrow({
   );
 }
 
-/* ── Accent word (gradient text) ────────────────────────────────────────── */
-
-export function Accent({ children }: { children: React.ReactNode }) {
-  return (
-    <span
-      style={{
-        background: "var(--tb-accent-gradient)",
-        WebkitBackgroundClip: "text",
-        backgroundClip: "text",
-        color: "transparent",
-      }}
-    >
-      {children}
-    </span>
-  );
-}
-
 /* ── Word-by-word clip-mask reveal for big headlines ────────────────────── */
 /* CSS-driven (see globals.css .tb-word-*): runs at first paint, no JS/hydration
    dependency, degrades to plain visible text. */
@@ -131,15 +122,19 @@ export function WordReveal({
           accentWord != null && w.replace(/[.,!?;:()]/g, "") === accentWord;
         const d = delay + i * 0.04;
         return (
-          <span key={i} className="tb-word-mask">
-            <span className="tb-word-inner" style={{ animationDelay: `${d}s` }}>
-              {isAccent ? (
-                <span className="tb-word-accent" style={{ animationDelay: `${d + 0.2}s` }}>
-                  {w}
-                </span>
-              ) : (
-                w
-              )}
+          // the space sits between the inline-block masks, not inside one
+          // (trailing whitespace inside an inline-block is trimmed → words jam)
+          <span key={i}>
+            <span className="tb-word-mask">
+              <span className="tb-word-inner" style={{ animationDelay: `${d}s` }}>
+                {isAccent ? (
+                  <span className="tb-word-accent" style={{ animationDelay: `${d + 0.2}s` }}>
+                    {w}
+                  </span>
+                ) : (
+                  w
+                )}
+              </span>
             </span>
             {i < words.length - 1 ? " " : ""}
           </span>

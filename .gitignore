@@ -10,3 +10,13 @@ __pycache__/
 *.pyc
 .vercel
 .env*
+
+# next dev/build logs
+frontend/next.log
+frontend/next_err.log
+frontend/next_out.txt
+frontend/next_err.txt
+next.log
+next_err.log
+next_out.txt
+next_err.txt

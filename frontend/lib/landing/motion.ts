@@ -2,7 +2,6 @@ import type { Variants, Transition } from "framer-motion";
 
 export const EASE_OUT: Transition["ease"] = [0.22, 1, 0.36, 1];
 export const EASE_EXPO: Transition["ease"] = [0.16, 1, 0.3, 1];
-export const EASE_INOUT: Transition["ease"] = [0.65, 0, 0.35, 1];
 
 /** Standard section entrance: rises + fades. Collapses to opacity-only under MotionConfig reducedMotion="user". */
 export const revealUp: Variants = {

@@ -1,11 +1,12 @@
 "use client";
 
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Eyebrow } from "./primitives";
 import { EASE_OUT, inView } from "@/lib/landing/motion";
 
-/* abstract topographic contour "portrait" — single accent hairline, no face */
+/* abstract topographic contour "portrait" - single accent hairline, no face */
 function Contour({ mirror = false }: { mirror?: boolean }) {
+  const reduce = useReducedMotion();
   const rings = [
     "M60,18 C90,18 108,40 108,70 C108,104 88,128 60,128 C32,128 12,104 12,70 C12,40 30,18 60,18 Z",
     "M60,30 C82,30 96,48 96,72 C96,98 80,116 60,116 C40,116 24,98 24,72 C24,48 38,30 60,30 Z",
@@ -49,7 +50,9 @@ function Contour({ mirror = false }: { mirror?: boolean }) {
         />
       ))}
       <circle cx="60" cy="74" r="2.5" fill="var(--tb-accent-cyan)">
-        <animate attributeName="opacity" values="0.3;1;0.3" dur="3.5s" repeatCount="indefinite" />
+        {!reduce && (
+          <animate attributeName="opacity" values="0.3;1;0.3" dur="3.5s" repeatCount="indefinite" />
+        )}
       </circle>
     </motion.svg>
   );
@@ -59,18 +62,16 @@ const FOUNDERS = [
   {
     initials: "JJ",
     name: "Jonas Jud",
-    role: "Mitgründer · Produkt & Normen",
+    role: "Mitgründer",
     email: "jonas@tracebuild.ch",
-    quote:
-      "Ich habe zu viele Abende mit dem Abgleich von Bauordnungen verbracht. TraceBuild ist das Werkzeug, das ich damals gebraucht hätte.",
+    blurb: "Hat TraceBuild zusammen mit Livio aufgebaut - von der ersten Idee an.",
   },
   {
     initials: "LT",
     name: "Livio Thoma",
-    role: "Mitgründer · Technik",
+    role: "Mitgründer",
     email: "livio@tracebuild.ch",
-    quote:
-      "Präzision ist kein Feature, das man später einbaut. Sie ist die Grundlage — von der ersten Zeile Code an.",
+    blurb: "Hat TraceBuild zusammen mit Jonas aufgebaut - von der ersten Idee an.",
   },
 ];
 
@@ -84,10 +85,20 @@ export default function TeamContact() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={inView}
           transition={{ duration: 0.6, ease: EASE_OUT }}
-          style={{ fontSize: "clamp(26px,3.4vw,44px)", margin: "18px 0 48px", maxWidth: 620 }}
+          style={{ fontSize: "clamp(26px,3.4vw,44px)", margin: "18px 0 14px", maxWidth: 620 }}
         >
-          Zwei Gründer, die Ihr Projekt persönlich begleiten.
+          Über uns.
         </motion.h2>
+        <motion.p
+          initial={{ opacity: 0 }}
+          whileInView={{ opacity: 1 }}
+          viewport={inView}
+          transition={{ duration: 0.6, ease: EASE_OUT }}
+          style={{ margin: "0 0 48px", fontSize: 15, color: "var(--tb-text-secondary)", maxWidth: 520, lineHeight: 1.6 }}
+        >
+          TraceBuild ist von uns beiden - von der ersten Idee bis zur fertigen
+          Anwendung.
+        </motion.p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "clamp(40px,7vw,96px)" }}>
           {FOUNDERS.map((f, i) => (
@@ -143,8 +154,10 @@ export default function TeamContact() {
               <div style={{ direction: "ltr" }}>
                 <h3 style={{ fontSize: "clamp(22px,2.4vw,32px)", margin: 0 }}>{f.name}</h3>
                 <p style={{ margin: "6px 0 20px", fontSize: 13.5, color: "var(--tb-text-tertiary)" }}>{f.role}</p>
-                <p style={{ margin: 0, fontSize: "clamp(16px,1.5vw,20px)", lineHeight: 1.6, color: "var(--tb-text-bright)", maxWidth: 520 }}>
-                  &bdquo;{f.quote}&ldquo;
+                <p style={{ margin: 0, fontSize: "clamp(15px,1.4vw,18px)", lineHeight: 1.6, color: "var(--tb-text-secondary)", maxWidth: 480 }}>
+                  {f.blurb.split(" - ")[0]} -
+                  <br />
+                  {f.blurb.split(" - ")[1]}
                 </p>
                 <a
                   href={`mailto:${f.email}`}
@@ -164,7 +177,7 @@ export default function TeamContact() {
           transition={{ duration: 0.6, ease: EASE_OUT }}
           style={{ marginTop: "clamp(48px,7vw,88px)", fontSize: 15, color: "var(--tb-text-secondary)", lineHeight: 1.7 }}
         >
-          Wir sitzen in Zürich. Schreiben Sie uns direkt:{" "}
+          Wir sitzen in Mels SG. Schreiben Sie uns direkt:{" "}
           <a href="mailto:jonas@tracebuild.ch" style={{ color: "var(--tb-text)" }}>jonas@tracebuild.ch</a>
           {" · "}
           <a href="mailto:livio@tracebuild.ch" style={{ color: "var(--tb-text)" }}>livio@tracebuild.ch</a>
