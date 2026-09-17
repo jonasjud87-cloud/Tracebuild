@@ -14,17 +14,17 @@ const STEPS: Step[] = [
   {
     n: "01",
     h: "Plan hochladen",
-    p: "PDF Ihrer Zeichnung hochladen, fertig.",
+    p: "Laden Sie Ihre Zeichnung als PDF hoch. Mehr ist nicht nötig.",
   },
   {
     n: "02",
     h: "KI prüft gegen Normen",
-    p: "Abgleich mit SIA-Normen und kantonalen Vorschriften, in Minuten.",
+    p: "TraceBuild analysiert den Plan und gleicht ihn mit den relevanten Normen und Vorschriften ab.",
   },
   {
     n: "03",
     h: "Übersicht & Freigabe",
-    p: "Sie sehen jeden Befund - prüfen, entscheiden, freigeben.",
+    p: "Alle relevanten Befunde übersichtlich auf einen Blick – Sie prüfen, beurteilen und geben frei.",
   },
 ];
 

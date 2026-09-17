@@ -24,7 +24,7 @@ const COPY: Record<Tab, { h: React.ReactNode; p: string }> = {
         bevor die Behörde ihn sieht.
       </>
     ),
-    p: "PDF hochladen - die KI prüft gegen SIA-Normen und kantonales Recht und erstellt einen Bericht: jeder Befund mit Massangabe, Norm-Verweis und Kommentar. Ändern und freigeben bleibt bei Ihnen.",
+    p: "",
   },
   normen: {
     h: (
@@ -84,21 +84,23 @@ export default function Showcase() {
             >
               {COPY[tab].h}
             </motion.h2>
-            <motion.p
-              key={`${tab}-p`}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.05 }}
-              style={{
-                margin: "14px 0 0",
-                fontSize: 15,
-                lineHeight: 1.6,
-                color: "var(--tb-text-secondary)",
-                textWrap: "pretty" as React.CSSProperties["textWrap"],
-              }}
-            >
-              {COPY[tab].p}
-            </motion.p>
+            {COPY[tab].p && (
+              <motion.p
+                key={`${tab}-p`}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.4, ease: EASE_OUT, delay: 0.05 }}
+                style={{
+                  margin: "14px 0 0",
+                  fontSize: 15,
+                  lineHeight: 1.6,
+                  color: "var(--tb-text-secondary)",
+                  textWrap: "pretty" as React.CSSProperties["textWrap"],
+                }}
+              >
+                {COPY[tab].p}
+              </motion.p>
+            )}
           </div>
 
           {/* segmented control */}

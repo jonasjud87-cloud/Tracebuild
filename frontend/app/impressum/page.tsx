@@ -63,50 +63,101 @@ export default function ImpressumPage() {
             <br />
             Jonas Jud &amp; Livio Thoma
             <br />
-            Mels SG, Schweiz
+            Mels, St. Gallen, Schweiz
           </p>
         </div>
 
         <div style={section}>
           <h2 style={h2}>Kontakt</h2>
           <p style={body}>
-            <a href="mailto:jonas@tracebuild.ch" style={{ color: "var(--tb-accent)", textDecoration: "none" }}>
-              jonas@tracebuild.ch
-            </a>
+            Jonas Jud
             <br />
-            <a href="mailto:livio@tracebuild.ch" style={{ color: "var(--tb-accent)", textDecoration: "none" }}>
-              livio@tracebuild.ch
-            </a>
+            Livio Thoma
           </p>
         </div>
 
         <div style={section}>
           <h2 style={h2}>Verantwortlich für den Inhalt</h2>
-          <p style={body}>Jonas Jud, Livio Thoma</p>
+          <p style={body}>
+            Jonas Jud &amp; Livio Thoma
+            <br />
+            Mels, St. Gallen, Schweiz
+          </p>
+        </div>
+
+        <div style={section}>
+          <h2 style={h2}>Zweck und Leistungsumfang</h2>
+          <p style={body}>
+            TraceBuild bietet digitale Lösungen zur Unterstützung bei der
+            Prüfung von Planunterlagen. Die auf dieser Website beschriebenen
+            Funktionen und Prüfergebnisse dienen der Unterstützung der
+            fachlichen Prüfung und ersetzen keine eigenständige fachliche,
+            rechtliche oder planerische Beurteilung.
+          </p>
+          <p style={{ ...body, marginTop: 14 }}>
+            Die Verantwortung für die Prüfung, Beurteilung und Freigabe von
+            Planunterlagen verbleibt jederzeit bei den Nutzenden.
+          </p>
         </div>
 
         <div style={section}>
           <h2 style={h2}>Haftungsausschluss</h2>
           <p style={body}>
-            Die Inhalte dieser Website wurden mit Sorgfalt erstellt. Für die
-            Richtigkeit, Vollständigkeit und Aktualität wird keine Gewähr
-            übernommen. Die auf der Website dargestellten Prüfergebnisse dienen
-            als Unterstützung; die inhaltliche Beurteilung und die Freigabe von
-            Plänen liegen bei den Nutzenden.
+            Die Inhalte dieser Website werden mit angemessener Sorgfalt
+            erstellt und laufend weiterentwickelt. Trotz sorgfältiger Prüfung
+            kann keine Gewähr für die Richtigkeit, Vollständigkeit,
+            Aktualität oder Fehlerfreiheit der bereitgestellten Informationen
+            übernommen werden.
+          </p>
+          <p style={{ ...body, marginTop: 14 }}>
+            Insbesondere können automatisiert bzw. softwaregestützt erstellte
+            Prüfergebnisse Fehler oder Unvollständigkeiten enthalten.
+            TraceBuild übernimmt keine Gewähr dafür, dass sämtliche relevanten
+            Normen, Vorschriften oder Abweichungen erkannt werden.
+          </p>
+          <p style={{ ...body, marginTop: 14 }}>
+            Die Nutzung der auf dieser Website und innerhalb von TraceBuild
+            bereitgestellten Informationen erfolgt in eigener Verantwortung.
+            Eine abschliessende fachliche Prüfung und die Freigabe von Plänen
+            obliegen den zuständigen bzw. verantwortlichen Fachpersonen.
+          </p>
+        </div>
+
+        <div style={section}>
+          <h2 style={h2}>Externe Links</h2>
+          <p style={body}>
+            Diese Website kann Links zu externen Websites Dritter enthalten.
+            TraceBuild hat keinen Einfluss auf deren Inhalte und übernimmt
+            dafür keine Verantwortung. Für die Inhalte der verlinkten
+            Websites sind ausschliesslich deren Betreiber verantwortlich.
           </p>
         </div>
 
         <div style={section}>
           <h2 style={h2}>Urheberrecht</h2>
           <p style={body}>
-            Alle Inhalte dieser Website sind urheberrechtlich geschützt. Eine
-            Weiterverwendung bedarf der vorgängigen schriftlichen Zustimmung.
+            Sämtliche Inhalte dieser Website, insbesondere Texte, Grafiken,
+            Logos, Bilder, Designs und Softwarebestandteile, sind
+            urheberrechtlich geschützt.
+          </p>
+          <p style={{ ...body, marginTop: 14 }}>
+            Die Vervielfältigung, Bearbeitung, Verbreitung oder sonstige
+            Verwendung von Inhalten bedarf der vorgängigen schriftlichen
+            Zustimmung von TraceBuild, soweit keine gesetzliche Ausnahme
+            besteht.
           </p>
         </div>
 
-        <p style={{ ...body, marginTop: 40, fontSize: 12.5, color: "var(--tb-text-muted)" }}>
-          Angaben zu Adresse und Rechtsform werden ergänzt.
-        </p>
+        <div style={section}>
+          <h2 style={h2}>Angaben zur Rechtsform</h2>
+          <p style={body}>
+            Rechtsform: [wird ergänzt]
+            <br />
+            Geschäftsadresse: [wird ergänzt]
+            <br />
+            UID / Handelsregisternummer: [wird ergänzt]
+          </p>
+        </div>
       </div>
       </div>
 
