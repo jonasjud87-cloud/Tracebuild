@@ -13,7 +13,7 @@ import { useReducedMotion } from "framer-motion";
  * sampled by target X so it reads left-to-right like the wordmark.
  */
 
-const TEXT = "Vision. Technologie. Wirkung.";
+const TEXT = "Vision. Technologie. Fortschritt.";
 const SA = [79, 209, 255]; // #4fd1ff
 const SB = [56, 189, 248]; // #38bdf8
 const SC = [40, 98, 215]; // #2862d7
