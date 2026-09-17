@@ -18,12 +18,12 @@ const STEPS: Step[] = [
   },
   {
     n: "02",
-    h: "KI prüft gegen Normen",
+    h: "Normen abgleichen",
     p: "TraceBuild analysiert den Plan und gleicht ihn mit den relevanten Normen und Vorschriften ab.",
   },
   {
     n: "03",
-    h: "Übersicht & Freigabe",
+    h: "Ergebnisse prüfen",
     p: "Alle relevanten Befunde übersichtlich auf einen Blick – Sie prüfen, beurteilen und geben frei.",
   },
 ];

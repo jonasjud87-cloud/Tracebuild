@@ -101,19 +101,19 @@ export default function TrustBlocks() {
     {
       visual: <Secure reduce={reduce} />,
       h: "Ihre Daten sind sicher.",
-      p: "Jede Übertragung ist verschlüsselt, und auch gespeicherte Daten liegen verschlüsselt vor. Die Verarbeitung ist am Schweizer Datenschutzgesetz orientiert. Zugriff erhalten nur berechtigte Personen - geregelt über rollenbasierte Rechte.",
+      p: "Coming soon.",
       proof: "Verschlüsselt · Zugriffskontrolliert",
     },
     {
       visual: <DocStack />,
       h: "TraceBuild prüft. Sie entscheiden.",
-      p: "Die KI liefert eine übersichtliche Auswertung - sortiert, verortet, einfach zu interpretieren. Die Zeichnung ändern und die Freigabe erteilen bleibt bei Ihrem Team. Menschenverstand ist hier nicht ersetzbar.",
+      p: "Coming soon.",
       proof: "Kein Eingriff in den Plan · Freigabe durch Ihr Team",
     },
     {
       visual: <Timeline reduce={reduce} />,
       h: "Ändert sich was, sagen wir Bescheid.",
-      p: "Wir behalten Normen und Vorschriften im Blick, damit Sie es nicht müssen. Wird für Ihr Projekt etwas relevant, hören Sie von uns - bevor es zum Problem wird.",
+      p: "Coming soon.",
       proof: "Wir schauen hin · Sie bekommen Bescheid",
     },
   ];
