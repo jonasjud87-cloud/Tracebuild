@@ -102,6 +102,10 @@ const statusMeta: Record<OrgStatus, StatusMeta> = {
 };
 
 function chf(n: number): string { return `CHF ${n.toFixed(2)}`; }
+function formatGB(n: number): string {
+  if (n < 1) return `${(n * 1000).toFixed(1)} MB`;
+  return `${n.toFixed(2)} GB`;
+}
 
 // ────────────────────────────────────────────────────────────────────────────
 
@@ -145,7 +149,7 @@ function UebersichtTab({ org, costs }: { org: Organization; costs: OrgCost[] }) 
           { label: "Benutzer",     value: org.userCount?.toString()    ?? "—" },
           { label: "Projekte",     value: org.projectCount?.toString() ?? "—" },
           { label: "Analysen",     value: org.analyseCount?.toString() ?? "—" },
-          { label: "Speicher",     value: org.storageGB !== undefined ? `${org.storageGB} GB` : "—" },
+          { label: "Speicher",     value: org.storageGB !== undefined ? formatGB(org.storageGB) : "—" },
           { label: "Budget/Monat", value: org.monthlyBudget !== undefined ? chf(org.monthlyBudget) : "—" },
           { label: "Kosten/Monat", value: currentCost ? chf(currentCost.totalCost) : "—" },
         ].map(stat => (
@@ -582,8 +586,8 @@ function ProjekteTab({ org }: { org: Organization }) {
 function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
   const orgCosts = costs.filter(c => c.orgId === org.id).sort((a, b) => a.month.localeCompare(b.month));
   const maxAnalyse = Math.max(...orgCosts.map(c => c.analyseCount), 1);
-  const totalStorageMax = 50;
-  const storagePct = Math.min(((org.storageGB ?? 0) / totalStorageMax) * 100, 100);
+  const storageLimit = org.storageLimitGb;
+  const storagePct = storageLimit ? Math.min(((org.storageGB ?? 0) / storageLimit) * 100, 100) : null;
 
   return (
     <div className="space-y-6">
@@ -625,16 +629,24 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
           Speicherverbrauch
         </h5>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-medium text-white">{org.storageGB ?? 0} GB belegt</span>
-          <span className="text-xs text-[#7B8299]">von {totalStorageMax} GB</span>
+          <span className="text-sm font-medium text-white">
+            {org.storageGB !== undefined ? `${formatGB(org.storageGB)} belegt` : "Verbrauch nicht verfügbar"}
+          </span>
+          <span className="text-xs text-[#7B8299]">
+            {storageLimit ? `von ${formatGB(storageLimit)}` : "kein Limit gesetzt"}
+          </span>
         </div>
-        <div className="h-3 bg-[#2862D7]/10 rounded-full overflow-hidden">
-          <div
-            className="h-full rounded-full transition-all"
-            style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#EF4444" : "#2862D7" }}
-          />
-        </div>
-        <p className="text-[11px] text-[#7B8299] mt-1">{storagePct.toFixed(0)} % genutzt</p>
+        {storagePct !== null && (
+          <>
+            <div className="h-3 bg-[#2862D7]/10 rounded-full overflow-hidden">
+              <div
+                className="h-full rounded-full transition-all"
+                style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#EF4444" : "#2862D7" }}
+              />
+            </div>
+            <p className="text-[11px] text-[#7B8299] mt-1">{storagePct.toFixed(0)} % genutzt</p>
+          </>
+        )}
       </div>
     </div>
   );
