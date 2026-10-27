@@ -271,7 +271,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
   function openPlanType(name: string) {
     setSelectedPlanType(name);
-    setSelectedAnalysis(null);
+    // Vorhandenes Ergebnis direkt zeigen (wie die Übersichtskachel); die Upload-Zone erscheint
+    // nur ohne abgeschlossene Analyse oder bewusst über "Neuer Plan".
+    setSelectedAnalysis(latestByType[planKey(name)] ?? null);
     setView("plantype");
     setDetailFilter("all");
     setError(null);
