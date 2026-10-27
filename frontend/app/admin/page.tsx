@@ -527,7 +527,10 @@ export default function AdminPage() {
     const currentCosts = costs.filter(c => c.month === cm);
     const totalCost      = currentCosts.reduce((s, c) => s + c.totalCost, 0);
     const totalAnalyses  = currentCosts.reduce((s, c) => s + c.analyseCount, 0);
-    const totalStorageGB = currentCosts.reduce((s, c) => s + c.storageGB, 0);
+    // Belegter Speicher kommt aus /api/organizations (die Kostenzeilen führen keinen Verbrauch);
+    // null, solange keine Org einen Wert liefert → "—" statt einer falschen 0.
+    const storageKnown   = orgs.filter(o => o.storageGB !== undefined);
+    const totalStorageGB = storageKnown.length ? storageKnown.reduce((s, o) => s + (o.storageGB ?? 0), 0) : null;
     const activeOrgs     = orgs.filter(o => o.status === "active").length;
     const totalProjects  = orgs.reduce((s, o) => s + (o.projectCount ?? 0), 0);
     const totalUsers     = orgs.reduce((s, o) => s + (o.userCount ?? 0), 0);
@@ -594,7 +597,7 @@ export default function AdminPage() {
           <KpiCard label="Analysen / Mo." value={kpiData.totalAnalyses.toString()} />
           <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} accent />
           <KpiCard label="Ø / Analyse"    value={`CHF ${kpiData.avgCostPerAnalyse.toFixed(2)}`} accent />
-          <KpiCard label="Speicher ges."  value={`${kpiData.totalStorageGB.toFixed(1)} GB`} />
+          <KpiCard label="Speicher ges."  value={kpiData.totalStorageGB === null ? "—" : kpiData.totalStorageGB < 1 ? `${(kpiData.totalStorageGB * 1000).toFixed(1)} MB` : `${kpiData.totalStorageGB.toFixed(2)} GB`} />
         </div>
 
         {/* Quick actions */}
