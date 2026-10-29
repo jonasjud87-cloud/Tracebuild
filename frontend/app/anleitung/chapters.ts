@@ -13,37 +13,15 @@ export interface HandbookChapter {
   title: string;
   short: string;
   desc: string;
+  /** Einrichtungsthemen: stehen am Schluss und treten optisch zurück. */
+  secondary?: boolean;
   sections: HandbookSection[];
 }
 
 export const CHAPTERS: HandbookChapter[] = [
   {
-    id: "benutzer",
-    num: 1,
-    title: "Benutzer erstellen und berechtigen",
-    short: "Benutzer und Rechte",
-    desc: "Einladen, Rollen vergeben, Projekten zuweisen",
-    sections: [
-      { id: "rollen", title: "Die Rollen im Überblick" },
-      { id: "einladen", title: "Eine Person einladen" },
-      { id: "rolle-aendern", title: "Rolle ändern oder Zugang entfernen" },
-      { id: "projekt-zuweisen", title: "Personen einem Projekt zuweisen" },
-    ],
-  },
-  {
-    id: "normen",
-    num: 2,
-    title: "Normen hochladen",
-    short: "Normen hochladen",
-    desc: "Eigene Reglemente ergänzen, ÖREB-Auszug nutzen",
-    sections: [
-      { id: "norm-hochladen", title: "Eigene Norm in die Normen-Datenbank laden" },
-      { id: "projekt-normen", title: "Normen eines Projekts prüfen" },
-    ],
-  },
-  {
     id: "plaene",
-    num: 3,
+    num: 1,
     title: "Pläne analysieren",
     short: "Pläne analysieren",
     desc: "Projekt anlegen, Plan hochladen, Ergebnis lesen",
@@ -51,6 +29,32 @@ export const CHAPTERS: HandbookChapter[] = [
       { id: "projekt-anlegen", title: "Projekt anlegen" },
       { id: "plan-hochladen", title: "Plan hochladen und prüfen lassen" },
       { id: "ergebnis", title: "Ergebnis lesen" },
+    ],
+  },
+  {
+    id: "normen",
+    num: 2,
+    title: "Normen hinterlegen",
+    short: "Normen",
+    desc: "Eigene Reglemente ergänzen, ÖREB-Auszug nutzen",
+    secondary: true,
+    sections: [
+      { id: "norm-hochladen", title: "Eigene Norm in die Normen-Datenbank laden" },
+      { id: "projekt-normen", title: "Normen eines Projekts prüfen" },
+    ],
+  },
+  {
+    id: "benutzer",
+    num: 3,
+    title: "Benutzer erstellen und berechtigen",
+    short: "Benutzer",
+    desc: "Einladen, Rollen vergeben, Projekten zuweisen",
+    secondary: true,
+    sections: [
+      { id: "rollen", title: "Die Rollen im Überblick" },
+      { id: "einladen", title: "Eine Person einladen" },
+      { id: "rolle-aendern", title: "Rolle ändern oder Zugang entfernen" },
+      { id: "projekt-zuweisen", title: "Personen einem Projekt zuweisen" },
     ],
   },
 ];

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image, { type StaticImageData } from "next/image";
 import { IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Sans } from "next/font/google";
 import ChapterNav from "./ChapterNav";
-import { CHAPTERS, sectionTitle } from "./chapters";
+import { CHAPTERS, sectionTitle, type HandbookChapter } from "./chapters";
 import s from "./anleitung.module.css";
 
 import logo from "./img/logo.png";
@@ -21,7 +21,8 @@ import imgPlanAnalyse from "./img/plan-analyse.jpg";
 
 // Handbuch für Organisationen. Bewusst nur per Direktlink erreichbar: nirgends
 // in der App verlinkt, öffentlich in middleware.ts (PUBLIC_PATHS) und für
-// Suchmaschinen gesperrt.
+// Suchmaschinen gesperrt. Schwerpunkt ist die Planprüfung (Kapitel 1); die
+// Einrichtungsthemen stehen danach unter „Weitere Themen“.
 
 const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--hb-body", display: "swap" });
 const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["500"], variable: "--hb-mono", display: "swap" });
@@ -32,9 +33,30 @@ const FEEDBACK_FORM_URL =
 
 export const metadata: Metadata = {
   title: "Anleitung - TraceBuild",
-  description: "Handbuch für Organisationen: Benutzer berechtigen, Normen hochladen, Pläne analysieren.",
+  description: "Handbuch für Organisationen: Pläne analysieren, Normen hinterlegen, Benutzer berechtigen.",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
+
+const MAIN = CHAPTERS.filter((c) => !c.secondary);
+const MORE = CHAPTERS.filter((c) => c.secondary);
+
+const QUICKSTART = [
+  {
+    href: "#projekt-anlegen",
+    title: "Projekt anlegen",
+    text: "Kanton, Gemeinde und Parzelle eingeben. In SG und AR ermittelt TraceBuild die Bauzone selbst.",
+  },
+  {
+    href: "#plan-hochladen",
+    title: "Plan hochladen",
+    text: "PDF oder Bild in eine Planart ziehen und die Analyse starten.",
+  },
+  {
+    href: "#ergebnis",
+    title: "Ergebnis lesen",
+    text: "Verstösse, unklare und konforme Punkte, jeweils mit Begründung und Seitenangabe.",
+  },
+];
 
 function Ui({ children }: { children: React.ReactNode }) {
   return <span className={s.ui}>{children}</span>;
@@ -56,7 +78,11 @@ function Fig({ src, alt, caption, narrow }: { src: StaticImageData; alt: string;
 function Chapter({ id, children }: { id: string; children: React.ReactNode }) {
   const c = CHAPTERS.find((x) => x.id === id)!;
   return (
-    <section className={s.chapter} id={c.id} aria-labelledby={`${c.id}-titel`}>
+    <section
+      className={`${s.chapter} ${c.secondary ? s.chapterSecondary : ""}`}
+      id={c.id}
+      aria-labelledby={`${c.id}-titel`}
+    >
       <div className={s.wrap}>
         <h2 id={`${c.id}-titel`}>
           <span className={s.num}>{c.num}</span>
@@ -65,6 +91,23 @@ function Chapter({ id, children }: { id: string; children: React.ReactNode }) {
         {children}
       </div>
     </section>
+  );
+}
+
+function TocSections({ c }: { c: HandbookChapter }) {
+  return (
+    <ol className={s.tocSections}>
+      {c.sections.map((x, i) => (
+        <li key={x.id}>
+          <a href={`#${x.id}`}>
+            <span className={s.tocSectionNum}>
+              {c.num}.{i + 1}
+            </span>
+            <span>{x.title}</span>
+          </a>
+        </li>
+      ))}
+    </ol>
   );
 }
 
@@ -92,8 +135,8 @@ export default function AnleitungPage() {
             <p className={s.testphaseTitle}>Willkommen bei TraceBuild!</p>
             <p>
               Schön, dass Sie dabei sind. TraceBuild befindet sich in der Testphase, und Sie gehören zu den Ersten,
-              die es nutzen. Probieren und testen Sie alles in Ruhe aus. Diese Anleitung führt Sie Schritt für
-              Schritt durch.
+              die es nutzen. Probieren und testen Sie alles in Ruhe. Diese Anleitung führt Sie Schritt für Schritt
+              durch.
             </p>
             <p>
               Ist Ihnen ein Fehler aufgefallen, wirkt etwas unklar oder fehlt Ihnen eine Funktion? Erfassen Sie es
@@ -105,191 +148,70 @@ export default function AnleitungPage() {
           </aside>
 
           <p className={s.eyebrow}>Anleitung</p>
-          <h1>TraceBuild im Team nutzen</h1>
+          <h1>Ihr Bauplan, in wenigen Minuten geprüft</h1>
           <p className={s.lead}>
-            Diese Anleitung zeigt Schritt für Schritt, wie Sie Ihr Team einladen und berechtigen, eigene Normen
-            hinterlegen und Baupläne automatisch gegen die geltenden Vorschriften prüfen lassen.
+            Sie laden einen Plan hoch, TraceBuild prüft ihn gegen die Vorschriften, die für Ihre Parzelle gelten:
+            Bauzone, Abstände, Höhen und mehr. Sie sehen auf einen Blick, was eingehalten ist, wo etwas nicht
+            stimmt und wo es noch Angaben braucht.
           </p>
+
+          <section className={s.quick} aria-labelledby="schnellstart-titel">
+            <h2 id="schnellstart-titel" className={s.quickTitle}>
+              In drei Schritten zur ersten Prüfung
+            </h2>
+            <ol className={s.quickSteps}>
+              {QUICKSTART.map((q, i) => (
+                <li key={q.href}>
+                  <a href={q.href}>
+                    <span className={s.quickNum}>{i + 1}</span>
+                    <span className={s.quickStepTitle}>{q.title}</span>
+                    <span className={s.quickText}>{q.text}</span>
+                    <span className={s.quickMore}>
+                      Anleitung <span aria-hidden="true">→</span>
+                    </span>
+                  </a>
+                </li>
+              ))}
+            </ol>
+          </section>
 
           <nav id="inhalt" aria-labelledby="inhalt-titel" className={s.tocNav}>
             <h2 id="inhalt-titel" className={s.tocTitle}>
               Inhalt
             </h2>
             <ol className={s.toc}>
-              {CHAPTERS.map((c) => (
+              {MAIN.map((c) => (
+                <li key={c.id} className={`${s.tocCard} ${s.tocCardMain}`}>
+                  <a className={s.tocChapter} href={`#${c.id}`}>
+                    <span className={s.tocN}>Kapitel {c.num}</span>
+                    <span className={s.tocT}>{c.title}</span>
+                    <span className={s.tocD}>{c.desc}</span>
+                  </a>
+                  <TocSections c={c} />
+                </li>
+              ))}
+            </ol>
+
+            <h3 className={s.tocTitle}>Weitere Themen</h3>
+            <ol className={`${s.toc} ${s.tocMore}`}>
+              {MORE.map((c) => (
                 <li key={c.id} className={s.tocCard}>
                   <a className={s.tocChapter} href={`#${c.id}`}>
                     <span className={s.tocN}>Kapitel {c.num}</span>
-                    <span className={s.tocT}>{c.short}</span>
-                    <span className={s.tocD}>{c.desc}</span>
+                    <span className={s.tocT}>{c.title}</span>
                   </a>
-                  <ol className={s.tocSections}>
-                    {c.sections.map((x, i) => (
-                      <li key={x.id}>
-                        <a href={`#${x.id}`}>
-                          <span className={s.tocSectionNum}>
-                            {c.num}.{i + 1}
-                          </span>
-                          <span>{x.title}</span>
-                        </a>
-                      </li>
-                    ))}
-                  </ol>
+                  <TocSections c={c} />
                 </li>
               ))}
             </ol>
           </nav>
         </div>
 
-        <Chapter id="benutzer">
-          <p className={s.chapterLead}>
-            Neue Personen kommen per Einladung in Ihre Organisation. Einladen und Rechte vergeben kann nur, wer die
-            Rolle Org Admin hat.
-          </p>
-
-          <Sub id="rollen" />
-          <div className={s.tableWrap}>
-            <table>
-              <thead>
-                <tr>
-                  <th>Rolle</th>
-                  <th>Projekte bearbeiten, Pläne prüfen, Normen hochladen</th>
-                  <th>Personen einladen und Rollen ändern</th>
-                  <th>Projektmitglieder zuweisen, Projekte löschen</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Org Admin</td>
-                  <td className={s.yes}>Ja</td>
-                  <td className={s.yes}>Ja</td>
-                  <td className={s.yes}>Ja</td>
-                </tr>
-                <tr>
-                  <td>Projektleiter</td>
-                  <td className={s.yes}>Ja</td>
-                  <td className={s.no}>Nein</td>
-                  <td className={s.no}>Nein</td>
-                </tr>
-                <tr>
-                  <td>Mitglied</td>
-                  <td className={s.yes}>Ja</td>
-                  <td className={s.no}>Nein</td>
-                  <td className={s.no}>Nein</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div className={s.note}>
-            <strong>Gut zu wissen</strong>
-            <p>
-              Alle Personen einer Organisation sehen alle Projekte dieser Organisation. Projektleiter und Mitglied
-              haben heute dieselben Rechte; die Rolle zeigt im Team, wer für ein Projekt verantwortlich ist.
-            </p>
-          </div>
-
-          <Sub id="einladen" />
-          <ol className={s.steps}>
-            <li><p>Klicken Sie in der linken Navigation auf <Ui>Organisation</Ui>.</p></li>
-            <li><p>Wechseln Sie zum Reiter <Ui>Mitglieder</Ui> und klicken Sie auf <Ui>+ Einladen</Ui>.</p></li>
-            <li><p>Füllen Sie <Ui>Name</Ui> und <Ui>E-Mail</Ui> aus und wählen Sie die <Ui>Rolle</Ui>. Bestätigen Sie mit <Ui>Einladen</Ui>.</p></li>
-            <li><p>Die Person erhält eine E-Mail, legt über den Link ihr Passwort fest und ist danach Teil Ihrer Organisation.</p></li>
-          </ol>
-          <div className={s.two}>
-            <Fig
-              src={imgMitglieder}
-              alt="Reiter Mitglieder mit der Liste der Organisationsmitglieder und dem Button Einladen"
-              caption="Organisation → Mitglieder: Liste aller Personen mit ihrer Rolle."
-            />
-            <Fig
-              src={imgEinladen}
-              alt="Dialog Mitglied einladen mit den Feldern Name, E-Mail und Rolle"
-              caption="Dialog „Mitglied einladen“ mit Name, E-Mail und Rolle."
-            />
-          </div>
-
-          <Sub id="rolle-aendern" />
-          <ol className={s.steps}>
-            <li><p>Öffnen Sie <Ui>Organisation</Ui> → <Ui>Mitglieder</Ui>.</p></li>
-            <li><p>Wählen Sie in der Spalte <Ui>Rolle</Ui> die neue Rolle aus. Die Änderung gilt sofort.</p></li>
-            <li><p>Um eine Person zu entfernen, klicken Sie am Zeilenende auf das Papierkorb-Symbol und bestätigen die Rückfrage.</p></li>
-          </ol>
-
-          <Sub id="projekt-zuweisen" />
-          <ol className={s.steps}>
-            <li><p>Öffnen Sie <Ui>Organisation</Ui> → <Ui>Projekte</Ui>.</p></li>
-            <li><p>Klicken Sie in der Zeile des Projekts auf <Ui>Mitglieder</Ui>.</p></li>
-            <li><p>Wählen Sie unter <Ui>Mitglied hinzufügen…</Ui> eine Person und klicken Sie auf <Ui>+</Ui>.</p></li>
-          </ol>
-          <Fig
-            src={imgProjektmitglieder}
-            alt="Seitenleiste Mitglieder eines Projekts mit Auswahlfeld Mitglied hinzufügen"
-            caption="Projektmitglieder werden in einer Seitenleiste verwaltet."
-          />
-        </Chapter>
-
-        <Chapter id="normen">
-          <p className={s.chapterLead}>
-            TraceBuild prüft Pläne gegen zwei Quellen: den öffentlichen ÖREB-Kataster der Parzelle und die Normen,
-            die Ihre Organisation selbst hinterlegt.
-          </p>
-          <div className={s.note}>
-            <strong>Automatisch: ÖREB-Kataster</strong>
-            <p>
-              In den Kantonen St. Gallen (SG) und Appenzell Ausserrhoden (AR) lädt TraceBuild beim Anlegen eines
-              Projekts den ÖREB-Auszug der Parzelle und ermittelt daraus die Bauzone, z.&nbsp;B. <Ui>W2</Ui>. Dafür
-              müssen Sie nichts hochladen.
-            </p>
-          </div>
-
-          <Sub id="norm-hochladen" />
-          <p>
-            Für kommunale Baureglemente, kantonale Gesetze oder interne Richtlinien laden Sie das Dokument einmal
-            hoch. Es steht danach allen Projekten Ihrer Organisation zur Verfügung.
-          </p>
-          <ol className={s.steps}>
-            <li><p>Klicken Sie in der linken Navigation auf <Ui>Normen-DB</Ui> und öffnen Sie <Ui>Norm hochladen</Ui>.</p></li>
-            <li><p>Ziehen Sie die Datei in das Feld oder klicken Sie hinein. Erlaubt sind PDF- und Textdateien.</p></li>
-            <li>
-              <p>Ordnen Sie die Norm ein:</p>
-              <ul>
-                <li><Ui>Ebene</Ui>: Bund, Kanton oder Gemeinde</li>
-                <li><Ui>Kanton</Ui> bzw. <Ui>Gemeinde</Ui>: wo die Norm gilt</li>
-                <li><Ui>Kategorie</Ui>: das Thema, z.&nbsp;B. Grenzabstand oder Gebäudehöhe</li>
-                <li><Ui>Zone</Ui> (optional): z.&nbsp;B. W2; leer lassen, wenn sie für alle Zonen gilt</li>
-                <li><Ui>Quelle</Ui> (optional): Artikel oder Paragraf, z.&nbsp;B. Baureglement Art. 12</li>
-              </ul>
-            </li>
-            <li><p>Klicken Sie auf <Ui>Hochladen &amp; speichern</Ui>. Die Norm erscheint rechts in der Liste.</p></li>
-          </ol>
-          <Fig
-            src={imgNormHochladen}
-            alt="Normen-Datenbank mit ausgefülltem Formular Norm hochladen: Ebene Gemeinde, Gemeinde Mels, Kategorie Grenzabstand, Zone W2"
-            caption="Beispiel: kommunale Norm zum Grenzabstand in der Zone W2 der Gemeinde Mels."
-          />
-
-          <Sub id="projekt-normen" />
-          <p>
-            Im Projekt zeigt der Reiter <Ui>Normen</Ui>, welche Vorschriften für diese Parzelle gelten: zuerst die
-            Themen aus dem ÖREB-Auszug, danach die passenden Normen aus Ihrer Datenbank.
-          </p>
-          <ol className={s.steps}>
-            <li><p>Öffnen Sie das Projekt und wechseln Sie zum Reiter <Ui>Normen</Ui>.</p></li>
-            <li><p>Ein Hinweis <Ui>Keine Norm in der Bibliothek für dieses Thema</Ui> zeigt eine Lücke. Laden Sie die fehlende Norm wie oben beschrieben hoch.</p></li>
-            <li><p>Mit <Ui>Spezialnorm hinzufügen</Ui> ergänzen Sie eine Vorschrift nur für dieses Projekt, z.&nbsp;B. einen Sondernutzungsplan.</p></li>
-            <li><p>Nach neuen Uploads aktualisieren Sie die Zuordnung mit <Ui>Normen neu laden</Ui>.</p></li>
-          </ol>
-          <Fig
-            src={imgProjektNormen}
-            alt="Reiter Normen eines Projekts mit ÖREB-Auszug, Zone W2 und parzellenspezifischen Themen"
-            caption="Reiter Normen: ÖREB-Auszug der Parzelle, ermittelte Zone und offene Lücken."
-          />
-        </Chapter>
-
         <Chapter id="plaene">
           <p className={s.chapterLead}>
             Für jede Prüfung braucht es ein Projekt mit Parzelle. Darin legen Sie Planarten an (z.&nbsp;B. Grundriss,
-            Schnitt, Fassade) und laden pro Planart die Pläne hoch.
+            Schnitt, Fassade) und laden pro Planart die Pläne hoch. Geprüft wird gegen den ÖREB-Auszug der Parzelle
+            und die Normen Ihrer Organisation (siehe <a href="#normen">Kapitel 2</a>).
           </p>
 
           <Sub id="projekt-anlegen" />
@@ -381,6 +303,161 @@ export default function AnleitungPage() {
             </p>
           </div>
         </Chapter>
+
+        <div className={s.more}>
+          <div className={`${s.wrap} ${s.moreIntro}`}>
+            <p className={s.eyebrow}>Weitere Themen</p>
+            <p className={s.moreText}>
+              Einrichtung Ihrer Organisation: eigene Normen hinterlegen und das Team verwalten. Das erledigt meist
+              eine Person einmalig; für das Prüfen von Plänen ist es nicht nötig.
+            </p>
+          </div>
+
+          <Chapter id="normen">
+            <p className={s.chapterLead}>
+              TraceBuild prüft Pläne gegen zwei Quellen: den öffentlichen ÖREB-Kataster der Parzelle und die Normen,
+              die Ihre Organisation selbst hinterlegt.
+            </p>
+            <div className={s.note}>
+              <strong>Automatisch: ÖREB-Kataster</strong>
+              <p>
+                In den Kantonen St. Gallen (SG) und Appenzell Ausserrhoden (AR) lädt TraceBuild beim Anlegen eines
+                Projekts den ÖREB-Auszug der Parzelle und ermittelt daraus die Bauzone, z.&nbsp;B. <Ui>W2</Ui>. Dafür
+                müssen Sie nichts hochladen.
+              </p>
+            </div>
+
+            <Sub id="norm-hochladen" />
+            <p>
+              Für kommunale Baureglemente, kantonale Gesetze oder interne Richtlinien laden Sie das Dokument einmal
+              hoch. Es steht danach allen Projekten Ihrer Organisation zur Verfügung.
+            </p>
+            <ol className={s.steps}>
+              <li><p>Klicken Sie in der linken Navigation auf <Ui>Normen-DB</Ui> und öffnen Sie <Ui>Norm hochladen</Ui>.</p></li>
+              <li><p>Ziehen Sie die Datei in das Feld oder klicken Sie hinein. Erlaubt sind PDF- und Textdateien.</p></li>
+              <li>
+                <p>Ordnen Sie die Norm ein:</p>
+                <ul>
+                  <li><Ui>Ebene</Ui>: Bund, Kanton oder Gemeinde</li>
+                  <li><Ui>Kanton</Ui> bzw. <Ui>Gemeinde</Ui>: wo die Norm gilt</li>
+                  <li><Ui>Kategorie</Ui>: das Thema, z.&nbsp;B. Grenzabstand oder Gebäudehöhe</li>
+                  <li><Ui>Zone</Ui> (optional): z.&nbsp;B. W2; leer lassen, wenn sie für alle Zonen gilt</li>
+                  <li><Ui>Quelle</Ui> (optional): Artikel oder Paragraf, z.&nbsp;B. Baureglement Art. 12</li>
+                </ul>
+              </li>
+              <li><p>Klicken Sie auf <Ui>Hochladen &amp; speichern</Ui>. Die Norm erscheint rechts in der Liste.</p></li>
+            </ol>
+            <Fig
+              src={imgNormHochladen}
+              alt="Normen-Datenbank mit ausgefülltem Formular Norm hochladen: Ebene Gemeinde, Gemeinde Mels, Kategorie Grenzabstand, Zone W2"
+              caption="Beispiel: kommunale Norm zum Grenzabstand in der Zone W2 der Gemeinde Mels."
+            />
+
+            <Sub id="projekt-normen" />
+            <p>
+              Im Projekt zeigt der Reiter <Ui>Normen</Ui>, welche Vorschriften für diese Parzelle gelten: zuerst die
+              Themen aus dem ÖREB-Auszug, danach die passenden Normen aus Ihrer Datenbank.
+            </p>
+            <ol className={s.steps}>
+              <li><p>Öffnen Sie das Projekt und wechseln Sie zum Reiter <Ui>Normen</Ui>.</p></li>
+              <li><p>Ein Hinweis <Ui>Keine Norm in der Bibliothek für dieses Thema</Ui> zeigt eine Lücke. Laden Sie die fehlende Norm wie oben beschrieben hoch.</p></li>
+              <li><p>Mit <Ui>Spezialnorm hinzufügen</Ui> ergänzen Sie eine Vorschrift nur für dieses Projekt, z.&nbsp;B. einen Sondernutzungsplan.</p></li>
+              <li><p>Nach neuen Uploads aktualisieren Sie die Zuordnung mit <Ui>Normen neu laden</Ui>.</p></li>
+            </ol>
+            <Fig
+              src={imgProjektNormen}
+              alt="Reiter Normen eines Projekts mit ÖREB-Auszug, Zone W2 und parzellenspezifischen Themen"
+              caption="Reiter Normen: ÖREB-Auszug der Parzelle, ermittelte Zone und offene Lücken."
+            />
+          </Chapter>
+
+          <Chapter id="benutzer">
+            <p className={s.chapterLead}>
+              Neue Personen kommen per Einladung in Ihre Organisation. Einladen und Rechte vergeben kann nur, wer die
+              Rolle Org Admin hat.
+            </p>
+
+            <Sub id="rollen" />
+            <div className={s.tableWrap}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Rolle</th>
+                    <th>Projekte bearbeiten, Pläne prüfen, Normen hochladen</th>
+                    <th>Personen einladen und Rollen ändern</th>
+                    <th>Projektmitglieder zuweisen, Projekte löschen</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>Org Admin</td>
+                    <td className={s.yes}>Ja</td>
+                    <td className={s.yes}>Ja</td>
+                    <td className={s.yes}>Ja</td>
+                  </tr>
+                  <tr>
+                    <td>Projektleiter</td>
+                    <td className={s.yes}>Ja</td>
+                    <td className={s.no}>Nein</td>
+                    <td className={s.no}>Nein</td>
+                  </tr>
+                  <tr>
+                    <td>Mitglied</td>
+                    <td className={s.yes}>Ja</td>
+                    <td className={s.no}>Nein</td>
+                    <td className={s.no}>Nein</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className={s.note}>
+              <strong>Gut zu wissen</strong>
+              <p>
+                Alle Personen einer Organisation sehen alle Projekte dieser Organisation. Projektleiter und Mitglied
+                haben heute dieselben Rechte; die Rolle zeigt im Team, wer für ein Projekt verantwortlich ist.
+              </p>
+            </div>
+
+            <Sub id="einladen" />
+            <ol className={s.steps}>
+              <li><p>Klicken Sie in der linken Navigation auf <Ui>Organisation</Ui>.</p></li>
+              <li><p>Wechseln Sie zum Reiter <Ui>Mitglieder</Ui> und klicken Sie auf <Ui>+ Einladen</Ui>.</p></li>
+              <li><p>Füllen Sie <Ui>Name</Ui> und <Ui>E-Mail</Ui> aus und wählen Sie die <Ui>Rolle</Ui>. Bestätigen Sie mit <Ui>Einladen</Ui>.</p></li>
+              <li><p>Die Person erhält eine E-Mail, legt über den Link ihr Passwort fest und ist danach Teil Ihrer Organisation.</p></li>
+            </ol>
+            <div className={s.two}>
+              <Fig
+                src={imgMitglieder}
+                alt="Reiter Mitglieder mit der Liste der Organisationsmitglieder und dem Button Einladen"
+                caption="Organisation → Mitglieder: Liste aller Personen mit ihrer Rolle."
+              />
+              <Fig
+                src={imgEinladen}
+                alt="Dialog Mitglied einladen mit den Feldern Name, E-Mail und Rolle"
+                caption="Dialog „Mitglied einladen“ mit Name, E-Mail und Rolle."
+              />
+            </div>
+
+            <Sub id="rolle-aendern" />
+            <ol className={s.steps}>
+              <li><p>Öffnen Sie <Ui>Organisation</Ui> → <Ui>Mitglieder</Ui>.</p></li>
+              <li><p>Wählen Sie in der Spalte <Ui>Rolle</Ui> die neue Rolle aus. Die Änderung gilt sofort.</p></li>
+              <li><p>Um eine Person zu entfernen, klicken Sie am Zeilenende auf das Papierkorb-Symbol und bestätigen die Rückfrage.</p></li>
+            </ol>
+
+            <Sub id="projekt-zuweisen" />
+            <ol className={s.steps}>
+              <li><p>Öffnen Sie <Ui>Organisation</Ui> → <Ui>Projekte</Ui>.</p></li>
+              <li><p>Klicken Sie in der Zeile des Projekts auf <Ui>Mitglieder</Ui>.</p></li>
+              <li><p>Wählen Sie unter <Ui>Mitglied hinzufügen…</Ui> eine Person und klicken Sie auf <Ui>+</Ui>.</p></li>
+            </ol>
+            <Fig
+              src={imgProjektmitglieder}
+              alt="Seitenleiste Mitglieder eines Projekts mit Auswahlfeld Mitglied hinzufügen"
+              caption="Projektmitglieder werden in einer Seitenleiste verwaltet."
+            />
+          </Chapter>
+        </div>
       </main>
 
       <footer className={s.footer}>
