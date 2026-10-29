@@ -13,7 +13,7 @@ const MOBILE_UA_REGEX = /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera M
 
 // Pages that stay reachable without a session. Exact match (+ optional trailing
 // slash) so a future "/impressum-intern" style route can't ride the prefix.
-const PUBLIC_PATHS = new Set(["/", "/impressum", "/datenschutz"]);
+const PUBLIC_PATHS = new Set(["/", "/impressum", "/datenschutz", "/anleitung"]);
 const isPublicPath = (p: string) => PUBLIC_PATHS.has(p.replace(/\/$/, "") || "/");
 const isAuthPath = (p: string) =>
   p === "/login" ||
