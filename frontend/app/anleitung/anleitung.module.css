@@ -590,3 +590,127 @@
 .testphaseCta:hover {
   background: #1f4fb3;
 }
+
+.chapterLead a {
+  color: var(--accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Schnellstart: holt den Leser direkt bei der Planprüfung ab */
+.quick {
+  margin: 36px 0 0;
+}
+.page .quickTitle {
+  font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+}
+.quickSteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.quickSteps a {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  height: 100%;
+  padding: 18px;
+  border-radius: 12px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.15s, box-shadow 0.15s;
+}
+.quickSteps a:hover {
+  background: var(--accent-soft);
+  box-shadow: 0 6px 20px rgba(40, 98, 215, 0.12);
+}
+.quickNum {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--accent);
+  color: #ffffff;
+  font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.quickStepTitle {
+  font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+}
+.quickText {
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+  flex: 1;
+}
+.quickMore {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+/* Inhaltsverzeichnis: Hauptkapitel gross, weitere Themen zurückhaltend */
+.tocCardMain {
+  grid-column: 1 / -1;
+  border-color: var(--accent);
+}
+.tocCardMain .tocT {
+  font-size: 20px;
+}
+.tocCardMain .tocSections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+.tocMore .tocCard {
+  background: var(--surface);
+}
+.tocMore .tocT {
+  font-size: 15px;
+}
+.tocMore .tocSections a {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+/* Weitere Themen: abgesetzter, ruhigerer Bereich am Schluss */
+.more {
+  margin-top: 24px;
+  background: #fafbfd;
+  border-top: 1px solid var(--line);
+}
+.moreIntro {
+  padding-top: 48px;
+}
+.page .moreText {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0;
+}
+.chapterSecondary {
+  padding-block: 40px;
+}
+.more .chapterSecondary:first-of-type {
+  border-top: 0;
+}
+.page .chapterSecondary h2 {
+  font-size: 22px;
+}
+.chapterSecondary .num {
+  color: var(--muted);
+}
+.page .chapterSecondary h3 {
+  font-size: 18px;
+}
