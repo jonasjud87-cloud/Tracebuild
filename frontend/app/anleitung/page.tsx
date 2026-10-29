@@ -92,9 +92,8 @@ export default function AnleitungPage() {
             <p className={s.testphaseTitle}>Willkommen bei TraceBuild!</p>
             <p>
               Schön, dass Sie dabei sind. TraceBuild befindet sich in der Testphase, und Sie gehören zu den Ersten,
-              die es nutzen. Probieren Sie alles in Ruhe aus, am besten mit echten Projekten aus Ihrem Alltag: Team
-              einladen, Normen hinterlegen, Pläne prüfen lassen. Diese Anleitung führt Sie Schritt für Schritt
-              durch.
+              die es nutzen. Probieren und testen Sie alles in Ruhe aus. Diese Anleitung führt Sie Schritt für
+              Schritt durch.
             </p>
             <p>
               Ist Ihnen ein Fehler aufgefallen, wirkt etwas unklar oder fehlt Ihnen eine Funktion? Erfassen Sie es
