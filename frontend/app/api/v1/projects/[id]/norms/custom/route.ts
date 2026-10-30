@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
+import { normTextTooLongMessage } from "@/lib/norm-text";
 
 export async function POST(
   request: Request,
@@ -23,6 +24,8 @@ export async function POST(
   if (!title?.trim()) return err("Titel fehlt");
   if (!text?.trim()) return err("Inhalt fehlt");
   if (!category?.trim()) return err("Kategorie fehlt");
+  const tooLong = normTextTooLongMessage(text.trim());
+  if (tooLong) return err(tooLong, 413);
 
   // Create the norm scoped to the org (layer 5, jurisdiction_type='org')
   const { data: norm, error: normErr } = await admin
