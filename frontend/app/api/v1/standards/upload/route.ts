@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractPdfText } from "@/lib/pdf-text";
+import { normTextTooLongMessage } from "@/lib/norm-text";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
 
@@ -60,8 +61,8 @@ async function handleUpload(request: Request) {
     text = fileBytes.toString("utf-8");
   }
 
-  // Max 100K Zeichen
-  text = text.slice(0, 100_000);
+  const tooLong = normTextTooLongMessage(text);
+  if (tooLong) return err(tooLong, 413);
   const title = sourceName || file.name;
 
   // Org-scoped for now — visible to every project in this organization,
