@@ -20,3 +20,6 @@ next.log
 next_err.log
 next_out.txt
 next_err.txt
+
+# TypeScript-Build-Cache — wird bei jedem Build neu geschrieben
+*.tsbuildinfo
