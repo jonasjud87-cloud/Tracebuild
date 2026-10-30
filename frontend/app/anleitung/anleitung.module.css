@@ -714,3 +714,67 @@
 .page .chapterSecondary h3 {
   font-size: 18px;
 }
+
+/* Normen: die drei Quellen als Karten */
+.sources {
+  list-style: none;
+  margin: 20px 0 8px;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+}
+.sources > li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+}
+.sources strong {
+  font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+}
+.page .sources p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+.sourceTag {
+  align-self: flex-start;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+}
+.sourceTagOwn {
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--line);
+}
+
+/* Normen: Formularfelder als Tabelle */
+.fieldTable table {
+  min-width: 480px;
+}
+.fieldTable td {
+  vertical-align: middle;
+}
+.optional {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+.example {
+  color: var(--muted);
+  white-space: nowrap;
+}

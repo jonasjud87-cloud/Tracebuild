@@ -58,6 +58,14 @@ const QUICKSTART = [
   },
 ];
 
+const NORM_FIELDS = [
+  { field: "Ebene", what: "Wer die Norm erlassen hat: Bund, Kanton oder Gemeinde", example: "Gemeinde" },
+  { field: "Kanton / Gemeinde", what: "Wo die Norm gilt", example: "Mels" },
+  { field: "Kategorie", what: "Das Thema der Norm", example: "Grenzabstand" },
+  { field: "Zone", what: "Leer lassen, wenn die Norm für alle Zonen gilt", example: "W2", optional: true },
+  { field: "Quelle", what: "Erlass, Artikel oder Paragraf", example: "Baureglement Art. 12", optional: true },
+];
+
 function Ui({ children }: { children: React.ReactNode }) {
   return <span className={s.ui}>{children}</span>;
 }
@@ -315,17 +323,32 @@ export default function AnleitungPage() {
 
           <Chapter id="normen">
             <p className={s.chapterLead}>
-              TraceBuild prüft Pläne gegen zwei Quellen: den öffentlichen ÖREB-Kataster der Parzelle und die Normen,
-              die Ihre Organisation selbst hinterlegt.
+              TraceBuild prüft Pläne gegen drei Quellen. Die ersten beiden sind bereits eingerichtet; Sie ergänzen nur,
+              was für Ihre Projekte noch fehlt.
             </p>
-            <div className={s.note}>
-              <strong>Automatisch: ÖREB-Kataster</strong>
-              <p>
-                In den Kantonen St. Gallen (SG) und Appenzell Ausserrhoden (AR) lädt TraceBuild beim Anlegen eines
-                Projekts den ÖREB-Auszug der Parzelle und ermittelt daraus die Bauzone, z.&nbsp;B. <Ui>W2</Ui>. Dafür
-                müssen Sie nichts hochladen.
-              </p>
-            </div>
+            <ul className={s.sources}>
+              <li>
+                <span className={s.sourceTag}>Automatisch</span>
+                <strong>ÖREB-Kataster</strong>
+                <p>
+                  In SG und AR lädt TraceBuild beim Anlegen eines Projekts den ÖREB-Auszug der Parzelle und ermittelt
+                  die Bauzone, z.&nbsp;B. <Ui>W2</Ui>.
+                </p>
+              </li>
+              <li>
+                <span className={s.sourceTag}>Für alle Organisationen</span>
+                <strong>Von TraceBuild hinterlegt</strong>
+                <p>
+                  Kantonale Gesetze und kommunale Baureglemente, z.&nbsp;B. Planungs- und Baugesetz SG mit Verordnung,
+                  Baureglemente Mels und Sargans.
+                </p>
+              </li>
+              <li>
+                <span className={`${s.sourceTag} ${s.sourceTagOwn}`}>Nur Ihre Organisation</span>
+                <strong>Eigene Normen</strong>
+                <p>Weitere Reglemente oder interne Richtlinien, die Sie selbst in die Normen-Datenbank laden.</p>
+              </li>
+            </ul>
 
             <Sub id="norm-hochladen" />
             <p>
@@ -335,18 +358,32 @@ export default function AnleitungPage() {
             <ol className={s.steps}>
               <li><p>Klicken Sie in der linken Navigation auf <Ui>Normen-DB</Ui> und öffnen Sie <Ui>Norm hochladen</Ui>.</p></li>
               <li><p>Ziehen Sie die Datei in das Feld oder klicken Sie hinein. Erlaubt sind PDF- und Textdateien.</p></li>
-              <li>
-                <p>Ordnen Sie die Norm ein:</p>
-                <ul>
-                  <li><Ui>Ebene</Ui>: Bund, Kanton oder Gemeinde</li>
-                  <li><Ui>Kanton</Ui> bzw. <Ui>Gemeinde</Ui>: wo die Norm gilt</li>
-                  <li><Ui>Kategorie</Ui>: das Thema, z.&nbsp;B. Grenzabstand oder Gebäudehöhe</li>
-                  <li><Ui>Zone</Ui> (optional): z.&nbsp;B. W2; leer lassen, wenn sie für alle Zonen gilt</li>
-                  <li><Ui>Quelle</Ui> (optional): Artikel oder Paragraf, z.&nbsp;B. Baureglement Art. 12</li>
-                </ul>
-              </li>
+              <li><p>Ordnen Sie die Norm mit den Feldern in der Tabelle unten ein.</p></li>
               <li><p>Klicken Sie auf <Ui>Hochladen &amp; speichern</Ui>. Die Norm erscheint rechts in der Liste.</p></li>
             </ol>
+            <div className={`${s.tableWrap} ${s.fieldTable}`}>
+              <table>
+                <thead>
+                  <tr>
+                    <th>Feld</th>
+                    <th>Was eintragen</th>
+                    <th>Beispiel</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {NORM_FIELDS.map((f) => (
+                    <tr key={f.field}>
+                      <td>
+                        <Ui>{f.field}</Ui>
+                        {f.optional && <span className={s.optional}>optional</span>}
+                      </td>
+                      <td>{f.what}</td>
+                      <td className={s.example}>{f.example}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
             <Fig
               src={imgNormHochladen}
               alt="Normen-Datenbank mit ausgefülltem Formular Norm hochladen: Ebene Gemeinde, Gemeinde Mels, Kategorie Grenzabstand, Zone W2"
