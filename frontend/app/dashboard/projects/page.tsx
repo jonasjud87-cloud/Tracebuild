@@ -6,10 +6,10 @@ import ProjectCard from "@/components/ProjectCard";
 import { useDashboard } from "@/lib/dashboardContext";
 
 const WORKFLOW_STEPS = [
-  { number: "01", title: "Upload",  description: "Bauplan als PDF hochladen. TraceBuild erkennt Plantyp und Massstab automatisch." },
-  { number: "02", title: "Analyse", description: "KI prüft jede Seite gegen relevante Normen – präzise und in Minuten." },
-  { number: "03", title: "Review",  description: "Ergebnisse einsehen, kommentieren und nach Priorität bearbeiten." },
-  { number: "04", title: "Report",  description: "Prüfbericht exportieren – direkt ins Projektdossier oder an den Auftraggeber." },
+  { number: "01", title: "Projekt",  description: "Kanton, Gemeinde und Parzelle eingeben." },
+  { number: "02", title: "Upload",   description: "Plan als PDF oder Bild hochladen." },
+  { number: "03", title: "Analyse",  description: "KI prüft den Plan gegen die geltenden Normen." },
+  { number: "04", title: "Ergebnis", description: "Befunde prüfen, Bericht als PDF exportieren." },
 ];
 
 function Toast({ msg }: { msg: string }) {
