@@ -239,19 +239,16 @@ export default function StandardsPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-6 py-8 flex gap-8 items-start">
-        {/* Upload-Panel — collapsed to a slim edge rail by default */}
+        {/* Upload-Panel — collapsed to a compact button by default */}
         {!uploadOpen ? (
           <button
             onClick={() => setUploadOpen(true)}
-            className="shrink-0 w-12 flex flex-col items-center gap-3 py-5 bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl hover:border-[#2862D7]/40 hover:bg-[#2862D7]/8 transition-colors"
-            title="Norm hochladen"
+            className="shrink-0 flex items-center gap-2 px-4 py-3 bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl hover:border-[#2862D7]/40 hover:bg-[#2862D7]/8 transition-colors"
           >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-[#85A6E9]">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-[#85A6E9]" aria-hidden="true">
               <path d="M7 1V13M1 7H13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
             </svg>
-            <span className="text-[11px] font-medium text-[#7B8299]" style={{ writingMode: "vertical-rl" }}>
-              Norm hochladen
-            </span>
+            <span className="text-sm font-medium text-[#ABAEBB] whitespace-nowrap">Norm hochladen</span>
           </button>
         ) : (
         <div className="w-72 shrink-0">

@@ -81,9 +81,9 @@ export default function Hero() {
             margin: "26px auto 0",
           }}
         >
-          TraceBuild liest Ihre Zeichnungen, gleicht sie mit geltenden Normen und
-          Vorschriften ab und zeigt jede Abweichung - klar dargestellt und
-          nachvollziehbar belegt.
+          TraceBuild prüft Ihre Zeichnungen, gleicht sie mit geltenden Normen und
+          Vorschriften ab und macht Abweichungen sichtbar – präzise, verständlich
+          und nachvollziehbar.
         </motion.p>
 
         <motion.div

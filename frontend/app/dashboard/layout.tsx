@@ -11,6 +11,7 @@ import { DashboardContext, type Activity, type OrgInfo, type Project } from "@/l
 interface MeResponse {
   id: string;
   email: string;
+  name: string | null;
   org_id: string;
   role: string;
   org: OrgInfo | null;
@@ -92,13 +93,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (!data.user) { router.push("/login"); return; }
       const emailVal = data.user.email ?? "";
       setEmail(emailVal);
-      const namePart = emailVal.split("@")[0];
-      setUserName(namePart.charAt(0).toUpperCase() + namePart.slice(1).split(".")[0]);
 
       const res = await fetch("/api/v1/auth/me");
       if (res.ok) {
         const json = await res.json() as { data: MeResponse };
         const me = json.data;
+        setUserName(me.name ?? "");
         setActiveOrg(me.org);
         setIsSuperAdmin(me.role === "super_admin");
         setIsOrgAdmin(me.role === "super_admin" || me.role === "org_admin");
@@ -109,12 +109,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [router]);
 
   const orgName = activeOrg?.name ?? "Organisation";
-  const userInitial = email.charAt(0).toUpperCase();
+  const userInitial = (userName || email).charAt(0).toUpperCase();
   const isProjectsPage = pathname?.startsWith("/dashboard/projects") ?? false;
+  const isProfilePage = pathname?.startsWith("/dashboard/profile") ?? false;
 
   return (
     <DashboardContext.Provider value={{
-      email, userName, activeOrg, isOrgAdmin, isSuperAdmin,
+      email, userName, setUserName, activeOrg, isOrgAdmin, isSuperAdmin,
       projects, projectsLoading, reloadProjects,
       analysesCount, failCount, okPct, activities,
     }}>
@@ -139,7 +140,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <nav style={{ flex: 1, padding: "8px 16px", display: "flex", flexDirection: "column", gap: 3 }}>
             <NavLink
               href="/dashboard"
-              active={!isProjectsPage}
+              active={!isProjectsPage && !isProfilePage}
               icon={<svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 13h4v8H3v-8zm7-9h4v17h-4V4zm7 5h4v12h-4V9z" /></svg>}
               label="Übersicht"
             />
@@ -168,12 +169,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </nav>
 
           <div style={{ padding: 16, borderTop: "1px solid rgba(133,166,233,0.1)" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-              <div style={{ width: 26, height: 26, borderRadius: "50%", background: "rgba(40,98,215,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <span style={{ fontSize: 10, fontWeight: 700, color: "#85A6E9" }}>{userInitial}</span>
+            <Link href="/dashboard/profile" title="Profil bearbeiten"
+              style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10, padding: "8px 10px", borderRadius: 10, textDecoration: "none", background: isProfilePage ? "rgba(133,166,233,0.1)" : "none", transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = isProfilePage ? "rgba(133,166,233,0.1)" : "none"; }}
+            >
+              <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(40,98,215,0.15)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#85A6E9" }}>{userInitial}</span>
               </div>
-              <p style={{ fontSize: 12, color: "#7B8299", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", margin: 0 }}>{email}</p>
-            </div>
+              <div style={{ minWidth: 0 }}>
+                {userName && <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflowWrap: "anywhere" }}>{userName}</p>}
+                <p style={{ fontSize: 12, color: "#7B8299", margin: 0, overflowWrap: "anywhere" }}>{email}</p>
+              </div>
+            </Link>
             <button onClick={handleLogout} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, color: "#7B8299", fontSize: 13, fontWeight: 500, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "background .15s, color .15s" }}
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; (e.currentTarget as HTMLElement).style.color = "#fff"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; (e.currentTarget as HTMLElement).style.color = "#7B8299"; }}

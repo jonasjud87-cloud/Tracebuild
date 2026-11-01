@@ -64,14 +64,14 @@ const FOUNDERS = [
     name: "Jonas Jud",
     role: "Mitgründer",
     email: "jonas@tracebuild.ch",
-    blurb: "Hat TraceBuild zusammen mit Livio aufgebaut - von der ersten Idee an.",
+    blurb: "TraceBuild ist das Ergebnis vieler kleiner Schritte, gemeinsamer Entscheidungen und einer Idee, an die wir von Anfang an geglaubt haben.",
   },
   {
     initials: "LT",
     name: "Livio Thoma",
     role: "Mitgründer",
     email: "livio@tracebuild.ch",
-    blurb: "Hat TraceBuild zusammen mit Jonas aufgebaut - von der ersten Idee an.",
+    blurb: "Wir haben TraceBuild von Grund auf selbst aufgebaut – mit dem Anspruch, eine Lösung zu entwickeln, die im echten Arbeitsalltag einen Unterschied macht.",
   },
 ];
 
@@ -87,7 +87,7 @@ export default function TeamContact() {
           transition={{ duration: 0.6, ease: EASE_OUT }}
           style={{ fontSize: "clamp(26px,3.4vw,44px)", margin: "18px 0 14px", maxWidth: 620 }}
         >
-          Über uns.
+          Zwei Gründer. Eine Vision. TraceBuild.
         </motion.h2>
         <motion.p
           initial={{ opacity: 0 }}
@@ -155,9 +155,7 @@ export default function TeamContact() {
                 <h3 style={{ fontSize: "clamp(22px,2.4vw,32px)", margin: 0 }}>{f.name}</h3>
                 <p style={{ margin: "6px 0 20px", fontSize: 13.5, color: "var(--tb-text-tertiary)" }}>{f.role}</p>
                 <p style={{ margin: 0, fontSize: "clamp(15px,1.4vw,18px)", lineHeight: 1.6, color: "var(--tb-text-secondary)", maxWidth: 480 }}>
-                  {f.blurb.split(" - ")[0]} -
-                  <br />
-                  {f.blurb.split(" - ")[1]}
+                  {f.blurb}
                 </p>
                 <a
                   href={`mailto:${f.email}`}
@@ -177,10 +175,8 @@ export default function TeamContact() {
           transition={{ duration: 0.6, ease: EASE_OUT }}
           style={{ marginTop: "clamp(48px,7vw,88px)", fontSize: 15, color: "var(--tb-text-secondary)", lineHeight: 1.7 }}
         >
-          Wir sitzen in Mels SG. Schreiben Sie uns direkt:{" "}
-          <a href="mailto:jonas@tracebuild.ch" style={{ color: "var(--tb-text)" }}>jonas@tracebuild.ch</a>
-          {" · "}
-          <a href="mailto:livio@tracebuild.ch" style={{ color: "var(--tb-text)" }}>livio@tracebuild.ch</a>
+          TraceBuild:{" "}
+          <a href="mailto:tracebuild.info@gmail.com" style={{ color: "var(--tb-text)" }}>tracebuild.info@gmail.com</a>
         </motion.p>
       </div>
 

@@ -55,13 +55,6 @@ function loadLastOpened(): LastOpenedOrg | null {
   }
 }
 
-function extractName(email: string, meta: Record<string, unknown> = {}): string {
-  const full = ((meta.full_name ?? meta.name ?? "") as string).trim();
-  if (full) return full.split(" ")[0];
-  const prefix = email.split("@")[0].replace(/\d+$/, "");
-  return prefix.charAt(0).toUpperCase() + prefix.slice(1);
-}
-
 function todayStr(): string {
   return new Date().toLocaleDateString("de-CH", {
     weekday: "long", day: "numeric", month: "long", year: "numeric",
@@ -258,10 +251,13 @@ export default function AdminPage() {
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
       if (!data.user) return;
-      const email = data.user.email ?? "";
-      setUserEmail(email);
-      setUserName(extractName(email, data.user.user_metadata ?? {}));
+      setUserEmail(data.user.email ?? "");
     });
+    // Voller Name aus dem Profil (public.users bzw. full_name), nicht aus der E-Mail abgeleitet.
+    fetch("/api/v1/auth/me")
+      .then(res => (res.ok ? res.json() : null))
+      .then((json: { data: { name: string | null } } | null) => setUserName(json?.data?.name ?? ""))
+      .catch(() => { /* Begrüssung bleibt ohne Namen */ });
   }, []);
 
   /* Load live system status */

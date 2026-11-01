@@ -20,9 +20,9 @@ const BEATS: Beat[] = [
     eyebrowColor: "var(--tb-lavender)",
     headline: "Ein übersehener Grenzabstand kostet Wochen.",
     lines: [
-      "Normen ändern sich. Kantonal. Ständig.",
-      "Die Prüfung passiert im Kopf - oder gar nicht.",
-      "Fehler fallen erst spät auf.",
+      "Normen sind komplex und ändern sich laufend.",
+      "Prüfungen sind zeitaufwendig und fehleranfällig.",
+      "Abweichungen werden oft zu spät erkannt.",
     ],
     tick: "var(--tb-lavender)",
     body: "var(--tb-text-bright)",
@@ -30,11 +30,11 @@ const BEATS: Beat[] = [
   {
     eyebrow: "Der Ansatz",
     eyebrowColor: "var(--tb-lavender)",
-    headline: "TraceBuild macht die Prüfung sichtbar.",
+    headline: "Planprüfung, die mitdenkt.",
     lines: [
-      "PDF hochladen, die KI prüft gegen jede relevante Norm.",
-      "Eine Übersicht: was passt, was kritisch ist, was zu prüfen bleibt.",
-      "Die Zeichnung bleibt unangetastet - freigeben tun Sie.",
+      "PDF hochladen – TraceBuild prüft den Plan gegen relevante Normen und Vorschriften.",
+      "Klare Übersicht – erkennen Sie sofort, was passt, kritisch ist oder geprüft werden sollte.",
+      "Volle Kontrolle – Ihre Zeichnung bleibt unverändert. Die Freigabe liegt bei Ihnen.",
     ],
     tick: "var(--tb-accent-gradient)",
     body: "var(--tb-text)",

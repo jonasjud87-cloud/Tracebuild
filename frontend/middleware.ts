@@ -13,7 +13,7 @@ const MOBILE_UA_REGEX = /Android.*Mobile|iPhone|iPod|BlackBerry|IEMobile|Opera M
 
 // Pages that stay reachable without a session. Exact match (+ optional trailing
 // slash) so a future "/impressum-intern" style route can't ride the prefix.
-const PUBLIC_PATHS = new Set(["/", "/impressum", "/datenschutz"]);
+const PUBLIC_PATHS = new Set(["/", "/impressum", "/datenschutz", "/anleitung"]);
 const isPublicPath = (p: string) => PUBLIC_PATHS.has(p.replace(/\/$/, "") || "/");
 const isAuthPath = (p: string) =>
   p === "/login" ||
@@ -24,6 +24,16 @@ const isAuthPath = (p: string) =>
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Handy-Tastaturen schreiben den ersten Buchstaben gross ("/Anleitung"). Ohne
+  // diese Weiterleitung gilt das als unbekannte Route → /login → auf dem Handy
+  // weiter zur Startseite, und der geteilte Link scheint kaputt.
+  const lowerPath = pathname.toLowerCase();
+  if (lowerPath !== pathname && isPublicPath(lowerPath)) {
+    const url = request.nextUrl.clone();
+    url.pathname = lowerPath;
+    return NextResponse.redirect(url, 308);
+  }
 
   // Fail CLOSED: if auth can't be evaluated, only public + auth routes are
   // served; everything else is sent to /login instead of through un-gated.

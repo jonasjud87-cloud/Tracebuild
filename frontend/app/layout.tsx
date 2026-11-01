@@ -15,7 +15,7 @@ const archivo = Archivo({
   display: "swap",
 });
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://tracebuild.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.tracebuild.ch";
 const TITLE = "TraceBuild - Zeichnungen prüfen, Normen einhalten";
 const DESCRIPTION =
   "Pläne als PDF hochladen, KI-Prüfung gegen geltende Normen, eine klare Übersicht der Befunde. TraceBuild prüft - ändern und freigeben bleibt bei Ihrem Team.";

@@ -12,7 +12,7 @@ const useIsoEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect
 /* Phase timeline (non-reduced):
    A  0 → 1900ms   logo + wordmark fade/scale in, sit
    B  1900 → ~2350 logo + wordmark fade/scale out (0.45s)
-   C  2500 → 8800  particles assemble into "Vision. Technology. Impact."
+   C  2500 → 8800  particles assemble into "Vision. Technologie. Fortschritt."
                    (~1.9s) then hold ~4.4s so the words are clearly readable
    D  8800ms       overlay slides up (0.7s), unmounts on animation complete
    Total on screen ≈ 9.5s. The scene cannot be skipped — scrolling is fully

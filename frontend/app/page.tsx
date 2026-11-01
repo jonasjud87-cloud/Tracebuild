@@ -6,13 +6,11 @@ import Navbar from "@/components/landing/redesign/Navbar";
 import Hero from "@/components/landing/redesign/Hero";
 import ProblemSolution from "@/components/landing/redesign/ProblemSolution";
 import HowItWorks from "@/components/landing/redesign/HowItWorks";
-import SocialProof from "@/components/landing/redesign/SocialProof";
 import Showcase from "@/components/landing/redesign/Showcase";
 import TrustBlocks from "@/components/landing/redesign/TrustBlocks";
 import Pricing from "@/components/landing/redesign/Pricing";
 import TeamContact from "@/components/landing/redesign/TeamContact";
 import FinalCta from "@/components/landing/redesign/FinalCta";
-import FAQ from "@/components/landing/redesign/FAQ";
 import SectionDivider from "@/components/landing/redesign/SectionDivider";
 import Footer from "@/components/landing/redesign/Footer";
 
@@ -33,13 +31,10 @@ export default function LandingPage() {
           <ProblemSolution />
           <SectionDivider />
           <HowItWorks />
-          <SocialProof />
           <SectionDivider />
           <Showcase />
           <SectionDivider />
           <TrustBlocks />
-          <SectionDivider />
-          <FAQ />
           <SectionDivider />
           <Pricing />
           <SectionDivider />
