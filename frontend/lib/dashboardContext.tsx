@@ -18,6 +18,7 @@ export interface Activity { text: string; time: string; status: string }
 export interface DashboardContextValue {
   email: string;
   userName: string;
+  setUserName: (name: string) => void;
   activeOrg: OrgInfo | null;
   isOrgAdmin: boolean;
   isSuperAdmin: boolean;

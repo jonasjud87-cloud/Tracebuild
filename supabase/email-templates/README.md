@@ -11,7 +11,27 @@ zum Wirksamwerden müssen sie manuell eingefügt werden:
    Subject z. B. `Willkommen bei TraceBuild`
 3. **Reset password** → Message body → Inhalt von [`reset-password.html`](reset-password.html) einfügen,
    Subject z. B. `Ihr TraceBuild-Passwort zurücksetzen`
-4. Speichern.
+4. **Change Email Address** → Message body → Inhalt von [`change-email.html`](change-email.html) einfügen,
+   Subject z. B. `Neue E-Mail-Adresse für TraceBuild bestätigen` (wird beim Ändern der Adresse im Profil verschickt)
+5. Speichern.
+
+## URL-Konfiguration
+
+Supabase-Dashboard → **Authentication → URL Configuration**:
+
+- **Site URL:** `https://www.tracebuild.ch` — daraus entstehen `{{ .SiteURL }}` (Logo) und die Links in den Mails
+- **Redirect URLs:** `https://www.tracebuild.ch/**` (zusätzlich `http://localhost:3000/**` für lokale Tests)
+
+In Vercel muss `NEXT_PUBLIC_SITE_URL=https://www.tracebuild.ch` gesetzt sein; daraus baut
+`lib/site-url.ts` das `redirectTo` der Einladung.
+
+## Absender
+
+Ohne eigenen SMTP-Server verschickt Supabase die Mails von seiner Standardadresse und nur
+wenige pro Stunde. Für einen Absender wie `TraceBuild <noreply@tracebuild.ch>`:
+Dashboard → **Authentication → SMTP Settings** → Custom SMTP mit den Zugangsdaten eines
+Mail-Anbieters (z. B. Resend, Postmark); die Domain `tracebuild.ch` muss dort mit den
+angegebenen DNS-Einträgen (SPF/DKIM) verifiziert sein.
 
 ## Logo
 

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -53,14 +54,18 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
           <div className="h-5 w-px bg-[rgba(60,63,68,0.6)] hidden sm:block" />
 
           {userEmail && (
-            <div className="hidden sm:flex items-center gap-2">
+            <Link
+              href="/dashboard/profile"
+              title="Profil bearbeiten"
+              className="hidden sm:flex items-center gap-2 rounded-xl px-2 py-1 hover:bg-[#1E2D4A] transition-colors"
+            >
               <div className="w-7 h-7 rounded-full bg-[#2862D7]/15 flex items-center justify-center flex-shrink-0">
                 <span className="text-[10px] font-bold text-[#85A6E9]">
                   {userEmail.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <span className="text-sm text-[#ABAEBB] max-w-[180px] truncate">{userEmail}</span>
-            </div>
+              <span className="text-sm text-[#ABAEBB]">{userEmail}</span>
+            </Link>
           )}
 
           <button

@@ -8,7 +8,8 @@ export type AuditAction =
   | "norm_delete" | "norm_promote" | "norm_upload_platform"
   | "norm_upload" | "norm_remove" | "norm_custom_create"
   | "norm_refresh" | "project_norm_add" | "project_norm_remove"
-  | "analysis_run" | "analysis_delete" | "chat_message";
+  | "analysis_run" | "analysis_delete" | "chat_message"
+  | "profile_name_change";
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,
