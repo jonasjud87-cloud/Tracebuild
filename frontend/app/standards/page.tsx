@@ -17,6 +17,8 @@ interface FileEntry {
   text: string;
   charCount: number;
   pdf_url: string | null;
+  /** Plattformweit von TraceBuild hinterlegt — für die Organisation nur lesbar. */
+  global: boolean;
 }
 
 function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: string[]) => void }) {
@@ -25,6 +27,14 @@ function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: strin
     <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 group">
       <div className="flex items-center gap-3">
         <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+          {entry.global && (
+            <span
+              className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium"
+              title="Von TraceBuild für alle Organisationen hinterlegt"
+            >
+              Global
+            </span>
+          )}
           <span className="text-xs bg-[#2862D7]/10 text-[#85A6E9] px-2 py-0.5 rounded-full font-medium">
             {entry.jurisdiction_name ?? "—"}
           </span>
@@ -38,11 +48,13 @@ function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: strin
           >
             {expanded ? "Inhalt verbergen ▲" : "Inhalt anzeigen ▼"}
           </button>
-          <button
-            onClick={() => onDelete(entry.ids)}
-            className="text-[#7B8299] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-lg leading-none"
-            title="Löschen"
-          >×</button>
+          {!entry.global && (
+            <button
+              onClick={() => onDelete(entry.ids)}
+              className="text-[#7B8299] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-lg leading-none"
+              title="Löschen"
+            >×</button>
+          )}
         </div>
       </div>
       {expanded && (
@@ -92,6 +104,7 @@ interface Standard {
   source_url: string | null;
   zone?: string | null;
   pdf_url?: string | null;
+  org_id: string | null;
 }
 
 const JURISDICTIONS = [
@@ -195,7 +208,7 @@ export default function StandardsPage() {
   const seen = new Map<string, FileEntry>();
   for (const s of standards) {
     if (filterCategory && s.category !== filterCategory) continue;
-    const key = `${s.source_url ?? s.id}||${s.jurisdiction_name ?? ""}||${s.category}`;
+    const key = `${s.org_id ?? "global"}||${s.source_url ?? s.id}||${s.jurisdiction_name ?? ""}||${s.category}`;
     if (seen.has(key)) {
       const entry = seen.get(key)!;
       entry.ids.push(s.id);
@@ -206,13 +219,14 @@ export default function StandardsPage() {
       const entry: FileEntry = {
         ids: [s.id],
         title: s.title,
-        jurisdiction_name: s.jurisdiction_name,
+        jurisdiction_name: s.jurisdiction_name ?? (s.jurisdiction_type === "national" ? "Bund" : null),
         category: s.category,
         source_url: s.source_url,
         zone: s.zone ?? null,
         text: s.text,
         charCount: s.text.length,
         pdf_url: s.pdf_url ?? null,
+        global: s.org_id === null,
       };
       seen.set(key, entry);
       fileEntries.push(entry);

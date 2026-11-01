@@ -22,6 +22,8 @@ export interface DashboardContextValue {
   activeOrg: OrgInfo | null;
   isOrgAdmin: boolean;
   isSuperAdmin: boolean;
+  /** Rolle des Kontos in der aktiven Organisation (super_admin, org_admin, …). */
+  role: string;
   projects: Project[];
   projectsLoading: boolean;
   reloadProjects: () => Promise<void>;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useDashboard } from "@/lib/dashboardContext";
+import { ROLE_DESCRIPTIONS, roleLabel } from "@/lib/roles";
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -40,7 +41,7 @@ function StatusLine({ status }: { status: Status }) {
 }
 
 export default function ProfilePage() {
-  const { email, userName, setUserName, isSuperAdmin } = useDashboard();
+  const { email, userName, setUserName, isSuperAdmin, role, activeOrg } = useDashboard();
 
   // ── Name ──
   const [name, setName] = useState(userName);
@@ -139,8 +140,26 @@ export default function ProfilePage() {
       <p style={{ fontSize: 11, fontWeight: 700, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.14em", margin: "0 0 10px" }}>Konto</p>
       <h1 style={{ fontSize: 32, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em", margin: "0 0 8px", lineHeight: 1.1 }}>Profil</h1>
       <p style={{ fontSize: 15, color: "#7B8299", margin: "0 0 32px", lineHeight: 1.5 }}>
-        Name, E-Mail-Adresse und Passwort Ihres Kontos.
+        Rolle, Name, E-Mail-Adresse und Passwort Ihres Kontos.
       </p>
+
+      <section style={card} aria-labelledby="profile-role">
+        <h2 id="profile-role" style={cardTitle}>Rolle</h2>
+        <p style={{ ...cardText, margin: "0 0 12px" }}>
+          {activeOrg ? <>In der Organisation <span style={{ color: "#fff" }}>{activeOrg.name}</span>.</> : "In Ihrer Organisation."}
+        </p>
+        {role && (
+          <>
+            <span style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: "#85A6E9", background: "rgba(40,98,215,0.12)", padding: "4px 10px", borderRadius: 8, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              {roleLabel(role)}
+            </span>
+            <p style={{ ...cardText, margin: "12px 0 0" }}>
+              {ROLE_DESCRIPTIONS[role] ?? ROLE_DESCRIPTIONS.member}
+              {role !== "super_admin" && " Die Rolle kann nur ein Org Admin Ihrer Organisation ändern."}
+            </p>
+          </>
+        )}
+      </section>
 
       <form onSubmit={saveName} style={card}>
         <h2 style={cardTitle}>Name</h2>

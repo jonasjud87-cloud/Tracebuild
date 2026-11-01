@@ -6,6 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import { roleLabel } from "@/lib/roles";
 import { DashboardContext, type Activity, type OrgInfo, type Project } from "@/lib/dashboardContext";
 
 interface MeResponse {
@@ -45,6 +46,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const [email, setEmail]           = useState("");
   const [userName, setUserName]     = useState("");
+  const [role, setRole]             = useState("");
   const [isOrgAdmin, setIsOrgAdmin] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [activeOrg, setActiveOrg]   = useState<OrgInfo | null>(null);
@@ -99,6 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const json = await res.json() as { data: MeResponse };
         const me = json.data;
         setUserName(me.name ?? "");
+        setRole(me.role);
         setActiveOrg(me.org);
         setIsSuperAdmin(me.role === "super_admin");
         setIsOrgAdmin(me.role === "super_admin" || me.role === "org_admin");
@@ -115,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <DashboardContext.Provider value={{
-      email, userName, setUserName, activeOrg, isOrgAdmin, isSuperAdmin,
+      email, userName, setUserName, activeOrg, isOrgAdmin, isSuperAdmin, role,
       projects, projectsLoading, reloadProjects,
       analysesCount, failCount, okPct, activities,
     }}>
@@ -180,6 +183,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div style={{ minWidth: 0 }}>
                 {userName && <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0, overflowWrap: "anywhere" }}>{userName}</p>}
                 <p style={{ fontSize: 12, color: "#7B8299", margin: 0, overflowWrap: "anywhere" }}>{email}</p>
+                {role && (
+                  <span style={{ display: "inline-block", marginTop: 5, fontSize: 10, fontWeight: 700, color: "#85A6E9", background: "rgba(40,98,215,0.12)", padding: "2px 8px", borderRadius: 6, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                    {roleLabel(role)}
+                  </span>
+                )}
               </div>
             </Link>
             <button onClick={handleLogout} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 10, padding: "8px 12px", borderRadius: 10, color: "#7B8299", fontSize: 13, fontWeight: 500, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", transition: "background .15s, color .15s" }}

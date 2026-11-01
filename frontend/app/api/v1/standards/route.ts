@@ -11,7 +11,14 @@ export async function GET(request: Request) {
   const jurisdictionName = searchParams.get("jurisdiction_name");
 
   const admin = createAdminClient();
-  let query = admin.from("norms").select("*").eq("domain", domain).eq("org_id", user.org_id);
+  // Eigene Normen der Organisation plus die plattformweiten (org_id null), die
+  // TraceBuild für alle Organisationen hinterlegt. Löschen bleibt auf eigene
+  // beschränkt (standards/[id]).
+  let query = admin
+    .from("norms")
+    .select("*")
+    .eq("domain", domain)
+    .or(`org_id.eq.${user.org_id},org_id.is.null`);
 
   if (jurisdictionType) query = query.eq("jurisdiction_type", jurisdictionType);
   if (jurisdictionName) query = query.eq("jurisdiction_name", jurisdictionName);
