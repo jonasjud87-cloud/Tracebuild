@@ -13,7 +13,11 @@ zum Wirksamwerden müssen sie manuell eingefügt werden:
    Subject z. B. `Ihr TraceBuild-Passwort zurücksetzen`
 4. **Change Email Address** → Message body → Inhalt von [`change-email.html`](change-email.html) einfügen,
    Subject z. B. `Neue E-Mail-Adresse für TraceBuild bestätigen` (wird beim Ändern der Adresse im Profil verschickt)
-5. Speichern.
+5. **Confirm sign up** → Message body → Inhalt von [`confirm-signup.html`](confirm-signup.html) einfügen,
+   Subject z. B. `Bestätigen Sie Ihre E-Mail-Adresse für TraceBuild` (Selbstregistrierung über /register)
+6. Speichern.
+
+Stand 1. November 2026: alle vier Vorlagen samt deutschen Betreffzeilen sind im Dashboard eingespielt.
 
 ## URL-Konfiguration
 
