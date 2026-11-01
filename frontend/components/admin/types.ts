@@ -11,10 +11,16 @@ export interface Organization {
   description?: string;
   owner?: string;
   ownerEmail?: string;
+  /** Tatsächliche Anzahl (aus der DB gezählt). */
   userCount?: number;
   projectCount?: number;
   analyseCount?: number;
+  /** Belegter Speicher (GB). */
   storageGB?: number;
+  /** Konfigurierte Obergrenzen — nicht mit den Zählern verwechseln. */
+  userLimit?: number;
+  projectLimit?: number;
+  storageLimitGb?: number;
   monthlyBudget?: number;
 }
 

@@ -1,4 +1,5 @@
 import type { OerebAdapter } from "./types";
+import { ArOerebAdapter } from "./adapters/ar";
 import { SgOerebAdapter } from "./adapters/sg";
 
 /**
@@ -7,6 +8,7 @@ import { SgOerebAdapter } from "./adapters/sg";
  * Fabriken statt Instanzen, damit die Env-Variable zur Laufzeit gelesen wird.
  */
 const ADAPTERS: Record<string, () => OerebAdapter> = {
+  AR: () => new ArOerebAdapter(),
   SG: () => new SgOerebAdapter(),
 };
 

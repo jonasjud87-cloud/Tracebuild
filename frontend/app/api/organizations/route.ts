@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateCreate } from "@/lib/validations/organization";
-import { slugify, uniqueSlug, formatOrg } from "@/lib/organizations";
+import { slugify, uniqueSlug, formatOrg, formatOrgWithCounts } from "@/lib/organizations";
 import { logAudit } from "@/lib/auditLog";
 
 export async function GET() {
@@ -19,7 +19,7 @@ export async function GET() {
     .order("created_at",  { ascending: true });
 
   if (error) return err(error.message, 500);
-  return ok((data ?? []).map(formatOrg));
+  return ok(await Promise.all((data ?? []).map((row) => formatOrgWithCounts(admin, row))));
 }
 
 export async function POST(req: NextRequest) {
@@ -67,5 +67,5 @@ export async function POST(req: NextRequest) {
     meta: { name: data.name },
   });
 
-  return ok(formatOrg(data), 201);
+  return ok({ ...formatOrg(data), userCount: 0, projectCount: 0, storageGB: 0 }, 201);
 }

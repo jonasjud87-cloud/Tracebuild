@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateUpdate } from "@/lib/validations/organization";
-import { slugify, uniqueSlug, formatOrg } from "@/lib/organizations";
+import { slugify, uniqueSlug, formatOrgWithCounts } from "@/lib/organizations";
 import { logAudit } from "@/lib/auditLog";
 
 type RouteContext = { params: { id: string } };
@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: RouteContext) {
     .single();
 
   if (error || !data) return err("Organisation nicht gefunden", 404);
-  return ok(formatOrg(data));
+  return ok(await formatOrgWithCounts(admin, data));
 }
 
 export async function PATCH(req: NextRequest, { params }: RouteContext) {
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
 
   if (Object.keys(patch).length === 0) {
     const { data: fresh } = await admin.from("organizations").select("*").eq("id", id).single();
-    return ok(fresh ? formatOrg(fresh) : null);
+    return ok(fresh ? await formatOrgWithCounts(admin, fresh) : null);
   }
 
   const { data, error } = await admin
@@ -93,7 +93,7 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     meta: { fields: Object.keys(patch) },
   });
 
-  return ok(formatOrg(data));
+  return ok(await formatOrgWithCounts(admin, data));
 }
 
 export async function DELETE(_req: NextRequest, { params }: RouteContext) {

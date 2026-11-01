@@ -47,6 +47,53 @@ export async function uniqueSlug(
   }
 }
 
+export interface OrgCounts {
+  userCount: number | null;
+  projectCount: number | null;
+  /** Belegter Speicher in GB (dezimal, 1 GB = 10^9 Byte). */
+  storageGB: number | null;
+}
+
+// Funktion aus supabase/migrations/20261027000001_org_storage_usage.sql — fehlt sie
+// (Migration nicht eingespielt), zeigt das UI "—" statt eines falschen Werts.
+async function storageBytes(admin: SupabaseClient, orgId: string): Promise<number | null> {
+  const { data, error } = await admin.rpc("org_storage_bytes", { p_org_id: orgId });
+  if (error) {
+    console.error(`[organizations] Speicherverbrauch fehlgeschlagen (org ${orgId}):`, error.message);
+    return null;
+  }
+  const row = (data as { org_id: string; bytes: number | string }[] | null)?.[0];
+  return row ? Number(row.bytes) : 0;
+}
+
+// null statt 0 bei Fehlern: das UI zeigt dann "—" statt einer falschen Zahl.
+async function countByOrg(admin: SupabaseClient, table: "users" | "projects", orgId: string): Promise<number | null> {
+  const { count, error } = await admin
+    .from(table)
+    .select("id", { count: "exact", head: true })
+    .eq("org_id", orgId);
+  if (error) {
+    console.error(`[organizations] ${table} zählen fehlgeschlagen (org ${orgId}):`, error.message);
+    return null;
+  }
+  return count ?? 0;
+}
+
+/** Tatsächliche Anzahl Benutzer/Projekte und belegter Speicher je Organisation (nicht die Limits). */
+export async function orgCounts(admin: SupabaseClient, orgId: string): Promise<OrgCounts> {
+  const [userCount, projectCount, bytes] = await Promise.all([
+    countByOrg(admin, "users", orgId),
+    countByOrg(admin, "projects", orgId),
+    storageBytes(admin, orgId),
+  ]);
+  return { userCount, projectCount, storageGB: bytes === null ? null : bytes / 1e9 };
+}
+
+/** formatOrg inkl. echter Zähler — für alle Antworten, die eine Organisation ans Admin-UI liefern. */
+export async function formatOrgWithCounts(admin: SupabaseClient, row: OrgRow) {
+  return { ...formatOrg(row), ...(await orgCounts(admin, row.id)) };
+}
+
 export function formatOrg(row: OrgRow) {
   return {
     id:             row.id               as string,

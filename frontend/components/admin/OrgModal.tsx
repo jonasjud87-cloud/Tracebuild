@@ -79,9 +79,9 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
     setStatus(org?.status ?? "active");
     setOwner(org?.owner ?? "");
     setOwnerEmail(org?.ownerEmail ?? "");
-    setUserLimit(org?.userCount    ?? null);
-    setProjectLimit(org?.projectCount ?? null);
-    setStorageLimit(org?.storageGB  ?? null);
+    setUserLimit(org?.userLimit    ?? null);
+    setProjectLimit(org?.projectLimit ?? null);
+    setStorageLimit(org?.storageLimitGb ?? null);
     setMonthlyBudget(org?.monthlyBudget ?? null);
   }, [org]);
 

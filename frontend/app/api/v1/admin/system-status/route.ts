@@ -70,23 +70,23 @@ async function checkAnthropic(): Promise<SystemService> {
   }
 }
 
-async function checkBackend(): Promise<SystemService> {
-  const base = process.env.NEXT_PUBLIC_API_URL;
-  if (!base || /localhost|127\.0\.0\.1/.test(base)) {
-    return { name: "OCR / Dokumente", key: "ocr", status: "unknown", note: "Backend nicht konfiguriert" };
-  }
-  const t0 = Date.now();
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const res = await fetch(`${base.replace(/\/$/, "")}/health`, { signal: controller.signal });
-    clearTimeout(timeout);
-    const latencyMs = Date.now() - t0;
-    if (!res.ok) return { name: "OCR / Dokumente", key: "ocr", status: "offline", latencyMs, note: `HTTP ${res.status}` };
-    return { name: "OCR / Dokumente", key: "ocr", status: latencyMs > 3000 ? "degraded" : "online", latencyMs };
-  } catch {
-    return { name: "OCR / Dokumente", key: "ocr", status: "offline", latencyMs: Date.now() - t0, note: "Nicht erreichbar" };
-  }
+const SEVERITY: Record<SystemService["status"], number> = { online: 0, degraded: 1, unknown: 2, offline: 3 };
+
+// Dokumentenanalyse hat keinen eigenen Dienst: Pläne werden in den Supabase-Storage-Bucket
+// "documents" hochgeladen und als PDF/Bild direkt an Claude geschickt
+// (app/api/v1/projects/[id]/analyses/route.ts). Der Status ist daher der schlechtere der
+// beiden Abhängigkeiten — analog zu E-Mail, das am Auth-Check hängt.
+function deriveDocuments(ai: SystemService, storage: SystemService): SystemService {
+  const worst = SEVERITY[ai.status] >= SEVERITY[storage.status] ? ai : storage;
+  return {
+    name: "Dokumente / Planerkennung",
+    key: "documents",
+    status: worst.status,
+    latencyMs: Math.max(ai.latencyMs ?? 0, storage.latencyMs ?? 0) || undefined,
+    note: worst.status === "online"
+      ? "Über Claude (PDF/Bild) + Supabase Storage"
+      : `${worst.name}: ${worst.note ?? worst.status}`,
+  };
 }
 
 // GET /api/v1/admin/system-status — live health check of all backing services
@@ -98,13 +98,13 @@ export async function GET() {
   const requestStart = Date.now();
   const admin = createAdminClient();
 
-  const [ai, db, storage, auth, backend] = await Promise.all([
+  const [ai, db, storage, auth] = await Promise.all([
     checkAnthropic(),
     checkDatabase(admin),
     checkStorage(admin),
     checkAuth(admin),
-    checkBackend(),
   ]);
+  const documents = deriveDocuments(ai, storage);
 
   // Transactional email (invites, password reset) is sent by Supabase Auth (GoTrue) itself —
   // there is no separate email provider in this stack, so it shares the Auth probe's result.
@@ -123,7 +123,7 @@ export async function GET() {
     latencyMs: Date.now() - requestStart,
   };
 
-  const services: SystemService[] = [ai, db, storage, auth, backend, email, hosting];
+  const services: SystemService[] = [ai, db, storage, auth, documents, email, hosting];
 
   return ok({ services, checkedAt: new Date().toISOString() });
 }

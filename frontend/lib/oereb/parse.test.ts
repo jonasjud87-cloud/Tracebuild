@@ -13,12 +13,14 @@ import { readFileSync } from "node:fs";
 
 import {
   OerebParseError,
+  OerebUnreachableError,
   localizedText,
   mapLawStatus,
   parseEgridResponse,
   parseExtractResponse,
   pickZoneRestriction,
 } from "./adapters/generic";
+import { ArOerebAdapter, arExactZoneCode, arZoneClass } from "./adapters/ar";
 import { SgOerebAdapter, sgExactZoneCode, sgZoneClass } from "./adapters/sg";
 import type { OerebExtract, OerebTheme } from "./types";
 
@@ -26,7 +28,12 @@ const fixture = JSON.parse(
   readFileSync(new URL("./__fixtures__/extract-sample.json", import.meta.url), "utf8")
 ) as unknown;
 
+const arFixture = JSON.parse(
+  readFileSync(new URL("./__fixtures__/extract-ar-sample.json", import.meta.url), "utf8")
+) as unknown;
+
 const sg = new SgOerebAdapter("https://example.invalid/oereb");
+const ar = new ArOerebAdapter("https://example.invalid/oereb");
 
 function themeOf(extract: OerebExtract, code: string, concern: OerebTheme["concern"] = "affects"): OerebTheme[] {
   return extract.themes.filter((t) => t.themeCode === code && t.concern === concern);
@@ -300,4 +307,129 @@ test("GetEGRIDResponse: SG-Form, Liste ohne Hülle, 204 (null)", () => {
   assert.equal(parseEgridResponse([{ EGRID: "CH000000000001" }]).length, 1);
   assert.deepEqual(parseEgridResponse(null), []);
   assert.deepEqual(parseEgridResponse({ GetEGRIDResponse: [] }), []);
+});
+
+// ── Kanton AR ────────────────────────────────────────────────────────────────
+
+test("AR-Fixture: echter Auszug Herisau (anonymisiert) wird geparst", () => {
+  const ex = parseExtractResponse(arFixture, "AR");
+  assert.equal(ex.canton, "AR");
+  assert.equal(ex.egrid, "CH987654321098");
+  assert.equal(ex.identDn, "AR0200300100");
+  assert.equal(ex.municipality, "Herisau");
+
+  const zone = themeOf(ex, "ch.Nutzungsplanung")[0];
+  assert.equal(zone.typeCode, "1310");
+  assert.equal(zone.legendText, "Wohn- und Gewerbezone WG2");
+  assert.equal(zone.legalStatus, "inForce");
+  assert.equal(zone.areaPct, 100);
+  assert.deepEqual(zone.authority, { name: "Gemeinde Herisau", url: "https://www.herisau.ch/" });
+  assert.equal(themeOf(ex, "ch.Laermempfindlichkeitsstufen")[0].typeCode, "III");
+  assert.equal(themeOf(ex, "ch.AR.ZonenplanGefahren", "no_data").length, 1);
+
+  assert.deepEqual(ar.extractZone(ex), { zone: "WG2", confidence: "exact", source: "oereb:AR" });
+});
+
+test("AR: kommunale Kürzel aus echten AR-Legenden", () => {
+  const cases: [string, string | null][] = [
+    ["Wohnzone W2", "W2"],
+    ["Wohnzone W2b", "W2b"],
+    ["Wohnzone W3a", "W3a"],
+    ["Wohnzone W1.4", "W1.4"],
+    ["Wohn- und Gewerbezone WG45", "WG45"],
+    ["Gewerbezone GE I", "GE I"],
+    ["Industriezone I4", "I4"],
+    ["Kernzone K", "K"],
+    ["Zone für öffentliche Bauten und Anlagen OE", "OE"],
+    ["Grünzone im Baugebiet GRiF", "GRiF"],
+    ["Verkehrsfläche VFiB", "VFiB"],
+    ["übriges Gemeindegebiet ÜG", "ÜG"],
+    ["Wald WA", "WA"],
+  ];
+  for (const [legend, expected] of cases) {
+    assert.equal(arExactZoneCode(legend), expected, `Legende "${legend}"`);
+  }
+});
+
+test("AR: Code-Tabelle (ARE-Hauptnutzung + AR-Verfeinerung)", () => {
+  assert.equal(arZoneClass("1120"), "Wohnzone");
+  assert.equal(arZoneClass("1260"), "Industriezone");
+  assert.equal(arZoneClass("1220"), "Gewerbezone");
+  assert.equal(arZoneClass("1650"), "Grünzone nach altem Baugesetz");
+  assert.equal(arZoneClass("1630"), "Grünzone im Baugebiet");
+  assert.equal(arZoneClass("4410"), "Wald");
+  assert.equal(arZoneClass("4110"), "Weilerzone");
+  assert.equal(arZoneClass("S2"), null);
+  assert.equal(arZoneClass(null), null);
+});
+
+test("AR: Wald ist Grundnutzung, Quartierplanpflicht/Wintersport sind Überlagerungen", () => {
+  const qpp = extractWith([
+    { typeCode: "1320", legendText: "Wohn- und Gewerbezone WG3", areaPct: 98.4 },
+    { typeCode: "4310", legendText: "übriges Gemeindegebiet ÜG", areaPct: 1.6 },
+    { typeCode: "6220", legendText: "Zone mit Quartierplanpflicht QPPF", areaPct: 98.4 },
+  ]);
+  assert.deepEqual(ar.extractZone(qpp), { zone: "WG3", confidence: "exact", source: "oereb:AR" });
+
+  const ski = extractWith([
+    { typeCode: "2110", legendText: "Landwirtschaftszone L", areaPct: 64 },
+    { typeCode: "5910", legendText: "Zone für Wintersport WS", areaPct: 100 },
+  ]);
+  assert.equal(ar.extractZone(ski).zone, "L");
+
+  const wald = extractWith([
+    { typeCode: "2110", legendText: "Landwirtschaftszone L", areaPct: 20 },
+    { typeCode: "4410", legendText: "Wald", areaPct: 80 },
+  ]);
+  assert.deepEqual(ar.extractZone(wald), { zone: "Wald", confidence: "coarse", source: "oereb:AR" });
+});
+
+test("AR: GetEGRID über IDENTDN = AR0200 + BFS + 00", async () => {
+  const calls: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    calls.push(String(url));
+    return new Response(
+      JSON.stringify({ GetEGRIDResponse: [{ egrid: "CH987654321098", number: "4321", identDN: "AR0200300100", type: { Code: "RealEstate" } }] }),
+      { status: 200 }
+    );
+  }) as typeof fetch;
+  try {
+    const egrids = await ar.getEgrid({ municipality: "Herisau", parcelNumber: "4321", bfsNumber: 3001 });
+    assert.deepEqual(egrids, ["CH987654321098"]);
+    assert.equal(calls.length, 1);
+    assert.match(calls[0], /\/getegrid\/json\/\?IDENTDN=AR0200300100&NUMBER=4321$/);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
+
+test("AR: ohne Basis-URL → unreachable", async () => {
+  await assert.rejects(new ArOerebAdapter("").getExtract("CH987654321098"), OerebUnreachableError);
+});
+
+test("geo.admin-Fallback: Umlaute umschreiben, Kantonszusatz akzeptieren, zweite Suche mit Kanton", async () => {
+  const searches: string[] = [];
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL) => {
+    const u = new URL(String(url));
+    const text = u.searchParams.get("searchText") ?? "";
+    searches.push(text);
+    const results: Record<string, string[]> = {
+      "buehler 10": ["10 buehler 3021 ch767765607741"],
+      "teufen 10": ["10 teufen _ar_ 3024 ch312181527734", "10 teufenthal _ag_ 4145 ch000000000001"],
+      "stein 10": ["10 stein _ag_ 4260 ch000000000002"],
+      "stein ar 10": ["10 stein _ar_ 3005 ch175477742904"],
+    };
+    const details = results[text] ?? [];
+    return new Response(JSON.stringify({ results: details.map((detail) => ({ attrs: { detail } })) }), { status: 200 });
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await ar.getEgrid({ municipality: "Bühler", parcelNumber: "10" }), ["CH767765607741"]);
+    assert.deepEqual(await ar.getEgrid({ municipality: "Teufen", parcelNumber: "10" }), ["CH312181527734"]);
+    assert.deepEqual(await ar.getEgrid({ municipality: "Stein", parcelNumber: "10" }), ["CH175477742904"]);
+    assert.deepEqual(searches, ["buehler 10", "teufen 10", "stein 10", "stein ar 10"]);
+  } finally {
+    globalThis.fetch = original;
+  }
 });

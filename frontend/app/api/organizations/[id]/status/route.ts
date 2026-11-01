@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { validateChangeStatus } from "@/lib/validations/organization";
-import { formatOrg } from "@/lib/organizations";
+import { formatOrgWithCounts } from "@/lib/organizations";
 import { logAudit } from "@/lib/auditLog";
 
 type RouteContext = { params: { id: string } };
@@ -55,5 +55,5 @@ export async function PATCH(req: NextRequest, { params }: RouteContext) {
     meta: { status },
   });
 
-  return ok(formatOrg(data));
+  return ok(await formatOrgWithCounts(admin, data));
 }

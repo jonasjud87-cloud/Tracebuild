@@ -1,0 +1,1003 @@
+{
+  "$schema": "https://raw.githubusercontent.com/openoereb/schemas/ea4fe8e696b84b923cb9aa9fb27c3ba4e2d8eb5b/extract.json",
+  "GetExtractByIdResponse": {
+    "extract": {
+      "CreationDate": "2026-10-27T22:41:12",
+      "ExtractIdentifier": "a40a4f96-7b0e-446e-964b-d8331edc8262",
+      "UpdateDateCS": "2026-10-27T22:41:12",
+      "PLRCadastreAuthority": {
+        "Name": [
+          {
+            "Language": "de",
+            "Text": "Amt für Raum und Wald"
+          }
+        ],
+        "OfficeAtWeb": [
+          {
+            "Language": "de",
+            "Text": "https://ar.ch/verwaltung/departement-bau-und-volkswirtschaft/amt-fuer-raum-und-wald"
+          }
+        ],
+        "Street": "Kasernenstrasse",
+        "Number": "17A",
+        "PostalCode": "9102",
+        "City": "Herisau"
+      },
+      "RealEstate": {
+        "Type": {
+          "Code": "RealEstate",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Liegenschaft"
+            }
+          ]
+        },
+        "Canton": "AR",
+        "MunicipalityName": "Herisau",
+        "MunicipalityCode": 3001,
+        "LandRegistryArea": 356,
+        "Number": "4321",
+        "IdentDN": "AR0200300100",
+        "EGRID": "CH987654321098",
+        "SubunitOfLandRegister": "Herisau",
+        "MetadataOfGeographicalBaseData": "whatisthat?",
+        "RestrictionOnLandownership": [
+          {
+            "LegendText": [
+              {
+                "Language": "de",
+                "Text": "Wohn- und Gewerbezone WG2"
+              }
+            ],
+            "Theme": {
+              "Code": "ch.Nutzungsplanung",
+              "Text": [
+                {
+                  "Language": "de",
+                  "Text": "Nutzungsplanung (kantonal/kommunal)"
+                }
+              ]
+            },
+            "Lawstatus": {
+              "Code": "inForce",
+              "Text": [
+                {
+                  "Language": "de",
+                  "Text": "Rechtskräftig"
+                }
+              ]
+            },
+            "ResponsibleOffice": {
+              "Name": [
+                {
+                  "Language": "de",
+                  "Text": "Gemeinde Herisau"
+                }
+              ],
+              "OfficeAtWeb": [
+                {
+                  "Language": "de",
+                  "Text": "https://www.herisau.ch/"
+                }
+              ],
+              "Street": "Poststrasse",
+              "Number": "6",
+              "PostalCode": "9100",
+              "City": "Herisau"
+            },
+            "AreaShare": 356,
+            "TypeCode": "1310",
+            "TypeCodelist": "http://models.geo.admin.ch/ARE/Nutzungsplanung_V1_1.ili",
+            "PartInPercent": 100,
+            "LegalProvisions": [
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Ortsplanung, Revision; 27.06.1995"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2036"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": ""
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Herisau"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2266"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "Baureglement"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Herisau"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2267"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "Baureglement, prov. Beilage"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "Law",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Gesetzliche Grundlage"
+                    }
+                  ]
+                },
+                "Index": 1000,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Gesetz über die Raumplanung und das Baurecht"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://ar.clex.ch/api/de/versions/1584/pdf_file_with_annexes"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Amt für Umwelt;Amt für Raum und Wald"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": ""
+                    }
+                  ]
+                },
+                "Abbreviation": [
+                  {
+                    "Language": "de",
+                    "Text": "Baugesetz"
+                  }
+                ],
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "bGS 721.1"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "Law",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Gesetzliche Grundlage"
+                    }
+                  ]
+                },
+                "Index": 10,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Bundesgesetz über die Raumplanung"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://www.lexfind.ch/tolv/260881/de"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Bundeskanzlei"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.bk.admin.ch/"
+                    }
+                  ]
+                },
+                "Abbreviation": [
+                  {
+                    "Language": "de",
+                    "Text": "Raumplanungsgesetz, RPG"
+                  }
+                ],
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "SR 700"
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "LegendText": [
+              {
+                "Language": "de",
+                "Text": "Empfindlichkeitsstufe III"
+              }
+            ],
+            "Theme": {
+              "Code": "ch.Laermempfindlichkeitsstufen",
+              "Text": [
+                {
+                  "Language": "de",
+                  "Text": "Lärmempfindlichkeitsstufen (in Nutzungszonen)"
+                }
+              ]
+            },
+            "Lawstatus": {
+              "Code": "inForce",
+              "Text": [
+                {
+                  "Language": "de",
+                  "Text": "Rechtskräftig"
+                }
+              ]
+            },
+            "ResponsibleOffice": {
+              "Name": [
+                {
+                  "Language": "de",
+                  "Text": "Gemeinde Herisau"
+                }
+              ],
+              "OfficeAtWeb": [
+                {
+                  "Language": "de",
+                  "Text": "https://www.herisau.ch/"
+                }
+              ],
+              "Street": "Poststrasse",
+              "Number": "6",
+              "PostalCode": "9100",
+              "City": "Herisau"
+            },
+            "AreaShare": 356,
+            "TypeCode": "III",
+            "TypeCodelist": "http://models.geo.admin.ch/BAFU/Laermempfindlichkeitsstufen_V1_1.ili",
+            "PartInPercent": 100,
+            "LegalProvisions": [
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Ortsplanung, Revision; 27.06.1995"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2036"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": ""
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Herisau"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2266"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "Baureglement"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "LegalProvision",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtsvorschrift"
+                    }
+                  ]
+                },
+                "Index": 0,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Herisau"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://oereblex.ar.ch/api/attachments/2267"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Gemeindeverwaltung"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.herisau.ch"
+                    }
+                  ]
+                },
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "Baureglement, prov. Beilage"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "Law",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Gesetzliche Grundlage"
+                    }
+                  ]
+                },
+                "Index": 1000,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Gesetz über die Raumplanung und das Baurecht"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://ar.clex.ch/api/de/versions/1584/pdf_file_with_annexes"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Amt für Umwelt;Amt für Raum und Wald"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": ""
+                    }
+                  ]
+                },
+                "Abbreviation": [
+                  {
+                    "Language": "de",
+                    "Text": "Baugesetz"
+                  }
+                ],
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "bGS 721.1"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "Law",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Gesetzliche Grundlage"
+                    }
+                  ]
+                },
+                "Index": 1000,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Gesetz über die Einführung der Bundesgesetze über den Umweltschutz und über den Schutz der Gewässer"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://ar.clex.ch/api/de/versions/1590/pdf_file_with_annexes"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Amt für Umwelt"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": ""
+                    }
+                  ]
+                },
+                "Abbreviation": [
+                  {
+                    "Language": "de",
+                    "Text": "Umwelt- und Gewässerschutzgesetz; UGsG"
+                  }
+                ],
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "bGS 814.0"
+                  }
+                ]
+              },
+              {
+                "Type": {
+                  "Code": "Law",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Gesetzliche Grundlage"
+                    }
+                  ]
+                },
+                "Index": 620,
+                "Title": [
+                  {
+                    "Language": "de",
+                    "Text": "Lärmschutz-Verordnung"
+                  }
+                ],
+                "Lawstatus": {
+                  "Code": "inForce",
+                  "Text": [
+                    {
+                      "Language": "de",
+                      "Text": "Rechtskräftig"
+                    }
+                  ]
+                },
+                "TextAtWeb": [
+                  {
+                    "Language": "de",
+                    "Text": "https://www.lexfind.ch/tolv/259749/de"
+                  }
+                ],
+                "ResponsibleOffice": {
+                  "Name": [
+                    {
+                      "Language": "de",
+                      "Text": "Bundeskanzlei"
+                    }
+                  ],
+                  "OfficeAtWeb": [
+                    {
+                      "Language": "de",
+                      "Text": "https://www.bk.admin.ch/"
+                    }
+                  ]
+                },
+                "Abbreviation": [
+                  {
+                    "Language": "de",
+                    "Text": "LSV"
+                  }
+                ],
+                "OfficialNumber": [
+                  {
+                    "Language": "de",
+                    "Text": "SR 814.41"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "ConcernedTheme": [
+        {
+          "Code": "ch.Nutzungsplanung",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Nutzungsplanung (kantonal/kommunal)"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Laermempfindlichkeitsstufen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Lärmempfindlichkeitsstufen (in Nutzungszonen)"
+            }
+          ]
+        }
+      ],
+      "NotConcernedTheme": [
+        {
+          "Code": "ch.Planungszonen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Planungszonen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.AR.Sondernutzungsplaene",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Sondernutzungspläne"
+            }
+          ]
+        },
+        {
+          "Code": "ch.AR.ZonenplanSchutz",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Zonenplan Schutz (kommunal)"
+            }
+          ]
+        },
+        {
+          "Code": "ch.ProjektierungszonenNationalstrassen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Projektierungszonen Nationalstrassen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BaulinienNationalstrassen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Baulinien Nationalstrassen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.AR.BaulinienKantonsstrassen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Sonderbaulinien Kantonsstrassen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.ProjektierungszonenEisenbahnanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Projektierungszonen Eisenbahnanlagen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BaulinienEisenbahnanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Baulinien Eisenbahnanlagen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.ProjektierungszonenFlughafenanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Projektierungszonen Flughafenanlagen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BaulinienFlughafenanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Baulinien Flughafenanlagen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Sicherheitszonenplan",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Sicherheitszonenplan"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BelasteteStandorte",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Kataster der belasteten Standorte"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BelasteteStandorteMilitaer",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Kataster der belasteten Standorte im Bereich des Militärs"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BelasteteStandorteZivileFlugplaetze",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Kataster der belasteten Standorte im Bereich der zivilen Flugplätze"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BelasteteStandorteOeffentlicherVerkehr",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Kataster der belasteten Standorte im Bereich des öffentlichen Verkehrs"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Grundwasserschutzzonen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Grundwasserschutzzonen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Grundwasserschutzareale",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Grundwasserschutzareale"
+            }
+          ]
+        },
+        {
+          "Code": "ch.StatischeWaldgrenzen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Statische Waldgrenzen"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Waldabstandslinien",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Waldabstandslinien"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Waldreservate",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Waldreservate"
+            }
+          ]
+        },
+        {
+          "Code": "ch.ProjektierungszonenStarkstromanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Projektierungszonen Leitungen mit einer Nennspannung von 220 kV oder höher"
+            }
+          ]
+        },
+        {
+          "Code": "ch.BaulinienStarkstromanlagen",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Baulinien Starkstromanlagen"
+            }
+          ]
+        }
+      ],
+      "ThemeWithoutData": [
+        {
+          "Code": "ch.AR.ZonenplanGefahren",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Zonenplan Gefahren"
+            }
+          ]
+        },
+        {
+          "Code": "ch.Gewaesserraum",
+          "Text": [
+            {
+              "Language": "de",
+              "Text": "Gewässerraum"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

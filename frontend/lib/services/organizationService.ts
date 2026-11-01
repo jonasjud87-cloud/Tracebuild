@@ -19,6 +19,9 @@ interface ApiOrg {
   closedAt:       string | null;
   archivedAt:     string | null;
   isDefault:      boolean;
+  userCount?:     number | null;
+  projectCount?:  number | null;
+  storageGB?:     number | null;
 }
 
 function mapOrg(raw: ApiOrg): Organization {
@@ -32,9 +35,12 @@ function mapOrg(raw: ApiOrg): Organization {
     description:   raw.description    ?? undefined,
     owner:         raw.ownerName      ?? undefined,
     ownerEmail:    raw.ownerEmail     ?? undefined,
-    userCount:     raw.userLimit      ?? undefined,
-    projectCount:  raw.projectLimit   ?? undefined,
-    storageGB:     raw.storageLimitGb ?? undefined,
+    userCount:     raw.userCount      ?? undefined,
+    projectCount:  raw.projectCount   ?? undefined,
+    userLimit:     raw.userLimit      ?? undefined,
+    projectLimit:  raw.projectLimit   ?? undefined,
+    storageGB:     raw.storageGB      ?? undefined,
+    storageLimitGb: raw.storageLimitGb ?? undefined,
     monthlyBudget: raw.monthlyBudget  ?? undefined,
   };
 }

@@ -324,8 +324,24 @@ export function parseEgridResponse(json: unknown): EgridCandidate[] {
   return out;
 }
 
+/**
+ * geo.admin.ch führt Gemeindenamen ohne Umlaute/Akzente ("buehler", "schoenengrund") und
+ * findet Suchtexte mit Umlauten nicht zuverlässig — Suche und Vergleich laufen deshalb
+ * über die umschriebene Form.
+ */
+function transliterate(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "");
+}
+
+/** Vergleichsform: "Teufen (AR)", "teufen _ar_", "Teufen AR" → "teufen ar". */
 function normalizeName(s: string): string {
-  return s.toLowerCase().replace(/\s+/g, " ").trim();
+  return transliterate(s).replace(/[^a-z0-9]+/g, " ").trim();
 }
 
 function normalizeParcel(s: string): string {
@@ -430,10 +446,21 @@ export class GenericOerebAdapter implements OerebAdapter {
   /**
    * Nationale Parzellensuche der swisstopo (api3.geo.admin.ch). Das Trefferdetail lautet
    * "<Nummer> <gemeinde> <BFS> <egrid>"; nur exakte Treffer auf Nummer und Gemeinde zählen.
+   * Mehrdeutige Gemeindenamen tragen dort den Kanton als Zusatz ("wald _ar_"): ein Name ohne
+   * Zusatz passt auf die Gemeinde dieses Kantons. Weil gleichnamige Gemeinden anderer Kantone
+   * den Treffer aus den Top 20 verdrängen können, folgt ohne Treffer eine zweite Suche mit
+   * Kantonszusatz ("Stein AR 10").
    */
   protected async resolveViaGeoAdmin(input: GetEgridInput): Promise<EgridCandidate[]> {
+    const name = input.municipality.trim();
+    const found = await this.searchGeoAdmin(name, input);
+    if (found.length || normalizeName(name).endsWith(` ${this.canton.toLowerCase()}`)) return found;
+    return this.searchGeoAdmin(`${name} ${this.canton}`, input);
+  }
+
+  private async searchGeoAdmin(name: string, input: GetEgridInput): Promise<EgridCandidate[]> {
     const url = new URL(GEO_ADMIN_SEARCH);
-    url.searchParams.set("searchText", `${input.municipality.trim()} ${input.parcelNumber.trim()}`);
+    url.searchParams.set("searchText", `${transliterate(name)} ${input.parcelNumber.trim()}`);
     url.searchParams.set("origins", "parcel");
     url.searchParams.set("type", "locations");
     url.searchParams.set("limit", "20");
@@ -441,7 +468,8 @@ export class GenericOerebAdapter implements OerebAdapter {
     const json = await fetchJson(url.toString(), "Parzellensuche geo.admin.ch");
 
     const wantedNumber = normalizeParcel(input.parcelNumber);
-    const wantedName = normalizeName(input.municipality);
+    const wantedName = normalizeName(name);
+    const wantedNames = [wantedName, `${wantedName} ${this.canton.toLowerCase()}`];
     const out: EgridCandidate[] = [];
     for (const r of asArray(getKey(json, "results"))) {
       const detail = asString(getKey(getKey(r, "attrs"), "detail"));
@@ -450,10 +478,10 @@ export class GenericOerebAdapter implements OerebAdapter {
       if (tokens.length < 4) continue;
       const egrid = tokens[tokens.length - 1];
       const bfs = Number(tokens[tokens.length - 2]);
-      const name = tokens.slice(1, -2).join(" ");
+      const municipalityName = tokens.slice(1, -2).join(" ");
       if (!/^ch\d{12}$/i.test(egrid)) continue;
       if (normalizeParcel(tokens[0]) !== wantedNumber) continue;
-      const nameMatches = normalizeName(name) === wantedName;
+      const nameMatches = wantedNames.includes(normalizeName(municipalityName));
       const bfsMatches = input.bfsNumber !== undefined && bfs === input.bfsNumber;
       if (!nameMatches && !bfsMatches) continue;
       out.push({ egrid: egrid.toUpperCase(), number: tokens[0], identDn: null, typeCode: "RealEstate" });
