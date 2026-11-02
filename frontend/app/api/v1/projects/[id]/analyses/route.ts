@@ -6,10 +6,17 @@ import {
   runNormAnalysis,
   type AnalysisRunResult,
   type CheckItem,
-  type FileBlock,
   type NormInput,
   type OerebFacts,
+  type PlanFile,
 } from "@/lib/analysis-engine";
+import {
+  MAX_PLAN_FILES,
+  MAX_PLAN_FILE_BYTES,
+  planMimeType,
+  type PlanMimeType,
+  type UploadedPlanFile,
+} from "@/lib/plan-files";
 
 export const maxDuration = 300;
 
@@ -111,6 +118,70 @@ async function loadOerebFacts(
   }
 }
 
+// ── Plansatz ─────────────────────────────────────────────────────────────────
+
+function publicFileUrl(storagePath: string): string {
+  return `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`;
+}
+
+/** Gültigkeit der signierten URLs, über die Claude die Dateien holt. */
+const MODEL_FILE_URL_TTL_S = 60 * 60;
+
+/**
+ * Prüft die vom Client gemeldeten Dateien gegen Storage: gehören zum Projekt, existieren,
+ * Typ und echte Grösse stimmen. Die Angaben des Clients allein reichen nicht.
+ */
+async function validatePlanFiles(
+  admin: ReturnType<typeof createAdminClient>,
+  projectId: string,
+  raw: unknown,
+): Promise<{ files: UploadedPlanFile[] } | { error: string }> {
+  const list = Array.isArray(raw) ? raw : [];
+  if (list.length === 0) return { error: "Keine Datei hochgeladen" };
+  if (list.length > MAX_PLAN_FILES) return { error: `Höchstens ${MAX_PLAN_FILES} Dateien pro Prüfung` };
+
+  const files: UploadedPlanFile[] = [];
+  for (const f of list as Partial<UploadedPlanFile>[]) {
+    const path = typeof f?.path === "string" ? f.path : "";
+    const name = typeof f?.name === "string" && f.name.trim() ? f.name.trim().slice(0, 255) : "";
+    if (!path.startsWith(`${projectId}/`) || path.includes("..") || !name) return { error: "Ungültige Datei" };
+    const type = planMimeType(name, typeof f.type === "string" ? f.type : null);
+    if (!type) return { error: `${name}: Nur PDF- oder Bilddateien werden unterstützt.` };
+
+    const { data: info, error } = await admin.storage.from("documents").info(path);
+    if (error || !info) return { error: `${name}: Datei wurde nicht vollständig hochgeladen.` };
+    const size = Number(info.size ?? f.size ?? 0);
+    if (size > MAX_PLAN_FILE_BYTES) return { error: `${name}: Die Datei ist grösser als ${MAX_PLAN_FILE_BYTES / 1024 / 1024} MB.` };
+    files.push({ path, name, type, size });
+  }
+  return { files };
+}
+
+function toPlanFile(f: { name: string; type: PlanMimeType }, url: string): PlanFile {
+  return {
+    name: f.name,
+    block: f.type === "application/pdf"
+      ? { type: "document", source: { type: "url", url } }
+      : { type: "image", source: { type: "url", url } },
+  };
+}
+
+interface DocumentFileRow { file_name: string; storage_path: string; mime_type: string; size_bytes: number | null; position: number }
+
+/** Dateiliste für die Vorschau; ältere Analysen ohne document_files fallen auf file_url zurück. */
+function withFiles<T extends { documents?: { file_url?: string | null; document_files?: DocumentFileRow[] | null } | null }>(a: T) {
+  const rows = (a.documents?.document_files ?? []).slice().sort((x, y) => x.position - y.position);
+  const files = rows.length > 0
+    ? rows.map((r) => ({ name: r.file_name, url: publicFileUrl(r.storage_path) }))
+    : a.documents?.file_url
+      ? [{ name: "Plan", url: a.documents.file_url }]
+      : [];
+  return { ...a, files };
+}
+
+const ANALYSIS_DOC_SELECT =
+  "documents(doc_type, file_url, document_files(file_name, storage_path, mime_type, size_bytes, position))";
+
 // ── GET ───────────────────────────────────────────────────────────────────────
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -138,13 +209,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   const { data, error } = await admin
     .from("analyses")
-    .select("*, documents(doc_type, file_url), analysis_items(*)")
+    .select(`*, ${ANALYSIS_DOC_SELECT}, analysis_items(*)`)
     .in("document_id", docIds)
     .neq("status", "cancelled")
     .order("created_at", { ascending: false });
 
   if (error) return err(error.message, 500);
-  return ok(data);
+  return ok((data ?? []).map(withFiles));
 }
 
 // ── POST ──────────────────────────────────────────────────────────────────────
@@ -165,26 +236,44 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .single();
   if (!project) return err("Projekt nicht gefunden", 404);
 
-  const formData = await request.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) return err("Keine Datei hochgeladen");
-  const docType = (formData.get("doc_type") as string | null) || "Grundriss";
+  // Die Dateien liegen bereits in Storage (Upload direkt aus dem Browser über
+  // …/analyses/uploads); hier kommen nur Pfade an — kein Request-Body-Limit für Pläne.
+  const body = await request.json().catch(() => null) as
+    { files?: unknown; doc_type?: unknown; run_id?: unknown } | null;
+  if (!body) return err("Ungültige Anfrage");
+  const docType = (typeof body.doc_type === "string" && body.doc_type.trim()) || "Plansatz";
   // Vom Client vergebene Lauf-ID: darüber kann er den Lauf per POST …/analyses/cancel abbrechen.
-  const runId = ((formData.get("run_id") as string | null) ?? "").trim() || null;
+  const runId = (typeof body.run_id === "string" ? body.run_id.trim() : "") || null;
 
-  const fileBytes = Buffer.from(await file.arrayBuffer());
-  const base64Data = fileBytes.toString("base64");
-  const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
+  const checked = await validatePlanFiles(admin, params.id, body.files);
+  if ("error" in checked) {
+    // Hochgeladene, aber nie geprüfte Dateien nicht im Speicher liegen lassen.
+    const stray = (Array.isArray(body.files) ? body.files : [])
+      .map((f: { path?: unknown }) => (typeof f?.path === "string" ? f.path : ""))
+      .filter((p: string) => p.startsWith(`${params.id}/`) && !p.includes(".."));
+    if (stray.length) await admin.storage.from("documents").remove(stray);
+    return err(checked.error);
+  }
+  const planFiles = checked.files;
 
-  // Erst die Datensätze, dann der Upload: Die Analyse-Zeile muss so früh wie möglich
-  // existieren, damit ein Abbruch (POST …/cancel sucht sie über run_id) sie findet.
-  // documents.file_url ist NOT NULL → vorerst "", nach dem Upload nachgetragen.
+  // Die Analyse-Zeile muss so früh wie möglich existieren, damit ein Abbruch
+  // (POST …/cancel sucht sie über run_id) sie findet.
   const { data: doc, error: docError } = await admin
     .from("documents")
-    .insert({ project_id: params.id, file_url: "", doc_type: docType })
+    .insert({ project_id: params.id, file_url: publicFileUrl(planFiles[0].path), doc_type: docType })
     .select()
     .single();
   if (docError) return err(docError.message, 500);
+
+  const { error: filesError } = await admin.from("document_files").insert(
+    planFiles.map((f, i) => ({
+      document_id: doc.id, storage_path: f.path, file_name: f.name, mime_type: f.type, size_bytes: f.size, position: i,
+    })),
+  );
+  if (filesError) {
+    await admin.from("documents").delete().eq("id", doc.id);
+    return err(filesError.message, 500);
+  }
 
   const { data: analysis, error: analysisError } = await admin
     .from("analyses")
@@ -221,19 +310,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   };
 
   try {
-    // Upload nach Supabase Storage; Vorschau-URL ins Dokument nachtragen.
-    const storagePath = `${params.id}/${crypto.randomUUID()}_${file.name}`;
-    const { data: uploadData, error: uploadError } = await admin.storage
-      .from("documents")
-      .upload(storagePath, fileBytes, { contentType: file.type || "application/pdf" });
-    if (uploadError) {
-      console.error(`Storage upload failed for ${storagePath}:`, uploadError);
-    } else if (uploadData) {
-      const fileUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`;
-      await admin.from("documents").update({ file_url: fileUrl }).eq("id", doc.id);
-    }
-
-    // Abbruch, der schon während des Uploads kam, nicht erst nach 2.5 s bemerken.
+    // Abbruch, der schon während des Starts kam, nicht erst nach 2.5 s bemerken.
     await checkCancelled();
     if (cancel.signal.aborted) return await finishCancelled();
 
@@ -258,24 +335,22 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
     const assignedIds = new Set(norms.map((n) => n.id).filter(Boolean));
 
-    // 2. Datei-Block
-    const fileBlock: FileBlock = isPdf
-      ? { type: "document", source: { type: "base64", media_type: "application/pdf", data: base64Data } }
-      : {
-          type: "image",
-          source: {
-            type: "base64",
-            media_type: (file.type || "image/jpeg") as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
-            data: base64Data,
-          },
-        };
+    // 2. Plansatz: Claude holt jede Datei selbst über eine kurzlebige signierte URL.
+    //    Base64 im Request ginge bei zehn Plänen über das Request-Limit der API.
+    const { data: signed, error: signError } = await admin.storage
+      .from("documents")
+      .createSignedUrls(planFiles.map((f) => f.path), MODEL_FILE_URL_TTL_S);
+    if (signError || !signed || signed.some((u) => !u.signedUrl)) {
+      throw new Error(`Dateien konnten nicht freigegeben werden: ${signError?.message ?? "Signierung fehlgeschlagen"}`);
+    }
+    const files: PlanFile[] = planFiles.map((f, i) => toPlanFile(f, signed[i].signedUrl));
 
     // 3. Ein Call pro Norm, parallel, mit Cache-Grenze hinter PDF + Referenzrahmen.
     const oereb = await loadOerebFacts(admin, params.id);
     const budgetMs = Math.max(45_000, ROUTE_MODEL_BUDGET_MS - (Date.now() - routeStart));
     run = await runNormAnalysis(
       norms,
-      fileBlock,
+      files,
       {
         municipality: project.location?.municipality ?? "",
         canton: project.location?.canton ?? "",
@@ -303,6 +378,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       suggestion: item.suggestion,
       confidence: item.confidence,
       page_reference: item.page_reference,
+      source_file: item.source_file,
     }));
 
     // 5. Speichern — Fehler werden ausgewertet, und ein kaputter Datensatz
@@ -354,7 +430,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
       })
       .eq("id", analysis.id)
       .eq("status", "running")
-      .select("*, documents(doc_type, file_url)")
+      .select(`*, ${ANALYSIS_DOC_SELECT}`)
       .maybeSingle();
 
     if (updateError) return err(updateError.message, 500);
@@ -392,9 +468,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
       meta: { projectId: params.id, status: finalAnalysis.status, itemCount: items.length },
     });
 
-    return ok({ ...finalAnalysis, items, failed_norms: run.failed_norms }, 201);
+    return ok({ ...withFiles(finalAnalysis), items, failed_norms: run.failed_norms }, 201);
   } catch (e) {
     const message = e instanceof Error ? e.message : "Analyse fehlgeschlagen";
+    // Sonst taucht ein 500 nur in result_json auf, nicht in den Vercel-Logs.
+    console.error(`Analyse ${analysis.id} (Projekt ${params.id}) fehlgeschlagen:`, e);
     await admin
       .from("analyses")
       .update({

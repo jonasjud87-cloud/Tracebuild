@@ -24,10 +24,10 @@ export const CHAPTERS: HandbookChapter[] = [
     num: 1,
     title: "Pläne analysieren",
     short: "Pläne analysieren",
-    desc: "Projekt anlegen, Plan hochladen, Ergebnis lesen",
+    desc: "Projekt anlegen, Pläne hochladen, Ergebnis lesen",
     sections: [
       { id: "projekt-anlegen", title: "Projekt anlegen" },
-      { id: "plan-hochladen", title: "Plan hochladen und prüfen lassen" },
+      { id: "plan-hochladen", title: "Pläne hochladen und prüfen lassen" },
       { id: "ergebnis", title: "Ergebnis lesen" },
     ],
   },

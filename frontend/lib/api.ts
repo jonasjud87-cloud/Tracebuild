@@ -47,8 +47,8 @@ async function requestForm<T>(path: string, formData: FormData, signal?: AbortSi
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: "POST", body: JSON.stringify(body) }),
+  post: <T>(path: string, body: unknown, signal?: AbortSignal) =>
+    request<T>(path, { method: "POST", body: JSON.stringify(body), signal }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
   postForm: <T>(path: string, formData: FormData, signal?: AbortSignal) => requestForm<T>(path, formData, signal),

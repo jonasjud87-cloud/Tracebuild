@@ -186,6 +186,8 @@ export interface CheckItem {
   suggestion: string | null;
   confidence: Confidence;
   page_reference: number | null;
+  /** Dateiname im Plansatz, auf den sich page_reference bezieht. */
+  source_file: string | null;
 }
 
 export interface NormCallResult {
@@ -229,6 +231,12 @@ export interface AnalysisRunResult {
 
 export type FileBlock = Anthropic.DocumentBlockParam | Anthropic.ImageBlockParam;
 
+/** Eine Datei des Plansatzes (Situation, Grundriss, Schnitt, Reglement …). */
+export interface PlanFile {
+  name: string;
+  block: FileBlock;
+}
+
 export interface ProjectContext {
   municipality: string;
   canton: string;
@@ -244,7 +252,10 @@ export interface ProjectContext {
 const SYSTEM_BASE = `Du bist ein Schweizer Baurechtsexperte (Architekt/Bauverwalter) und prüfst Baupläne auf Normkonformität.
 
 Du erhältst in jedem Auftrag:
-- den vollständigen Bauplan als PDF (alle Seiten, 1-basiert nummeriert)
+- den vollständigen Plansatz: eine oder mehrere Dateien (z.B. Situationsplan, Grundrisse,
+  Schnitte, Fassaden, Berechnungen, Berichte), jeweils mit Dateinummer und Dateiname
+  angekündigt. Die Dateien gehören zum selben Projekt und ergänzen sich — ein Mass, das in
+  einer Datei fehlt, steht oft in einer anderen. Seiten zählen je Datei 1-basiert.
 - den Projektkontext (Gemeinde, Kanton, Bauzone, Parzelle)
 - den REFERENZRAHMEN: ÖREB-Fakten der Parzelle und die kommunalen Normen (Baureglement,
   Zonenschema). Er dient der Einordnung — er ist NICHT selbst zu prüfen, ausser er ist die
@@ -299,9 +310,9 @@ PRÜFENDE NORM regelt, MUSS ein Prüfpunkt entstehen (ok, warn oder fail):
 
 LESEN, BEVOR DU URTEILST:
 - Bevor du "nicht kotiert / nicht bemasst / nicht ersichtlich" schreibst, hast du ALLE
-  Schnitte, Fassaden, Grundrisse und den Situationsplan durchgesehen. Masse stehen oft nur
+  Dateien mit Schnitten, Fassaden, Grundrissen und den Situationsplan durchgesehen. Masse stehen oft nur
   im Schnitt (Kniestock, lichte Raumhöhe, Geschosshöhe) oder im Situationsplan (Abstände).
-  Nenne im Befund die Seite, auf der das Mass steht — oder auf welchen Seiten du gesucht hast.
+  Nenne im Befund Datei und Seite, wo das Mass steht — oder wo du gesucht hast.
 - Was aus Koten berechenbar ist, rechnest du (Terrain, Fertigboden, First; Fassadenmasse;
   Flächen aus dem Plan; Parzellenfläche aus dem Referenzrahmen). Schreibe die Rechnung.
 - Behaupte keine Angaben, die nicht im Plan stehen (z.B. "Kanalisationsanschluss vorgesehen",
@@ -334,7 +345,10 @@ FORM:
   und der Vergleich mit dem Grenzwert. Maximal 400 Zeichen. Keine Wiederholung des
   Gesetzestextes, keine Floskeln. Ein Architekt liest das.
 - suggestion: eine konkrete, umsetzbare Massnahme, maximal 250 Zeichen. Bei "ok" leer.
-- page_reference: PDF-Seitenzahl 1-basiert. 0 nur, wenn kein Seitenbezug möglich ist.
+- file_index: Nummer der Datei, auf die sich der Prüfpunkt stützt. 0 nur, wenn kein
+  Dateibezug möglich ist.
+- page_reference: Seitenzahl innerhalb dieser Datei, 1-basiert. 0 nur, wenn kein
+  Seitenbezug möglich ist.
 - confidence: "high" nur, wenn der Plan die Angabe wirklich hergibt.
 - Maximal ${MAX_CHECKS_PER_NORM} Prüfpunkte. Priorisiere fail vor warn vor ok.
 - category aus der vorgegebenen Liste; "andere" nur, wenn nichts passt.`;
@@ -575,9 +589,10 @@ export const CHECK_OUTPUT_SCHEMA = {
             finding:        { type: "string" },
             suggestion:     { type: "string", description: "Leerer String bei status=ok" },
             confidence:     { type: "string", enum: ["high", "medium", "low"] },
-            page_reference: { type: "integer", description: "1-basierte PDF-Seite, 0 = unbekannt" },
+            file_index:     { type: "integer", description: "Nummer der Datei im Plansatz, 0 = unbekannt" },
+            page_reference: { type: "integer", description: "1-basierte Seite innerhalb der Datei, 0 = unbekannt" },
           },
-          required: ["norm_title", "category", "status", "finding", "suggestion", "confidence", "page_reference"],
+          required: ["norm_title", "category", "status", "finding", "suggestion", "confidence", "file_index", "page_reference"],
           additionalProperties: false,
         },
       },
@@ -852,9 +867,14 @@ export function parseChecks(raw: string): Record<string, unknown>[] {
   return salvageCheckObjects(body);
 }
 
-function toCheckItem(raw: Record<string, unknown>, norm: NormInput): CheckItem {
+function toCheckItem(raw: Record<string, unknown>, norm: NormInput, fileNames: string[]): CheckItem {
   const suggestion = typeof raw.suggestion === "string" ? raw.suggestion.trim() : "";
   const page = Number(raw.page_reference);
+  const fileIdx = Number(raw.file_index);
+  // Bei nur einer Datei ist der Bezug eindeutig, auch wenn das Modell 0 liefert.
+  const sourceFile = Number.isInteger(fileIdx) && fileIdx >= 1 && fileIdx <= fileNames.length
+    ? fileNames[fileIdx - 1]
+    : fileNames.length === 1 ? fileNames[0] : null;
   const status = String(raw.status ?? "");
   const confidence = String(raw.confidence ?? "");
 
@@ -870,7 +890,20 @@ function toCheckItem(raw: Record<string, unknown>, norm: NormInput): CheckItem {
     suggestion: suggestion.length > 0 ? suggestion : null,
     confidence: (confidence === "high" || confidence === "low" ? confidence : "medium") as Confidence,
     page_reference: Number.isInteger(page) && page > 0 ? page : null,
+    source_file: sourceFile,
   };
+}
+
+/**
+ * Plansatz als Content-Blöcke: vor jeder Datei eine Zeile mit Nummer und Name, damit
+ * das Modell Prüfpunkte einer Datei zuordnen kann. Byte-identisch über alle Norm-Calls,
+ * liegt also vor dem Cache-Breakpoint.
+ */
+function planBlocks(files: PlanFile[]): Anthropic.ContentBlockParam[] {
+  return files.flatMap((f, i) => [
+    { type: "text" as const, text: `Datei ${i + 1} von ${files.length}: ${f.name}` },
+    f.block,
+  ]);
 }
 
 // ── Kosten ────────────────────────────────────────────────────────────────────
@@ -902,7 +935,7 @@ async function analyseOneNorm(
   index: number,
   total: number,
   system: string,
-  fileBlock: FileBlock,
+  files: PlanFile[],
   referenceBlock: string,
   inReference: boolean,
   runDeadlineAt: number,
@@ -940,12 +973,12 @@ async function analyseOneNorm(
     if (remaining <= 5_000) throw new Error("Zeitbudget aufgebraucht, bevor der Call startete");
 
     // Cache-Grenze: alles VOR dem Breakpoint ist über alle Norm-Calls byte-identisch
-    // (system + PDF + Referenzrahmen). Der Normtext steht dahinter und variiert pro Call.
+    // (system + Plansatz + Referenzrahmen). Der Normtext steht dahinter und variiert pro Call.
     const messages: Anthropic.MessageParam[] = [
       {
         role: "user",
         content: [
-          fileBlock,
+          ...planBlocks(files),
           { type: "text", text: referenceBlock, cache_control: { type: "ephemeral" } },
           { type: "text", text: buildNormBlock(part, index, total, inReference) },
         ],
@@ -1020,7 +1053,7 @@ async function analyseOneNorm(
   let items: CheckItem[] = [];
   if (text.trim().length > 0) {
     items = parseChecks(text)
-      .map((raw) => toCheckItem(raw, norm))
+      .map((raw) => toCheckItem(raw, norm, files.map((f) => f.name)))
       .filter((it) => it.finding.length > 0)
       .slice(0, MAX_CHECKS_PER_NORM);
   }
@@ -1063,7 +1096,7 @@ async function analyseOneNorm(
  */
 export async function runNormAnalysis(
   normsInput: NormInput[],
-  fileBlock: FileBlock,
+  files: PlanFile[],
   ctx: ProjectContext,
   budgetMs: number = RUN_BUDGET_MS,
   cancelSignal: AbortSignal | null = null,
@@ -1087,7 +1120,7 @@ export async function runNormAnalysis(
   const call = (
     unit: NormPart, index: number, gate: (() => void) | null, effort?: "low" | "medium" | "high",
   ) => analyseOneNorm(
-    unit, index, total, system, fileBlock, reference.text, reference.completeIds.has(unit.norm.id),
+    unit, index, total, system, files, reference.text, reference.completeIds.has(unit.norm.id),
     deadlineAt, gate, effort ?? EFFORT, cancelSignal,
   );
 

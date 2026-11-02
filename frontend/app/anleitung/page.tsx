@@ -13,7 +13,6 @@ import imgNormHochladen from "./img/norm-hochladen.jpg";
 import imgProjektNormen from "./img/projekt-normen.jpg";
 import imgProjekte from "./img/projekte.jpg";
 import imgProjektErstellen from "./img/projekt-erstellen.jpg";
-import imgPlanart from "./img/planart.png";
 import imgUpload from "./img/upload.jpg";
 import imgErgebnis from "./img/ergebnis.jpg";
 import imgPruefpunkt from "./img/pruefpunkt.png";
@@ -48,13 +47,13 @@ const QUICKSTART = [
   },
   {
     href: "#plan-hochladen",
-    title: "Plan hochladen",
-    text: "PDF oder Bild in eine Planart ziehen und die Analyse starten.",
+    title: "Pläne hochladen",
+    text: "Alle Pläne des Projekts zusammen hochladen und die Analyse starten.",
   },
   {
     href: "#ergebnis",
     title: "Ergebnis lesen",
-    text: "Verstösse, unklare und konforme Punkte, jeweils mit Begründung und Seitenangabe.",
+    text: "Verstösse, unklare und konforme Punkte, jeweils mit Begründung, Datei und Seite.",
   },
 ];
 
@@ -217,9 +216,10 @@ export default function AnleitungPage() {
 
         <Chapter id="plaene">
           <p className={s.chapterLead}>
-            Für jede Prüfung braucht es ein Projekt mit Parzelle. Darin legen Sie Planarten an (z.&nbsp;B. Grundriss,
-            Schnitt, Fassade) und laden pro Planart die Pläne hoch. Geprüft wird gegen den ÖREB-Auszug der Parzelle
-            und die Normen Ihrer Organisation (siehe <a href="#normen">Kapitel 2</a>).
+            Für jede Prüfung braucht es ein Projekt mit Parzelle. Darin laden Sie alle Pläne des Baugesuchs zusammen
+            hoch (Situation, Grundrisse, Schnitte, Fassaden, Berechnungen), denn erst zusammen ist der Plansatz
+            vollständig. Geprüft wird gegen den ÖREB-Auszug der Parzelle und die Normen Ihrer Organisation (siehe{" "}
+            <a href="#normen">Kapitel 2</a>).
           </p>
 
           <Sub id="projekt-anlegen" />
@@ -244,22 +244,22 @@ export default function AnleitungPage() {
 
           <Sub id="plan-hochladen" />
           <ol className={s.steps}>
-            <li><p>Öffnen Sie das Projekt. Im Reiter <Ui>Plan-Analyse</Ui> klicken Sie auf <Ui>Planart hinzufügen</Ui>, geben einen Namen ein (z.&nbsp;B. Fassade Süd) und klicken auf <Ui>Erstellen</Ui>.</p></li>
-            <li><p>Ziehen Sie den Plan in das Feld <Ui>Plan hochladen</Ui> oder klicken Sie hinein. Erlaubt sind PDF und Bilder.</p></li>
-            <li><p>Kontrollieren Sie Dateiname und Grösse und klicken Sie auf <Ui>Analyse starten</Ui>.</p></li>
-            <li><p>Je nach Umfang des Plans kann die Prüfung einige Minuten dauern. Sie können sie jederzeit mit <Ui>Analyse abbrechen</Ui> stoppen.</p></li>
+            <li><p>Öffnen Sie das Projekt. Im Reiter <Ui>Plan-Analyse</Ui> klicken Sie auf <Ui>+ Pläne hochladen</Ui>. Die Prüfung heisst dann <Ui>Baugesuch</Ui>. Einen eigenen Namen vergeben Sie über <Ui>Neue Prüfung</Ui>, z.&nbsp;B. für eine Vorabklärung.</p></li>
+            <li><p>Ziehen Sie alle Dateien des Plansatzes auf einmal in das Feld <Ui>Pläne hochladen</Ui> oder klicken Sie hinein. Erlaubt sind PDF und Bilder, bis zu 20 Dateien mit je höchstens 50&nbsp;MB.</p></li>
+            <li><p>Kontrollieren Sie die Liste. Mit <Ui>+ Weitere Dateien</Ui> ergänzen Sie, was fehlt, mit <Ui>×</Ui> entfernen Sie eine Datei. Dann klicken Sie auf <Ui>Analyse starten</Ui>.</p></li>
+            <li><p>Die Dateien werden zuerst hochgeladen und dann gemeinsam geprüft. Das kann einige Minuten dauern. Sie können jederzeit mit <Ui>Analyse abbrechen</Ui> stoppen.</p></li>
           </ol>
-          <Fig src={imgPlanart} alt="Eingabefeld für eine neue Planart mit dem Beispiel Fassade Süd" caption="Neue Planart anlegen." />
           <Fig
             src={imgUpload}
-            alt="Upload-Feld Plan hochladen für die Planart Grundriss"
-            caption="Upload-Feld einer Planart: PDF oder Bild per Drag & Drop."
+            alt="Upload-Feld Pläne hochladen für die Prüfung Baugesuch"
+            caption="Upload-Feld: alle Dateien des Plansatzes zusammen per Drag & Drop."
           />
 
           <Sub id="ergebnis" />
           <p>
             Nach der Prüfung öffnet sich das Ergebnis neben der Plan-Vorschau. Jeder Prüfpunkt nennt die Regel, den
-            Befund mit Seitenangabe im Plan und eine Einschätzung der Sicherheit.
+            Befund mit Datei und Seite und eine Einschätzung der Sicherheit. Bei mehreren Dateien wählen Sie oben in
+            der Vorschau aus, welche angezeigt wird.
           </p>
           <div className={s.legend}>
             <div className={s.lBad}><b>Verstösse</b>Die Vorschrift ist laut Plan nicht eingehalten. Diese Punkte zuerst bearbeiten.</div>
@@ -269,28 +269,28 @@ export default function AnleitungPage() {
           <Fig
             src={imgErgebnis}
             alt="Ergebnisansicht mit Plan-Vorschau links und den Zählern 0 Verstösse, 6 unklare Punkte, 7 konforme Punkte rechts"
-            caption="Ergebnis einer Grundriss-Prüfung: Plan-Vorschau links, Prüfpunkte rechts."
+            caption="Ergebnis einer Prüfung: Plan-Vorschau links, Prüfpunkte rechts."
           />
           <div className={s.two}>
             <Fig
               src={imgPruefpunkt}
               narrow
               alt="Aufgeklappter Prüfpunkt Gebäudehöhe max. 8 m mit Begründung, Seite 8 und Konfidenz Mittel"
-              caption="Ein Klick auf einen Prüfpunkt zeigt Begründung, Seite und Konfidenz."
+              caption="Ein Klick auf einen Prüfpunkt zeigt Begründung, Datei, Seite und Konfidenz."
             />
             <div>
               <ol className={s.steps}>
                 <li><p>Filtern Sie mit <Ui>Verstösse</Ui>, <Ui>Warnungen</Ui> oder <Ui>Konform</Ui>.</p></li>
                 <li><p>Exportieren Sie den Prüfbericht mit <Ui>Bericht (PDF)</Ui> oder die Liste mit <Ui>CSV</Ui>.</p></li>
-                <li><p>Für eine überarbeitete Planversion klicken Sie auf <Ui>Neuer Plan</Ui>. Jede Prüfung bleibt als Version (V1, V2, …) links in der Liste erhalten.</p></li>
-                <li><p>Offene Punkte aller Planarten sehen Sie gesammelt in der Übersicht des Reiters <Ui>Plan-Analyse</Ui>.</p></li>
+                <li><p>Für überarbeitete Pläne klicken Sie auf <Ui>Neue Version</Ui> und laden den Plansatz erneut hoch. Jede Analyse bleibt als Version (V1, V2, …) links in der Liste erhalten.</p></li>
+                <li><p>Offene Punkte aller Prüfungen sehen Sie gesammelt in der Übersicht des Reiters <Ui>Plan-Analyse</Ui>.</p></li>
               </ol>
             </div>
           </div>
           <Fig
             src={imgPlanAnalyse}
-            alt="Übersicht Plan-Analyse mit offenen Punkten der Planart Grundriss"
-            caption="Übersicht Plan-Analyse: offene Punkte aller Planarten auf einen Blick."
+            alt="Übersicht Plan-Analyse mit offenen Punkten der Prüfung Baugesuch"
+            caption="Übersicht Plan-Analyse: offene Punkte aller Prüfungen auf einen Blick."
           />
 
           <div className={s.note}>

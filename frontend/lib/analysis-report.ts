@@ -58,7 +58,8 @@ export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string
       const norm = it.norm_title ? esc(it.norm_title) : "";
       const cat = categoryLabel(it.category);
       const conf = confidenceLabel(it.confidence);
-      const page = it.page_reference != null ? `S. ${esc(it.page_reference)}` : "";
+      const page = [it.source_file ? esc(it.source_file) : "", it.page_reference != null ? `S. ${esc(it.page_reference)}` : ""]
+        .filter(Boolean).join(", ");
       return `
         <tr>
           <td class="st"><span style="color:${color}">●</span> <b style="color:${color}">${esc(STATUS_LABEL[it.status] ?? it.status)}</b></td>
@@ -157,7 +158,7 @@ function csvCell(v: unknown): string {
 }
 
 export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string {
-  const header = ["Status", "Norm", "Prüfpunkt", "Empfehlung", "Kategorie", "Konfidenz", "Seite"];
+  const header = ["Status", "Norm", "Prüfpunkt", "Empfehlung", "Kategorie", "Konfidenz", "Datei", "Seite"];
   const lines = sorted(items).map((it) =>
     [
       STATUS_LABEL[it.status] ?? it.status,
@@ -166,12 +167,13 @@ export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string 
       it.suggestion ?? "",
       categoryLabel(it.category),
       confidenceLabel(it.confidence),
+      it.source_file ?? "",
       it.page_reference ?? "",
     ].map(csvCell).join(";"),
   );
   const head = [
     `Projekt;${csvCell(meta.projectName)}`,
-    `Planart;${csvCell(meta.planType)};Version;${meta.version}`,
+    `Prüfung;${csvCell(meta.planType)};Version;${meta.version}`,
     `Analyse vom;${csvCell(new Date(meta.createdAt).toLocaleDateString("de-CH"))}`,
     "",
   ];

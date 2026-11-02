@@ -7,8 +7,8 @@ import { useDashboard } from "@/lib/dashboardContext";
 
 const WORKFLOW_STEPS = [
   { number: "01", title: "Projekt",  description: "Kanton, Gemeinde und Parzelle eingeben." },
-  { number: "02", title: "Upload",   description: "Plan als PDF oder Bild hochladen." },
-  { number: "03", title: "Analyse",  description: "KI prüft den Plan gegen die geltenden Normen." },
+  { number: "02", title: "Upload",   description: "Alle Pläne zusammen hochladen, PDF oder Bild." },
+  { number: "03", title: "Analyse",  description: "KI prüft den Plansatz gegen die geltenden Normen." },
   { number: "04", title: "Ergebnis", description: "Befunde prüfen, Bericht als PDF exportieren." },
 ];
 
