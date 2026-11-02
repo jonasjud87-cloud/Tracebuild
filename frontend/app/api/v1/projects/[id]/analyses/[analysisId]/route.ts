@@ -49,14 +49,19 @@ export async function DELETE(
     .eq("document_id", analysis.document_id);
   if (!countErr && count === 0) {
     const { data: docRow } = await admin.from("documents").select("file_url").eq("id", analysis.document_id).maybeSingle();
+    const { data: fileRows } = await admin.from("document_files").select("storage_path").eq("document_id", analysis.document_id);
+    // Alle Dateien des Plansatzes; ältere Dokumente kennen nur file_url.
+    const paths = new Set((fileRows ?? []).map((f: { storage_path: string }) => f.storage_path));
     const marker = "/storage/v1/object/public/documents/";
     const idx = docRow?.file_url?.indexOf(marker) ?? -1;
     if (idx >= 0) {
       // file_url wird beim Schreiben nicht URL-kodiert (roher Storage-Pfad); ein
       // decodeURIComponent könnte bei "%" im Dateinamen werfen — deshalb roh verwenden.
-      const storagePath = docRow!.file_url.slice(idx + marker.length);
-      const { error: rmErr } = await admin.storage.from("documents").remove([storagePath]);
-      if (rmErr) console.warn(`Storage-Datei ${storagePath} konnte nicht entfernt werden:`, rmErr.message);
+      paths.add(docRow!.file_url.slice(idx + marker.length));
+    }
+    if (paths.size > 0) {
+      const { error: rmErr } = await admin.storage.from("documents").remove(Array.from(paths));
+      if (rmErr) console.warn(`Storage-Dateien von Dokument ${analysis.document_id} konnten nicht entfernt werden:`, rmErr.message);
     }
     const { error: docErr } = await admin.from("documents").delete().eq("id", analysis.document_id);
     if (docErr) console.warn(`Dokument ${analysis.document_id} konnte nicht entfernt werden:`, docErr.message);

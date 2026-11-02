@@ -2,6 +2,13 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
+import { createClient } from "@/lib/supabase/client";
+import {
+  MAX_PLAN_FILES,
+  MAX_PLAN_FILE_BYTES,
+  planMimeType,
+  type UploadedPlanFile,
+} from "@/lib/plan-files";
 import { downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import {
   type AnalysisItem,
@@ -49,7 +56,8 @@ interface AnalysisWithDoc {
   status: string;
   created_at: string;
   planType: string;
-  fileUrl: string | null;
+  /** Dateien des Plansatzes in Upload-Reihenfolge (ältere Analysen: eine Datei). */
+  files: PlanFileRef[];
   items: AnalysisItem[];
   /** Fehlertext aus result_json bei status "error". */
   errorMessage: string | null;
@@ -57,7 +65,12 @@ interface AnalysisWithDoc {
   failedNorms: { norm_title: string; error: string }[];
 }
 
-/** Planarten werden ohne Rücksicht auf Gross-/Kleinschreibung zusammengeführt ("grundriss" = "Grundriss"). */
+interface PlanFileRef { name: string; url: string }
+
+/** Name einer neuen Prüfung, wenn der Nutzer direkt Pläne hochlädt, ohne sie zu benennen. */
+const DEFAULT_CHECK_NAME = "Baugesuch";
+
+/** Prüfungen werden ohne Rücksicht auf Gross-/Kleinschreibung zusammengeführt ("baugesuch" = "Baugesuch"). */
 function planKey(name: string): string {
   return name.trim().toLowerCase();
 }
@@ -79,6 +92,7 @@ interface RawGetAnalysis {
   status: string;
   created_at: string;
   documents?: { doc_type: string | null; file_url?: string | null } | null;
+  files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
   result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null } | null;
@@ -90,8 +104,8 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     id: a.id,
     status: a.status,
     created_at: a.created_at,
-    planType: planType ?? a.documents?.doc_type ?? "Grundriss",
-    fileUrl: a.documents?.file_url || null,
+    planType: planType ?? a.documents?.doc_type ?? DEFAULT_CHECK_NAME,
+    files: a.files ?? (a.documents?.file_url ? [{ name: "Plan", url: a.documents.file_url }] : []),
     items: a.items ?? a.analysis_items ?? [],
     errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
     failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
@@ -161,8 +175,10 @@ function CheckCard({ item }: { item: AnalysisItem }) {
                 Konfidenz: {CONFIDENCE_LABELS[item.confidence as Confidence] ?? item.confidence}
               </span>
             )}
-            {item.page_reference != null && (
-              <span style={{ fontSize: 11, color: "#7B8299" }}>S. {item.page_reference}</span>
+            {(item.source_file || item.page_reference != null) && (
+              <span style={{ fontSize: 11, color: "#7B8299", overflowWrap: "anywhere" }}>
+                {[item.source_file, item.page_reference != null ? `S. ${item.page_reference}` : null].filter(Boolean).join(" · ")}
+              </span>
             )}
           </div>
         </div>
@@ -200,7 +216,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisWithDoc | null>(null);
   const [showNewTypeInput, setShowNewTypeInput] = useState(false);
   const [newTypeName, setNewTypeName]       = useState("");
-  const [pendingFile, setPendingFile]       = useState<File | null>(null);
+  const [pendingFiles, setPendingFiles]     = useState<File[]>([]);
+  /** Fortschritt während des Hochladens, z.B. "3 von 10"; null = Analyse läuft. */
+  const [uploadProgress, setUploadProgress] = useState<string | null>(null);
+  const [previewIdx, setPreviewIdx]         = useState(0);
   const [uploading, setUploading]           = useState(false);
   const [cancelling, setCancelling]         = useState(false);
   const [info, setInfo]                     = useState<string | null>(null);
@@ -214,6 +233,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
+  /** true, solange die Dateien hochgeladen werden — dann gibt es serverseitig noch nichts abzubrechen. */
+  const uploadPhaseRef = useRef(false);
+
+  // Neue Version geöffnet → Vorschau beginnt bei der ersten Datei.
+  useEffect(() => { setPreviewIdx(0); }, [selectedAnalysis?.id]);
 
   const loadAnalyses = useCallback(async () => {
     const data = await api.get<RawGetAnalysis[]>(`/projects/${params.id}/analyses`);
@@ -245,7 +269,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     return () => document.removeEventListener("click", close);
   }, [menuOpenId]);
 
-  // Anzeigename je Planart = Schreibweise der neuesten Analyse; Schlüssel = kleingeschrieben.
+  // Anzeigename je Prüfung = Schreibweise der neuesten Analyse; Schlüssel = kleingeschrieben.
   const labelByKey = new Map<string, string>();
   for (const a of analyses) {
     const k = planKey(a.planType);
@@ -257,7 +281,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     ...analysisTypes,
   ];
 
-  /** Neueste abgeschlossene Analyse je Planart; Fehl-/Laufversionen zählen nicht als Ergebnis. */
+  /** Neueste abgeschlossene Analyse je Prüfung; Fehl-/Laufversionen zählen nicht als Ergebnis. */
   const latestByType: Record<string, AnalysisWithDoc> = {};
   /** Neueste Version überhaupt (auch error/running) — für den Status-Badge. */
   const newestByType: Record<string, AnalysisWithDoc> = {};
@@ -272,13 +296,13 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   function openPlanType(name: string) {
     setSelectedPlanType(name);
     // Vorhandenes Ergebnis direkt zeigen (wie die Übersichtskachel); die Upload-Zone erscheint
-    // nur ohne abgeschlossene Analyse oder bewusst über "Neuer Plan".
+    // nur ohne abgeschlossene Analyse oder bewusst über "Neue Version".
     setSelectedAnalysis(latestByType[planKey(name)] ?? null);
     setView("plantype");
     setDetailFilter("all");
     setError(null);
     setInfo(null);
-    setPendingFile(null);
+    setPendingFiles([]);
   }
 
   function createPlanType() {
@@ -298,22 +322,34 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     } catch { /* ignore */ }
   }
 
-  function selectFile(file: File) {
-    if (!file.type.includes("pdf") && !file.type.includes("image")) {
-      setError("Nur PDF- oder Bilddateien werden unterstützt.");
-      return;
-    }
-    setError(null);
+  /** Dateien zum Plansatz hinzufügen. Doppelte (gleicher Name und Grösse) werden ignoriert. */
+  function addFiles(files: File[]) {
+    const rejected: string[] = [];
+    const accepted = files.filter((f) => {
+      if (!planMimeType(f.name, f.type)) { rejected.push(`${f.name}: nur PDF oder Bild`); return false; }
+      if (f.size > MAX_PLAN_FILE_BYTES) { rejected.push(`${f.name}: grösser als ${MAX_PLAN_FILE_BYTES / 1024 / 1024} MB`); return false; }
+      return true;
+    });
     setInfo(null);
-    setPendingFile(file);
+    setPendingFiles((prev) => {
+      const seen = new Set(prev.map((f) => `${f.name}|${f.size}`));
+      const next = [...prev, ...accepted.filter((f) => !seen.has(`${f.name}|${f.size}`))];
+      if (next.length > MAX_PLAN_FILES) rejected.push(`höchstens ${MAX_PLAN_FILES} Dateien pro Prüfung`);
+      return next.slice(0, MAX_PLAN_FILES);
+    });
+    setError(rejected.length ? `Nicht übernommen: ${rejected.join("; ")}` : null);
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
   async function runAnalysis() {
-    const file = pendingFile;
-    // Planart beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
-    // wechseln — das Ergebnis gehört trotzdem zur Planart, unter der es gestartet wurde.
+    const files = pendingFiles;
+    // Prüfung beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
+    // wechseln — das Ergebnis gehört trotzdem zur Prüfung, unter der es gestartet wurde.
     const planType = selectedPlanType;
-    if (!file || uploading) return;
+    if (files.length === 0 || uploading) return;
     setError(null);
     setInfo(null);
     setUploading(true);
@@ -327,11 +363,34 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     abortRef.current = controller;
 
     try {
-      const form = new FormData();
-      form.append("file", file);
-      form.append("doc_type", planType);
-      form.append("run_id", runId);
-      const raw = await api.postForm<RawGetAnalysis>(`/projects/${params.id}/analyses`, form, controller.signal);
+      // 1. Dateien direkt in Storage laden — nicht durch die API-Route, deren Request-Body
+      //    bei Vercel auf 4.5 MB begrenzt ist (daran scheiterten grössere Pläne mit HTTP 413).
+      uploadPhaseRef.current = true;
+      setUploadProgress(`0 von ${files.length}`);
+      const slots = await api.post<{ name: string; path: string; token: string }[]>(
+        `/projects/${params.id}/analyses/uploads`,
+        { files: files.map((f) => ({ name: f.name, type: f.type, size: f.size })) },
+      );
+      const storage = createClient().storage.from("documents");
+      const uploaded: UploadedPlanFile[] = [];
+      for (let i = 0; i < files.length; i++) {
+        if (controller.signal.aborted) throw new DOMException("Abgebrochen", "AbortError");
+        const f = files[i];
+        const type = planMimeType(f.name, f.type)!;
+        const { error: upErr } = await storage.uploadToSignedUrl(slots[i].path, slots[i].token, f, { contentType: type });
+        if (upErr) throw new Error(`${f.name} konnte nicht hochgeladen werden: ${upErr.message}`);
+        uploaded.push({ path: slots[i].path, name: f.name, type, size: f.size });
+        setUploadProgress(`${i + 1} von ${files.length}`);
+      }
+      uploadPhaseRef.current = false;
+      setUploadProgress(null);
+
+      // 2. Analyse über den ganzen Plansatz.
+      const raw = await api.post<RawGetAnalysis>(
+        `/projects/${params.id}/analyses`,
+        { files: uploaded, doc_type: planType, run_id: runId },
+        controller.signal,
+      );
       const analysis = normalizeAnalysis(raw, planType);
       setAnalyses((prev) => [analysis, ...prev]);
       setLocalPlanTypes((prev) => prev.filter((t) => planKey(t) !== planKey(planType)));
@@ -339,7 +398,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         setSelectedAnalysis(analysis);
         setDetailFilter("all");
       }
-      setPendingFile(null);
+      setPendingFiles([]);
     } catch (e: unknown) {
       if (controller.signal.aborted) {
         setInfo("Analyse abgebrochen.");
@@ -349,6 +408,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         loadAnalyses().catch(() => {});
       }
     } finally {
+      uploadPhaseRef.current = false;
+      setUploadProgress(null);
       setUploading(false);
       setCancelling(false);
       abortRef.current = null;
@@ -361,6 +422,12 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     setCancelling(true);
     const runId = runIdRef.current;
     const controller = abortRef.current;
+
+    // Noch beim Hochladen: serverseitig läuft nichts, also einfach lokal abbrechen.
+    if (uploadPhaseRef.current) {
+      controller?.abort();
+      return;
+    }
 
     // Den Server so lange informieren, bis er den Lauf gefunden hat: In den ersten
     // Augenblicken existiert die Analyse-Zeile noch nicht (Upload läuft) — ein einzelner
@@ -387,7 +454,14 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   }
 
   function handleFiles(files: FileList | null) {
-    if (files?.[0]) selectFile(files[0]);
+    if (files && files.length > 0) addFiles(Array.from(files));
+  }
+
+  /** Ohne Namen direkt zum Upload: legt die Standard-Prüfung an (oder öffnet sie). */
+  function startDefaultCheck() {
+    const existing = allPlanTypes.find((t) => planKey(t) === planKey(DEFAULT_CHECK_NAME));
+    if (!existing) setLocalPlanTypes((prev) => Array.from(new Set([...prev, DEFAULT_CHECK_NAME])));
+    openPlanType(existing ?? DEFAULT_CHECK_NAME);
   }
 
   function reportMeta(a: AnalysisWithDoc): ReportMeta {
@@ -425,8 +499,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Plan-Analyse</h2>
             <p style={{ fontSize: 13, color: "#7B8299", marginTop: 3 }}>
               {allPlanTypes.length === 0
-                ? "Noch keine Planarten angelegt"
-                : `${allPlanTypes.length} Planart${allPlanTypes.length !== 1 ? "en" : ""}`}
+                ? "Alle Pläne eines Projekts werden gemeinsam geprüft"
+                : `${allPlanTypes.length} Prüfung${allPlanTypes.length !== 1 ? "en" : ""}`}
             </p>
           </div>
           <button
@@ -445,7 +519,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
-            Planart hinzufügen
+            Neue Prüfung
           </button>
         </div>
 
@@ -461,7 +535,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 if (e.key === "Enter") createPlanType();
                 if (e.key === "Escape") { setShowNewTypeInput(false); setNewTypeName(""); }
               }}
-              placeholder="z.B. Grundriss EG, Schnitt A-A, Fassade Süd…"
+              placeholder="z.B. Baugesuch, Vorabklärung, Projektänderung…"
               style={{
                 flex: 1, background: "rgba(23,37,64,0.8)", border: "1px solid rgba(133,166,233,0.25)",
                 borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#fff",
@@ -604,13 +678,13 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
               </svg>
             </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#ABAEBB", margin: "0 0 4px" }}>Keine Planarten vorhanden</p>
-            <p style={{ fontSize: 12.5, color: "#7B8299", margin: 0 }}>Füge eine Planart hinzu um mit der Analyse zu beginnen</p>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#ABAEBB", margin: "0 0 4px" }}>Noch keine Prüfung</p>
+            <p style={{ fontSize: 12.5, color: "#7B8299", margin: 0 }}>Laden Sie alle Pläne des Projekts zusammen hoch: Situation, Grundrisse, Schnitte, Fassaden.</p>
             <button
-              onClick={() => setShowNewTypeInput(true)}
+              onClick={startDefaultCheck}
               style={{ marginTop: 16, fontSize: 13, color: "#85A6E9", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}
             >
-              + Erste Planart erstellen
+              + Pläne hochladen
             </button>
           </div>
         ) : (
@@ -677,7 +751,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       </div>
                     </>
                   ) : (
-                    <p style={{ fontSize: 12, color: "#7B8299" }}>{newest ? "Noch kein abgeschlossenes Ergebnis" : "Noch kein Plan hochgeladen"}</p>
+                    <p style={{ fontSize: 12, color: "#7B8299" }}>{newest ? "Noch kein abgeschlossenes Ergebnis" : "Noch keine Pläne hochgeladen"}</p>
                   )}
                 </button>
               );
@@ -718,7 +792,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
           <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Planarten
+          Prüfungen
         </button>
 
         <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", padding: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -828,19 +902,21 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) handleFiles(e.dataTransfer.files); }}
-              onClick={() => !uploading && !pendingFile && fileRef.current?.click()}
+              onClick={() => !uploading && pendingFiles.length === 0 && fileRef.current?.click()}
               style={{
                 width: "100%", border: `2px dashed ${dragOver ? "#2862D7" : "rgba(133,166,233,0.25)"}`,
-                borderRadius: 18, padding: "64px 16px", textAlign: "center", cursor: uploading || pendingFile ? "default" : "pointer",
+                borderRadius: 18, padding: pendingFiles.length > 0 && !uploading ? "28px 16px" : "64px 16px", textAlign: "center", cursor: uploading || pendingFiles.length > 0 ? "default" : "pointer",
                 background: dragOver ? "rgba(40,98,215,0.08)" : "rgba(23,37,64,0.3)",
                 transition: "all .2s", boxSizing: "border-box",
               }}
             >
-              <input ref={fileRef} type="file" accept=".pdf,image/*" style={{ display: "none" }} onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+              <input ref={fileRef} type="file" multiple accept=".pdf,image/*" style={{ display: "none" }} onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
               {uploading ? (
                 <div>
                   <div style={{ width: 44, height: 44, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>Analyse läuft – Plan wird gegen die Normen geprüft…</p>
+                  <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>
+                    {uploadProgress ? `Pläne werden hochgeladen (${uploadProgress})…` : "Analyse läuft – Pläne werden gegen die Normen geprüft…"}
+                  </p>
                   <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>Das kann einige Minuten dauern</p>
                   <button
                     type="button"
@@ -856,28 +932,44 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     {cancelling ? "Wird abgebrochen…" : "Analyse abbrechen"}
                   </button>
                 </div>
-              ) : pendingFile ? (
-                <div>
-                  <div style={{ width: 60, height: 60, background: "rgba(40,98,215,0.12)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                    <svg style={{ width: 30, height: 30, color: "#85A6E9" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{pendingFile.name}</p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>
-                    {selectedPlanType} · {(pendingFile.size / 1024 / 1024).toFixed(1)} MB
+              ) : pendingFiles.length > 0 ? (
+                <div style={{ textAlign: "left", maxWidth: 560, margin: "0 auto" }}>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px", textAlign: "center" }}>
+                    {pendingFiles.length} Datei{pendingFiles.length !== 1 ? "en" : ""} · {selectedPlanType}
                   </p>
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+                  <p style={{ fontSize: 12.5, color: "#7B8299", margin: "0 0 14px", textAlign: "center" }}>
+                    Alle Dateien werden zusammen geprüft. Fehlt noch etwas, ziehen Sie es hierher.
+                  </p>
+                  <ul style={{ listStyle: "none", margin: "0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+                    {pendingFiles.map((f, i) => (
+                      <li key={`${f.name}|${f.size}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(23,37,64,0.6)", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 10, padding: "8px 12px" }}>
+                        <svg style={{ width: 15, height: 15, color: "#85A6E9", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
+                        <span style={{ fontSize: 12, color: "#7B8299", flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                        <button
+                          type="button"
+                          aria-label={`${f.name} entfernen`}
+                          onClick={(e) => { e.stopPropagation(); removePendingFile(i); }}
+                          style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}
+                        >
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
                     <button
                       type="button"
-                      onClick={(e) => { e.stopPropagation(); setPendingFile(null); setInfo(null); }}
+                      onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
                       style={{
                         fontSize: 13, fontWeight: 500, color: "#ABAEBB",
                         background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
                         padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
                       }}
                     >
-                      Andere Datei
+                      + Weitere Dateien
                     </button>
                     <button
                       type="button"
@@ -902,9 +994,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                     </svg>
                   </div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Plan hochladen</p>
+                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Pläne hochladen</p>
                   <p style={{ fontSize: 13, fontWeight: 500, color: "#85A6E9", margin: "0 0 4px" }}>{selectedPlanType}</p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>PDF oder Bild · Drag & Drop oder klicken</p>
+                  <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>
+                    Alle Dateien des Plansatzes zusammen · PDF oder Bild · Drag & Drop oder klicken
+                  </p>
                 </div>
               )}
             </div>
@@ -932,11 +1026,28 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB" }}>Plan-Vorschau</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB", flexShrink: 0 }}>Plan-Vorschau</span>
+                    {selectedAnalysis.files.length > 1 && (
+                      <select
+                        aria-label="Datei für die Vorschau"
+                        value={Math.min(previewIdx, selectedAnalysis.files.length - 1)}
+                        onChange={(e) => setPreviewIdx(Number(e.target.value))}
+                        style={{
+                          marginLeft: "auto", minWidth: 0, maxWidth: "70%", fontSize: 12, color: "#fff",
+                          background: "rgba(23,37,64,0.8)", border: "1px solid rgba(133,166,233,0.25)",
+                          borderRadius: 8, padding: "4px 8px", fontFamily: "inherit",
+                        }}
+                      >
+                        {selectedAnalysis.files.map((f, i) => (
+                          <option key={f.url} value={i}>{i + 1}. {f.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
-                  {selectedAnalysis.fileUrl ? (
+                  {selectedAnalysis.files.length > 0 ? (
                     <iframe
-                      src={selectedAnalysis.fileUrl}
+                      key={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
+                      src={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
                       title="Plan-Vorschau"
                       style={{ flex: 1, width: "100%", border: "none", background: "#0E111B" }}
                     />
@@ -1011,7 +1122,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
-                    Neuer Plan
+                    Neue Version
                   </button>
                 </div>
               </div>

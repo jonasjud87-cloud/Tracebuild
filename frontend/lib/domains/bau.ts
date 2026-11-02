@@ -11,6 +11,8 @@ export interface AnalysisItem {
   suggestion: string | null;
   confidence: Confidence | null;
   page_reference: number | null;
+  /** Datei im Plansatz, auf die sich page_reference bezieht. */
+  source_file?: string | null;
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {
