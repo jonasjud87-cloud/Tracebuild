@@ -35,13 +35,13 @@ export default function ProjectLayout({
         <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, paddingTop: 14, paddingBottom: 6 }}>
             <Link
-              href="/dashboard"
+              href="/dashboard/projects"
               style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", opacity: 1, transition: "opacity .15s" }}
               onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = "0.7"}
               onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = "1"}
             >
               <TraceBuildLogo size="sm" />
-              <span style={{ fontSize: 13, color: "#7B8299" }}>← Dashboard</span>
+              <span style={{ fontSize: 13, color: "#7B8299" }}>← Projekte</span>
             </Link>
           </div>
           <div style={{ display: "flex", gap: 0 }}>
