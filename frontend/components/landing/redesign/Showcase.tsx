@@ -144,6 +144,10 @@ export default function Showcase() {
           </div>
         </div>
 
+        <p style={{ margin: "0 0 12px", fontSize: 11.5, color: "var(--tb-text-muted)" }}>
+          Beispieldaten zur Veranschaulichung – frei erfunden, nicht rechtsverbindlich.
+        </p>
+
         {/* device frame */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}

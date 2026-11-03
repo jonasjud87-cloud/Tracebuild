@@ -13,10 +13,10 @@ import {
 import { EASE_OUT } from "@/lib/landing/motion";
 
 const TICKER = [
-  "SIA 380/1 · vor 3 Tagen",
-  "Art. 24 BZO Zürich · vor 1 Woche",
-  "VSS 40 281 · vor 2 Wochen",
-  "SIA 232/1 · vor 3 Wochen",
+  "IBN 381/1 · vor 3 Tagen",
+  "Art. 7 MZO · vor 1 Woche",
+  "VBK 210 · vor 2 Wochen",
+  "IBN 221/1 · vor 3 Wochen",
 ];
 
 function Chip({
@@ -145,6 +145,7 @@ export default function ShowcaseNormDb({
           <span className="tb-sc-ticker" style={{ fontSize: 10.5, color: "var(--tb-text-muted)", whiteSpace: "nowrap" }}>
             Zuletzt aktualisiert:{" "}
             <span style={{ color: "var(--tb-info)" }}>{TICKER[tick]}</span>
+            {" "}· Beispieldaten
           </span>
         </div>
 

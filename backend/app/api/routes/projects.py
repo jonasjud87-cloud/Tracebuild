@@ -12,6 +12,11 @@ from app.services.geoportal_service import lookup_parcel
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 
+def _require_project_admin(user: CurrentUser) -> None:
+    if user.role not in ("org_admin", "super_admin"):
+        raise HTTPException(status_code=403, detail="Zugriff verweigert")
+
+
 @router.get("", response_model=APIResponse)
 async def list_projects(user: CurrentUser = AuthDep):
     service = ProjectService(get_supabase())
@@ -39,6 +44,7 @@ async def get_project(project_id: UUID, user: CurrentUser = AuthDep):
 
 @router.delete("/{project_id}", response_model=APIResponse)
 async def delete_project(project_id: UUID, user: CurrentUser = AuthDep):
+    _require_project_admin(user)
     service = ProjectService(get_supabase())
     project = await service.get_project(project_id)
     if not project:
@@ -68,6 +74,17 @@ async def add_project_norm(project_id: UUID, body: ProjectNormCreate, user: Curr
     proj = db.table("projects").select("id").eq("id", str(project_id)).eq("org_id", str(user.org_id)).single().execute()
     if not proj.data:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+
+    # norm_id ist Client-Input: ohne diesen Check liesse sich eine fremde org-private Norm verknüpfen.
+    norm = (
+        db.table("norms")
+        .select("id")
+        .eq("id", str(body.norm_id))
+        .or_(f"org_id.eq.{user.org_id},org_id.is.null")
+        .execute()
+    )
+    if not norm.data:
+        raise HTTPException(status_code=404, detail="Norm nicht gefunden")
 
     res = db.table("project_norms").upsert(
         {"project_id": str(project_id), "norm_id": str(body.norm_id), "added_by": "user"},

@@ -68,9 +68,25 @@ export default function Footer() {
                     {l.label}
                   </Link>
                 ) : (
-                  <a key={l.label} href={l.href} style={{ fontSize: 13, color: "var(--tb-text-secondary)", textDecoration: "none" }}>
-                    {l.label}
-                  </a>
+                  <span key={l.label} style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>
+                    <a href={l.href} style={{ fontSize: 13, color: "var(--tb-text-secondary)", textDecoration: "none" }}>
+                      {l.label}
+                    </a>
+                    {l.href.startsWith("mailto:") && (
+                      <span
+                        style={{
+                          fontSize: 10,
+                          color: "var(--tb-text-muted)",
+                          border: "1px solid var(--tb-border)",
+                          borderRadius: 999,
+                          padding: "2px 7px",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        bald verfügbar
+                      </span>
+                    )}
+                  </span>
                 )
               )}
             </div>

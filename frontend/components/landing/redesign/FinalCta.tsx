@@ -59,7 +59,21 @@ export default function FinalCta() {
           style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 12 }}
         >
           <GradientButton href="#kontakt">Loslegen →</GradientButton>
-          <GhostButton href="mailto:jonas@tracebuild.ch">Mit uns sprechen</GhostButton>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+            <GhostButton href="mailto:jonas@tracebuild.ch">Mit uns sprechen</GhostButton>
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--tb-text-muted)",
+                border: "1px solid var(--tb-border)",
+                borderRadius: 999,
+                padding: "3px 9px",
+                whiteSpace: "nowrap",
+              }}
+            >
+              bald verfügbar
+            </span>
+          </span>
         </motion.div>
       </motion.div>
     </section>

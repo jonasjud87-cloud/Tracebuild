@@ -38,10 +38,14 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   const [parcelNumber, setParcelNumber] = useState("");
   const [bauzone, setBauzone] = useState("");
   const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<string | null>(null);
+  const [roleLoading, setRoleLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isAdmin = role === "org_admin" || role === "super_admin";
 
   useEffect(() => {
     api.get<Project>(`/projects/${params.id}`).then((p) => {
@@ -54,6 +58,16 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
       setLoading(false);
     });
   }, [params.id]);
+
+  useEffect(() => {
+    fetch("/api/v1/auth/me").then(async (res) => {
+      if (res.ok) {
+        const json = await res.json() as { data: { role: string } };
+        setRole(json.data.role);
+      }
+      setRoleLoading(false);
+    }).catch(() => setRoleLoading(false));
+  }, []);
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -100,13 +114,74 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
 
   const inputCls = "w-full rounded-lg px-3 py-2 text-sm text-white bg-[rgba(23,37,64,0.6)] border border-[rgba(133,166,233,0.25)] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors";
 
-  if (loading) {
+  if (loading || roleLoading) {
     return (
       <div className="max-w-xl space-y-4 animate-pulse">
         <div className="h-5 bg-[rgba(60,63,68,0.5)] rounded w-1/3" />
         <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 space-y-4">
           <div className="h-4 bg-[rgba(60,63,68,0.5)] rounded w-1/4" />
           <div className="h-9 bg-[rgba(60,63,68,0.5)] rounded" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="max-w-xl">
+        <h2 className="text-base font-semibold text-white mb-6">Projekteinstellungen</h2>
+
+        <p className="text-xs text-[#7B8299] bg-[rgba(133,166,233,0.08)] border border-[rgba(133,166,233,0.25)] rounded-lg px-3 py-2 mb-4">
+          Nur Organisations-Admins können die Projekteinstellungen bearbeiten.
+        </p>
+
+        <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-[#7B8299] mb-1">Projektname</label>
+            <div className={inputCls}>{project?.name}</div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">Kanton</label>
+              <div className={inputCls}>{project?.location?.canton ?? "–"}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">Gemeinde</label>
+              <div className={inputCls}>{project?.location?.municipality ?? "–"}</div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">Parzellennummer</label>
+              <div className={inputCls}>{project?.parcel_number ?? "–"}</div>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-[#7B8299] mb-1">
+                Bauzone
+                {zoneOriginLabel(project) && (
+                  <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                    project?.zone_source === "manual"
+                      ? "bg-[rgba(133,166,233,0.1)] text-[#ABAEBB]"
+                      : project?.zone_confidence === "coarse"
+                        ? "bg-amber-500/10 text-amber-400"
+                        : "bg-orange-500/10 text-orange-400"
+                  }`}>
+                    {zoneOriginLabel(project)}
+                  </span>
+                )}
+              </label>
+              <div className={inputCls}>{project?.bauzone || "–"}</div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-[#7B8299] mb-1">Domain</label>
+            <div className="border border-[rgba(60,63,68,0.5)] rounded-lg px-3 py-2 text-sm bg-[rgba(60,63,68,0.3)] text-[#7B8299]">
+              Bau / Architektur
+            </div>
+          </div>
         </div>
       </div>
     );

@@ -1,4 +1,5 @@
 import { type AnalysisItem, type Category, type Confidence, CATEGORY_LABELS, CONFIDENCE_LABELS } from "@/lib/domains/bau";
+import { esc, csvCell } from "@/lib/report-utils";
 
 /**
  * Export eines Analyse-Ergebnisses: druckfertiger Prüfbericht (→ PDF über den
@@ -19,14 +20,6 @@ export interface ReportMeta {
 const STATUS_LABEL: Record<string, string> = { fail: "Verstoss", warn: "Unklar", ok: "Konform" };
 const STATUS_COLOR: Record<string, string> = { fail: "#B91C1C", warn: "#B45309", ok: "#15803D" };
 const ORDER: Record<string, number> = { fail: 0, warn: 1, ok: 2 };
-
-function esc(v: unknown): string {
-  return String(v ?? "")
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
 
 function categoryLabel(c: string | null | undefined): string {
   if (!c) return "";
@@ -144,17 +137,6 @@ export function openReportForPrint(meta: ReportMeta, items: AnalysisItem[]): boo
   // Kurz warten, bis das Dokument gerendert ist, dann Druckdialog.
   w.setTimeout(() => w.print(), 300);
   return true;
-}
-
-/**
- * Zellen, die mit = + - @ oder Tab beginnen, wertet Excel als Formel (CSV-Injection).
- * Die Texte kommen vom Modell — "-3.50 m" am Zeilenanfang reicht. Ein führendes
- * Hochkomma macht daraus Text; Excel zeigt es nicht an.
- */
-function csvCell(v: unknown): string {
-  let s = String(v ?? "");
-  if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
-  return /[";\n\r\t]/.test(s) || s.startsWith("'") ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
 export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string {
