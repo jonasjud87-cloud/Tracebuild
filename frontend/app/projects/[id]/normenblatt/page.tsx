@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { normMatchesZone } from "@/lib/zone-match";
-import { buildNormenblattHtml, downloadNormenblattCsv, type NormenblattRow } from "@/lib/normenblatt-report";
+import { buildNormenblattPdf, downloadNormenblattCsv, type NormenblattRow } from "@/lib/normenblatt-report";
 
 const CARD = {
   background: "rgba(23,37,64,0.55)",
@@ -75,6 +75,8 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
   const [projectNorms, setProjectNorms] = useState<ProjectNorm[]>([]);
   const [themeNames, setThemeNames] = useState<Map<string, string>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,8 +139,39 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
     municipality: project?.location?.municipality ?? "",
   }), [project]);
 
-  const previewHtml = useMemo(() => buildNormenblattHtml(meta, rows), [meta, rows]);
-  const previewRef = useRef<HTMLIFrameElement>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+
+  useEffect(() => {
+    if (loading || rows.length === 0) { setPdfBlob(null); return; }
+    let cancelled = false;
+    setPdfGenerating(true);
+    buildNormenblattPdf(meta, rows).then((blob) => {
+      if (!cancelled) { setPdfBlob(blob); setPdfGenerating(false); }
+    }).catch(() => {
+      if (!cancelled) setPdfGenerating(false);
+    });
+    return () => { cancelled = true; };
+  }, [meta, rows, loading]);
+
+  useEffect(() => {
+    if (!pdfBlob) return;
+    const url = URL.createObjectURL(pdfBlob);
+    setPdfUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [pdfBlob]);
+
+  const downloadPdf = useCallback(() => {
+    if (!pdfBlob) return;
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    const safe = (s: string) => s.replace(/[^\w.-]+/g, "_");
+    a.href = url;
+    a.download = `Normenblatt_${safe(meta.projectName)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [pdfBlob, meta.projectName]);
 
   const btn: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8,
@@ -158,11 +191,11 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <button
-            onClick={() => previewRef.current?.contentWindow?.print()}
-            disabled={loading || rows.length === 0}
-            style={{ ...btn, background: "#2862D7", color: "#fff", opacity: loading || rows.length === 0 ? 0.5 : 1, cursor: loading || rows.length === 0 ? "not-allowed" : "pointer" }}
+            onClick={downloadPdf}
+            disabled={loading || rows.length === 0 || !pdfBlob}
+            style={{ ...btn, background: "#2862D7", color: "#fff", opacity: loading || rows.length === 0 || !pdfBlob ? 0.5 : 1, cursor: loading || rows.length === 0 || !pdfBlob ? "not-allowed" : "pointer" }}
           >
-            Drucken / Als PDF speichern
+            PDF herunterladen
           </button>
           <button
             onClick={() => downloadNormenblattCsv(meta, rows)}
@@ -191,22 +224,39 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
           </p>
         </div>
       ) : (
-        <>
-        <div style={{ ...CARD, height: 720, overflow: "hidden", display: "flex", flexDirection: "column", marginBottom: 24 }}>
-          <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(133,166,233,0.1)", display: "flex", alignItems: "center", gap: 8 }}>
-            <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB" }}>Normenblatt-Vorschau</span>
+        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
+          <div style={{ flex: "1 1 480px", minWidth: 320, position: "sticky", top: 20 }}>
+            <div style={{ ...CARD, height: 720, overflow: "hidden", display: "flex", flexDirection: "column", position: "relative" }}>
+              <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(133,166,233,0.1)", display: "flex", alignItems: "center", gap: 8 }}>
+                <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB", flexShrink: 0 }}>Normenblatt-Vorschau</span>
+              </div>
+              {pdfUrl ? (
+                <iframe
+                  key={pdfUrl}
+                  src={pdfUrl}
+                  title="Normenblatt-Vorschau"
+                  style={{ flex: 1, width: "100%", border: "none", background: "#0E111B" }}
+                />
+              ) : (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <p style={{ fontSize: 13, color: "#7B8299", textAlign: "center", padding: "0 24px" }}>
+                    {pdfGenerating ? "PDF wird erstellt…" : "Keine Vorschau verfügbar."}
+                  </p>
+                </div>
+              )}
+              {pdfGenerating && pdfUrl && (
+                <div style={{ position: "absolute", inset: 0, top: 41, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(14,17,27,0.6)" }}>
+                  <div style={{ width: 22, height: 22, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite" }} />
+                </div>
+              )}
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
           </div>
-          <iframe
-            ref={previewRef}
-            srcDoc={previewHtml}
-            title="Normenblatt-Vorschau"
-            style={{ flex: 1, width: "100%", border: "none", background: "#fff" }}
-          />
-        </div>
-        <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, overflow: "hidden" }}>
+
+          <div style={{ flex: "1 1 420px", minWidth: 320, background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
@@ -236,8 +286,8 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
               ))}
             </tbody>
           </table>
+          </div>
         </div>
-        </>
       )}
     </div>
   );

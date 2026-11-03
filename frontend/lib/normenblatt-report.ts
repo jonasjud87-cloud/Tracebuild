@@ -1,8 +1,10 @@
-import { esc, csvCell } from "@/lib/report-utils";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { csvCell } from "@/lib/report-utils";
 
 /**
- * Export des Normenblatts: druckfertiges Letterhead-PDF (→ Browser-Druckdialog)
- * und CSV-Register. Rein clientseitig, keine Abhängigkeiten.
+ * Export des Normenblatts: generiertes PDF (jsPDF/autoTable, nativer Browser-PDF-Viewer)
+ * und CSV-Register. Rein clientseitig, keine Backend-Abhängigkeit.
  */
 
 export interface NormenblattMeta {
@@ -30,84 +32,123 @@ function groupRows(rows: NormenblattRow[]): { label: string; rows: NormenblattRo
   return order.map((label) => ({ label, rows: byGroup.get(label)! }));
 }
 
-export function buildNormenblattHtml(meta: NormenblattMeta, rows: NormenblattRow[]): string {
+async function loadLogoDataUrl(): Promise<string | null> {
+  try {
+    const res = await fetch("/Logo-new.png");
+    const blob = await res.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+const PAGE_MARGIN = 14;
+
+export async function buildNormenblattPdf(meta: NormenblattMeta, rows: NormenblattRow[]): Promise<Blob> {
+  const doc = new jsPDF({ unit: "mm", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
   const year = new Date().getFullYear();
-  const title = `Normenblatt — ${esc(meta.projectName)}`;
+  const title = `Normenblatt — ${meta.projectName}`;
   const location = [meta.municipality, meta.canton].filter(Boolean).join(" ");
-  const logoSrc = (typeof window !== "undefined" ? window.location.origin : "") + "/Logo-new.png";
 
-  const sections = groupRows(rows)
-    .map((grp, i) => {
-      const trs = grp.rows
-        .map((r) => {
-          const ref = r.referenceUrl
-            ? `<a href="${esc(r.referenceUrl)}">${esc(r.referenceLabel)}</a>`
-            : esc(r.referenceLabel);
-          return `
-        <tr>
-          <td class="b">${esc(r.title)}</td>
-          <td>${esc(r.source)}</td>
-          <td>${ref}</td>
-          <td>${esc(r.relevance)}</td>
-        </tr>`;
-        })
-        .join("");
-      return `
-      <h2>${i + 1}. ${esc(grp.label)}</h2>
-      <table>
-        <thead><tr><th>Bezeichnung</th><th>Quelle</th><th>Referenz</th><th>Relevanz</th></tr></thead>
-        <tbody>${trs}</tbody>
-      </table>`;
-    })
-    .join("");
+  const logo = await loadLogoDataUrl();
+  if (logo) {
+    doc.addImage(logo, "PNG", PAGE_MARGIN, 10, 10, 10);
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(14);
+  const wordmarkY = 17;
+  doc.setTextColor(17, 24, 39);
+  doc.text("Trace", pageWidth - PAGE_MARGIN - doc.getTextWidth("TraceBuild"), wordmarkY);
+  const traceWidth = doc.getTextWidth("Trace");
+  doc.setTextColor(40, 98, 215);
+  doc.text("Build", pageWidth - PAGE_MARGIN - doc.getTextWidth("TraceBuild") + traceWidth, wordmarkY);
 
-  return `<!doctype html>
-<html lang="de">
-<head>
-<meta charset="utf-8">
-<title>${title}</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<style>
-  @page { size: A4; margin: 18mm 16mm; }
-  * { box-sizing: border-box; }
-  body { font: 11pt/1.45 "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 0; }
-  .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10pt; }
-  .header img { height: 28pt; }
-  .wordmark { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 600; font-size: 14pt; letter-spacing: -0.01em; color: #111827; }
-  .wordmark .accent { background: linear-gradient(120deg, #4fd1ff 0%, #38bdf8 45%, #2862d7 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
-  .rule-blue { border-bottom: 2pt solid #2862D7; margin-bottom: 18pt; }
-  h1 { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 20pt; margin: 0 0 2pt; }
-  .sub { color: #6B7280; font-size: 10pt; margin: 0 0 8pt; }
-  .rule { border-bottom: 1px solid #E5E7EB; margin-bottom: 18pt; }
-  h2 { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12pt; margin: 20pt 0 8pt; color: #111827; }
-  table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 4pt; }
-  th { text-align: left; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; border-bottom: 1.5px solid #D1D5DB; padding: 6pt 6pt; }
-  td { vertical-align: top; border-bottom: 1px solid #E5E7EB; padding: 6pt 6pt; page-break-inside: avoid; }
-  td.b { font-weight: 600; }
-  a { color: #2862D7; text-decoration: none; }
-  .foot { position: fixed; bottom: 10mm; left: 16mm; right: 16mm; display: flex; justify-content: space-between; color: #9CA3AF; font-size: 8.5pt; border-top: 1px solid #E5E7EB; padding-top: 6pt; }
-</style>
-</head>
-<body>
-  <div class="header">
-    <img src="${esc(logoSrc)}" alt="TraceBuild">
-    <span class="wordmark">Trace<span class="accent">Build</span></span>
-  </div>
-  <div class="rule-blue"></div>
+  doc.setDrawColor(40, 98, 215);
+  doc.setLineWidth(0.6);
+  doc.line(PAGE_MARGIN, 24, pageWidth - PAGE_MARGIN, 24);
 
-  <h1>${title}</h1>
-  <p class="sub">${esc(location) || "–"}${rows.length ? ` · ${rows.length} Normen` : ""}</p>
-  <div class="rule"></div>
+  doc.setTextColor(17, 24, 39);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text(title, PAGE_MARGIN, 36);
 
-  ${sections || `<p>Keine Normen zugewiesen.</p>`}
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(107, 114, 128);
+  const subtitle = (location || "–") + (rows.length ? ` · ${rows.length} Normen` : "");
+  doc.text(subtitle, PAGE_MARGIN, 42);
 
-  <div class="foot">
-    <span>${year}</span>
-    <span>${title}</span>
-  </div>
-</body>
-</html>`;
+  doc.setDrawColor(229, 231, 235);
+  doc.setLineWidth(0.3);
+  doc.line(PAGE_MARGIN, 46, pageWidth - PAGE_MARGIN, 46);
+
+  let cursorY = 54;
+  const groups = groupRows(rows);
+
+  if (groups.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(17, 24, 39);
+    doc.text("Keine Normen zugewiesen.", PAGE_MARGIN, cursorY);
+  }
+
+  groups.forEach((grp, i) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(17, 24, 39);
+    doc.text(`${i + 1}. ${grp.label}`, PAGE_MARGIN, cursorY);
+
+    autoTable(doc, {
+      startY: cursorY + 4,
+      margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+      head: [["Bezeichnung", "Quelle", "Referenz", "Relevanz"]],
+      body: grp.rows.map((r) => [r.title, r.source, r.referenceLabel, r.relevance]),
+      theme: "plain",
+      styles: { fontSize: 9.5, textColor: [17, 24, 39], cellPadding: 2 },
+      headStyles: { fontSize: 8.5, textColor: [107, 114, 128], fontStyle: "bold" },
+      bodyStyles: { lineColor: [229, 231, 235], lineWidth: { bottom: 0.2 } },
+      columnStyles: { 0: { fontStyle: "bold" } },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 2) {
+          const row = grp.rows[data.row.index];
+          if (row?.referenceUrl) data.cell.styles.textColor = [40, 98, 215];
+        }
+      },
+      didDrawCell: (data) => {
+        if (data.section === "body" && data.column.index === 2) {
+          const row = grp.rows[data.row.index];
+          if (row?.referenceUrl) {
+            doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: row.referenceUrl });
+          }
+        }
+      },
+    });
+
+    cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 14;
+  });
+
+  const pageCount = doc.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    const footY = doc.internal.pageSize.getHeight() - 10;
+    doc.setDrawColor(229, 231, 235);
+    doc.setLineWidth(0.2);
+    doc.line(PAGE_MARGIN, footY - 4, pageWidth - PAGE_MARGIN, footY - 4);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8.5);
+    doc.setTextColor(156, 163, 175);
+    doc.text(String(year), PAGE_MARGIN, footY);
+    doc.text(title, pageWidth / 2, footY, { align: "center" });
+    doc.text(`Seite ${p} / ${pageCount}`, pageWidth - PAGE_MARGIN, footY, { align: "right" });
+  }
+
+  return doc.output("blob");
 }
 
 export function buildNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[]): string {
