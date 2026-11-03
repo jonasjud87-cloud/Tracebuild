@@ -22,6 +22,24 @@ export interface NormenblattRow {
   relevance: string;
 }
 
+/** Ein extrahierter Kennwert ("Geltende Werte") — primärer Inhalt, die Normtabelle wird zum Anhang. */
+export interface KennwertRow {
+  category: string;
+  sentence: string;
+  normTitle: string;
+  referenceUrl: string | null;
+}
+
+function groupKennwerte(rows: KennwertRow[]): { label: string; rows: KennwertRow[] }[] {
+  const order: string[] = [];
+  const byCategory = new Map<string, KennwertRow[]>();
+  for (const r of rows) {
+    if (!byCategory.has(r.category)) { byCategory.set(r.category, []); order.push(r.category); }
+    byCategory.get(r.category)!.push(r);
+  }
+  return order.map((label) => ({ label, rows: byCategory.get(label)! }));
+}
+
 function groupRows(rows: NormenblattRow[]): { label: string; rows: NormenblattRow[] }[] {
   const order: string[] = [];
   const byGroup = new Map<string, NormenblattRow[]>();
@@ -49,7 +67,7 @@ async function loadLogoDataUrl(): Promise<string | null> {
 
 const PAGE_MARGIN = 14;
 
-export async function buildNormenblattPdf(meta: NormenblattMeta, rows: NormenblattRow[]): Promise<Blob> {
+export async function buildNormenblattPdf(meta: NormenblattMeta, rows: NormenblattRow[], kennwerte: KennwertRow[] = []): Promise<Blob> {
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const year = new Date().getFullYear();
@@ -90,19 +108,74 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
 
   let cursorY = 54;
   const groups = groupRows(rows);
+  const kennwerteGroups = groupKennwerte(kennwerte);
 
+  // ── Primärer Inhalt: Geltende Werte (ein Kennwert pro Norm, je Kategorie) ───
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.setTextColor(17, 24, 39);
+  doc.text("1. Geltende Werte", PAGE_MARGIN, cursorY);
+
+  if (kennwerteGroups.length === 0) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(107, 114, 128);
+    doc.text("Keine konkreten Kennwerte aus den zugewiesenen Normen extrahiert.", PAGE_MARGIN, cursorY + 7);
+    cursorY += 16;
+  } else {
+    kennwerteGroups.forEach((grp) => {
+      autoTable(doc, {
+        startY: cursorY + 4,
+        margin: { left: PAGE_MARGIN, right: PAGE_MARGIN },
+        head: [[grp.label, "Quellnorm"]],
+        body: grp.rows.map((r) => [r.sentence, r.normTitle]),
+        theme: "plain",
+        styles: { fontSize: 9.5, textColor: [17, 24, 39], cellPadding: 2 },
+        headStyles: { fontSize: 8.5, textColor: [107, 114, 128], fontStyle: "bold" },
+        bodyStyles: { lineColor: [229, 231, 235], lineWidth: { bottom: 0.2 } },
+        columnStyles: { 1: { textColor: [107, 114, 128], fontSize: 8.5 } },
+        didParseCell: (data) => {
+          if (data.section === "body" && data.column.index === 1) {
+            const row = grp.rows[data.row.index];
+            if (row?.referenceUrl) data.cell.styles.textColor = [40, 98, 215];
+          }
+        },
+        didDrawCell: (data) => {
+          if (data.section === "body" && data.column.index === 1) {
+            const row = grp.rows[data.row.index];
+            if (row?.referenceUrl) {
+              doc.link(data.cell.x, data.cell.y, data.cell.width, data.cell.height, { url: row.referenceUrl });
+            }
+          }
+        },
+      });
+      cursorY = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 10;
+    });
+    cursorY += 4;
+  }
+
+  // ── Anhang: Quellennormen (Bibliografie, wie bisher) ────────────────────────
   if (groups.length === 0) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(17, 24, 39);
+    doc.text("2. Quellennormen", PAGE_MARGIN, cursorY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
+    doc.text("Keine Normen zugewiesen.", PAGE_MARGIN, cursorY + 8);
+  } else {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
     doc.setTextColor(17, 24, 39);
-    doc.text("Keine Normen zugewiesen.", PAGE_MARGIN, cursorY);
+    doc.text("2. Quellennormen", PAGE_MARGIN, cursorY);
+    cursorY += 10;
   }
 
   groups.forEach((grp, i) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
     doc.setTextColor(17, 24, 39);
-    doc.text(`${i + 1}. ${grp.label}`, PAGE_MARGIN, cursorY);
+    doc.text(`2.${i + 1} ${grp.label}`, PAGE_MARGIN, cursorY);
 
     autoTable(doc, {
       startY: cursorY + 4,
@@ -151,17 +224,24 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   return doc.output("blob");
 }
 
-export function buildNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[]): string {
+export function buildNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[], kennwerte: KennwertRow[] = []): string {
+  const head = [`Projekt;${csvCell(meta.projectName)}`, `Standort;${csvCell([meta.municipality, meta.canton].filter(Boolean).join(" "))}`, ""];
+
+  const kwHeader = ["Kategorie", "Kennwert", "Quellnorm"];
+  const kwLines = kennwerte.map((r) => [r.category, r.sentence, r.normTitle].map(csvCell).join(";"));
+  const kwSection = ["1. Geltende Werte", kwHeader.join(";"), ...kwLines, ""];
+
   const header = ["Gruppe", "Bezeichnung", "Quelle", "Referenz", "Relevanz"];
   const lines = rows.map((r) =>
     [r.group, r.title, r.source, r.referenceUrl ?? r.referenceLabel, r.relevance].map(csvCell).join(";"),
   );
-  const head = [`Projekt;${csvCell(meta.projectName)}`, `Standort;${csvCell([meta.municipality, meta.canton].filter(Boolean).join(" "))}`, ""];
-  return "﻿" + [...head, header.join(";"), ...lines].join("\r\n");
+  const rowSection = ["2. Quellennormen", header.join(";"), ...lines];
+
+  return "﻿" + [...head, ...kwSection, ...rowSection].join("\r\n");
 }
 
-export function downloadNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[]): void {
-  const blob = new Blob([buildNormenblattCsv(meta, rows)], { type: "text/csv;charset=utf-8" });
+export function downloadNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[], kennwerte: KennwertRow[] = []): void {
+  const blob = new Blob([buildNormenblattCsv(meta, rows, kennwerte)], { type: "text/csv;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   const safe = (s: string) => s.replace(/[^\w.-]+/g, "_");

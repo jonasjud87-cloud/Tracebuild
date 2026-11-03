@@ -37,6 +37,9 @@ const PRICES: Record<string, { input: number; output: number }> = {
   "claude-sonnet-5":   { input: 2, output: 10 },
   "claude-sonnet-4-6": { input: 3, output: 15 },
   "claude-haiku-4-5":  { input: 1, output: 5 },
+  // Normenblatt-Kennwerte-Extraktion (lib/normenblatt-extraction.ts) nutzt dieses
+  // datierte Haiku-Modell-ID; gleicher Preis wie "claude-haiku-4-5".
+  "claude-haiku-4-5-20251001": { input: 1, output: 5 },
 };
 
 /** Output-Budget pro Norm-Call. Grosszügig — ein Norm-Call braucht real 2–6k. */
