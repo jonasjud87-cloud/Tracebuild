@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { api } from "@/lib/api";
 import { normMatchesZone } from "@/lib/zone-match";
-import { buildNormenblattPdf, downloadNormenblattCsv, type NormenblattRow } from "@/lib/normenblatt-report";
+import { CATEGORY_LABELS, type Category } from "@/lib/domains/bau";
+import { buildNormenblattPdf, downloadNormenblattCsv, type NormenblattRow, type KennwertRow } from "@/lib/normenblatt-report";
 
 const CARD = {
   background: "rgba(23,37,64,0.55)",
@@ -52,6 +53,20 @@ interface OerebResponse {
   themes: OerebThemeWire[];
 }
 
+interface KennwertItem {
+  norm_id: string;
+  norm_title: string;
+  category: Category;
+  sentence: string;
+}
+
+interface KennwerteResponse {
+  items: KennwertItem[];
+  model: string | null;
+  cost_usd: number | null;
+  cached: boolean;
+}
+
 // Gruppierung Bund/Kanton/Gemeinde/Spezialnormen — gespiegelt aus app/projects/[id]/norms/page.tsx,
 // damit das Normenblatt dieselbe Einteilung wie der Normen-Tab zeigt.
 const GROUPS = [
@@ -77,6 +92,30 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
   const [loading, setLoading] = useState(true);
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [pdfGenerating, setPdfGenerating] = useState(false);
+
+  const [kennwerte, setKennwerte] = useState<KennwertItem[]>([]);
+  const [kennwerteLoading, setKennwerteLoading] = useState(true);
+  const [kennwerteError, setKennwerteError] = useState<string | null>(null);
+  const [regenerating, setRegenerating] = useState(false);
+
+  const loadKennwerte = useCallback(async (force = false) => {
+    if (force) setRegenerating(true);
+    else setKennwerteLoading(true);
+    setKennwerteError(null);
+    try {
+      const res = force
+        ? await api.post<KennwerteResponse>(`/projects/${params.id}/normenblatt/kennwerte`, { force: true })
+        : await api.get<KennwerteResponse>(`/projects/${params.id}/normenblatt/kennwerte`);
+      setKennwerte(res?.items ?? []);
+    } catch (e) {
+      setKennwerteError(e instanceof Error ? e.message : "Kennwerte konnten nicht geladen werden.");
+    } finally {
+      setKennwerteLoading(false);
+      setRegenerating(false);
+    }
+  }, [params.id]);
+
+  useEffect(() => { loadKennwerte(); }, [loadKennwerte]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -139,19 +178,54 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
     municipality: project?.location?.municipality ?? "",
   }), [project]);
 
+  // norm_id → Titel/Link der zonengefilterten Normen, damit jeder Kennwert auf
+  // seine Quellnorm zurückverweisen kann.
+  const normMetaById = useMemo(() => {
+    const map = new Map<string, { title: string; referenceUrl: string | null }>();
+    for (const pn of projectNorms) {
+      const norm = pn.norms;
+      if (!norm || !normMatchesZone(norm.zone, project?.bauzone)) continue;
+      map.set(norm.id, { title: norm.title, referenceUrl: norm.source_url ?? null });
+    }
+    return map;
+  }, [projectNorms, project?.bauzone]);
+
+  const kennwerteRows: KennwertRow[] = useMemo(() => {
+    return kennwerte
+      .map((k) => {
+        const metaForNorm = normMetaById.get(k.norm_id);
+        return {
+          category: CATEGORY_LABELS[k.category] ?? k.category,
+          sentence: k.sentence,
+          normTitle: metaForNorm?.title ?? k.norm_title,
+          referenceUrl: metaForNorm?.referenceUrl ?? null,
+        };
+      })
+      .sort((a, b) => a.category.localeCompare(b.category, "de") || a.normTitle.localeCompare(b.normTitle, "de"));
+  }, [kennwerte, normMetaById]);
+
+  const kennwerteByCategory = useMemo(() => {
+    const byCat = new Map<string, KennwertRow[]>();
+    for (const r of kennwerteRows) {
+      if (!byCat.has(r.category)) byCat.set(r.category, []);
+      byCat.get(r.category)!.push(r);
+    }
+    return byCat;
+  }, [kennwerteRows]);
+
   const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
 
   useEffect(() => {
     if (loading || rows.length === 0) { setPdfBlob(null); return; }
     let cancelled = false;
     setPdfGenerating(true);
-    buildNormenblattPdf(meta, rows).then((blob) => {
+    buildNormenblattPdf(meta, rows, kennwerteRows).then((blob) => {
       if (!cancelled) { setPdfBlob(blob); setPdfGenerating(false); }
     }).catch(() => {
       if (!cancelled) setPdfGenerating(false);
     });
     return () => { cancelled = true; };
-  }, [meta, rows, loading]);
+  }, [meta, rows, kennwerteRows, loading]);
 
   useEffect(() => {
     if (!pdfBlob) return;
@@ -198,13 +272,65 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
             PDF herunterladen
           </button>
           <button
-            onClick={() => downloadNormenblattCsv(meta, rows)}
+            onClick={() => downloadNormenblattCsv(meta, rows, kennwerteRows)}
             disabled={loading || rows.length === 0}
             style={{ ...btn, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", opacity: loading || rows.length === 0 ? 0.5 : 1, cursor: loading || rows.length === 0 ? "not-allowed" : "pointer" }}
           >
             Als CSV exportieren
           </button>
+          <button
+            onClick={() => loadKennwerte(true)}
+            disabled={regenerating || kennwerteLoading || rows.length === 0}
+            style={{ ...btn, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", opacity: regenerating || kennwerteLoading || rows.length === 0 ? 0.5 : 1, cursor: regenerating || kennwerteLoading || rows.length === 0 ? "not-allowed" : "pointer" }}
+            title="Kennwerte neu aus den Normtexten extrahieren (löst einen neuen KI-Aufruf aus)"
+          >
+            {regenerating ? "Wird neu generiert…" : "Kennwerte neu generieren"}
+          </button>
         </div>
+      </div>
+
+      <div style={{ marginBottom: 24 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 10px" }}>Geltende Werte</h3>
+        {kennwerteLoading ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {[...Array(2)].map((_, i) => (
+              <div key={i} className="animate-pulse" style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, padding: 16 }}>
+                <div style={{ height: 10, background: "rgba(133,166,233,0.1)", borderRadius: 4, width: "22%", marginBottom: 8 }} />
+                <div style={{ height: 10, background: "rgba(133,166,233,0.07)", borderRadius: 4, width: "80%" }} />
+              </div>
+            ))}
+          </div>
+        ) : kennwerteError ? (
+          <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 12, padding: 16 }}>
+            <p style={{ fontSize: 13, color: "#f87171", margin: 0 }}>{kennwerteError}</p>
+          </div>
+        ) : kennwerteByCategory.size === 0 ? (
+          <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, padding: 16 }}>
+            <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>Keine konkreten Kennwerte aus den zugewiesenen Normen extrahiert.</p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {Array.from(kennwerteByCategory.entries()).map(([category, items]) => (
+              <div key={category} style={{ ...CARD, padding: 16 }}>
+                <h4 style={{ fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#7B8299", margin: "0 0 10px" }}>{category}</h4>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {items.map((it, i) => (
+                    <div key={i} style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+                      <p style={{ fontSize: 13, color: "#fff", margin: 0, flex: 1 }}>{it.sentence}</p>
+                      {it.referenceUrl ? (
+                        <a href={it.referenceUrl} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none", whiteSpace: "nowrap" }}>
+                          {it.normTitle}
+                        </a>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "#7B8299", whiteSpace: "nowrap" }}>{it.normTitle}</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {loading ? (
@@ -256,7 +382,9 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
             </div>
           </div>
 
-          <div style={{ flex: "1 1 420px", minWidth: 320, background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ flex: "1 1 420px", minWidth: 320 }}>
+          <h3 style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: "0 0 10px" }}>Quellennormen</h3>
+          <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
               <tr>
@@ -286,6 +414,7 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
               ))}
             </tbody>
           </table>
+          </div>
           </div>
         </div>
       )}
