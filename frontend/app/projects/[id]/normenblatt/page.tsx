@@ -1,9 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { api } from "@/lib/api";
 import { normMatchesZone } from "@/lib/zone-match";
-import { openNormenblattForPrint, downloadNormenblattCsv, type NormenblattRow } from "@/lib/normenblatt-report";
+import { buildNormenblattHtml, downloadNormenblattCsv, type NormenblattRow } from "@/lib/normenblatt-report";
+
+const CARD = {
+  background: "rgba(23,37,64,0.55)",
+  border: "1px solid rgba(133,166,233,0.18)",
+  borderRadius: 14,
+};
 
 interface Project {
   id: string;
@@ -125,11 +131,14 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
       });
   }, [projectNorms, themeNames]);
 
-  const meta = {
+  const meta = useMemo(() => ({
     projectName: project?.name ?? "",
     canton: project?.location?.canton ?? "",
     municipality: project?.location?.municipality ?? "",
-  };
+  }), [project]);
+
+  const previewHtml = useMemo(() => buildNormenblattHtml(meta, rows), [meta, rows]);
+  const previewRef = useRef<HTMLIFrameElement>(null);
 
   const btn: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8,
@@ -149,11 +158,11 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
           <button
-            onClick={() => openNormenblattForPrint(meta, rows)}
+            onClick={() => previewRef.current?.contentWindow?.print()}
             disabled={loading || rows.length === 0}
             style={{ ...btn, background: "#2862D7", color: "#fff", opacity: loading || rows.length === 0 ? 0.5 : 1, cursor: loading || rows.length === 0 ? "not-allowed" : "pointer" }}
           >
-            PDF-Vorschau
+            Drucken / Als PDF speichern
           </button>
           <button
             onClick={() => downloadNormenblattCsv(meta, rows)}
@@ -182,6 +191,21 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
           </p>
         </div>
       ) : (
+        <>
+        <div style={{ ...CARD, height: 720, overflow: "hidden", display: "flex", flexDirection: "column", marginBottom: 24 }}>
+          <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(133,166,233,0.1)", display: "flex", alignItems: "center", gap: 8 }}>
+            <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB" }}>Normenblatt-Vorschau</span>
+          </div>
+          <iframe
+            ref={previewRef}
+            srcDoc={previewHtml}
+            title="Normenblatt-Vorschau"
+            style={{ flex: 1, width: "100%", border: "none", background: "#fff" }}
+          />
+        </div>
         <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, overflow: "hidden" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
             <thead>
@@ -213,6 +237,7 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

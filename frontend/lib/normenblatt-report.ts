@@ -66,35 +66,33 @@ export function buildNormenblattHtml(meta: NormenblattMeta, rows: NormenblattRow
 <head>
 <meta charset="utf-8">
 <title>${title}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   @page { size: A4; margin: 18mm 16mm; }
   * { box-sizing: border-box; }
-  body { font: 11pt/1.45 -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 0; }
+  body { font: 11pt/1.45 "Inter", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; color: #111827; margin: 0; }
   .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10pt; }
   .header img { height: 28pt; }
-  .wordmark { font-weight: 800; font-size: 13pt; color: #2862D7; letter-spacing: 0.02em; }
+  .wordmark { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-weight: 600; font-size: 14pt; letter-spacing: -0.01em; color: #111827; }
+  .wordmark .accent { background: linear-gradient(120deg, #4fd1ff 0%, #38bdf8 45%, #2862d7 100%); -webkit-background-clip: text; background-clip: text; color: transparent; }
   .rule-blue { border-bottom: 2pt solid #2862D7; margin-bottom: 18pt; }
-  h1 { font-size: 20pt; margin: 0 0 2pt; }
+  h1 { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 20pt; margin: 0 0 2pt; }
   .sub { color: #6B7280; font-size: 10pt; margin: 0 0 8pt; }
   .rule { border-bottom: 1px solid #E5E7EB; margin-bottom: 18pt; }
-  h2 { font-size: 12pt; margin: 20pt 0 8pt; color: #111827; }
+  h2 { font-family: "Archivo", -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; font-size: 12pt; margin: 20pt 0 8pt; color: #111827; }
   table { width: 100%; border-collapse: collapse; font-size: 9.5pt; margin-bottom: 4pt; }
   th { text-align: left; font-size: 8.5pt; text-transform: uppercase; letter-spacing: .04em; color: #6B7280; border-bottom: 1.5px solid #D1D5DB; padding: 6pt 6pt; }
   td { vertical-align: top; border-bottom: 1px solid #E5E7EB; padding: 6pt 6pt; page-break-inside: avoid; }
   td.b { font-weight: 600; }
   a { color: #2862D7; text-decoration: none; }
   .foot { position: fixed; bottom: 10mm; left: 16mm; right: 16mm; display: flex; justify-content: space-between; color: #9CA3AF; font-size: 8.5pt; border-top: 1px solid #E5E7EB; padding-top: 6pt; }
-  @media print { .noprint { display: none; } }
-  .noprint { margin-bottom: 12pt; display: flex; align-items: center; gap: 10pt; }
-  .noprint button { font: inherit; padding: 6pt 12pt; border: 1px solid #D1D5DB; border-radius: 6pt; background: #F9FAFB; cursor: pointer; }
-  .noprint-hint { font-size: 9pt; color: #6B7280; }
 </style>
 </head>
 <body>
-  <div class="noprint"><button onclick="window.print()">Als PDF speichern / drucken</button> <span class="noprint-hint">Vorschau — PDF wird erst mit Klick erzeugt.</span></div>
   <div class="header">
     <img src="${esc(logoSrc)}" alt="TraceBuild">
-    <span class="wordmark">TraceBuild</span>
+    <span class="wordmark">Trace<span class="accent">Build</span></span>
   </div>
   <div class="rule-blue"></div>
 
@@ -110,18 +108,6 @@ export function buildNormenblattHtml(meta: NormenblattMeta, rows: NormenblattRow
   </div>
 </body>
 </html>`;
-}
-
-/** Öffnet das Normenblatt als Vorschau in einem neuen Tab; der Export (Browser-Druckdialog) löst erst der "Als PDF speichern / drucken"-Button dort aus. */
-export function openNormenblattForPrint(meta: NormenblattMeta, rows: NormenblattRow[]): boolean {
-  const html = buildNormenblattHtml(meta, rows);
-  const w = window.open("", "_blank");
-  if (!w) return false;
-  w.document.open();
-  w.document.write(html);
-  w.document.close();
-  w.focus();
-  return true;
 }
 
 export function buildNormenblattCsv(meta: NormenblattMeta, rows: NormenblattRow[]): string {
