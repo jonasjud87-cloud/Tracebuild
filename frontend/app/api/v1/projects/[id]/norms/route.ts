@@ -43,6 +43,15 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const body = await request.json();
   if (!body.norm_id) return err("norm_id fehlt");
 
+  // norm_id ist Client-Input: ohne diesen Check liesse sich eine fremde org-private Norm verknüpfen.
+  const { data: norm } = await admin
+    .from("norms")
+    .select("id")
+    .eq("id", body.norm_id)
+    .or(`org_id.eq.${user.org_id},org_id.is.null`)
+    .maybeSingle();
+  if (!norm) return err("Norm nicht gefunden", 404);
+
   const { data, error } = await admin
     .from("project_norms")
     .upsert(

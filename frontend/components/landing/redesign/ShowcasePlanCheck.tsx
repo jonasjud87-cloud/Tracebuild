@@ -21,41 +21,41 @@ const FINDINGS: Finding[] = [
     id: "f1",
     severity: "verstoss",
     title: "Grenzabstand West unterschritten",
-    measured: "2.80 m",
-    required: "≥ 3.50 m",
-    note: "Kleiner Grenzabstand zur Parzelle 1487.",
-    normId: "pbg-zh-260",
-    normLabel: "§ 260 PBG ZH",
+    measured: "3.20 m",
+    required: "≥ 4.00 m",
+    note: "Kleiner Grenzabstand zur Parzelle 1487 (Beispielwert).",
+    normId: "mbg-12",
+    normLabel: "§ 12 MBG",
   },
   {
     id: "f2",
     severity: "verstoss",
     title: "Gebäudehöhe über Zonenmass",
-    measured: "12.30 m",
-    required: "≤ 11.50 m",
-    note: "Wohnzone W3, gemessen ab gewachsenem Terrain.",
-    normId: "bzo-zh-24",
-    normLabel: "Art. 24 BZO Zürich",
+    measured: "10.80 m",
+    required: "≤ 10.00 m",
+    note: "Wohnzone W3, gemessen ab gewachsenem Terrain (Beispielwert).",
+    normId: "mzo-7",
+    normLabel: "Art. 7 MZO",
   },
   {
     id: "f3",
     severity: "verstoss",
     title: "Waldabstand unterschritten",
-    measured: "24 m",
-    required: "≥ 30 m",
-    note: "Nordöstliche Gebäudeecke zum Waldrand.",
-    normId: "waldg-abstand",
-    normLabel: "Art. 13 KWaG BE",
+    measured: "19 m",
+    required: "≥ 25 m",
+    note: "Nordöstliche Gebäudeecke zum Waldrand (Beispielwert).",
+    normId: "mwg-5",
+    normLabel: "Art. 5 MWaG",
   },
   {
     id: "f4",
     severity: "hinweis",
     title: "Türbreite Bad grenzwertig",
-    measured: "0.75 m",
-    required: "≥ 0.80 m",
-    note: "Hindernisfreie Erschliessung, lichte Durchgangsbreite.",
-    normId: "sia-500",
-    normLabel: "SIA 500",
+    measured: "0.85 m",
+    required: "≥ 0.90 m",
+    note: "Hindernisfreie Erschliessung, lichte Durchgangsbreite (Beispielwert).",
+    normId: "ibn-480",
+    normLabel: "IBN 480",
   },
   {
     id: "f5",
@@ -63,9 +63,9 @@ const FINDINGS: Finding[] = [
     title: "Fensteranteil Südfassade",
     measured: "48 %",
     required: "Nachweis Qh",
-    note: "Hoher Glasanteil, Heizwärmebedarf prüfen.",
-    normId: "sia-380-1",
-    normLabel: "SIA 380/1",
+    note: "Hoher Glasanteil, Heizwärmebedarf prüfen (Beispielwert).",
+    normId: "ibn-381",
+    normLabel: "IBN 381/1",
   },
   {
     id: "f6",
@@ -73,9 +73,9 @@ const FINDINGS: Finding[] = [
     title: "Parkfeld-Nachweis offen",
     measured: "3 Felder",
     required: "1 je Wohnung",
-    note: "4 Wohnungen geplant, ein Parkfeld fehlt im Plan.",
-    normId: "vss-40-281",
-    normLabel: "VSS 40 281",
+    note: "4 Wohnungen geplant, ein Parkfeld fehlt im Plan (Beispielwert).",
+    normId: "vbk-210",
+    normLabel: "VBK 210",
   },
 ];
 
@@ -134,6 +134,9 @@ export default function ShowcasePlanCheck({ onOpenNorm }: { onOpenNorm: (id: str
             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--tb-text)" }}>Prüfbericht</div>
             <div style={{ fontSize: 11, color: "var(--tb-text-tertiary)", marginTop: 3 }}>
               Grundriss_EG.pdf · {counts.verstoss} Verstösse · {counts.hinweis} Hinweise · Stand 01.09.2026
+            </div>
+            <div style={{ fontSize: 10, color: "var(--tb-text-muted)", marginTop: 4 }}>
+              Beispieldaten – frei erfunden, nicht rechtsverbindlich
             </div>
           </div>
           <button

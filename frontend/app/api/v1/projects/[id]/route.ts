@@ -1,4 +1,4 @@
-import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
+import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
@@ -24,6 +24,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
   if (!user) return unauthorized();
+  if (user.role !== "org_admin" && user.role !== "super_admin") return forbidden();
 
   const admin = createAdminClient();
 
@@ -137,6 +138,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
   if (!user) return unauthorized();
+  if (user.role !== "org_admin" && user.role !== "super_admin") return forbidden();
 
   const admin = createAdminClient();
 

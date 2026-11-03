@@ -18,6 +18,7 @@ export default function ProjectLayout({
     { href: `/projects/${params.id}/norms`,      label: "Normen" },
     { href: `/projects/${params.id}/chat`,       label: "KI Chat" },
     { href: `/projects/${params.id}/settings`,   label: "Einstellungen" },
+    { href: `/projects/${params.id}/normenblatt`, label: "Normenblatt" },
   ];
 
   return (

@@ -157,12 +157,26 @@ export default function TeamContact() {
                 <p style={{ margin: 0, fontSize: "clamp(15px,1.4vw,18px)", lineHeight: 1.6, color: "var(--tb-text-secondary)", maxWidth: 480 }}>
                   {f.blurb}
                 </p>
-                <a
-                  href={`mailto:${f.email}`}
-                  style={{ display: "inline-block", marginTop: 18, fontSize: 13.5, color: "var(--tb-accent)", textDecoration: "none" }}
-                >
-                  {f.email}
-                </a>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 9, marginTop: 18 }}>
+                  <a
+                    href={`mailto:${f.email}`}
+                    style={{ fontSize: 13.5, color: "var(--tb-accent)", textDecoration: "none" }}
+                  >
+                    {f.email}
+                  </a>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color: "var(--tb-text-muted)",
+                      border: "1px solid var(--tb-border)",
+                      borderRadius: 999,
+                      padding: "3px 9px",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    bald verfügbar
+                  </span>
+                </span>
               </div>
             </motion.div>
           ))}

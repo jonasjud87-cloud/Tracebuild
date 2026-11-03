@@ -420,14 +420,16 @@ export default function AnleitungPage() {
                 <thead>
                   <tr>
                     <th>Rolle</th>
-                    <th>Projekte bearbeiten, Pläne prüfen, Normen hochladen</th>
+                    <th>Pläne prüfen, Normen hochladen, Analysen</th>
+                    <th>Projekteinstellungen bearbeiten, Projekte löschen</th>
                     <th>Personen einladen und Rollen ändern</th>
-                    <th>Projektmitglieder zuweisen, Projekte löschen</th>
+                    <th>Projektmitglieder zuweisen</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr>
                     <td>Org Admin</td>
+                    <td className={s.yes}>Ja</td>
                     <td className={s.yes}>Ja</td>
                     <td className={s.yes}>Ja</td>
                     <td className={s.yes}>Ja</td>
@@ -437,10 +439,12 @@ export default function AnleitungPage() {
                     <td className={s.yes}>Ja</td>
                     <td className={s.no}>Nein</td>
                     <td className={s.no}>Nein</td>
+                    <td className={s.no}>Nein</td>
                   </tr>
                   <tr>
                     <td>Mitglied</td>
                     <td className={s.yes}>Ja</td>
+                    <td className={s.no}>Nein</td>
                     <td className={s.no}>Nein</td>
                     <td className={s.no}>Nein</td>
                   </tr>
@@ -450,8 +454,9 @@ export default function AnleitungPage() {
             <div className={s.note}>
               <strong>Gut zu wissen</strong>
               <p>
-                Alle Personen einer Organisation sehen alle Projekte dieser Organisation. Projektleiter und Mitglied
-                haben heute dieselben Rechte; die Rolle zeigt im Team, wer für ein Projekt verantwortlich ist.
+                Alle Personen einer Organisation sehen alle Projekte dieser Organisation. Nur Org Admins können die
+                Projekteinstellungen bearbeiten oder ein Projekt löschen. Projektleiter und Mitglied haben innerhalb
+                eines Projekts dieselben Rechte; die Rolle zeigt im Team, wer für ein Projekt verantwortlich ist.
               </p>
             </div>
 
