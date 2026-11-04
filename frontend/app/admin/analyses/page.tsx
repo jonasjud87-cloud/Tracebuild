@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/auth";
-import AdminNav from "@/components/admin/AdminNav";
+import AdminShell from "@/components/admin/shell/AdminShell";
 import AnalysesMonitor from "@/components/admin/analyses/AnalysesMonitor";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +12,9 @@ export default async function AdminAnalysesPage() {
 
   return (
     <>
-      <AdminNav userEmail={user.email} />
-      <AnalysesMonitor />
+      <AdminShell userEmail={user.email}>
+        <AnalysesMonitor />
+      </AdminShell>
     </>
   );
 }

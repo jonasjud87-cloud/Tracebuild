@@ -21,7 +21,6 @@ interface Pending {
 }
 
 export default function AnalysesMonitor({ embedded = false }: { embedded?: boolean }) {
-  const Shell = embedded ? "div" : "main";
   const Title = embedded ? "h2" : "h1";
   const [filters, setFilters] = useState<MonitorFilters>(DEFAULT_FILTERS);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -89,7 +88,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
     <>
       <Toast toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
-      <Shell className={embedded ? "space-y-6" : "mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6"}>
+      <div className="space-y-6">
         <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
             <Title className={embedded ? "text-base font-semibold text-white" : "text-2xl font-bold text-white"}>{embedded ? "Analysen im Überblick" : "Analysen-Monitor"}</Title>
@@ -193,7 +192,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
             />
           </div>
         </section>
-      </Shell>
+      </div>
 
       {current && (
         <AnalysisDetail

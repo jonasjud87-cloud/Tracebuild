@@ -12,14 +12,13 @@ export const VIEW_STORAGE_KEY = "tb_admin_view";
 export type DashboardItem =
   | "kpi-orgs" | "kpi-active" | "kpi-projects" | "kpi-users"
   | "kpi-analyses" | "kpi-cost" | "kpi-avg" | "kpi-storage" | "kpi-invites"
-  | "analyses" | "audit"
   | "quick" | "quick-invite" | "costoverview" | "orgs" | "users" | "costs"
   | "activity" | "status" | "invoices";
 
 const VIEW_ITEMS: Record<Exclude<DashboardView, "Alle">, DashboardItem[]> = {
-  Betrieb: ["kpi-orgs", "kpi-active", "kpi-projects", "kpi-users", "quick", "analyses", "orgs", "users", "status", "activity"],
+  Betrieb: ["kpi-orgs", "kpi-active", "kpi-projects", "kpi-users", "quick", "orgs", "users", "status", "activity"],
   Finanzen: ["kpi-analyses", "kpi-cost", "kpi-avg", "kpi-storage", "costoverview", "costs", "invoices"],
-  Support: ["kpi-users", "kpi-invites", "kpi-active", "quick-invite", "users", "audit", "activity"],
+  Support: ["kpi-users", "kpi-invites", "kpi-active", "quick-invite", "users", "activity"],
 };
 
 const SUPPORT_ONLY: DashboardItem[] = ["kpi-invites", "quick-invite"];
