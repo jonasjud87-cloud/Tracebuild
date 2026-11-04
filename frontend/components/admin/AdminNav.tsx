@@ -4,6 +4,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import AlertBell from "@/components/admin/AlertBell";
+import GlobalSearch from "@/components/admin/GlobalSearch";
 
 export default function AdminNav({ userEmail }: { userEmail: string }) {
   const router = useRouter();
@@ -33,23 +35,20 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#2862D7]/10 text-[10px] font-bold text-[#85A6E9] uppercase tracking-widest">
             Admin
           </span>
+          <nav className="hidden md:flex items-center gap-1 ml-3" aria-label="Admin-Bereiche">
+            <Link href="/admin" className="px-3 py-1.5 rounded-lg text-sm text-[#ABAEBB] hover:text-white hover:bg-[#172540] transition-colors">
+              Übersicht
+            </Link>
+            <Link href="/admin/audit" className="px-3 py-1.5 rounded-lg text-sm text-[#ABAEBB] hover:text-white hover:bg-[#172540] transition-colors">
+              Audit-Log
+            </Link>
+          </nav>
         </div>
 
         {/* Right side */}
         <div className="flex items-center gap-3">
-          <button
-            className="relative w-9 h-9 flex items-center justify-center text-[#7B8299] hover:text-white hover:bg-[#172540] rounded-xl transition-colors"
-            title="Benachrichtigungen"
-            type="button"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M8 1.5A5 5 0 0 0 3 6.5v3L2 11h12l-1-1.5v-3A5 5 0 0 0 8 1.5ZM6 12a2 2 0 0 0 4 0"
-                stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round"
-              />
-            </svg>
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#2862D7]" />
-          </button>
+          <GlobalSearch />
+          <AlertBell />
 
           <div className="h-5 w-px bg-[rgba(60,63,68,0.6)] hidden sm:block" />
 

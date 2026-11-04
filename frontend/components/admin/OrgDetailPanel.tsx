@@ -10,6 +10,7 @@ interface Props {
   onClose: () => void;
   onEdit: () => void;
   onToast: (msg: string, type: "success" | "error" | "warning" | "info") => void;
+  initialTab?: string;
 }
 
 type Tab = "uebersicht" | "mitglieder" | "auditlog" | "projekte" | "nutzung" | "kosten" | "einstellungen";
@@ -816,7 +817,7 @@ function clampPanelWidth(w: number): number {
   return Math.min(Math.max(w, PANEL_WIDTH_MIN), Math.min(PANEL_WIDTH_MAX, viewportCap));
 }
 
-export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }: Props) {
+export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, initialTab }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>("uebersicht");
   const [panelWidth, setPanelWidthState] = useState(PANEL_WIDTH_DEFAULT);
   const widthRef = useRef(PANEL_WIDTH_DEFAULT);
@@ -828,7 +829,11 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast }:
     setPanelWidthState(w);
   }
 
-  useEffect(() => { setActiveTab("uebersicht"); }, [orgId]);
+  useEffect(() => {
+    const t = TAB_LABELS.find(x => x.id === initialTab);
+    setActiveTab(t ? t.id : "uebersicht");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId]);
 
   // Zuletzt gewählte Panel-Breite merken — pro Browser, nicht pro Org.
   useEffect(() => {
