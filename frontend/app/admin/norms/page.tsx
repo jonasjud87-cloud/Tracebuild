@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import AdminNav from "@/components/admin/AdminNav";
+import AdminShell from "@/components/admin/shell/AdminShell";
 import { api } from "@/lib/api";
 
 const CANTONS = [
@@ -500,9 +500,7 @@ export default function AdminNormsPage() {
 
   return (
     <>
-      <AdminNav userEmail={userEmail} />
-
-      <main className="max-w-7xl mx-auto px-6 py-8">
+      <AdminShell userEmail={userEmail}>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Normen-Datenbank</h1>
           <p className="text-sm text-[#7B8299] mt-1">
@@ -703,7 +701,7 @@ export default function AdminNormsPage() {
         </div>
 
         <OerebMappingSection inputCls={inputCls} />
-      </main>
+      </AdminShell>
     </>
   );
 }
