@@ -2,24 +2,13 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AlertBell from "@/components/admin/AlertBell";
 import GlobalSearch from "@/components/admin/GlobalSearch";
 
-const NAV_LINKS = [
-  { href: "/admin", label: "Übersicht" },
-  { href: "/admin/analyses", label: "Analysen" },
-  { href: "/admin/audit", label: "Audit-Log" },
-];
-
 export default function AdminNav({ userEmail }: { userEmail: string }) {
   const router = useRouter();
-  const pathname = usePathname();
-
-  function isActive(href: string) {
-    return href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
-  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -33,7 +22,11 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
 
         {/* Logo + Admin badge */}
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+        <Link
+          href="/admin"
+          aria-label="Zum Admin-Dashboard"
+          className="flex items-center gap-2 sm:gap-3 min-w-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]"
+        >
           <Image
             src="/Logo-new.png"
             alt="TraceBuild"
@@ -46,14 +39,7 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
           <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-[#2862D7]/10 text-[10px] font-bold text-[#85A6E9] uppercase tracking-widest">
             Admin
           </span>
-          <nav className="hidden md:flex items-center gap-1 ml-3" aria-label="Admin-Bereiche">
-            {NAV_LINKS.map((l) => (
-              <Link key={l.href} href={l.href} aria-current={isActive(l.href) ? "page" : undefined} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive(l.href) ? "text-white bg-[#172540]" : "text-[#ABAEBB] hover:text-white hover:bg-[#172540]"}`}>
-                {l.label}
-              </Link>
-            ))}
-          </nav>
-        </div>
+        </Link>
 
         {/* Right side */}
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
@@ -92,13 +78,6 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
           </button>
         </div>
       </div>
-      <nav className="md:hidden flex items-center gap-1 overflow-x-auto px-4 sm:px-6 pb-2" aria-label="Admin-Bereiche (mobil)">
-        {NAV_LINKS.map((l) => (
-          <Link key={l.href} href={l.href} aria-current={isActive(l.href) ? "page" : undefined} className={`whitespace-nowrap ${`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive(l.href) ? "text-white bg-[#172540]" : "text-[#ABAEBB] hover:text-white hover:bg-[#172540]"}`}`}>
-            {l.label}
-          </Link>
-        ))}
-      </nav>
     </header>
   );
 }

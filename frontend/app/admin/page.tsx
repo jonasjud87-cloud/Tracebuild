@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AdminNav from "@/components/admin/AdminNav";
+import AnalysesMonitor from "@/components/admin/analyses/AnalysesMonitor";
+import AuditLogView from "@/components/admin/audit/AuditLogView";
 import OrgTable from "@/components/admin/OrgTable";
 import OrgModal from "@/components/admin/OrgModal";
 import type { OrgFormData } from "@/components/admin/OrgModal";
@@ -546,6 +548,11 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
     return map;
   }, [costs]);
 
+  const pendingInvites = useMemo(
+    () => userGroups.reduce((sum, g) => sum + g.users.filter(u => u.status === "pending").length, 0),
+    [userGroups],
+  );
+
   const filteredUsers = useMemo(() => {
     const q = userSearch.trim().toLowerCase();
     return userGroups
@@ -629,11 +636,23 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             note={hydrated ? `${orgs.filter(o => o.status !== "active").length} inaktiv` : undefined} />}
           {show("kpi-projects") && <KpiCard label="Projekte"       value={kpiData.totalProjects.toString()} />}
           {show("kpi-users") && <KpiCard label="Benutzer"       value={kpiData.totalUsers.toString()} />}
+          {show("kpi-invites") && <KpiCard label="Offene Einladungen" value={usersLoading && userGroups.length === 0 ? "—" : pendingInvites.toString()} accent={pendingInvites > 0} />}
           {show("kpi-analyses") && <KpiCard label="Analysen / Mo." value={kpiData.totalAnalyses.toString()} />}
           {show("kpi-cost") && <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} accent />}
           {show("kpi-avg") && <KpiCard label="Ø / Analyse"    value={`CHF ${kpiData.avgCostPerAnalyse.toFixed(2)}`} accent />}
           {show("kpi-storage") && <KpiCard label="Speicher ges."  value={kpiData.totalStorageGB === null ? "—" : kpiData.totalStorageGB < 1 ? `${(kpiData.totalStorageGB * 1000).toFixed(1)} MB` : `${kpiData.totalStorageGB.toFixed(2)} GB`} />}
         </div>
+
+        {show("quick-invite") && <div className="flex gap-3 flex-wrap sm:flex-nowrap">
+          <QuickActionBtn
+            label="Benutzer einladen"
+            onClick={() => {
+              if (!hydrated || orgs.length === 0) { addToast("Bitte zuerst eine Organisation erstellen.", "info"); return; }
+              setInviteModalOpen(true);
+            }}
+            icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M12 11.5C13.38 11.5 14.5 10.38 14.5 9C14.5 7.62 13.38 6.5 12 6.5C10.62 6.5 9.5 7.62 9.5 9C9.5 10.38 10.62 11.5 12 11.5Z" stroke="currentColor" strokeWidth="1.3" /><path d="M7 15C7 13.34 9.24 12 12 12C14.76 12 17 13.34 17 15M3 5.5V9.5M5.5 7.5H1" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" /></svg>}
+          />
+        </div>}
 
         {/* Quick actions */}
         {show("quick") && <div className="flex gap-3 flex-wrap sm:flex-nowrap">
@@ -668,6 +687,11 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             onClick={() => router.push("/admin/norms")}
             icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3.5C4 2.67 4.67 2 5.5 2H12.5C13.33 2 14 2.67 14 3.5V15.5L9 13L4 15.5V3.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>}
           />
+        </div>}
+
+        {show("analyses") && <div className="space-y-4">
+          <SectionHeader title="Analysen" />
+          <AnalysesMonitor embedded />
         </div>}
 
         {show("costoverview") && <div className="space-y-4">
@@ -833,6 +857,15 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
               </div>
             </div>
           )}
+        </div>}
+
+        {show("audit") && <div className="space-y-4">
+          <SectionHeader title="Audit-Log" />
+          <div>
+            <h2 className="text-base font-semibold text-white">Alle Admin-Aktionen</h2>
+            <p className="text-xs text-[#7B8299] mt-0.5">Alle protokollierten Admin-Aktionen über sämtliche Organisationen.</p>
+          </div>
+          <AuditLogView />
         </div>}
 
         {(show("costs") || show("activity") || show("status")) && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
