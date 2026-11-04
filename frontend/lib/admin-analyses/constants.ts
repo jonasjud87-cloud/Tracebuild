@@ -1,0 +1,14 @@
+export const ORPHAN_AFTER_MS = 6 * 60 * 1000;
+export const ORPHAN_AFTER_MINUTES = ORPHAN_AFTER_MS / 60_000;
+export const EXPENSIVE_DEFAULT_USD = 1.0;
+export const MAX_MIN_COST_USD = 100_000;
+export const FAILED_WINDOW_MS = 24 * 60 * 60 * 1000;
+export const EXPENSIVE_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export const COST_WINDOW_MS = 30 * 24 * 60 * 60 * 1000;
+export const DEFAULT_LIMIT = 50;
+export const MAX_LIMIT = 100;
+export const ERROR_TEXT_MAX = 300;
+export const TIMEOUT_ERROR_TEXT = "Zeitüberschreitung";
+export const COST_PAGE_SIZE = 1000;
+export const COST_MAX_PAGES = 30;
+export const VIEWS = ["running", "failed", "expensive", "all"] as const;

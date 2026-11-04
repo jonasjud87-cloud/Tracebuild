@@ -1,6 +1,6 @@
 "use client";
 
-import { ACTION_LABELS } from "./types";
+import { actionLabel } from "./types";
 import type { AuditItem } from "./types";
 
 function fmtTime(iso: string): string {
@@ -34,7 +34,7 @@ export default function AuditTable({ items }: { items: AuditItem[] }) {
                 <td className="px-4 py-3 text-white break-all">{it.actorEmail}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
                   <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#2862D7]/10 text-[#85A6E9]" title={it.action}>
-                    {ACTION_LABELS[it.action] ?? it.action}
+                    {actionLabel(it.action, it.meta)}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-[#ABAEBB] break-all">{it.targetEmail ?? "—"}</td>

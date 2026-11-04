@@ -2,13 +2,24 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AlertBell from "@/components/admin/AlertBell";
 import GlobalSearch from "@/components/admin/GlobalSearch";
 
+const NAV_LINKS = [
+  { href: "/admin", label: "Übersicht" },
+  { href: "/admin/analyses", label: "Analysen" },
+  { href: "/admin/audit", label: "Audit-Log" },
+];
+
 export default function AdminNav({ userEmail }: { userEmail: string }) {
   const router = useRouter();
+  const pathname = usePathname();
+
+  function isActive(href: string) {
+    return href === "/admin" ? pathname === "/admin" : pathname === href || pathname.startsWith(`${href}/`);
+  }
 
   async function handleLogout() {
     const supabase = createClient();
@@ -19,10 +30,10 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
 
   return (
     <header className="sticky top-0 z-40 bg-[#0E111B] border-b border-[rgba(60,63,68,0.5)]">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-2">
 
         {/* Logo + Admin badge */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <Image
             src="/Logo-new.png"
             alt="TraceBuild"
@@ -36,17 +47,16 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
             Admin
           </span>
           <nav className="hidden md:flex items-center gap-1 ml-3" aria-label="Admin-Bereiche">
-            <Link href="/admin" className="px-3 py-1.5 rounded-lg text-sm text-[#ABAEBB] hover:text-white hover:bg-[#172540] transition-colors">
-              Übersicht
-            </Link>
-            <Link href="/admin/audit" className="px-3 py-1.5 rounded-lg text-sm text-[#ABAEBB] hover:text-white hover:bg-[#172540] transition-colors">
-              Audit-Log
-            </Link>
+            {NAV_LINKS.map((l) => (
+              <Link key={l.href} href={l.href} aria-current={isActive(l.href) ? "page" : undefined} className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive(l.href) ? "text-white bg-[#172540]" : "text-[#ABAEBB] hover:text-white hover:bg-[#172540]"}`}>
+                {l.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <GlobalSearch />
           <AlertBell />
 
@@ -63,13 +73,14 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
                   {userEmail.charAt(0).toUpperCase()}
                 </span>
               </div>
-              <span className="text-sm text-[#ABAEBB]">{userEmail}</span>
+              <span className="text-sm text-[#ABAEBB] max-w-[12rem] truncate">{userEmail}</span>
             </Link>
           )}
 
           <button
             onClick={handleLogout}
-            className="flex items-center gap-1.5 text-sm text-[#ABAEBB] border border-[rgba(60,63,68,0.5)] rounded-xl px-3.5 py-2 hover:border-red-500/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+            aria-label="Abmelden"
+            className="flex items-center gap-1.5 text-sm text-[#ABAEBB] border border-[rgba(60,63,68,0.5)] rounded-xl px-2.5 sm:px-3.5 py-2 hover:border-red-500/40 hover:text-red-400 hover:bg-red-500/10 transition-colors"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
               <path
@@ -81,6 +92,13 @@ export default function AdminNav({ userEmail }: { userEmail: string }) {
           </button>
         </div>
       </div>
+      <nav className="md:hidden flex items-center gap-1 overflow-x-auto px-4 sm:px-6 pb-2" aria-label="Admin-Bereiche (mobil)">
+        {NAV_LINKS.map((l) => (
+          <Link key={l.href} href={l.href} aria-current={isActive(l.href) ? "page" : undefined} className={`whitespace-nowrap ${`px-3 py-1.5 rounded-lg text-sm transition-colors ${isActive(l.href) ? "text-white bg-[#172540]" : "text-[#ABAEBB] hover:text-white hover:bg-[#172540]"}`}`}>
+            {l.label}
+          </Link>
+        ))}
+      </nav>
     </header>
   );
 }
