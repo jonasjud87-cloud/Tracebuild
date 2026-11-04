@@ -20,7 +20,9 @@ interface Pending {
   row: AnalysisRow;
 }
 
-export default function AnalysesMonitor() {
+export default function AnalysesMonitor({ embedded = false }: { embedded?: boolean }) {
+  const Shell = embedded ? "div" : "main";
+  const Title = embedded ? "h2" : "h1";
   const [filters, setFilters] = useState<MonitorFilters>(DEFAULT_FILTERS);
   const [autoRefresh, setAutoRefresh] = useState(false);
   const [highlightOrphans, setHighlightOrphans] = useState(false);
@@ -87,10 +89,10 @@ export default function AnalysesMonitor() {
     <>
       <Toast toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
-      <main className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6">
+      <Shell className={embedded ? "space-y-6" : "mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6"}>
         <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <h1 className="text-2xl font-bold text-white">Analysen-Monitor</h1>
+            <Title className={embedded ? "text-base font-semibold text-white" : "text-2xl font-bold text-white"}>{embedded ? "Analysen im Überblick" : "Analysen-Monitor"}</Title>
             <p className="mt-1 text-xs text-[#7B8299]" aria-live="polite">
               {m.lastUpdated ? `Zuletzt aktualisiert ${formatAgo(new Date(m.lastUpdated).toISOString(), now)}` : "Wird geladen …"}
             </p>
@@ -191,7 +193,7 @@ export default function AnalysesMonitor() {
             />
           </div>
         </section>
-      </main>
+      </Shell>
 
       {current && (
         <AnalysisDetail
