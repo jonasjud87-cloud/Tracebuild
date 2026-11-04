@@ -56,6 +56,14 @@ export const ACTION_LABELS: Record<string, string> = {
   profile_name_change: "Profilname geändert",
 };
 
+export function actionLabel(action: string, meta: Record<string, unknown> | null | undefined): string {
+  if (action === "analysis_run") {
+    if (meta?.op === "admin_cancel") return "Analyse abgebrochen (Admin)";
+    if (meta?.op === "admin_timeout") return "Analyse beendet: Zeitüberschreitung (Admin)";
+  }
+  return ACTION_LABELS[action] ?? action;
+}
+
 export function buildAuditParams(f: AuditFilterState): URLSearchParams {
   const p = new URLSearchParams();
   if (f.org) p.set("org", f.org);

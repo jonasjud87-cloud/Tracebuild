@@ -433,6 +433,14 @@ const AUDIT_ACTION_LABELS: Record<AuditLogEntry["action"], string> = {
   chat_message: "Chat-Nachricht gesendet",
 };
 
+function auditActionLabel(e: AuditLogEntry): string {
+  if (e.action === "analysis_run") {
+    if (e.meta?.op === "admin_cancel") return "Analyse abgebrochen (Admin)";
+    if (e.meta?.op === "admin_timeout") return "Analyse beendet: Zeitüberschreitung (Admin)";
+  }
+  return AUDIT_ACTION_LABELS[e.action];
+}
+
 function auditDetails(e: AuditLogEntry): string {
   if (e.action === "role_change") {
     const r = e.meta?.newRole;
@@ -547,7 +555,7 @@ function AuditLogTab({ org }: { org: Organization }) {
                     {new Date(e.created_at).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}
                   </td>
                   <td className="px-3 py-2.5 text-sm text-white truncate max-w-[160px]">{e.actor_email}</td>
-                  <td className="px-3 py-2.5 text-sm text-white whitespace-nowrap">{AUDIT_ACTION_LABELS[e.action]}</td>
+                  <td className="px-3 py-2.5 text-sm text-white whitespace-nowrap">{auditActionLabel(e)}</td>
                   <td className="px-3 py-2.5 text-xs text-[#7B8299] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
                   <td className="px-3 py-2.5 text-xs text-[#7B8299] whitespace-nowrap">{auditDetails(e)}</td>
                 </tr>
