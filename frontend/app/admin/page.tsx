@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -20,6 +20,10 @@ import Toast from "@/components/admin/Toast";
 import InvoicesSection from "@/components/admin/InvoicesSection";
 import { currentMonth, fmtMonth, availableMonths, monthlyTotals, prevMonth } from "@/components/admin/mockCosts";
 import { MOCK_ACTIVITIES } from "@/components/admin/mockOrgData";
+import DashboardViewTabs, {
+  DEFAULT_VIEW, VIEW_STORAGE_KEY, isDashboardView, isVisible, viewShowing,
+} from "@/components/admin/dashboard/DashboardViewTabs";
+import type { DashboardView, DashboardItem } from "@/components/admin/dashboard/DashboardViewTabs";
 import { organizationService } from "@/lib/services/organizationService";
 import type {
   Organization,
@@ -209,7 +213,7 @@ function QuickActionBtn({ icon, label, onClick }: { icon: ReactNode; label: stri
   );
 }
 
-export default function AdminPage() {
+export default function AdminPage({ searchParams }: { searchParams?: { org?: string; tab?: string } }) {
   const router = useRouter();
 
   const [userName, setUserName]   = useState("");
@@ -240,6 +244,40 @@ export default function AdminPage() {
   const [resendingId, setResendingId]         = useState<string | null>(null);
   const [costs, setCosts]                     = useState<OrgCost[]>([]);
   const [costsLoading, setCostsLoading]       = useState(false);
+  const [view, setView]                       = useState<DashboardView>(DEFAULT_VIEW);
+  const [detailInitialTab, setDetailInitialTab] = useState<string | undefined>(undefined);
+  const deepLinkHandled = useRef<string | null>(null);
+
+  const show = (item: DashboardItem) => isVisible(view, item);
+
+  function changeView(v: DashboardView) {
+    setView(v);
+    try { localStorage.setItem(VIEW_STORAGE_KEY, v); } catch {}
+  }
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(VIEW_STORAGE_KEY);
+      if (isDashboardView(saved)) setView(saved);
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const orgId = searchParams?.org;
+    if (!orgId) {
+      deepLinkHandled.current = null;
+      return;
+    }
+    const key = `${orgId}|${searchParams?.tab ?? ""}`;
+    if (deepLinkHandled.current === key) return;
+    deepLinkHandled.current = key;
+    const target = orgs.find(o => o.id === orgId);
+    if (!target) return;
+    setDetailInitialTab(searchParams?.tab ?? undefined);
+    setDetailOrg(target);
+    router.replace("/admin", { scroll: false });
+  }, [hydrated, orgs, searchParams?.org, searchParams?.tab, router]);
 
   function addToast(message: string, type: ToastMessage["type"] = "success") {
     const id = crypto.randomUUID();
@@ -583,21 +621,22 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* KPI strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          <KpiCard label="Organisationen" value={hydrated ? kpiData.orgsCount.toString() : "—"} />
-          <KpiCard label="Aktive Orgs"    value={hydrated ? kpiData.activeOrgs.toString() : "—"}
-            note={hydrated ? `${orgs.filter(o => o.status !== "active").length} inaktiv` : undefined} />
-          <KpiCard label="Projekte"       value={kpiData.totalProjects.toString()} />
-          <KpiCard label="Benutzer"       value={kpiData.totalUsers.toString()} />
-          <KpiCard label="Analysen / Mo." value={kpiData.totalAnalyses.toString()} />
-          <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} accent />
-          <KpiCard label="Ø / Analyse"    value={`CHF ${kpiData.avgCostPerAnalyse.toFixed(2)}`} accent />
-          <KpiCard label="Speicher ges."  value={kpiData.totalStorageGB === null ? "—" : kpiData.totalStorageGB < 1 ? `${(kpiData.totalStorageGB * 1000).toFixed(1)} MB` : `${kpiData.totalStorageGB.toFixed(2)} GB`} />
+        <DashboardViewTabs view={view} onChange={changeView} />
+
+        <div className={`grid grid-cols-2 sm:grid-cols-4 ${view === "Alle" ? "lg:grid-cols-8" : "lg:grid-cols-4"} gap-3`}>
+          {show("kpi-orgs") && <KpiCard label="Organisationen" value={hydrated ? kpiData.orgsCount.toString() : "—"} />}
+          {show("kpi-active") && <KpiCard label="Aktive Orgs"    value={hydrated ? kpiData.activeOrgs.toString() : "—"}
+            note={hydrated ? `${orgs.filter(o => o.status !== "active").length} inaktiv` : undefined} />}
+          {show("kpi-projects") && <KpiCard label="Projekte"       value={kpiData.totalProjects.toString()} />}
+          {show("kpi-users") && <KpiCard label="Benutzer"       value={kpiData.totalUsers.toString()} />}
+          {show("kpi-analyses") && <KpiCard label="Analysen / Mo." value={kpiData.totalAnalyses.toString()} />}
+          {show("kpi-cost") && <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} accent />}
+          {show("kpi-avg") && <KpiCard label="Ø / Analyse"    value={`CHF ${kpiData.avgCostPerAnalyse.toFixed(2)}`} accent />}
+          {show("kpi-storage") && <KpiCard label="Speicher ges."  value={kpiData.totalStorageGB === null ? "—" : kpiData.totalStorageGB < 1 ? `${(kpiData.totalStorageGB * 1000).toFixed(1)} MB` : `${kpiData.totalStorageGB.toFixed(2)} GB`} />}
         </div>
 
         {/* Quick actions */}
-        <div className="flex gap-3 flex-wrap sm:flex-nowrap">
+        {show("quick") && <div className="flex gap-3 flex-wrap sm:flex-nowrap">
           <QuickActionBtn
             label="Neue Organisation"
             onClick={() => { setEditTarget(null); setModalOpen(true); }}
@@ -618,7 +657,10 @@ export default function AdminPage() {
           />
           <QuickActionBtn
             label="Systemstatus"
-            onClick={() => document.getElementById("systemstatus-section")?.scrollIntoView({ behavior: "smooth" })}
+            onClick={() => {
+              if (!show("status")) changeView(viewShowing("status"));
+              setTimeout(() => document.getElementById("systemstatus-section")?.scrollIntoView({ behavior: "smooth" }), 0);
+            }}
             icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M9 2L10.9 6.26L15.5 6.9L12.25 10.07L13.08 14.65L9 12.4L4.92 14.65L5.75 10.07L2.5 6.9L7.1 6.26L9 2Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>}
           />
           <QuickActionBtn
@@ -626,10 +668,9 @@ export default function AdminPage() {
             onClick={() => router.push("/admin/norms")}
             icon={<svg width="18" height="18" viewBox="0 0 18 18" fill="none"><path d="M4 3.5C4 2.67 4.67 2 5.5 2H12.5C13.33 2 14 2.67 14 3.5V15.5L9 13L4 15.5V3.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" /></svg>}
           />
-        </div>
+        </div>}
 
-        {/* Cost overview */}
-        <div className="space-y-4">
+        {show("costoverview") && <div className="space-y-4">
           <SectionHeader title="Kostenübersicht" />
           <CostOverview
             costs={costs.filter(c => c.month === currentMonth())}
@@ -639,10 +680,9 @@ export default function AdminPage() {
             monthlyBudget={kpiData.monthlyBudget}
             fmtMonth={fmtMonth}
           />
-        </div>
+        </div>}
 
-        {/* Organisations */}
-        <div className="space-y-4">
+        {show("orgs") && <div className="space-y-4">
           <SectionHeader title="Organisationen" />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
@@ -690,13 +730,12 @@ export default function AdminPage() {
               onPause={org => { if (org.status === "paused") { handlePause(org); } else { setPauseTarget(org); } }}
               onClose={org => setCloseTarget(org)}
               onArchive={org => setArchiveTarget(org)}
-              onDetail={org => setDetailOrg(org)}
+              onDetail={org => { setDetailInitialTab(undefined); setDetailOrg(org); }}
             />
           )}
-        </div>
+        </div>}
 
-        {/* Users */}
-        <div className="space-y-4">
+        {show("users") && <div className="space-y-4">
           <SectionHeader title="Nutzer" />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
@@ -794,11 +833,10 @@ export default function AdminPage() {
               </div>
             </div>
           )}
-        </div>
+        </div>}
 
-        {/* Cost table + sidebar */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-          <div className="lg:col-span-2 space-y-4">
+        {(show("costs") || show("activity") || show("status")) && <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+          {show("costs") && <div className="lg:col-span-2 space-y-4">
             <SectionHeader title="Kosten pro Organisation" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
@@ -829,26 +867,25 @@ export default function AdminPage() {
             ) : (
               <CostTable costs={filteredCosts} />
             )}
-          </div>
+          </div>}
 
-          <div className="space-y-4 lg:sticky lg:top-20">
-            <ActivityFeed activities={activities} />
-            <div id="systemstatus-section">
+          {(show("activity") || show("status")) && <div className={`space-y-4 lg:sticky lg:top-20 ${show("costs") ? "" : "lg:col-span-3"}`}>
+            {show("activity") && <ActivityFeed activities={activities} />}
+            {show("status") && <div id="systemstatus-section">
               <SystemStatus
                 services={systemServices}
                 checkedAt={systemCheckedAt}
                 loading={systemLoading}
                 onRefresh={loadSystemStatus}
               />
-            </div>
-          </div>
-        </div>
+            </div>}
+          </div>}
+        </div>}
 
-        {/* Invoices */}
-        <div className="space-y-4">
+        {show("invoices") && <div className="space-y-4">
           <SectionHeader title="Rechnungen & Exporte" />
           <InvoicesSection onToast={addToast} />
-        </div>
+        </div>}
 
       </main>
 
@@ -920,7 +957,8 @@ export default function AdminPage() {
       <OrgDetailPanel
         org={isDetailOrgInFiltered}
         costs={costs}
-        onClose={() => setDetailOrg(null)}
+        initialTab={detailInitialTab}
+        onClose={() => { setDetailOrg(null); setDetailInitialTab(undefined); }}
         onEdit={() => {
           if (isDetailOrgInFiltered) { setEditTarget(isDetailOrgInFiltered); setModalOpen(true); }
         }}
