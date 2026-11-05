@@ -1,17 +1,21 @@
 /**
  * Generischer ÖREB-Adapter nach swisstopo-Weisung "ÖREB-Kataster: ÖREB-Webservice" (v2).
  *
- * Pro Kanton unterscheidet sich nur die Basis-URL; die Signatur ist identisch:
- *   GET {base}/getegrid/json/?EN=<E>,<N>                (LV95)
- *   GET {base}/getegrid/json/?IDENTDN=<x>&NUMBER=<n>
- *   GET {base}/extract/json/?EGRID=<CHxxxxxxxxxxxx>&LANG=de
+ * Pro Kanton unterscheiden sich Basis-URL, Sprache und Format (lib/oereb/service.ts); die
+ * Signatur ist identisch:
+ *   GET {base}/getegrid/{json|xml}/?EN=<E>,<N>                (LV95)
+ *   GET {base}/getegrid/{json|xml}/?IDENTDN=<x>&NUMBER=<n>
+ *   GET {base}/extract/{json|xml}/?EGRID=<CHxxxxxxxxxxxx>&LANG=<de|fr|it>&GEOMETRY=false
  *
- * Das Parsing ist bewusst tolerant (Gross-/Kleinschreibung der Schlüssel, `extract`
- * vs. `Extract`, Text-Arrays `[{Language, Text}]`), Fehler dagegen sind laut:
- * jede Störung wird als typisierter OerebError geworfen, nie still weggeschluckt.
+ * Abweichende Formen gleicht normalize.ts vor dem Parser aus. Das Parsing ist bewusst tolerant
+ * (Gross-/Kleinschreibung der Schlüssel, `extract` vs. `Extract`, Text-Arrays
+ * `[{Language, Text}]`), Fehler dagegen sind laut: jede Störung wird als typisierter
+ * OerebError geworfen, nie still weggeschluckt.
  */
 import type {
   Concern,
+  EgridResolution,
+  GetEgridRequest,
   LegalStatus,
   OerebAdapter,
   OerebExtract,
@@ -21,18 +25,28 @@ import type {
 } from "../types";
 import {
   OerebAmbiguousError,
+  OerebBaseGoneError,
   OerebError,
   OerebNoEgridError,
   OerebParseError,
   OerebUnreachableError,
 } from "../errors";
+import { normalizeParcel, resolveParcel } from "../../geoadmin/parcel";
+import { oerebRequest } from "../http";
+import { normalizeExtract } from "../normalize";
+import {
+  rediscoverOerebService,
+  rememberOerebFormat,
+  resolveOerebService,
+  type OerebFormat,
+  type OerebService,
+} from "../service";
+import { OTHER_LEGEND_CANTONS, PRESET_LANGUAGES, XML_ONLY_CANTONS, oerebPdfUrl } from "../service-quirks";
+import { xmlToObject } from "../xml";
 
 export { OerebAmbiguousError, OerebError, OerebNoEgridError, OerebParseError, OerebUnreachableError };
 
-export const OEREB_TIMEOUT_MS = 15_000;
 export const OEREB_THEME_NUTZUNGSPLANUNG = "ch.Nutzungsplanung";
-
-const GEO_ADMIN_SEARCH = "https://api3.geo.admin.ch/rest/services/api/SearchServer";
 
 // ── Tolerante Zugriffs-Helfer ────────────────────────────────────────────────
 
@@ -167,37 +181,42 @@ interface ThemeRef {
   subTheme: string | null;
 }
 
-function parseThemeRef(v: unknown): ThemeRef | null {
+function parseThemeRef(v: unknown, lang: string): ThemeRef | null {
   const code = asString(getKey(v, "Code"));
   if (!code) return null;
-  const name = localizedText(getKey(v, "Text")) ?? code;
+  const name = localizedText(getKey(v, "Text"), lang) ?? code;
   const subTheme = asString(getKey(v, "SubCode", "Subcode")) ?? null;
   return { code, name, subTheme };
 }
 
-function parseLawLinks(v: unknown): OerebLawLink[] {
+function parseLawLinks(v: unknown, lang: string): OerebLawLink[] {
   const links: OerebLawLink[] = [];
   for (const lp of asArray(v)) {
-    const title = localizedText(getKey(lp, "Title"));
-    const url = localizedText(getKey(lp, "TextAtWeb"));
+    const title = localizedText(getKey(lp, "Title"), lang);
+    const url = localizedText(getKey(lp, "TextAtWeb"), lang);
     if (!title && !url) continue;
-    links.push({ title: title ?? url ?? "", url });
+    const link: OerebLawLink = { title: title ?? url ?? "", url };
+    const kind = asString(getKey(getKey(lp, "Type"), "Code"));
+    if (kind) link.kind = kind;
+    const authority = localizedText(getKey(getKey(lp, "ResponsibleOffice"), "Name"), lang);
+    if (authority) link.authority = authority;
+    links.push(link);
   }
   return links;
 }
 
-function parseAuthority(v: unknown): OerebTheme["authority"] {
+function parseAuthority(v: unknown, lang: string): OerebTheme["authority"] {
   if (!isDict(v)) return null;
-  const name = localizedText(getKey(v, "Name"));
-  const url = localizedText(getKey(v, "OfficeAtWeb"));
+  const name = localizedText(getKey(v, "Name"), lang);
+  const url = localizedText(getKey(v, "OfficeAtWeb"), lang);
   if (!name && !url) return null;
   return { name, url };
 }
 
-function parseRestriction(r: unknown): OerebTheme | null {
-  const theme = parseThemeRef(getKey(r, "Theme"));
+function parseRestriction(r: unknown, lang: string): OerebTheme | null {
+  const theme = parseThemeRef(getKey(r, "Theme"), lang);
   if (!theme) return null;
-  const subTheme = theme.subTheme ?? localizedText(getKey(r, "SubTheme"));
+  const subTheme = theme.subTheme ?? localizedText(getKey(r, "SubTheme"), lang);
   return {
     themeCode: theme.code,
     themeName: theme.name,
@@ -207,9 +226,9 @@ function parseRestriction(r: unknown): OerebTheme | null {
     areaPct: asNumber(getKey(r, "PartInPercent")),
     areaM2: asNumber(getKey(r, "AreaShare")),
     typeCode: asString(getKey(r, "TypeCode")),
-    legendText: localizedText(getKey(r, "LegendText")),
-    lawLinks: parseLawLinks(getKey(r, "LegalProvisions")),
-    authority: parseAuthority(getKey(r, "ResponsibleOffice")),
+    legendText: localizedText(getKey(r, "LegendText"), lang),
+    lawLinks: parseLawLinks(getKey(r, "LegalProvisions"), lang),
+    authority: parseAuthority(getKey(r, "ResponsibleOffice"), lang),
     raw: slimRestriction(r),
   };
 }
@@ -240,7 +259,7 @@ function themeStub(ref: ThemeRef, concern: Concern, raw: unknown): OerebTheme {
  *
  * Wirft OerebParseError, wenn das Dokument nicht als Auszug erkennbar ist.
  */
-export function parseExtractResponse(json: unknown, canton: string): OerebExtract {
+export function parseExtractResponse(json: unknown, canton: string, lang = "de"): OerebExtract {
   if (!isDict(json)) throw new OerebParseError("ÖREB-Antwort ist kein JSON-Objekt");
 
   const root = getKey(json, "GetExtractByIdResponse") ?? json;
@@ -255,14 +274,14 @@ export function parseExtractResponse(json: unknown, canton: string): OerebExtrac
   const affectedCodes = new Set<string>();
 
   for (const r of asArray(getKey(realEstate, "RestrictionOnLandownership"))) {
-    const t = parseRestriction(r);
+    const t = parseRestriction(r, lang);
     if (!t) continue;
     themes.push(t);
     affectedCodes.add(t.themeCode);
   }
 
   for (const c of asArray(getKey(extract, "ConcernedTheme"))) {
-    const ref = parseThemeRef(c);
+    const ref = parseThemeRef(c, lang);
     if (!ref || affectedCodes.has(ref.code)) continue;
     affectedCodes.add(ref.code);
     themes.push(themeStub(ref, "affects", c));
@@ -271,7 +290,7 @@ export function parseExtractResponse(json: unknown, canton: string): OerebExtrac
   const seen = new Set<string>();
   const pushStubs = (list: unknown, concern: Concern) => {
     for (const c of asArray(list)) {
-      const ref = parseThemeRef(c);
+      const ref = parseThemeRef(c, lang);
       if (!ref) continue;
       const key = `${concern}|${ref.code}|${ref.subTheme ?? ""}`;
       if (seen.has(key)) continue;
@@ -282,9 +301,14 @@ export function parseExtractResponse(json: unknown, canton: string): OerebExtrac
   pushStubs(getKey(extract, "NotConcernedTheme"), "not_affects");
   pushStubs(getKey(extract, "ThemeWithoutData"), "no_data");
 
+  // Ein leerer Auszug ist kein Befund: Er würde einen guten ersetzen und im Prompt «keine
+  // Einschränkung» behaupten. Jeder echte Auszug listet zumindest die nicht betroffenen Themen.
+  if (themes.length === 0) throw new OerebParseError("ÖREB-Antwort enthält keine Themen");
+
   const municipality =
-    localizedText(getKey(realEstate, "MunicipalityName", "Municipality")) ??
+    localizedText(getKey(realEstate, "MunicipalityName", "Municipality"), lang) ??
     asString(getKey(realEstate, "MunicipalityCode"));
+  const bfsNumber = asNumber(getKey(realEstate, "MunicipalityCode"));
 
   return {
     canton: asString(getKey(realEstate, "Canton")) ?? canton,
@@ -292,6 +316,7 @@ export function parseExtractResponse(json: unknown, canton: string): OerebExtrac
     identDn: asString(getKey(realEstate, "IdentDN", "IdentDn")),
     parcelNumber: asString(getKey(realEstate, "Number")),
     municipality,
+    bfsNumber: bfsNumber !== null && Number.isInteger(bfsNumber) ? bfsNumber : null,
     themes,
     raw: slimExtract(extract),
   };
@@ -306,200 +331,245 @@ export interface EgridCandidate {
   typeCode: string | null; // 'RealEstate' | 'Distinct_and_permanent_rights.BuildingRight' | …
 }
 
+const EGRID_PATTERN = /^CH\d{12}$/i;
+
+function egridTypeCode(type: unknown): string | null {
+  const code = asString(getKey(type, "Code")) ?? asString(type);
+  // .NET-Dienste (GE, VD) liefern den Code als Zahl.
+  return code === "0" ? "RealEstate" : code;
+}
+
+/** LU: `[{Value: egrid}, {Value: nummer}, {Value: identDN}, {Code: typ}]`, je Grundstück wiederholt. */
+function parseOrderedItems(items: unknown[]): EgridCandidate[] {
+  const out: EgridCandidate[] = [];
+  let current: EgridCandidate | null = null;
+  let position = 0;
+  for (const item of items) {
+    const value = asString(getKey(item, "Value"));
+    if (value && EGRID_PATTERN.test(value)) {
+      current = { egrid: value.toUpperCase(), number: null, identDn: null, typeCode: null };
+      out.push(current);
+      position = 0;
+    } else if (current && value) {
+      if (position === 0) current.number = value;
+      else if (position === 1) current.identDn = value;
+      position++;
+    } else if (current && getKey(item, "Code") !== undefined) {
+      current.typeCode = egridTypeCode(item);
+    }
+  }
+  return out;
+}
+
 export function parseEgridResponse(json: unknown): EgridCandidate[] {
   if (json === null || json === undefined) return [];
-  const list = asArray(getKey(json, "GetEGRIDResponse") ?? json);
+  const root = getKey(json, "GetEGRIDResponse") ?? json;
+  const ordered = getKey(root, "OrderedItems");
+  if (Array.isArray(ordered)) return parseOrderedItems(ordered);
+
+  const list = asArray(getKey(root, "Item") ?? root);
   const out: EgridCandidate[] = [];
   for (const item of list) {
-    const egrid = asString(getKey(item, "egrid", "EGRID"));
-    if (!egrid) continue;
-    const type = getKey(item, "type", "Type");
-    out.push({
-      egrid: egrid.toUpperCase(),
-      number: asString(getKey(item, "number", "Number")),
-      identDn: asString(getKey(item, "identDN", "IdentDN")),
-      typeCode: asString(getKey(type, "Code")) ?? asString(type),
+    // XML (SO, SH): Felder stehen flach nebeneinander, bei mehreren Treffern als parallele Listen.
+    const egrids = asArray(getKey(item, "egrid", "EGRID"));
+    const numbers = asArray(getKey(item, "number", "Number"));
+    const identDns = asArray(getKey(item, "identDN", "IdentDN"));
+    const types = asArray(getKey(item, "type", "Type"));
+    egrids.forEach((value, i) => {
+      const egrid = asString(value);
+      if (!egrid) return;
+      out.push({
+        egrid: egrid.toUpperCase(),
+        number: asString(numbers[i]),
+        identDn: asString(identDns[i]),
+        typeCode: egridTypeCode(types[i]),
+      });
     });
   }
   return out;
 }
 
+// ── Adapter ──────────────────────────────────────────────────────────────────
+
+export type GetEgridInput = GetEgridRequest;
+
+export type ServiceResolver = (
+  canton: string,
+  opts: { egrid?: string; signal?: AbortSignal }
+) => Promise<OerebService | null>;
+
 /**
- * geo.admin.ch führt Gemeindenamen ohne Umlaute/Akzente ("buehler", "schoenengrund") und
- * findet Suchtexte mit Umlauten nicht zuverlässig — Suche und Vergleich laufen deshalb
- * über die umschriebene Form.
+ * Herkunft des Dienstes: nichts = Auflösung über service.ts; String = feste Basis-URL
+ * (leer = nicht konfiguriert, Abruf endet mit 'unreachable'); Funktion = eigener Resolver.
  */
-function transliterate(s: string): string {
-  return s
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+export type ServiceSource = string | null | ServiceResolver;
+
+function fixedResolver(baseUrl: string | null): ServiceResolver {
+  const url = baseUrl?.trim().replace(/\/+$/, "");
+  return async (canton) =>
+    url
+      ? {
+          baseUrl: url,
+          language: PRESET_LANGUAGES[canton] ?? "de",
+          format: XML_ONLY_CANTONS.has(canton) ? "xml" : "json",
+          source: "fixed",
+        }
+      : null;
 }
 
-/** Vergleichsform: "Teufen (AR)", "teufen _ar_", "Teufen AR" → "teufen ar". */
-function normalizeName(s: string): string {
-  return transliterate(s).replace(/[^a-z0-9]+/g, " ").trim();
-}
-
-function normalizeParcel(s: string): string {
-  return s.trim().toUpperCase().replace(/^0+(?=\d)/, "");
-}
-
-// ── HTTP ─────────────────────────────────────────────────────────────────────
-
-async function fetchJson(url: string, what: string): Promise<unknown> {
-  let res: Response;
+function parseBody(text: string, what: string): unknown {
+  const body = text.replace(/^﻿/, "").trim();
+  if (body.startsWith("<")) return xmlToObject(body);
   try {
-    res = await fetch(url, {
-      headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(OEREB_TIMEOUT_MS),
-      cache: "no-store",
-    });
-  } catch (e) {
-    const reason =
-      e instanceof Error && e.name === "TimeoutError" ? `Timeout nach ${OEREB_TIMEOUT_MS / 1000} s` : String(e);
-    throw new OerebUnreachableError(`${what} nicht erreichbar: ${reason}`, e);
-  }
-  if (res.status === 204) return null;
-  if (!res.ok) {
-    const body = (await res.text().catch(() => ""))
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim()
-      .slice(0, 200);
-    throw new OerebUnreachableError(`${what} antwortet mit HTTP ${res.status}${body ? `: ${body}` : ""}`);
-  }
-  const text = await res.text();
-  try {
-    return JSON.parse(text);
+    return JSON.parse(body);
   } catch (e) {
     throw new OerebParseError(`${what} liefert kein gültiges JSON`, e);
   }
 }
 
-// ── Adapter ──────────────────────────────────────────────────────────────────
-
-export interface GetEgridInput {
-  municipality: string;
-  parcelNumber: string;
-  bfsNumber?: number;
-  en?: [number, number];
-}
-
 export class GenericOerebAdapter implements OerebAdapter {
   readonly canton: string;
-  private readonly baseUrl: string | null | undefined;
+  private readonly resolver: ServiceResolver;
 
-  constructor(canton: string, baseUrl: string | null | undefined) {
+  constructor(canton: string, service?: ServiceSource) {
     this.canton = canton;
-    this.baseUrl = baseUrl;
+    if (typeof service === "function") this.resolver = service;
+    else if (service === undefined) this.resolver = (c, opts) => resolveOerebService(c, opts);
+    else this.resolver = fixedResolver(service);
   }
 
-  /** Basis-URL ohne abschliessenden Slash; fehlt die Konfiguration → 'unreachable'. */
-  protected get base(): string {
-    const url = this.baseUrl?.trim();
-    if (!url) throw new OerebUnreachableError(`ÖREB-Basis-URL für ${this.canton} nicht konfiguriert`);
-    return url.replace(/\/+$/, "");
+  /** Führt einen Abruf aus; fällt eine bekannte Basis aus (404, Verbindung), einmal neu ermitteln. */
+  private async withService<T>(
+    opts: { egrid?: string; signal?: AbortSignal },
+    run: (service: OerebService) => Promise<T>
+  ): Promise<T> {
+    const service = await this.resolver(this.canton, opts);
+    if (!service) throw new OerebUnreachableError(`ÖREB-Basis-URL für ${this.canton} nicht konfiguriert`);
+    try {
+      return await run(service);
+    } catch (e) {
+      if (!(e instanceof OerebBaseGoneError) || service.source !== "known") throw e;
+      const replacement = await rediscoverOerebService(this.canton, service, opts);
+      if (!replacement) throw e;
+      return run(replacement);
+    }
+  }
+
+  /** Holt `{base}/{kind}/{format}/?{query}`; 204 → null; JSON abgelehnt → XML versuchen und merken. */
+  private async getDocument(
+    service: OerebService,
+    kind: "getegrid" | "extract",
+    query: string,
+    what: string,
+    signal?: AbortSignal
+  ): Promise<unknown> {
+    const load = (format: OerebFormat) =>
+      oerebRequest(`${service.baseUrl}/${kind}/${format}/?${query}`, {
+        what,
+        canton: this.canton,
+        signal,
+        authHeader: service.authHeader,
+        accept: format === "xml" ? "application/xml" : "application/json",
+      });
+
+    let result = await load(service.format);
+    if (result.kind === "format_rejected" && service.format === "json") {
+      await rememberOerebFormat(this.canton, "xml");
+      result = await load("xml");
+    }
+    if (result.kind === "format_rejected") {
+      throw new OerebParseError(`${what} lehnt das Format ab (HTTP ${result.status})`);
+    }
+    return result.kind === "empty" ? null : parseBody(result.text, what);
   }
 
   /**
-   * Kantonale Adapter können hier IDENTDN-Kandidaten (Grundbuchkreis-Kennung) aus
-   * Gemeinde/BFS-Nummer ableiten. Standard: keine — dann greift die Parzellensuche
-   * über geo.admin.ch.
+   * Kantonale Adapter können hier IDENTDN-Kandidaten (Grundbuchkreis-Kennung) aus der
+   * BFS-Nummer ableiten. Standard: keine — dann greift resolveParcel über geo.admin.ch.
    */
   protected identDnCandidates(_input: GetEgridInput): string[] {
     return [];
   }
 
+  private async fromEgridService(input: GetEgridInput): Promise<EgridCandidate[]> {
+    const { en, signal } = input;
+    if (en) {
+      return this.withService({ signal }, async (service) =>
+        parseEgridResponse(
+          await this.getDocument(service, "getegrid", `EN=${en[0]},${en[1]}`, "ÖREB-GetEGRID (EN)", signal)
+        )
+      );
+    }
+    const identDns = this.identDnCandidates(input);
+    if (!identDns.length) return [];
+    const wanted = normalizeParcel(input.parcelNumber);
+    return this.withService({ signal }, async (service) => {
+      const found: EgridCandidate[] = [];
+      for (const identDn of identDns) {
+        const query = `IDENTDN=${encodeURIComponent(identDn)}&NUMBER=${encodeURIComponent(input.parcelNumber.trim())}`;
+        found.push(...parseEgridResponse(await this.getDocument(service, "getegrid", query, "ÖREB-GetEGRID (IDENTDN)", signal)));
+      }
+      return found.filter((c) => !c.number || normalizeParcel(c.number) === wanted);
+    });
+  }
+
+  /** EGRIDs zu einem Grundstück samt Details. Bei mehreren Treffern entscheidet der Nutzer. */
+  async resolveEgrid(input: GetEgridInput): Promise<EgridResolution> {
+    const fromService = await this.fromEgridService(input);
+    if (fromService.length) {
+      // Bei Baurechten/Bergwerken auf derselben Parzelle zählt die Liegenschaft selbst.
+      const realEstates = fromService.filter((c) => c.typeCode === "RealEstate");
+      const chosen = realEstates.length ? realEstates : fromService;
+      const egrids = Array.from(new Set(chosen.map((c) => c.egrid)));
+      return {
+        egrids,
+        candidates: egrids.map((egrid) => ({
+          egrid,
+          number: chosen.find((c) => c.egrid === egrid)?.number ?? null,
+          municipality: input.municipality || null,
+          bfs: input.bfsNumber ?? null,
+          canton: this.canton,
+          e: input.en?.[0] ?? null,
+          n: input.en?.[1] ?? null,
+          type: null,
+          oereb_pdf_url: oerebPdfUrl(this.canton, egrid),
+        })),
+      };
+    }
+    if (input.en) return { egrids: [], candidates: [] };
+
+    const parcel = await resolveParcel({
+      canton: this.canton,
+      municipality: input.municipality,
+      number: input.parcelNumber,
+      bfs: input.bfsNumber,
+      signal: input.signal,
+    });
+    if (parcel.status === "unavailable") {
+      throw new OerebUnreachableError(`Parzellensuche geo.admin.ch nicht verfügbar: ${parcel.message}`);
+    }
+    return { egrids: parcel.candidates.map((c) => c.egrid), candidates: parcel.candidates };
+  }
+
   async getEgrid(input: GetEgridInput): Promise<string[]> {
-    const base = this.base;
-    let candidates: EgridCandidate[] = [];
-
-    if (input.en) {
-      const [e, n] = input.en;
-      const json = await fetchJson(`${base}/getegrid/json/?EN=${e},${n}`, "ÖREB-GetEGRID (EN)");
-      candidates = parseEgridResponse(json);
-    } else {
-      const wanted = normalizeParcel(input.parcelNumber);
-      for (const identDn of this.identDnCandidates(input)) {
-        const url =
-          `${base}/getegrid/json/?IDENTDN=${encodeURIComponent(identDn)}` +
-          `&NUMBER=${encodeURIComponent(input.parcelNumber.trim())}`;
-        const json = await fetchJson(url, "ÖREB-GetEGRID (IDENTDN)");
-        candidates.push(...parseEgridResponse(json));
-      }
-      candidates = candidates.filter((c) => !c.number || normalizeParcel(c.number) === wanted);
-      if (!candidates.length) {
-        candidates = await this.resolveViaGeoAdmin(input);
-      }
-    }
-
-    // Bei Baurechten/Bergwerken auf derselben Parzelle zählt die Liegenschaft selbst.
-    const realEstates = candidates.filter((c) => c.typeCode === "RealEstate");
-    const chosen = realEstates.length ? realEstates : candidates;
-    return Array.from(new Set(chosen.map((c) => c.egrid)));
+    return (await this.resolveEgrid(input)).egrids;
   }
 
-  /**
-   * Nationale Parzellensuche der swisstopo (api3.geo.admin.ch). Das Trefferdetail lautet
-   * "<Nummer> <gemeinde> <BFS> <egrid>"; nur exakte Treffer auf Nummer und Gemeinde zählen.
-   * Mehrdeutige Gemeindenamen tragen dort den Kanton als Zusatz ("wald _ar_"): ein Name ohne
-   * Zusatz passt auf die Gemeinde dieses Kantons. Weil gleichnamige Gemeinden anderer Kantone
-   * den Treffer aus den Top 20 verdrängen können, folgt ohne Treffer eine zweite Suche mit
-   * Kantonszusatz ("Stein AR 10").
-   */
-  protected async resolveViaGeoAdmin(input: GetEgridInput): Promise<EgridCandidate[]> {
-    const name = input.municipality.trim();
-    const found = await this.searchGeoAdmin(name, input);
-    if (found.length || normalizeName(name).endsWith(` ${this.canton.toLowerCase()}`)) return found;
-    return this.searchGeoAdmin(`${name} ${this.canton}`, input);
-  }
-
-  private async searchGeoAdmin(name: string, input: GetEgridInput): Promise<EgridCandidate[]> {
-    const url = new URL(GEO_ADMIN_SEARCH);
-    url.searchParams.set("searchText", `${transliterate(name)} ${input.parcelNumber.trim()}`);
-    url.searchParams.set("origins", "parcel");
-    url.searchParams.set("type", "locations");
-    url.searchParams.set("limit", "20");
-    url.searchParams.set("sr", "2056");
-    const json = await fetchJson(url.toString(), "Parzellensuche geo.admin.ch");
-
-    const wantedNumber = normalizeParcel(input.parcelNumber);
-    const wantedName = normalizeName(name);
-    const wantedNames = [wantedName, `${wantedName} ${this.canton.toLowerCase()}`];
-    const out: EgridCandidate[] = [];
-    for (const r of asArray(getKey(json, "results"))) {
-      const detail = asString(getKey(getKey(r, "attrs"), "detail"));
-      if (!detail) continue;
-      const tokens = detail.split(/\s+/);
-      if (tokens.length < 4) continue;
-      const egrid = tokens[tokens.length - 1];
-      const bfs = Number(tokens[tokens.length - 2]);
-      const municipalityName = tokens.slice(1, -2).join(" ");
-      if (!/^ch\d{12}$/i.test(egrid)) continue;
-      if (normalizeParcel(tokens[0]) !== wantedNumber) continue;
-      const nameMatches = wantedNames.includes(normalizeName(municipalityName));
-      const bfsMatches = input.bfsNumber !== undefined && bfs === input.bfsNumber;
-      if (!nameMatches && !bfsMatches) continue;
-      out.push({ egrid: egrid.toUpperCase(), number: tokens[0], identDn: null, typeCode: "RealEstate" });
-    }
-    return out;
-  }
-
-  async getExtract(egrid: string): Promise<OerebExtract> {
+  async getExtract(egrid: string, opts: { signal?: AbortSignal } = {}): Promise<OerebExtract> {
     const id = egrid.trim().toUpperCase();
     if (!/^CH\d{12}$/.test(id)) throw new OerebNoEgridError(`Ungültige EGRID: ${egrid}`);
-    const url = `${this.base}/extract/json/?EGRID=${id}&GEOMETRY=false&LANG=de`;
-    const json = await fetchJson(url, "ÖREB-Auszug");
-    if (json === null) throw new OerebNoEgridError(`Kein ÖREB-Auszug für EGRID ${id} vorhanden`);
-    const extract = parseExtractResponse(json, this.canton);
-    if (extract.egrid.toUpperCase() !== id) {
-      throw new OerebParseError(`ÖREB-Auszug gehört zu EGRID ${extract.egrid}, angefragt war ${id}`);
-    }
-    return extract;
+    const { signal } = opts;
+    return this.withService({ egrid: id, signal }, async (service) => {
+      const query = `EGRID=${id}&LANG=${encodeURIComponent(service.language)}&GEOMETRY=false`;
+      const doc = await this.getDocument(service, "extract", query, "ÖREB-Auszug", signal);
+      if (doc === null) throw new OerebNoEgridError(`Kein ÖREB-Auszug für EGRID ${id} vorhanden`);
+      const normalized = normalizeExtract(doc, { otherLegend: OTHER_LEGEND_CANTONS.has(this.canton) });
+      const extract = parseExtractResponse(normalized, this.canton, service.language);
+      if (extract.egrid.toUpperCase() !== id) {
+        throw new OerebParseError(`ÖREB-Auszug gehört zu EGRID ${extract.egrid}, angefragt war ${id}`);
+      }
+      return extract;
+    });
   }
 
   /**

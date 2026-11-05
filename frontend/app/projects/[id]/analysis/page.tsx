@@ -3,13 +3,17 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
+import type { AnalysisAutoParts, AnalysisSnapshots, OerebRefreshExtras } from "@/lib/geoadmin/contract";
+import ProjectGeoPanel from "@/components/ProjectGeoPanel";
+import { useOerebSync } from "@/components/useOerebDocumentSync";
+import { formatDate } from "@/components/geoportal-logic";
 import {
   MAX_PLAN_FILES,
   MAX_PLAN_FILE_BYTES,
   planMimeType,
   type UploadedPlanFile,
 } from "@/lib/plan-files";
-import { downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
+import { autoPartsWarning, downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import {
   type AnalysisItem,
   type Category,
@@ -63,7 +67,14 @@ interface AnalysisWithDoc {
   errorMessage: string | null;
   /** Normen/Teile, die nicht geprüft werden konnten — das Ergebnis ist dann unvollständig. */
   failedNorms: { norm_title: string; error: string }[];
+  /** Stand von ÖREB, Geodaten und Normen dieser Analyse. Fehlt bei älteren Analysen. */
+  snapshots: Partial<AnalysisSnapshots> | null;
+  /** Vom Deckel ausgelassene Teile importierter Reglemente. */
+  autoParts: AnalysisAutoParts | null;
 }
+
+/** So lange wartet der Analysestart höchstens auf ÖREB-Abruf und Reglemente. */
+const PREFLIGHT_MAX_MS = 90_000;
 
 interface PlanFileRef { name: string; url: string }
 
@@ -95,7 +106,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null } | null;
+  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: AnalysisAutoParts | null } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -109,6 +120,14 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     items: a.items ?? a.analysis_items ?? [],
     errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
     failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
+    snapshots: a.result_json
+      ? {
+          oereb_snapshot: a.result_json.oereb_snapshot,
+          geodata_snapshot: a.result_json.geodata_snapshot,
+          norm_versions: a.result_json.norm_versions,
+        }
+      : null,
+    autoParts: a.result_json?.auto_parts ?? null,
   };
 }
 
@@ -235,6 +254,11 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const runIdRef = useRef<string | null>(null);
   /** true, solange die Dateien hochgeladen werden — dann gibt es serverseitig noch nichts abzubrechen. */
   const uploadPhaseRef = useRef(false);
+  /** Aktualisierung vor der Analyse: läuft, und «Ohne Warten starten» beendet das Warten. */
+  const [preflight, setPreflight] = useState<"oereb" | "documents" | null>(null);
+  const [preflightNote, setPreflightNote] = useState<string | null>(null);
+  const skipPreflightRef = useRef<(() => void) | null>(null);
+  const sync = useOerebSync();
 
   // Neue Version geöffnet → Vorschau beginnt bei der ersten Datei.
   useEffect(() => { setPreviewIdx(0); }, [selectedAnalysis?.id]);
@@ -344,6 +368,56 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   }
 
+  /**
+   * ÖREB neu abrufen und offene Reglemente abwarten, damit die Analyse den frischen Stand
+   * prüft. Blockiert nie: Fehler, Zeitlimit und «Ohne Warten starten» führen direkt weiter.
+   */
+  async function refreshBeforeAnalysis(signal: AbortSignal): Promise<void> {
+    setPreflightNote(null);
+    setPreflight("oereb");
+    let usedStale = false;
+    let staleDate: string | null = null;
+
+    const work = (async () => {
+      const res = await api.post<OerebRefreshExtras>(`/projects/${params.id}/oereb`, { force: true }, signal);
+      usedStale = !!res?.used_stale;
+      staleDate = formatDate(res?.stale_fetched_at);
+      if (res?.documents_pending > 0) {
+        setPreflight("documents");
+        await sync.run(res.documents_pending);
+      }
+      return "done" as const;
+    })();
+
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<"timeout">((resolve) => { timer = setTimeout(() => resolve("timeout"), PREFLIGHT_MAX_MS); });
+    const skipped = new Promise<"skipped">((resolve) => { skipPreflightRef.current = () => resolve("skipped"); });
+    const aborted = new Promise<"aborted">((resolve) => {
+      if (signal.aborted) resolve("aborted");
+      signal.addEventListener("abort", () => resolve("aborted"), { once: true });
+    });
+
+    try {
+      const outcome = await Promise.race([work, timeout, skipped, aborted]);
+      if (outcome === "aborted") throw new DOMException("Abgebrochen", "AbortError");
+      if (outcome === "timeout") {
+        setPreflightNote("Die Aktualisierung der Reglemente dauert länger. Die Analyse prüft den bisherigen Stand, der Rest läuft im Hintergrund weiter.");
+      } else if (outcome === "skipped") {
+        setPreflightNote("Ohne Warten gestartet: Die Analyse prüft den bisherigen Stand der Reglemente.");
+      } else if (usedStale) {
+        setPreflightNote(`Der ÖREB-Auszug konnte nicht aktualisiert werden. Die Analyse prüft den Stand${staleDate ? ` vom ${staleDate}` : ""}.`);
+      }
+    } catch (e) {
+      if (signal.aborted) throw e;
+      setPreflightNote("Der ÖREB-Auszug konnte nicht aktualisiert werden. Die Analyse läuft trotzdem, der Bericht nennt den Stand.");
+    } finally {
+      clearTimeout(timer);
+      skipPreflightRef.current = null;
+      work.catch(() => {});
+      setPreflight(null);
+    }
+  }
+
   async function runAnalysis() {
     const files = pendingFiles;
     // Prüfung beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
@@ -382,10 +456,13 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         uploaded.push({ path: slots[i].path, name: f.name, type, size: f.size });
         setUploadProgress(`${i + 1} von ${files.length}`);
       }
-      uploadPhaseRef.current = false;
       setUploadProgress(null);
 
-      // 2. Analyse über den ganzen Plansatz.
+      // 2. ÖREB und Reglemente auffrischen. Serverseitig läuft noch nichts, Abbrechen bleibt lokal.
+      await refreshBeforeAnalysis(controller.signal);
+      uploadPhaseRef.current = false;
+
+      // 3. Analyse über den ganzen Plansatz.
       const raw = await api.post<RawGetAnalysis>(
         `/projects/${params.id}/analyses`,
         { files: uploaded, doc_type: planType, run_id: runId },
@@ -399,6 +476,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         setDetailFilter("all");
       }
       setPendingFiles([]);
+      // Die POST-Antwort enthält nicht sicher result_json; der Bericht braucht dessen Stände.
+      loadAnalyses().catch(() => {});
     } catch (e: unknown) {
       if (controller.signal.aborted) {
         setInfo("Analyse abgebrochen.");
@@ -416,6 +495,24 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       runIdRef.current = null;
     }
   }
+
+  const preflightLabel = preflight === "documents"
+    ? sync.state.progress?.total
+      ? `Reglemente werden aktualisiert (${sync.state.progress.processed}/${sync.state.progress.total})…`
+      : "Reglemente werden aktualisiert…"
+    : preflight === "oereb"
+      ? "ÖREB-Auszug wird aktualisiert…"
+      : null;
+
+  const skipPreflightButton = preflight && (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); skipPreflightRef.current?.(); }}
+      style={{ fontSize: 13, fontWeight: 500, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", padding: "8px 18px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit" }}
+    >
+      Ohne Warten starten
+    </button>
+  );
 
   async function cancelAnalysis() {
     if (!uploading || cancelling) return;
@@ -475,6 +572,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       planType: a.planType,
       version: vIdx >= 0 ? typeAnalyses.length - vIdx : 1,
       createdAt: a.created_at,
+      snapshots: a.snapshots,
+      autoParts: a.autoParts,
     };
   }
 
@@ -522,6 +621,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             Neue Prüfung
           </button>
         </div>
+
+        <ProjectGeoPanel projectId={params.id} />
 
         {/* New type input */}
         {showNewTypeInput && (
@@ -848,8 +949,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                         {(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).label}
                       </span>
                     )}
-                    {a.status === "done" && a.failedNorms.length > 0 && (
-                      <span title={a.failedNorms.map((f) => f.norm_title).join(", ")} style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: "#FBBF24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", padding: "1px 7px", borderRadius: 50 }}>
+                    {a.status === "done" && (a.failedNorms.length > 0 || !!autoPartsWarning(a.autoParts)) && (
+                      <span title={[...a.failedNorms.map((f) => f.norm_title), autoPartsWarning(a.autoParts)].filter(Boolean).join(", ")} style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: "#FBBF24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", padding: "1px 7px", borderRadius: 50 }}>
                         unvollständig
                       </span>
                     )}
@@ -915,9 +1016,14 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 <div>
                   <div style={{ width: 44, height: 44, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 16px" }} />
                   <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>
-                    {uploadProgress ? `Pläne werden hochgeladen (${uploadProgress})…` : "Analyse läuft – Pläne werden gegen die Normen geprüft…"}
+                    {uploadProgress ? `Pläne werden hochgeladen (${uploadProgress})…` : preflightLabel ?? "Analyse läuft – Pläne werden gegen die Normen geprüft…"}
                   </p>
                   <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>Das kann einige Minuten dauern</p>
+                  {preflightNote && !preflight && (
+                    <p role="status" style={{ fontSize: 12.5, color: "#FBBF24", margin: "-8px auto 16px", maxWidth: 480 }}>{preflightNote}</p>
+                  )}
+                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  {skipPreflightButton}
                   <button
                     type="button"
                     onClick={(e) => { e.stopPropagation(); cancelAnalysis(); }}
@@ -931,6 +1037,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   >
                     {cancelling ? "Wird abgebrochen…" : "Analyse abbrechen"}
                   </button>
+                  </div>
                 </div>
               ) : pendingFiles.length > 0 ? (
                 <div style={{ textAlign: "left", maxWidth: 560, margin: "0 auto" }}>
@@ -1066,7 +1173,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               {uploading && (
                 <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(40,98,215,0.1)", border: "1px solid rgba(133,166,233,0.25)", borderRadius: 12, padding: "10px 14px" }}>
                   <div style={{ width: 16, height: 16, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
-                  <p style={{ flex: 1, fontSize: 12.5, color: "#ABAEBB", margin: 0 }}>Eine neue Analyse läuft im Hintergrund…</p>
+                  <p style={{ flex: 1, fontSize: 12.5, color: "#ABAEBB", margin: 0 }}>{preflightLabel ?? "Eine neue Analyse läuft im Hintergrund…"}</p>
+                  {skipPreflightButton}
                   <button
                     type="button"
                     onClick={cancelAnalysis}
@@ -1137,6 +1245,27 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   {selectedAnalysis.errorMessage && (
                     <p style={{ fontSize: 12, color: "#ABAEBB", margin: "6px 0 0" }}>{selectedAnalysis.errorMessage}</p>
                   )}
+                </div>
+              )}
+
+              {preflightNote && !uploading && (
+                <div role="status" style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px" }}>
+                  <p style={{ flex: 1, fontSize: 12.5, color: "#FBBF24", margin: 0, lineHeight: 1.45 }}>{preflightNote}</p>
+                  <button type="button" aria-label="Hinweis schliessen" onClick={() => setPreflightNote(null)} style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+                </div>
+              )}
+
+              {selectedAnalysis.snapshots?.oereb_snapshot?.fetched_at && (
+                <p style={{ fontSize: 12, color: selectedAnalysis.snapshots.oereb_snapshot.stale ? "#FBBF24" : "#7B8299", margin: 0, lineHeight: 1.45 }}>
+                  ÖREB-Stand: {formatDate(selectedAnalysis.snapshots.oereb_snapshot.fetched_at) ?? "unbekannt"}
+                  {selectedAnalysis.snapshots.oereb_snapshot.stale ? ". Die Aktualisierung war fehlgeschlagen, geprüft wurde dieser ältere Stand." : ""}
+                </p>
+              )}
+
+              {autoPartsWarning(selectedAnalysis.autoParts) && (
+                <div role="alert" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "12px 16px" }}>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: "0 0 4px" }}>Ergebnis unvollständig</p>
+                  <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.5 }}>{autoPartsWarning(selectedAnalysis.autoParts)}</p>
                 </div>
               )}
 

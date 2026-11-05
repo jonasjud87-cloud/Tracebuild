@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import TraceBuildLogo from "@/components/landing/TraceBuildLogo";
+import { OerebSyncProvider, OerebSyncStatus } from "@/components/useOerebDocumentSync";
 
 export default function ProjectLayout({
   children,
@@ -44,7 +45,7 @@ export default function ProjectLayout({
               <span style={{ fontSize: 13, color: "#7B8299" }}>← Projekte</span>
             </Link>
           </div>
-          <div style={{ display: "flex", gap: 0 }}>
+          <div style={{ display: "flex", gap: 0, overflowX: "auto" }}>
             {tabs.map((tab) => {
               const active = pathname.startsWith(tab.href);
               return (
@@ -72,7 +73,11 @@ export default function ProjectLayout({
         </div>
       </header>
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 24px" }}>
-        {children}
+        {/* Im Layout, damit der Import pro Projekt nur einmal läuft und Reiterwechsel überlebt. */}
+        <OerebSyncProvider projectId={params.id}>
+          <OerebSyncStatus projectId={params.id} />
+          {children}
+        </OerebSyncProvider>
       </main>
     </div>
   );

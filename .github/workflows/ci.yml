@@ -46,6 +46,15 @@ jobs:
           NEXT_PUBLIC_SUPABASE_ANON_KEY: dummy-anon-key
           NEXT_PUBLIC_API_URL: http://localhost:8000
 
+      # Tests brauchen natives Type-Stripping und module.registerHooks, deshalb Node 24.
+      - name: Setup Node fuer Tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Tests
+        run: npm test
+
   backend:
     name: Backend (FastAPI)
     runs-on: ubuntu-latest

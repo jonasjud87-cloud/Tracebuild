@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { anthropic } from "@/lib/anthropic";
 import { logAudit } from "@/lib/auditLog";
+import { buildChatNormList, buildDataRules, newDataBoundary } from "@/lib/analysis-reference";
 
 export const maxDuration = 120;
 
@@ -35,9 +36,10 @@ function buildSystemPrompt(
   const kanton   = project.location?.canton       ?? "unbekannt";
   const bauzone  = project.bauzone                ?? "nicht ermittelt";
 
+  const boundary = newDataBoundary();
   const norms = normRows.map(r => r.norms).filter(Boolean) as NonNullable<NormRow["norms"]>[];
   const normenListe = norms.length > 0
-    ? norms.map(n => `- [${n.category}] ${n.title}: ${n.text.slice(0, 200)}${n.text.length > 200 ? "…" : ""}`).join("\n")
+    ? buildChatNormList(norms, boundary)
     : "Noch keine Normen zugewiesen.";
 
   const failWarn = lastItems.filter(i => i.status === "fail" || i.status === "warn");
@@ -45,7 +47,9 @@ function buildSystemPrompt(
     ? failWarn.map(i => `- [${i.status.toUpperCase()}] ${i.norm_title ?? "Norm"}: ${i.note}`).join("\n")
     : "Keine offenen Prüfpunkte aus der letzten Analyse.";
 
-  return `Du bist ein Baurechtsassistent für das Projekt "${project.name}" in ${gemeinde}, Kanton ${kanton}, Bauzone ${bauzone}.
+  return `${buildDataRules(boundary)}
+
+Du bist ein Baurechtsassistent für das Projekt "${project.name}" in ${gemeinde}, Kanton ${kanton}, Bauzone ${bauzone}.
 
 Projektkontext:
 

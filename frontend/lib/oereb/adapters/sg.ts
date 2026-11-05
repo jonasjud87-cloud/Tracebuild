@@ -5,7 +5,7 @@
  *   https://oereb.geo.sg.ch/ktsg/wsgi/oereb
  *   {base}/versions/json, {base}/capabilities/json, {base}/getegrid/json/?EN=…,
  *   {base}/getegrid/json/?IDENTDN=…&NUMBER=…, {base}/extract/json/?EGRID=…
- * Die URL kommt aus OEREB_BASE_URL_SG; ist sie leer, endet jeder Abruf mit 'unreachable'.
+ * OEREB_BASE_URL_SG ist nur noch ein Override; die Basis steht in service-quirks.ts.
  *
  * Besonderheiten SG:
  *  - Kein Treffer → HTTP 204 (kein leeres JSON).
@@ -19,9 +19,7 @@
  *    schaft). Der Legendentext enthält das kommunale Kürzel am Ende ("BauG Wohnzone W2").
  */
 import type { OerebExtract, OerebTheme, ZoneResult } from "../types";
-import { GenericOerebAdapter, pickZoneRestriction, type GetEgridInput } from "./generic";
-
-export const SG_OEREB_BASE_URL_ENV = "OEREB_BASE_URL_SG";
+import { GenericOerebAdapter, pickZoneRestriction, type GetEgridInput, type ServiceSource } from "./generic";
 
 /**
  * Code → Grobklasse. Quelle für die 2-stelligen Hauptnutzungscodes: ARE, Minimales
@@ -128,8 +126,8 @@ export function sgExactZoneCode(legendText: string | null): string | null {
 }
 
 export class SgOerebAdapter extends GenericOerebAdapter {
-  constructor(baseUrl: string | null | undefined = process.env[SG_OEREB_BASE_URL_ENV]) {
-    super("SG", baseUrl);
+  constructor(service?: ServiceSource) {
+    super("SG", service);
   }
 
   protected identDnCandidates(input: GetEgridInput): string[] {

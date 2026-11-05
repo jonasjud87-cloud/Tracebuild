@@ -5,6 +5,13 @@ import { api } from "@/lib/api";
 import { normMatchesZone } from "@/lib/zone-match";
 import { isOerebSupportedCanton } from "@/lib/oereb/cantons";
 import { isFederalTheme } from "@/lib/oereb/mapping";
+import type { ExtractStatus } from "@/lib/geoadmin/contract";
+import OerebStatusNotice from "@/components/OerebStatusNotice";
+import OerebDocumentsPanel from "@/components/OerebDocumentsPanel";
+import ZoneEditor from "@/components/ZoneEditor";
+import { useOerebSync } from "@/components/useOerebDocumentSync";
+import { useOrgRole } from "@/components/useOrgRole";
+import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
 
 interface Project {
   id: string;
@@ -13,7 +20,7 @@ interface Project {
   parcel_number: string | null;
   bauzone: string | null;
   zone_source?: "oereb" | "manual" | null;
-  zone_confidence?: "exact" | "coarse" | null;
+  zone_confidence?: "exact" | "coarse" | "low" | null;
 }
 
 interface Norm {
@@ -29,6 +36,9 @@ interface Norm {
   source_doc: string | null;
   org_id: string | null;
   zone: string | null;
+  // Erst nach der Geoportal-Migration vorhanden.
+  source_kind?: string | null;
+  source_checked_at?: string | null;
 }
 
 interface ProjectNorm {
@@ -42,7 +52,6 @@ interface ProjectNorm {
 
 // ── ÖREB (Vertrag GET/POST /projects/{id}/oereb) ─────────────────────────────
 
-type ExtractStatus = "ok" | "no_egrid" | "ambiguous" | "unreachable" | "parse_error";
 type Concern = "affects" | "not_affects" | "no_data";
 type LegalStatus = "inForce" | "changeWithPreEffect" | "changeWithoutPreEffect" | "unknown";
 
@@ -67,10 +76,14 @@ type OerebThemeWire = Partial<OerebThemeRow> & {
 };
 
 interface OerebResponse {
-  extract: { status: ExtractStatus | null; status_detail: string | null; egrid: string | null; fetched_at: string | null } | null;
+  extract: { status: ExtractStatus | null; status_detail: string | null; egrid: string | null; fetched_at: string | null; last_attempt_at?: string | null; last_error?: string | null } | null;
   themes: OerebThemeWire[];
   gaps: { themeCode: string; themeName: string }[];
-  zone: { bauzone: string | null; zone_source: "oereb" | "manual" | null; zone_confidence: "exact" | "coarse" | null } | null;
+  zone: { bauzone: string | null; zone_source: "oereb" | "manual" | null; zone_confidence: "exact" | "coarse" | "low" | null } | null;
+  oereb_pdf_url?: string | null;
+  documents_pending?: number;
+  used_stale?: boolean;
+  stale_fetched_at?: string | null;
   /** POST: Zuweisungszähler (Vertrag: `assigned`; Route: `oereb_assigned` + `assigned_norms_count`). */
   assigned?: number;
   oereb_assigned?: number;
@@ -157,6 +170,13 @@ function triggerCode(pn: ProjectNorm): string | null {
   return t && t.startsWith("oereb:") ? t.slice("oereb:".length) : null;
 }
 
+/** Herkunft einer ÖREB-Zuweisung in Worten statt als technischer Auslöser. */
+function triggerLabel(trigger: string | null | undefined): string {
+  if (trigger?.startsWith("oereb-doc:")) return "Steht im ÖREB-Auszug dieses Grundstücks";
+  if (trigger) return `Auslöser: ${trigger}`;
+  return "Über den ÖREB-Auszug zugewiesen";
+}
+
 // ── Karten ───────────────────────────────────────────────────────────────────
 
 function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string) => void }) {
@@ -188,8 +208,13 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
               </span>
             )}
             {pn.added_by === "oereb" && (
-              <span title={pn.trigger ? `Auslöser: ${pn.trigger}` : "Über den ÖREB-Auszug zugewiesen"} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 600, background: OEREB_STYLE.badgeBg, color: OEREB_STYLE.badgeText }}>
+              <span title={triggerLabel(pn.trigger)} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 600, background: OEREB_STYLE.badgeBg, color: OEREB_STYLE.badgeText }}>
                 📍 ÖREB
+              </span>
+            )}
+            {norm.source_kind === "oereb_auto" && (
+              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: OEREB_STYLE.badgeBg, color: OEREB_STYLE.badgeText }}>
+                automatisch aus ÖREB{norm.source_checked_at ? `, Stand ${formatDate(norm.source_checked_at)}` : ""}
               </span>
             )}
             {pn.added_by === "user" && (
@@ -332,73 +357,6 @@ function AddCustomNormModal({ projectId, onClose, onAdded }: { projectId: string
   );
 }
 
-/**
- * Inline-Editor für die Bauzone. Speichert per PATCH — die Route setzt damit
- * zone_source = 'manual' (Entscheidung 1: manuelle Zone gewinnt).
- */
-function ZoneEditor({ projectId, initial, onSaved, onCancel, accent = "rgba(133,166,233,0.3)" }: {
-  projectId: string;
-  initial: string;
-  onSaved: (zone: string) => void;
-  onCancel?: () => void;
-  accent?: string;
-}) {
-  const [value, setValue] = useState(initial);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  async function handleSave() {
-    const zone = value.trim();
-    if (!zone) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await api.patch(`/projects/${projectId}`, { bauzone: zone });
-      onSaved(zone);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : "Speichern fehlgeschlagen");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          type="text"
-          autoFocus
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder="Bauzone eingeben (z.B. W2)"
-          style={{ flex: 1, minWidth: 140, border: `1px solid ${accent}`, borderRadius: 8, padding: "6px 12px", fontSize: 13, color: "#fff", background: "rgba(10,14,23,0.6)", outline: "none", fontFamily: "inherit" }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleSave();
-            if (e.key === "Escape" && onCancel) onCancel();
-          }}
-        />
-        <button
-          onClick={handleSave}
-          disabled={saving || !value.trim()}
-          style={{ padding: "6px 14px", background: "#2862D7", color: "#fff", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: saving || !value.trim() ? "not-allowed" : "pointer", opacity: saving || !value.trim() ? 0.5 : 1, fontFamily: "inherit" }}
-        >
-          {saving ? "..." : "Speichern"}
-        </button>
-        {onCancel && (
-          <button
-            onClick={onCancel}
-            disabled={saving}
-            style={{ padding: "6px 10px", background: "none", color: "#7B8299", borderRadius: 8, fontSize: 13, border: "1px solid rgba(133,166,233,0.2)", cursor: "pointer", fontFamily: "inherit" }}
-          >
-            Abbrechen
-          </button>
-        )}
-      </div>
-      {error && <span style={{ fontSize: 12, color: "#F87171" }}>{error}</span>}
-    </div>
-  );
-}
-
 function LegalStatusBadge({ status }: { status: LegalStatus }) {
   const s = LEGAL_STATUS[status] ?? LEGAL_STATUS.unknown;
   return (
@@ -516,6 +474,8 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   const [showOtherZones, setShowOtherZones] = useState(false);
   const [showNoData, setShowNoData] = useState(false);
   const [editingZone, setEditingZone] = useState(false);
+  const { isAdmin } = useOrgRole();
+  const sync = useOerebSync();
 
   const load = useCallback(async () => {
     try {
@@ -542,6 +502,12 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Nach jedem Import-Lauf: Neue Reglemente können dem Projekt zugewiesen worden sein.
+  const syncVersion = sync.state.version;
+  useEffect(() => {
+    if (syncVersion > 0) load();
+  }, [syncVersion, load]);
+
   function flash(msg: string) {
     setRefreshMsg(msg);
     setTimeout(() => setRefreshMsg(null), 4000);
@@ -558,17 +524,18 @@ export default function NormenPage({ params }: { params: { id: string } }) {
     setRefreshing(true);
     setRefreshMsg(null);
     try {
-      const res = await api.post<{ zone: string | null; assigned_norms_count: number }>(
+      const res = await api.post<{ zone: string | null; assigned_norms_count: number; documents_pending?: number }>(
         `/projects/${params.id}/norms/refresh`, {}
       );
+      if (res.documents_pending) sync.run(res.documents_pending);
       flash(
         res.assigned_norms_count > 0
           ? `${res.assigned_norms_count} neue Norm${res.assigned_norms_count !== 1 ? "en" : ""} geladen.`
           : "Keine neuen Normen gefunden."
       );
       await load();
-    } catch {
-      flash("Fehler beim Laden der Normen.");
+    } catch (e: unknown) {
+      flash(e instanceof Error && e.message ? `Normen nicht neu geladen: ${e.message}` : "Fehler beim Laden der Normen.");
     } finally {
       setRefreshing(false);
     }
@@ -580,8 +547,12 @@ export default function NormenPage({ params }: { params: { id: string } }) {
     try {
       const res = await api.post<OerebResponse>(`/projects/${params.id}/oereb`, {});
       const n = res?.oereb_assigned ?? res?.assigned ?? 0;
-      if (res?.extract?.status && res.extract.status !== "ok") {
-        flash(`ÖREB: ${res.extract.status_detail ?? "Abruf fehlgeschlagen."}`);
+      if (res?.documents_pending) sync.run(res.documents_pending);
+      const note = res ? oerebReloadNote(res, !!(project?.parcel_number || res.extract?.egrid)) : null;
+      if (note) {
+        flash(note);
+      } else if (res?.extract?.status && res.extract.status !== "ok") {
+        flash("ÖREB-Abruf ohne Auszug. Der Grund steht unten.");
       } else {
         flash(n > 0 ? `ÖREB-Auszug geladen · ${n} Norm${n !== 1 ? "en" : ""} zugewiesen.` : "ÖREB-Auszug geladen.");
       }
@@ -657,10 +628,13 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   const zoneSource = project?.zone_source ?? oereb?.zone?.zone_source ?? null;
   const zoneConfidence = project?.zone_confidence ?? oereb?.zone?.zone_confidence ?? null;
   const bauzoneUnknown = !!project && !bauzone;
+  const zoneUnsure = !!project && zoneNeedsAttention({ bauzone, zone_source: zoneSource, zone_confidence: zoneConfidence }) && !!bauzone;
   const zoneOriginLabel =
     zoneSource === "manual" ? "manuell"
+    : zoneConfidence === "low" ? "unsicher, bitte prüfen"
     : zoneSource === "oereb" ? (zoneConfidence === "coarse" ? "Grobklasse (ÖREB)" : "aus ÖREB")
     : null;
+  const staleError = extractOk ? extract?.last_error ?? null : null;
 
   const hasAnyContent = grouped.length > 0 || otherZoneNorms.length > 0 || affectsThemes.length > 0;
 
@@ -681,7 +655,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   return (
     <div>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 16 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
         <div>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Normen</h2>
           {project && (
@@ -700,32 +674,35 @@ export default function NormenPage({ params }: { params: { id: string } }) {
                 </span>
               )}
               {editingZone ? (
-                <ZoneEditor projectId={project.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} onCancel={() => setEditingZone(false)} />
+                <ZoneEditor projectId={project.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} onCancel={() => setEditingZone(false)} autoFocus proposal={zoneUnsure} />
               ) : bauzone ? (
                 <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 11, background: zoneConfidence === "coarse" ? "rgba(251,191,36,0.12)" : "rgba(40,98,215,0.12)", color: zoneConfidence === "coarse" ? "#FBBF24" : "#85A6E9", padding: "2px 8px", borderRadius: 100, fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, background: zoneConfidence === "coarse" || zoneUnsure ? "rgba(251,191,36,0.12)" : "rgba(40,98,215,0.12)", color: zoneConfidence === "coarse" || zoneUnsure ? "#FBBF24" : "#85A6E9", padding: "2px 8px", borderRadius: 100, fontWeight: 600 }}>
                     Zone {bauzone}{zoneOriginLabel ? ` · ${zoneOriginLabel}` : ""}
                   </span>
-                  <button
-                    onClick={() => setEditingZone(true)}
-                    title="Bauzone bearbeiten"
-                    style={{ padding: 4, borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "#7B8299", lineHeight: 0 }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ABAEBB"}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
-                  >
-                    <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
+                  {isAdmin && (
+                    <button
+                      onClick={() => setEditingZone(true)}
+                      title="Bauzone bearbeiten"
+                      aria-label="Bauzone bearbeiten"
+                      style={{ padding: 4, borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "#7B8299", lineHeight: 0 }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ABAEBB"}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
+                    >
+                      <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                      </svg>
+                    </button>
+                  )}
                 </span>
               ) : null}
             </div>
           )}
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {refreshMsg && (
-            <span style={{ fontSize: 12, color: "#7B8299", maxWidth: 320 }}>{refreshMsg}</span>
+            <span role="status" style={{ fontSize: 12, color: "#7B8299", maxWidth: 320 }}>{refreshMsg}</span>
           )}
           <button
             onClick={handleRefresh}
@@ -760,7 +737,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span style={{ fontSize: 12, color: "#7B8299" }}>ÖREB für Kanton {canton || "?"} noch nicht angebunden.</span>
+            <span style={{ fontSize: 12, color: "#7B8299" }}>Kein gültiger Kanton hinterlegt ({canton || "leer"}), deshalb kein ÖREB-Abruf. Bitte den Kanton in den Einstellungen korrigieren.</span>
           </div>
         ) : oerebError && !extract ? (
           <div style={{ marginBottom: 20, background: "rgba(133,166,233,0.05)", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
@@ -783,22 +760,18 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             {fetchButton}
           </div>
         ) : extract.status !== "ok" ? (
-          <div style={{ marginBottom: 20, background: "rgba(248,113,113,0.06)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <svg style={{ width: 16, height: 16, color: "#F87171", marginTop: 1, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-              <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#F87171", margin: 0 }}>
-                  ÖREB-Abruf fehlgeschlagen
-                  <span style={{ fontWeight: 400, color: "#7B8299", fontFamily: "monospace", fontSize: 11, marginLeft: 8 }}>{extract.status}</span>
-                </p>
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: "2px 0 0" }}>
-                  {extract.status_detail ?? "Keine Details vorhanden."}{extract.fetched_at ? ` · Versuch vom ${formatDate(extract.fetched_at)}` : ""}
-                </p>
-              </div>
-            </div>
-            {fetchButton}
+          <div style={{ marginBottom: 20 }}>
+            <OerebStatusNotice
+              status={extract.status}
+              canton={canton}
+              detail={extract.status_detail}
+              pdfUrl={oereb?.oereb_pdf_url}
+              attemptAt={extract.last_attempt_at ?? extract.fetched_at}
+              projectId={params.id}
+              isAdmin={isAdmin}
+            >
+              {fetchButton}
+            </OerebStatusNotice>
           </div>
         ) : (
           <div style={{ marginBottom: 20, background: "rgba(251,146,60,0.05)", border: `1px solid ${OEREB_STYLE.cardBorder}`, borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
@@ -810,33 +783,51 @@ export default function NormenPage({ params }: { params: { id: string } }) {
               {" · "}{noDataCount} ohne Daten
               {gapCount > 0 && <>{" · "}<span style={{ color: "#FBBF24" }}>{gapCount} ohne Norm</span></>}
             </span>
+            {oereb?.oereb_pdf_url && (
+              <a href={oereb.oereb_pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none" }}>
+                Amtlicher PDF-Auszug ↗
+              </a>
+            )}
+            {staleError && (
+              <span style={{ flexBasis: "100%", fontSize: 12, color: "#FBBF24" }}>
+                Die letzte Aktualisierung ist fehlgeschlagen. Es gilt dieser ältere Stand. Bitte später neu laden.
+              </span>
+            )}
           </div>
         )
       )}
 
-      {/* Bauzone fehlt */}
-      {!loading && bauzoneUnknown && !editingZone && (
+      {/* Keine sichere Bauzone */}
+      {!loading && (bauzoneUnknown || zoneUnsure) && !editingZone && (
         <div style={{ marginBottom: 20, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "12px 16px" }}>
           <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
             <svg style={{ width: 16, height: 16, color: "#FBBF24", marginTop: 2, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
             </svg>
-            <div style={{ flex: 1 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>Bauzone nicht bekannt</p>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>
+                {zoneUnsure ? `Bauzone unsicher, bitte prüfen: ${bauzone} ist nur ein Vorschlag` : "Bauzone nicht bekannt"}
+              </p>
               <p style={{ fontSize: 12, color: "#ABAEBB", margin: "3px 0 0" }}>
-                {oerebSupported
-                  ? extractOk
+                {zoneUnsure
+                  ? "Der ÖREB-Auszug lässt keinen sicheren Schluss zu. Die Zone gilt nicht als gesichert, bis sie bestätigt oder korrigiert ist; sie bestimmt, welche zonenspezifischen Normen geladen werden."
+                  : extractOk
                     ? "Der ÖREB-Auszug enthält keine eindeutige Bauzone für diese Parzelle. Bitte trage die Zone manuell ein, damit zonenspezifische Normen geladen werden können."
-                    : "Die Bauzone wird aus dem ÖREB-Auszug übernommen. Solange keiner vorliegt, kannst du sie manuell eintragen."
-                  : "Für diesen Kanton ist keine automatische Zonenermittlung angebunden. Bitte trage die Zone manuell ein, damit zonenspezifische Normen geladen werden können."}
+                    : "Die Bauzone wird aus dem ÖREB-Auszug übernommen. Solange keiner vorliegt, kannst du sie manuell eintragen."}
               </p>
               <div style={{ marginTop: 12 }}>
-                <ZoneEditor projectId={params.id} initial="" onSaved={handleZoneSaved} accent="rgba(251,191,36,0.3)" />
+                {isAdmin ? (
+                  <ZoneEditor projectId={params.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(251,191,36,0.3)" proposal={zoneUnsure} />
+                ) : (
+                  <p style={{ fontSize: 12, color: "#7B8299", margin: 0 }}>Die Zone kann ein Organisations-Admin eintragen.</p>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
+
+      {!loading && project && <OerebDocumentsPanel />}
 
       {/* Content */}
       {loading ? (

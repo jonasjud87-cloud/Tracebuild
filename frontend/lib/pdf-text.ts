@@ -13,13 +13,26 @@
  *
  * Throws on an unreadable/encrypted PDF; callers decide how to surface that.
  */
-export async function extractPdfText(bytes: Buffer): Promise<string> {
+export async function extractPdfText(bytes: Buffer, opts: { timeoutMs?: number } = {}): Promise<string> {
   const { PDFParse } = await import("pdf-parse");
   const parser = new PDFParse({ data: new Uint8Array(bytes) });
   try {
-    const { text } = await parser.getText();
+    const parsing = parser.getText();
+    const { text } = opts.timeoutMs ? await withTimeout(parsing, opts.timeoutMs) : await parsing;
     return text ?? "";
   } finally {
     await parser.destroy();
   }
+}
+
+/**
+ * Bricht das Warten ab. Greift nur, wenn das Parsen die Ereignisschleife freigibt (pdfjs tut das
+ * zwischen den Seiten). Eine einzelne blockierende Seite fängt das Funktionslimit, danach die Sperre.
+ */
+export function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const limit = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`PDF-Text nach ${ms} ms nicht fertig`)), ms);
+  });
+  return Promise.race([work, limit]).finally(() => clearTimeout(timer));
 }

@@ -1,6 +1,18 @@
 import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
+const DEFAULT_LIMIT = 200;
+const MAX_LIMIT = 500;
+// Ohne Volltext: Sonst fällt das Cockpit über das Antwortlimit von Vercel (4.5 MB). Den Text liefert
+// GET /admin/norms/{id}. Importe bleiben sichtbar, hier werden fehlerhafte Normen gelöscht.
+const LIST_COLUMNS =
+  "id, title, domain, layer, jurisdiction_type, jurisdiction_name, category, source_url, zone, org_id, promoted_from_org_id, created_at, pdf_url";
+
+function intParam(value: string | null, fallback: number, max: number): number {
+  const n = Number(value);
+  return value !== null && Number.isInteger(n) && n >= 0 ? Math.min(n, max) : fallback;
+}
+
 // GET /api/v1/admin/norms — every norm across every organization (super_admin only),
 // annotated with the owning org's name (or null = "Plattformweit") and, when the
 // norm was promoted, the org it was originally uploaded by.
@@ -17,7 +29,7 @@ export async function GET(request: Request) {
   const platformOnly = searchParams.get("platform_only") === "true";
 
   const admin = createAdminClient();
-  let query = admin.from("norms").select("*").eq("domain", domain);
+  let query = admin.from("norms").select(LIST_COLUMNS).eq("domain", domain);
   if (jurisdictionType) query = query.eq("jurisdiction_type", jurisdictionType);
   if (jurisdictionName) query = query.eq("jurisdiction_name", jurisdictionName);
   if (platformOnly) {
@@ -26,7 +38,11 @@ export async function GET(request: Request) {
     query = query.eq("org_id", orgId);
   }
 
-  const { data: norms, error } = await query.order("created_at", { ascending: false });
+  const limit = Math.max(1, intParam(searchParams.get("limit"), DEFAULT_LIMIT, MAX_LIMIT));
+  const offset = intParam(searchParams.get("offset"), 0, Number.MAX_SAFE_INTEGER);
+  const { data: norms, error } = await query
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
   if (error) return err(error.message, 500);
 
   const orgIds = new Set<string>();

@@ -1,13 +1,20 @@
 import { createAdminClient } from "@/lib/supabase/admin";
 import { matchOerebNorms, oerebTrigger, type OerebGap } from "@/lib/oereb/mapping";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { collectCandidates, type ThemeRow } from "@/lib/oereb/documents";
+import {
+  applies,
+  normsForThemeMapping,
+  isAutoNorm,
+  withoutShadowedAutoNorms,
+  type ApplicableNorm,
+  type ProjectPlace,
+} from "@/lib/norm-applies";
 
-interface NormRow {
-  id: string;
-  layer: number;
-  jurisdiction_type: string;
-  jurisdiction_name: string | null;
+interface NormRow extends ApplicableNorm {
   org_id: string | null;
   category: string | null;
+  source_url?: string | null;
 }
 
 /** Ergebnis einer Zuweisung — ein Einstiegspunkt (`assignNorms`) für alle Aufrufer. */
@@ -24,41 +31,56 @@ export interface AssignmentResult {
   oerebSkipped: string | null;
 }
 
-/**
- * Which norms apply to a project of this org, in this canton and municipality:
- *   Bund      — every project gets it
- *   Kanton    — matched on the project's canton
- *   Gemeinde  — matched on the project's municipality
- *   Org       — the org's own Spezialnormen
- *
- * Zone is deliberately NOT part of this. A norm's zone tag is evaluated when the
- * norms are read (Normen tab, analysis prompt) via normMatchesZone, so correcting
- * a project's Bauzone takes effect immediately without re-running assignment.
- */
-function applies(n: NormRow, canton: string, municipality: string): boolean {
-  if (n.layer === 1) return true;
-  if (n.jurisdiction_type === "cantonal" && n.jurisdiction_name === canton) return true;
-  if (n.jurisdiction_type === "municipal" && n.jurisdiction_name === municipality) return true;
-  if (n.jurisdiction_type === "org") return true;
-  return false;
-}
-
 /** Kandidaten: Normen der Org plus plattformweite Normen (org_id IS NULL), je Domäne. */
 async function loadCandidateNorms(orgId: string, domain: string): Promise<NormRow[]> {
   const admin = createAdminClient();
-  const { data, error } = await admin
-    .from("norms")
-    .select("id, layer, jurisdiction_type, jurisdiction_name, org_id, category")
-    .eq("domain", domain)
-    .or(`org_id.eq.${orgId},org_id.is.null`);
+  const base = "id, title, layer, jurisdiction_type, jurisdiction_name, org_id, category";
+  const query = (select: string) =>
+    admin.from("norms").select(select).eq("domain", domain).or(`org_id.eq.${orgId},org_id.is.null`);
+  let { data, error } = await query(`${base}, source_kind, auto_scope, jurisdiction_canton, jurisdiction_bfs, source_url`);
+  // Ohne Geoportal-Migration fehlen die neuen Spalten.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(base));
   if (error) throw new Error(`Normen konnten nicht gelesen werden: ${error.message}`);
-  return (data ?? []) as NormRow[];
+  return withoutShadowedAutoNorms((data ?? []) as unknown as NormRow[]);
 }
 
-/** PostgREST meldet fehlende Tabellen/Spalten so — dann ist die ÖREB-Migration nicht eingespielt. */
-function isMissingSchema(message: string | undefined): boolean {
-  const m = message ?? "";
-  return m.includes("Could not find the table") || m.includes("does not exist") || m.includes("schema cache");
+/** Ort des Projekts; bfs_number gibt es erst nach der Migration, deshalb select("*"). */
+async function loadProjectPlace(projectId: string): Promise<ProjectPlace> {
+  const admin = createAdminClient();
+  const { data } = await admin.from("projects").select("*").eq("id", projectId).maybeSingle();
+  const location = (data?.location ?? {}) as { canton?: string; municipality?: string };
+  return {
+    canton: location.canton ?? "",
+    municipality: location.municipality ?? "",
+    bfs: (data?.bfs_number as number | null | undefined) ?? null,
+  };
+}
+
+/**
+ * Objektbezogene importierte Vorschriften, deren Dokument im aktuellen Auszug steht.
+ * norm_id → Auslöser 'oereb-doc:<document_id>'. Fällt die URL weg, entfernt syncOerebRows die Zeile.
+ */
+async function parcelDocumentTriggers(norms: NormRow[], themes: ThemeRow[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const urls = new Set(collectCandidates(themes).map((c) => c.url_normalized));
+  const ids = norms
+    .filter((n) => isAutoNorm(n) && n.auto_scope === "parcel" && !!n.source_url && urls.has(n.source_url))
+    .map((n) => n.id);
+  if (!ids.length) return out;
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("oereb_documents")
+    .select("id, norm_id, url_normalized")
+    .in("norm_id", ids)
+    .eq("status", "imported");
+  if (error) {
+    if (!isMissingSchema(error.message)) throw new Error(`ÖREB-Dokumente konnten nicht gelesen werden: ${error.message}`);
+    return out;
+  }
+  for (const row of data ?? []) {
+    if (urls.has(row.url_normalized as string)) out.set(row.norm_id as string, `oereb-doc:${row.id}`);
+  }
+  return out;
 }
 
 export interface OerebAssignmentPlan {
@@ -67,6 +89,8 @@ export interface OerebAssignmentPlan {
   reason: string | null;
   /** norm_id → Themencodes, über die die Norm greift. */
   wanted: Map<string, string[]>;
+  /** norm_id → Auslöser für Normen, die über ein Dokument im Auszug greifen (auto_scope='parcel'). */
+  documentTriggers: Map<string, string>;
   gaps: OerebGap[];
   /** Anzahl betroffener Themen (dedupliziert nach Code). */
   affectedThemeCount: number;
@@ -83,11 +107,12 @@ export async function planOerebAssignment(
   projectId: string,
   orgId: string,
   domain: string,
-  candidateNorms?: NormRow[]
+  candidateNorms?: NormRow[],
+  knownPlace?: ProjectPlace
 ): Promise<OerebAssignmentPlan> {
   const admin = createAdminClient();
   const empty = (available: boolean, reason: string | null): OerebAssignmentPlan =>
-    ({ available, reason, wanted: new Map(), gaps: [], affectedThemeCount: 0 });
+    ({ available, reason, wanted: new Map(), documentTriggers: new Map(), gaps: [], affectedThemeCount: 0 });
 
   const { data: extract, error: exErr } = await admin
     .from("oereb_extracts")
@@ -105,7 +130,7 @@ export async function planOerebAssignment(
 
   const { data: themes, error: thErr } = await admin
     .from("oereb_themes")
-    .select("theme_code, theme_name")
+    .select("theme_code, theme_name, concern, law_links")
     .eq("extract_id", extract.id)
     .eq("concern", "affects");
   if (thErr) throw new Error(`ÖREB-Themen konnten nicht gelesen werden: ${thErr.message}`);
@@ -118,12 +143,21 @@ export async function planOerebAssignment(
   if (mapErr) throw new Error(`ÖREB-Mappings konnten nicht gelesen werden: ${mapErr.message}`);
 
   const norms = candidateNorms ?? (await loadCandidateNorms(orgId, domain));
-  const match = matchOerebNorms(themes ?? [], mappings ?? [], norms);
+  const place = knownPlace ?? (await loadProjectPlace(projectId));
+  // Das Mapping vergleicht nur die Kategorie: Gemeindenormen anderer Gemeinden gehören nicht hinein.
+  const match = matchOerebNorms(themes ?? [], mappings ?? [], normsForThemeMapping(norms, place));
+
+  const documentTriggers = await parcelDocumentTriggers(norms, (themes ?? []) as ThemeRow[]);
+  const wanted = new Map(match.byNorm);
+  documentTriggers.forEach((_, normId) => {
+    if (!wanted.has(normId)) wanted.set(normId, []);
+  });
 
   return {
     available: true,
     reason: null,
-    wanted: match.byNorm,
+    wanted,
+    documentTriggers,
     gaps: match.gaps,
     affectedThemeCount: new Set((themes ?? []).map((t) => t.theme_code)).size,
   };
@@ -152,11 +186,10 @@ export async function assignNorms(
 ): Promise<AssignmentResult> {
   const admin = createAdminClient();
   const norms = await loadCandidateNorms(orgId, domain);
+  const place: ProjectPlace = { canton, municipality, bfs: (await loadProjectPlace(projectId)).bfs };
 
   // ── 1. Durchgang: Bund / Kanton / Gemeinde / Org ──────────────────────────
-  const systemShouldHave = new Set(
-    norms.filter((n) => applies(n, canton, municipality)).map((n) => n.id)
-  );
+  const systemShouldHave = new Set(norms.filter((n) => applies(n, place)).map((n) => n.id));
 
   const { data: existing, error: existingErr } = await admin
     .from("project_norms")
@@ -198,12 +231,12 @@ export async function assignNorms(
   let gaps: OerebGap[] = [];
   let oerebSkipped: string | null = null;
   try {
-    const plan = await planOerebAssignment(projectId, orgId, domain, norms);
+    const plan = await planOerebAssignment(projectId, orgId, domain, norms, place);
     if (!plan.available) {
       oerebSkipped = plan.reason;
     } else {
       gaps = plan.gaps;
-      oerebAssigned = await syncOerebRows(projectId, plan.wanted, systemShouldHave);
+      oerebAssigned = await syncOerebRows(projectId, plan.wanted, systemShouldHave, plan.documentTriggers);
     }
   } catch (e) {
     // Der Jurisdiktions-Sync ist durch; ein ÖREB-Problem darf ihn nicht rückgängig machen.
@@ -227,9 +260,11 @@ export async function assignNorms(
 async function syncOerebRows(
   projectId: string,
   wanted: Map<string, string[]>,
-  systemShouldHave: Set<string>
+  systemShouldHave: Set<string>,
+  documentTriggers: Map<string, string>
 ): Promise<number> {
   const admin = createAdminClient();
+  const triggerOf = (normId: string, codes: string[]) => documentTriggers.get(normId) ?? oerebTrigger(codes[0]);
   const { data: rows, error } = await admin
     .from("project_norms")
     .select("norm_id, added_by, trigger")
@@ -246,7 +281,7 @@ async function syncOerebRows(
       project_id: projectId,
       norm_id: normId,
       added_by: "oereb",
-      trigger: oerebTrigger(codes[0]),
+      trigger: triggerOf(normId, codes),
     }));
   if (toInsert.length) {
     const { error: insErr } = await admin
@@ -262,7 +297,7 @@ async function syncOerebRows(
     const normId = r.norm_id as string;
     const codes = wanted.get(normId);
     if (codes) {
-      const trigger = oerebTrigger(codes[0]);
+      const trigger = triggerOf(normId, codes);
       if (r.trigger !== trigger) {
         const { error: updErr } = await admin
           .from("project_norms")
@@ -296,6 +331,59 @@ async function syncOerebRows(
   }
 
   return Array.from(wanted.keys()).filter((id) => !systemShouldHave.has(id)).length;
+}
+
+const MATCHING_PROJECTS_BUDGET_MS = 60_000;
+
+/**
+ * Nach einem Import: Projekte aller Orgs derselben Gemeinde (BFS, sonst Name und Kanton) neu
+ * zuweisen, nacheinander und höchstens 60 s. Der Rest folgt beim nächsten Refresh des jeweiligen
+ * Projekts. Kein Massen-Sync über alle Orgs. Wirft nie.
+ */
+export async function assignNormToMatchingProjects(normId: string): Promise<number> {
+  const start = Date.now();
+  const admin = createAdminClient();
+  try {
+    const { data: norm, error } = await admin
+      .from("norms")
+      .select("jurisdiction_bfs, jurisdiction_name, jurisdiction_canton")
+      .eq("id", normId)
+      .maybeSingle();
+    if (error || !norm) return 0;
+
+    type Row = { id: string; org_id: string; domain: string | null; location: { canton?: string; municipality?: string } | null };
+    const select = "id, org_id, domain, location";
+    const byId = new Map<string, Row>();
+    const add = (rows: unknown) => (rows as Row[] | null)?.forEach((r) => byId.set(r.id, r));
+
+    if (norm.jurisdiction_bfs != null) {
+      const res = await admin.from("projects").select(select).eq("bfs_number", norm.jurisdiction_bfs);
+      if (res.error && !isMissingSchema(res.error.message)) throw new Error(res.error.message);
+      add(res.data);
+    }
+    if (norm.jurisdiction_name) {
+      let q = admin.from("projects").select(select).eq("location->>municipality", norm.jurisdiction_name);
+      if (norm.jurisdiction_canton) q = q.eq("location->>canton", norm.jurisdiction_canton);
+      const res = await q;
+      if (res.error) throw new Error(res.error.message);
+      add(res.data);
+    }
+
+    let synced = 0;
+    for (const p of Array.from(byId.values())) {
+      if (Date.now() - start > MATCHING_PROJECTS_BUDGET_MS) break;
+      try {
+        await assignNorms(p.id, p.org_id, p.location?.canton ?? "", p.location?.municipality ?? "", p.domain ?? "bau");
+        synced++;
+      } catch (e) {
+        console.error(`Normzuweisung für Projekt ${p.id} fehlgeschlagen:`, e);
+      }
+    }
+    return synced;
+  } catch (e) {
+    console.error(`Zuweisung der Norm ${normId} fehlgeschlagen:`, e);
+    return 0;
+  }
 }
 
 /**
