@@ -59,12 +59,14 @@ export class FakeStore implements JobStore {
   cost = 0;
   result: Record<string, unknown> | null = { run_id: "run" };
   finishedAt: string | null = null;
-  job: (StageJob & { lease_id: string | null; lease_until: number | null; token: string | null }) | null;
+  job: (StageJob & { lease_id: string | null; lease_until: number | null; token: string | null; waiting_until: number | null }) | null;
   parts: StagePart[] = [];
   items: ItemRow[] = [];
   existing: Set<string> | null = null;
   /** Ab dieser Zahl von savePart-Aufrufen wirft jeder Schreibvorgang (Absturz). */
   crashAfterSaves: number | null = null;
+  /** Die nächsten n savePart-Aufrufe scheitern vorübergehend. */
+  failNextSaves = 0;
   saves = 0;
   statusError = false;
   insertBulkFails = false;
@@ -76,13 +78,13 @@ export class FakeStore implements JobStore {
     this.clock = clock;
     this.job = {
       analysis_id: ANALYSIS_ID, project_id: "p", org_id: "o", actor_id: "u", actor_email: "u@x.ch", run_id: "run",
-      state_version: STATE_VERSION, phase: "prepare", stage_no: 0, no_progress_stages: 0, resumes: 0, active_ms: 0,
+      state_version: STATE_VERSION, phase: "prepare", stage_no: 0, no_progress_stages: 0, resumes: 0, crash_count: 0, cold_stages: 0, dispatch_total: 0, active_ms: 0,
       dispatch_url: "https://www.tracebuild.ch/x", snapshot: null,
       files: [{ path: "p/a.pdf", name: "a.pdf", type: "application/pdf", size: 1 }],
       signed_urls: null, urls_expire_at: null, preflight: null, parts_total: 0, parts_done: 0, consolidation: null,
       consolidation_attempts: 0, consolidation_usage: null, final_items: null, overload_wait_ms: 0,
       created_at: new Date(START_MS).toISOString(),
-      lease_id: null, lease_until: null, token: null,
+      lease_id: null, lease_until: null, token: null, waiting_until: null,
       ...jobOver,
     };
   }
@@ -95,6 +97,9 @@ export class FakeStore implements JobStore {
     if (!j || this.status !== "running") return null;
     if (j.lease_until !== null && j.lease_until >= this.clock.now()) return null;
     if (tokenHash !== null && j.token !== tokenHash) return null;
+    if (tokenHash === null && j.waiting_until !== null && j.waiting_until > this.clock.now()) return null;
+    if (j.lease_id !== null) j.crash_count++;
+    j.waiting_until = null;
     j.lease_id = leaseId;
     j.lease_until = this.clock.now() + leaseSeconds * 1000;
     j.stage_no++;
@@ -112,11 +117,12 @@ export class FakeStore implements JobStore {
     Object.assign(this.job, clone(patch));
     return true;
   }
-  async releaseLease(_id: string, leaseId: string) {
+  async releaseLease(_id: string, leaseId: string, delayMs: number) {
     this.guard();
     if (!this.job || this.job.lease_id !== leaseId) return false;
     this.job.lease_id = null;
     this.job.lease_until = null;
+    this.job.waiting_until = this.clock.now() + delayMs;
     return true;
   }
   async clearDispatchUrl() {
@@ -144,6 +150,10 @@ export class FakeStore implements JobStore {
   }
   async savePart(_id: string, position: number, expectedLease: string | null, patch: PartPatch) {
     this.guard();
+    if (this.failNextSaves > 0) {
+      this.failNextSaves--;
+      throw new Error("Netzwackler");
+    }
     this.saves++;
     const part = this.parts.find((p) => p.position === position);
     if (!part || part.lease_id !== expectedLease) return false;
@@ -319,6 +329,8 @@ export function harness(opts: {
   h.deps = deps;
 
   h.stage = async (source = "dispatch") => {
+    // Wächter und Browser halten sich an die Wartezeit: Die Uhr springt dorthin.
+    if (store.job?.waiting_until && store.job.waiting_until > clock.t) clock.t = store.job.waiting_until;
     const leaseId = crypto.randomUUID();
     const claim = await claimStage(store, ANALYSIS_ID, null, leaseId);
     if (!claim) return null;

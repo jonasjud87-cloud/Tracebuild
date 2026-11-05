@@ -20,8 +20,9 @@ export function createPgNetDispatcher(admin: SupabaseClient): Dispatcher {
       return data === true;
     },
     async dispatch(analysisId) {
-      const { error } = await admin.rpc("analysis_dispatch", { p_analysis_id: analysisId });
-      if (!error) return "sent";
+      const { data, error } = await admin.rpc("analysis_dispatch", { p_analysis_id: analysisId });
+      // 0 Zeilen: Nichts wurde gesendet. Der Wächter holt nach.
+      if (!error) return typeof data === "number" && data > 0 ? "sent" : "failed";
       // Nur der Fehlertext, nie Parameter oder Header.
       console.warn(`analysis_dispatch für ${analysisId} fehlgeschlagen: ${error.message}`);
       return isMissingSchema(error.message) ? "unavailable" : "failed";

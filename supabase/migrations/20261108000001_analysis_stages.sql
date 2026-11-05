@@ -22,17 +22,22 @@ CREATE TABLE IF NOT EXISTS public.analysis_jobs (
   stage_no            integer NOT NULL DEFAULT 0,
   no_progress_stages  integer NOT NULL DEFAULT 0,
   resumes             integer NOT NULL DEFAULT 0,
+  -- Abstürze in Folge. Zählt auch, wenn eine Funktion stirbt, ohne den Lease freizugeben.
+  crash_count         integer NOT NULL DEFAULT 0,
+  -- Etappen, die den Prompt-Cache neu schreiben mussten.
+  cold_stages         integer NOT NULL DEFAULT 0,
   active_ms           bigint NOT NULL DEFAULT 0,
   -- Lease: wer gerade rechnet. Läuft ohne Heartbeat ab (Funktion stirbt spätestens bei 300 s).
   lease_id            uuid,
   lease_until         timestamptz,
-  -- Seit wann der Job freigegeben auf den nächsten Anstoss wartet.
+  -- Ab wann der Job auf den nächsten Anstoss wartet. In der Zukunft: Backoff oder Überlast-Pause.
   waiting_since       timestamptz,
   -- Anstoss durch die Datenbank. dispatch_url NULL = nur Browser (Preview, lokal, nicht aktiviert).
   dispatch_url        text,
   dispatch_token_hash text,
   next_dispatch_at    timestamptz NOT NULL DEFAULT now(),
   dispatch_attempts   integer NOT NULL DEFAULT 0,
+  dispatch_total      integer NOT NULL DEFAULT 0,
   -- Eingefroren beim Start.
   snapshot            jsonb,
   files               jsonb NOT NULL,
@@ -95,6 +100,7 @@ BEGIN
      SET lease_id = p_lease_id,
          lease_until = now() + make_interval(secs => p_lease_seconds),
          waiting_since = NULL,
+         crash_count = j.crash_count + CASE WHEN j.lease_id IS NOT NULL THEN 1 ELSE 0 END,
          stage_no = j.stage_no + 1,
          dispatch_token_hash = NULL,
          dispatch_attempts = 0,
@@ -105,7 +111,24 @@ BEGIN
      AND a.status = 'running'
      AND (j.lease_until IS NULL OR j.lease_until < now())
      AND (p_token_hash IS NULL OR j.dispatch_token_hash = p_token_hash)
+     -- Backoff und Überlast-Pause gelten auch für Browser und alte Tabs.
+     AND (p_token_hash IS NOT NULL OR j.waiting_since IS NULL OR j.waiting_since <= now())
   RETURNING j.stage_no, j.phase, j.state_version;
+END $$;
+
+-- ── Lease freigeben: Wartezeit mit der Uhr der Datenbank ─────────────────────
+CREATE OR REPLACE FUNCTION public.analysis_release_stage(
+  p_analysis_id uuid, p_lease_id uuid, p_delay_seconds double precision DEFAULT 0
+) RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+  UPDATE public.analysis_jobs
+     SET lease_id = NULL,
+         lease_until = NULL,
+         waiting_since = now() + make_interval(secs => greatest(p_delay_seconds, 0)),
+         next_dispatch_at = now() + make_interval(secs => greatest(p_delay_seconds, 0))
+   WHERE analysis_id = p_analysis_id AND lease_id = p_lease_id;
+  RETURN FOUND;
 END $$;
 
 -- ── Anstoss: ohne Argument der Wächter, mit Argument die direkte Übergabe ────
@@ -134,6 +157,19 @@ BEGIN
        AND j.created_at < now() - interval '24 hours';
   END IF;
 
+  -- HTTP-Antworten sieht hier niemand (pg_net arbeitet nach dem Commit). Das Merkmal für 508, 307 oder
+  -- ein altes Deployment ist deshalb: Der Anstoss führte nie zu einem Claim. Nach 4 Versuchen (rund
+  -- 15 Minuten) übernimmt ehrlich der Browser: background=false, needs_resume=true.
+  UPDATE public.analysis_jobs j
+     SET dispatch_url = NULL, dispatch_token_hash = NULL
+    FROM public.analyses a
+   WHERE a.id = j.analysis_id AND a.status = 'running'
+     AND j.dispatch_url IS NOT NULL
+     AND j.dispatch_attempts >= 4
+     AND (j.lease_until IS NULL OR j.lease_until < now())
+     AND j.next_dispatch_at <= now()
+     AND (p_analysis_id IS NULL OR j.analysis_id = p_analysis_id);
+
   FOR r IN
     SELECT j.analysis_id, j.dispatch_url, j.dispatch_attempts
       FROM public.analysis_jobs j
@@ -151,6 +187,7 @@ BEGIN
     UPDATE public.analysis_jobs
        SET dispatch_token_hash = encode(sha256(convert_to(v_token, 'UTF8')), 'hex'),
            dispatch_attempts = r.dispatch_attempts + 1,
+           dispatch_total = dispatch_total + 1,
            next_dispatch_at = now() + make_interval(
              secs => least(600, 60 * power(2, least(r.dispatch_attempts, 4))::int))
      WHERE analysis_id = r.analysis_id;
@@ -183,11 +220,29 @@ BEGIN
 END $$;
 
 REVOKE ALL ON FUNCTION public.analysis_claim_stage(uuid, text, uuid, integer) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.analysis_release_stage(uuid, uuid, double precision) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.analysis_dispatch(uuid) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.analysis_background_available() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.analysis_claim_stage(uuid, text, uuid, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.analysis_release_stage(uuid, uuid, double precision) TO service_role;
 GRANT EXECUTE ON FUNCTION public.analysis_dispatch(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.analysis_background_available() TO service_role;
 
--- Rückbau: DROP FUNCTION analysis_dispatch, analysis_claim_stage, analysis_background_available;
--- DROP TABLE analysis_job_parts, analysis_jobs. Vorher allfälligen Wächter entfernen (Aktivierungsdatei).
+-- ── Rechte: Status, Kosten und Ergebnis schreibt nur der Server ─────────────
+-- Bisher FOR ALL (001_initial_schema.sql): Ein Mitglied konnte per Anon-Key cost_usd, status und
+-- result_json setzen. Kein Client schreibt in diese Tabelle, alle Routen nutzen die Service-Role
+-- (geprüft 5.11.2026). documents, document_files und analysis_items sind unverändert.
+DROP POLICY IF EXISTS "analyses_via_document" ON public.analyses;
+CREATE POLICY "analyses_via_document" ON public.analyses
+  FOR SELECT USING (
+    document_id IN (
+      SELECT id FROM public.documents WHERE project_id IN (
+        SELECT id FROM public.projects WHERE org_id IN (
+          SELECT org_id FROM public.users WHERE id = auth.uid()
+        )
+      )
+    )
+  );
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.analyses FROM anon, authenticated;
+
+-- Rückbau: Runbook in supabase/ops/analysis-stages-activate.sql. Vor dem DROP laufende Analysen schliessen.

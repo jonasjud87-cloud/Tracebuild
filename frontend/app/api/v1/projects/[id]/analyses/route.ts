@@ -15,6 +15,7 @@ import {
 } from "@/lib/analysis-engine";
 import type { UploadedPlanFile } from "@/lib/plan-files";
 import { parsePreflight, toPlanFile } from "@/lib/analysis-stages/plan";
+import { publicResultJson } from "@/lib/analysis-stages/progress";
 import {
   GEODATA_BUDGET_MS,
   OEREB_BUDGET_MS,
@@ -90,7 +91,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .order("created_at", { ascending: false });
 
   if (error) return err(error.message, 500);
-  return ok((data ?? []).map(withFiles));
+  return ok((data ?? []).map((a) => withFiles({ ...a, result_json: publicResultJson(a.result_json) })));
 }
 
 // ── POST ──────────────────────────────────────────────────────────────────────

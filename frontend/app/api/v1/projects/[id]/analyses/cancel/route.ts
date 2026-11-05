@@ -44,8 +44,16 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const ids = (running ?? []).map((a) => a.id);
   if (ids.length === 0) return ok({ cancelled: 0 });
 
-  const { error } = await admin.from("analyses").update({ status: "cancelled" }).in("id", ids).eq("status", "running");
+  const cancelRows = (fields: Record<string, unknown>) =>
+    admin.from("analyses").update(fields).in("id", ids).eq("status", "running");
+  let { error } = await cancelRows({ status: "cancelled", finished_at: new Date().toISOString() });
+  // finished_at fehlt, solange die Monitor-Migration nicht eingespielt ist.
+  if (error && isMissingSchema(error.message)) ({ error } = await cancelRows({ status: "cancelled" }));
   if (error) return err(error.message, 500);
+
+  // Ein Abschluss, der gerade schrieb, darf keine Prüfpunkte hinterlassen.
+  const { error: itemsErr } = await admin.from("analysis_items").delete().in("analysis_id", ids);
+  if (itemsErr) console.warn("Prüfpunkte nach Abbruch nicht entfernt:", itemsErr.message);
 
   // Rechnet gerade niemand, gibt es keine Etappe, die aufräumt. Die Kosten stehen schon auf der Analyse.
   // Ohne diesen Schritt würde der Job ohne Wächter das Projekt für neue Analysen blockieren.

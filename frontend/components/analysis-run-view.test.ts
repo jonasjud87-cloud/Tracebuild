@@ -4,6 +4,7 @@ import type { AnalysisRunProgress } from "../lib/analysis-stages/contract";
 import {
   INITIAL_RUN_POLL,
   applyPoll,
+  applyResumeResult,
   buildPreflight,
   consolidationFailed,
   findActiveRun,
@@ -249,4 +250,24 @@ test("safetyLimitHint erscheint nur, wenn die Grenze wirklich griff", () => {
   assert.equal(safetyLimitHint({ skipped: 8 }), "", "alter Deckel ohne limit");
   assert.equal(safetyLimitHint({ skipped: 0, limit: 30 }), "");
   assert.match(safetyLimitHint({ skipped: 8, limit: 30 }), /Sicherheitsgrenze von 30/);
+});
+
+test("Scheitert die Wiederaufnahme dauerhaft, verspricht die Anzeige nichts Automatisches mehr", () => {
+  const progress: AnalysisRunProgress = {
+    phase: "checking", percent: 40, parts_done: 3, parts_total: 9, stalled: true, background: true, needs_resume: true,
+  };
+  let state = applyPoll(INITIAL_RUN_POLL, { kind: "status", status: { id: "a", status: "running", progress, error_message: null } });
+  assert.match(runProgressView(state, null, 0).hints.join(" "), /automatisch fortgesetzt/);
+  state = applyResumeResult(applyResumeResult(state, false), false);
+  assert.match(runProgressView(state, null, 0).hints.join(" "), /automatisch fortgesetzt/);
+  state = applyResumeResult(state, false);
+  const hints = runProgressView(state, null, 0).hints.join(" ");
+  assert.doesNotMatch(hints, /automatisch fortgesetzt|schliessen/);
+  assert.match(hints, /kommt zurzeit nicht weiter/);
+  // Der Zustand überlebt weitere Abfragen, solange der Server wartet, und verschwindet, wenn es weitergeht.
+  state = applyPoll(state, { kind: "status", status: { id: "a", status: "running", progress, error_message: null } });
+  assert.equal(state.resumeFailures, 3);
+  state = applyPoll(state, { kind: "status", status: { id: "a", status: "running", progress: { ...progress, needs_resume: false }, error_message: null } });
+  assert.equal(state.resumeFailures, 0);
+  assert.equal(applyResumeResult({ ...state, resumeFailures: 2 }, true).resumeFailures, 0);
 });

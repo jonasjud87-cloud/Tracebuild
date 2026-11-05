@@ -921,6 +921,7 @@ export async function analyseOneNorm(
   const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
   let stopReason: string | null = null;
   let text = "";
+  let streamedChars = 0;
   let error: string | null = null;
   let errorClass: ModelErrorClass | null = null;
   let retryAfterMs: number | null = null;
@@ -981,6 +982,8 @@ export async function analyseOneNorm(
       } else if (ev.type === "content_block_start") {
         // Prefill ist durch — ab jetzt ist der Cache-Eintrag für die anderen Calls lesbar.
         fireGate();
+      } else if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+        streamedChars += ev.delta.text.length;
       } else if (ev.type === "message_delta") {
         usage.output_tokens = ev.usage.output_tokens ?? usage.output_tokens;
       }
@@ -1019,6 +1022,8 @@ export async function analyseOneNorm(
       : controller.signal.aborted
         ? "Zeitbudget der Analyse überschritten"
         : e instanceof Error ? e.message : "Unbekannter Fehler";
+    // Der Output-Zähler kommt erst am Ende des Streams. Abgebrochen wird er aus dem Empfangenen geschätzt.
+    usage.output_tokens = Math.max(usage.output_tokens, Math.ceil(streamedChars / 3));
     if (cancelSignal?.aborted) errorClass = "cancelled";
     else if (controller.signal.aborted) errorClass = "timeout";
     else {

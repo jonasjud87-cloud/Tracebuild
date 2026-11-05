@@ -31,7 +31,7 @@ import {
   type UploadedPlanFile,
 } from "@/lib/plan-files";
 import { MODEL_FILE_URL_TTL_S, maxStagedAutoParts } from "./budget";
-import { buildStageUnits, stageNorm } from "./plan";
+import { assertNormsUsable, buildStageUnits, stageNorm } from "./plan";
 import type { JobFile, PrepareResult, RunSnapshot, StageJob } from "./ports";
 
 type Admin = SupabaseClient;
@@ -229,13 +229,17 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   // 0. Aktuellen Stand holen. Beide wirken nur innerhalb ihres Budgets und werfen nie.
   await refreshProjectOereb(admin, project, { budgetMs: OEREB_BUDGET_MS, minAgeMs: REFRESH_MIN_AGE_MS, signal });
   const geo = await refreshGeodata(admin, project, { budgetMs: GEODATA_BUDGET_MS, minAgeMs: REFRESH_MIN_AGE_MS, signal });
+  let assignError: unknown = null;
   await assignNorms(
     job.project_id,
     project.org_id,
     project.location?.canton ?? "",
     project.location?.municipality ?? "",
     project.domain ?? "bau",
-  ).catch((e) => console.error(`Normzuweisung vor Analyse von Projekt ${job.project_id} fehlgeschlagen:`, e));
+  ).catch((e) => {
+    assignError = e;
+    console.error(`Normzuweisung vor Analyse von Projekt ${job.project_id} fehlgeschlagen:`, e);
+  });
   // Die Zone kann sich durch den Abruf geändert haben.
   const { data: reread } = await admin.from("projects").select("*").eq("id", job.project_id).maybeSingle();
   const fresh = reread ?? project;
@@ -250,6 +254,7 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
 
   const rows = (pnRows ?? []) as unknown as ProjectNormRow[];
   const { norms: selected, source: normsSource } = selectNorms(rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null);
+  assertNormsUsable(normsSource, assignError, pnError);
   if (normsSource === "fallback") {
     console.warn(`Projekt ${job.project_id}: keine Normen in project_norms — Analyse läuft auf Fachwissen.`);
   }

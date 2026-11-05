@@ -10,7 +10,9 @@ import {
   CANCEL_POLL_MS,
   DEFAULT_OVERLOAD_WAIT_MS,
   LEASE_SECONDS,
+  LOST_ATTEMPT_USD,
   MAX_CONSOLIDATION_ATTEMPTS,
+  MAX_CRASH_STAGES,
   MAX_NO_PROGRESS_STAGES,
   MAX_OVERLOAD_WAIT_MS,
   MAX_PART_ATTEMPTS,
@@ -18,10 +20,13 @@ import {
   MIN_OVERLOAD_CONCURRENCY,
   PER_CALL_BUDGET_MS,
   PREFILL_GATE_MAX_MS,
+  RESERVE_CALL_USD,
+  SAVE_ATTEMPTS,
   STAGE_DEADLINE_MS,
   STATE_VERSION,
   URL_RESIGN_MIN_REMAINING_MS,
   consolidationBudget,
+  crashBackoffMs,
   mayStartCall,
 } from "./budget";
 import { decideOnFailure } from "./errors";
@@ -35,6 +40,7 @@ export const REASON_COST = "Kostengrenze erreicht";
 export const REASON_OVERLOAD = "Anthropic dauerhaft überlastet, Teil nicht geprüft";
 export const REASON_ACCOUNT = "Anthropic-Konto verweigert weitere Aufrufe, Teil nicht geprüft";
 export const REASON_STAGES = "Analyse kam nicht weiter, Teil nicht geprüft";
+export const REASON_CRASHES = "Die Analyse brach wiederholt ab und wurde beendet. Bitte erneut starten.";
 
 class LeaseLost extends Error {}
 
@@ -137,6 +143,12 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
 
   let job: StageJob | null = null;
   let parts: StagePart[] = [];
+  let finishedAtStart = 0;
+  /** Überlast: Die Etappe stand nicht still, sie musste warten. Die Pause überlebt die Übergabe. */
+  let pauseUntil = 0;
+  let overloaded = false;
+
+  const finishedCount = () => parts.filter((p) => p.status === "done" || p.status === "failed").length;
 
   const update = async (patch: JobPatch) => {
     const ok = await store.updateJob(analysisId, leaseId, patch);
@@ -145,6 +157,25 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
   };
 
   const costNow = () => deps.model.cost(totalUsage(parts, job?.consolidation_usage ?? null));
+  /** Für die Kostengrenze: Gemessenes plus Pauschale für Versuche ohne verlässliche Abrechnung. */
+  const spendNow = () => costNow() + parts.reduce((sum, p) => sum + p.unmetered_attempts, 0) * LOST_ATTEMPT_USD;
+
+  /** Bezahlte Ergebnisse gehen nicht wegen eines Netzwacklers verloren. Lease-Verlust ist endgültig. */
+  const withRetries = async <T>(fn: () => Promise<T>): Promise<T> => {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await fn();
+      } catch (e) {
+        if (e instanceof LeaseLost || attempt >= SAVE_ATTEMPTS) throw e;
+        log.warn(`Speichern für ${analysisId}, Versuch ${attempt}: ${e instanceof Error ? e.message : String(e)}`);
+        await clock.sleep(500 * 3 ** (attempt - 1));
+      }
+    }
+  };
+  const savePart = async (position: number, expectedLease: string | null, patch: PartPatch) => {
+    const saved = await withRetries(() => store.savePart(analysisId, position, expectedLease, patch));
+    if (!saved) throw new LeaseLost();
+  };
 
   /** Kosten und Lebenszeichen auf der Analyse. JSON-Pfad, damit der Admin ohne Migration lesen kann. */
   const heartbeat = async () => {
@@ -167,14 +198,18 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
   const handOff = async (madeProgress: boolean): Promise<StageResult> => {
     if (!job) return "gone";
     await update({
-      no_progress_stages: madeProgress ? 0 : job.no_progress_stages + 1,
+      // Warten auf Überlast ist kein Stillstand. Die Grenze dafür ist overload_wait_ms.
+      no_progress_stages: madeProgress || overloaded ? 0 : job.no_progress_stages + 1,
+      crash_count: 0,
       active_ms: activeMs(),
     });
     await checkCancelled();
     if (cancel.signal.aborted) return stopCancelled();
-    const released = await store.releaseLease(analysisId, leaseId, new Date(clock.now()).toISOString());
+    const delayMs = Math.max(0, pauseUntil - clock.now());
+    const released = await store.releaseLease(analysisId, leaseId, delayMs);
     if (!released) return "lease_lost";
-    if (job.dispatch_url) {
+    // Mit Pause stösst der Wächter zur fälligen Zeit an, der Browser ebenso.
+    if (job.dispatch_url && delayMs === 0) {
       const sent = await deps.dispatcher.dispatch(analysisId);
       // Auslöser dauerhaft weg: ehrlich auf den Browser wechseln statt «läuft im Hintergrund» zu melden.
       if (sent === "unavailable") await store.clearDispatchUrl(analysisId);
@@ -191,10 +226,7 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
       const ok = await store.savePart(analysisId, part.position, part.lease_id, patch);
       if (ok) Object.assign(part, patch);
     }
-    await update({
-      parts_done: parts.filter((p) => p.status === "done" || p.status === "failed").length,
-      last_progress_at: new Date(clock.now()).toISOString(),
-    });
+    await update({ parts_done: finishedCount(), last_progress_at: new Date(clock.now()).toISOString() });
   };
 
   try {
@@ -205,12 +237,19 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
       return gone ? "gone" : "lease_lost";
     }
     parts = job.phase === "prepare" ? [] : await store.listParts(analysisId);
+    finishedAtStart = finishedCount();
     if (input.source === "resume") await update({ resumes: job.resumes + 1 });
     if (cancel.signal.aborted) return await stopCancelled();
     await heartbeat();
 
     if (job.state_version > STATE_VERSION) {
       await closeWithError(deps, job, parts, "Analyse wurde mit einer neueren Programmversion gestartet und kann hier nicht fortgesetzt werden.");
+      return "finished";
+    }
+
+    // Auch Funktionen, die ohne Freigabe gestorben sind, zählen (Claim in der Datenbank).
+    if (job.crash_count >= MAX_CRASH_STAGES) {
+      await closeWithError(deps, job, parts, REASON_CRASHES);
       return "finished";
     }
 
@@ -252,13 +291,12 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
 
     // ── Teile ─────────────────────────────────────────────────────────────────
     if (job.phase === "parts") {
-      const before = parts.filter((p) => p.status === "done" || p.status === "failed").length;
+      const before = finishedCount();
       const r = await runParts();
       if (r === "cancelled") return await stopCancelled();
       const open = parts.filter((p) => p.status === "pending" || p.status === "running").length;
       if (open > 0) {
-        const after = parts.filter((p) => p.status === "done" || p.status === "failed").length;
-        return await handOff(after > before);
+        return await handOff(finishedCount() > before);
       }
       await update({ phase: "consolidate", last_progress_at: new Date(clock.now()).toISOString() });
     }
@@ -285,11 +323,18 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
       return gone ? "gone" : "lease_lost";
     }
     log.error(`Etappe von Analyse ${analysisId} abgebrochen`, e);
-    // Lease freigeben, wenn das noch geht. Sonst holt der Ablauf des Lease die Kette zurück.
+    // Kein direkter Anstoss: Der Wächter oder der Browser kommt nach dem Backoff. Mit Fortschritt zählt der
+    // Absturz neu, damit bezahlte Arbeit nicht verworfen wird, solange die Analyse vorankommt.
     try {
-      await store.releaseLease(analysisId, leaseId, new Date(clock.now()).toISOString());
-      if (job?.dispatch_url) await deps.dispatcher.dispatch(analysisId);
+      const crashes = finishedCount() > finishedAtStart ? 1 : (job?.crash_count ?? 0) + 1;
+      if (job && crashes >= MAX_CRASH_STAGES) {
+        await closeWithError(deps, job, parts, REASON_CRASHES);
+        return "finished";
+      }
+      if (job) await store.updateJob(analysisId, leaseId, { crash_count: crashes });
+      await store.releaseLease(analysisId, leaseId, crashBackoffMs(crashes));
     } catch {
+      // Datenbank nicht erreichbar: Der Lease läuft von selbst ab, der nächste Claim zählt den Absturz.
       log.warn(`Lease von ${analysisId} nicht freigegeben, läuft von selbst ab.`);
     }
     return "crashed";
@@ -331,12 +376,19 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
 
     const queue = parts.filter((p) => p.status === "pending").sort((a, b) => a.position - b.position);
     let concurrency = Math.max(1, deps.config.maxConcurrency);
-    let pauseUntil = 0;
     const state: { stopReason: string | null; writeError: unknown } = {
       // Eine Wiederaufnahme über der Kostengrenze startet keinen Aufruf mehr.
-      stopReason: costNow() >= deps.config.maxRunCostUsd ? REASON_COST : null,
+      stopReason: spendNow() >= deps.config.maxRunCostUsd ? REASON_COST : null,
       writeError: null,
     };
+    let coldCounted = false;
+    /** Reserve je laufendem Aufruf. Der teuerste gemessene Teil geht vor (erster Aufruf schreibt den Cache). */
+    const reserveUsd = () => parts.reduce(
+      (max, p) => Math.max(max, deps.model.cost({
+        input_tokens: p.input_tokens, cache_write_tokens: p.cache_write_tokens, cache_read_tokens: p.cache_read_tokens, output_tokens: p.output_tokens,
+      })),
+      RESERVE_CALL_USD,
+    );
     let overloadWaitMs = current.overload_wait_ms;
 
     // Erster Aufruf allein: Parallele Anfragen können nicht lesen, was ein anderer gerade schreibt.
@@ -360,6 +412,12 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
       const merged = mergeAttempt(part, outcome);
       const r = outcome.result;
       let patch: PartPatch;
+      // Erst nach dem Speichern in die Warteschlange: Sonst startet ein Teil, dessen Stand noch nicht steht.
+      let requeue: "back" | "front" | null = null;
+      // Abgebrochener Stream oder Netzfehler: Der Zähler ist nur eine Untergrenze.
+      const unmetered = outcome.error_class === "timeout" || outcome.error_class === "transient"
+        ? { unmetered_attempts: part.unmetered_attempts + 1 }
+        : {};
 
       if (r.ok) {
         patch = { status: "done", lease_id: null, items: merged.items, call: merged.call, next_effort: null, ...merged.tokens };
@@ -384,15 +442,16 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
         switch (decision.action) {
           case "retry":
             patch = {
-              status: "pending", lease_id: null, items: merged.items, call: merged.call, ...merged.tokens,
+              status: "pending", lease_id: null, items: merged.items, call: merged.call, ...merged.tokens, ...unmetered,
               next_effort: decision.next_effort ?? part.next_effort,
             };
-            queue.push(part);
+            requeue = "back";
             break;
           case "overload": {
             // Versuch zählt nicht. Der Teil kommt zuerst dran, sobald die Pause um ist.
             patch = { status: "pending", lease_id: null, attempts: Math.max(0, part.attempts - 1), ...merged.tokens };
-            queue.unshift(part);
+            requeue = "front";
+            overloaded = true;
             concurrency = Math.max(MIN_OVERLOAD_CONCURRENCY, Math.floor(concurrency / 2));
             const now = clock.now();
             const until = now + (outcome.retry_after_ms ?? DEFAULT_OVERLOAD_WAIT_MS);
@@ -410,28 +469,32 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
             patch = { status: "pending", lease_id: null, ...merged.tokens };
             break;
           default:
-            patch = { status: "failed", lease_id: null, items: merged.items, call: merged.call, ...merged.tokens };
+            patch = { status: "failed", lease_id: null, items: merged.items, call: merged.call, ...merged.tokens, ...unmetered };
         }
       }
 
-      const saved = await store.savePart(analysisId, part.position, leaseId, patch);
-      if (!saved) throw new LeaseLost();
+      await savePart(part.position, leaseId, patch);
       Object.assign(part, patch);
+      if (requeue === "back") queue.push(part);
+      if (requeue === "front") queue.unshift(part);
 
-      await update({
-        parts_done: parts.filter((p) => p.status === "done" || p.status === "failed").length,
+      const cold = !coldCounted && r.cache_write_tokens > 0;
+      if (cold) coldCounted = true;
+      await withRetries(() => update({
+        parts_done: finishedCount(),
         overload_wait_ms: overloadWaitMs,
+        ...(cold ? { cold_stages: job!.cold_stages + 1 } : {}),
         ...(r.ok || part.status === "failed" ? { last_progress_at: new Date(clock.now()).toISOString() } : {}),
-      });
-      await heartbeat();
-      if (!state.stopReason && costNow() >= deps.config.maxRunCostUsd) state.stopReason = REASON_COST;
+      }));
+      // Nur Lebenszeichen und Zwischenstand: Das Ergebnis ist gespeichert, die Kosten stimmen beim nächsten Mal.
+      await heartbeat().catch((e) => log.warn(`Lebenszeichen für ${analysisId}: ${e instanceof Error ? e.message : String(e)}`));
+      if (!state.stopReason && spendNow() >= deps.config.maxRunCostUsd) state.stopReason = REASON_COST;
     };
 
     const start = async (part: StagePart, isFirst: boolean) => {
       const attempts = part.attempts + 1;
       const generation = urlGeneration;
-      const saved = await store.savePart(analysisId, part.position, null, { status: "running", attempts, lease_id: leaseId });
-      if (!saved) throw new LeaseLost();
+      await savePart(part.position, null, { status: "running", attempts, lease_id: leaseId });
       Object.assign(part, { status: "running", attempts, lease_id: leaseId });
       const outcome = await deps.model.callPart({
         unit: part.unit,
@@ -457,8 +520,16 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
       if (state.writeError) break;
       const stop = cancel.signal.aborted || state.stopReason !== null;
       const now = clock.now();
+      // Vor dem Aufruf prüfen und laufende Aufrufe reservieren: Sonst überzieht eine Welle die Grenze.
+      const reserve = reserveUsd();
+      const budgetOk = spendNow() + (inflight.size + 1) * reserve <= deps.config.maxRunCostUsd;
+      if (!stop && !budgetOk && inflight.size === 0 && queue.length > 0) {
+        state.stopReason = REASON_COST;
+        continue;
+      }
       const canStart =
         !stop &&
+        budgetOk &&
         queue.length > 0 &&
         (started === 0 || gateOpen) &&
         inflight.size < concurrency &&
@@ -516,6 +587,18 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
         await update({
           final_items: raw,
           consolidation: { ...fallback, applied: false },
+          phase: "finalize",
+          last_progress_at: new Date(clock.now()).toISOString(),
+        });
+        return "ok";
+      }
+
+      // Kostengrenze: Der Aufruf ist nur eine Bereinigung und darf sie nicht überschreiten.
+      const estimate = deps.model.cost({ input_tokens: raw.length * 150, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: maxTokens });
+      if (raw.length >= 2 && spendNow() + estimate > deps.config.maxRunCostUsd) {
+        await update({
+          final_items: raw,
+          consolidation: { applied: false, raw_count: raw.length, merged: 0, downgraded: 0, error: REASON_COST, duration_ms: 0 },
           phase: "finalize",
           last_progress_at: new Date(clock.now()).toISOString(),
         });

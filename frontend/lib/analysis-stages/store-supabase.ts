@@ -5,7 +5,7 @@ import type { StageUnit } from "./plan";
 
 const JOB_COLUMNS = [
   "analysis_id", "project_id", "org_id", "actor_id", "actor_email", "run_id", "state_version", "phase", "stage_no",
-  "no_progress_stages", "resumes", "active_ms", "dispatch_url", "snapshot", "files", "signed_urls", "urls_expire_at",
+  "no_progress_stages", "resumes", "crash_count", "cold_stages", "dispatch_total", "active_ms", "dispatch_url", "snapshot", "files", "signed_urls", "urls_expire_at",
   "preflight", "parts_total", "parts_done", "consolidation", "consolidation_attempts", "consolidation_usage",
   "final_items", "overload_wait_ms", "created_at",
 ].join(",");
@@ -51,15 +51,14 @@ export function createSupabaseStore(admin: SupabaseClient): JobStore {
       return (data ?? []).length > 0;
     },
 
-    async releaseLease(analysisId, leaseId, nowIso) {
-      const { data, error } = await admin
-        .from("analysis_jobs")
-        .update({ lease_id: null, lease_until: null, waiting_since: nowIso, next_dispatch_at: nowIso })
-        .eq("analysis_id", analysisId)
-        .eq("lease_id", leaseId)
-        .select("analysis_id");
+    async releaseLease(analysisId, leaseId, delayMs) {
+      const { data, error } = await admin.rpc("analysis_release_stage", {
+        p_analysis_id: analysisId,
+        p_lease_id: leaseId,
+        p_delay_seconds: delayMs / 1000,
+      });
       if (error) throw new Error(error.message);
-      return (data ?? []).length > 0;
+      return data === true;
     },
 
     async clearDispatchUrl(analysisId) {

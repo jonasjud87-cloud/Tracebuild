@@ -45,6 +45,11 @@ export function stagesInfo(job: StageJob, parts: StagePart[]) {
     count: job.stage_no,
     resumes: job.resumes,
     unmetered_attempts: parts.reduce((sum, p) => sum + p.unmetered_attempts, 0),
+    // Der Job wird gelöscht, die Abnahme braucht diese Werte danach noch.
+    dispatch_attempts: job.dispatch_total,
+    overload_wait_ms: job.overload_wait_ms,
+    cold_stages: job.cold_stages,
+    cache_write_parts: parts.filter((p) => p.cache_write_tokens > 0).length,
   };
 }
 
@@ -173,7 +178,10 @@ export async function closeWithError(deps: StageDeps, job: StageJob, parts: Stag
 export async function closeCancelled(deps: StageDeps, job: StageJob, parts: StagePart[]): Promise<void> {
   const { store, model, clock } = deps;
   const usage = totalUsage(parts, job.consolidation_usage);
-  await store.deleteItems(job.analysis_id);
+  const status = await store.analysisStatus(job.analysis_id);
+  // Fertig oder wieder laufend (fremde Etappe): Nichts anfassen, schon gar nicht die Prüfpunkte.
+  if (status === "done" || status === "running") return;
+  if (status === "cancelled") await store.deleteItems(job.analysis_id);
   await store.recordCancelled(job.analysis_id, {
     cost_usd: model.cost(usage),
     finished_at: new Date(clock.now()).toISOString(),

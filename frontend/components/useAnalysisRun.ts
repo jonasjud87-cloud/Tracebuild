@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import {
   INITIAL_RUN_POLL,
   applyPoll,
+  applyResumeResult,
   interpretStatusResponse,
   isInterruptedRun,
   pollDelayMs,
@@ -71,8 +72,14 @@ export function useAnalysisRun(
         const now = Date.now();
         if (shouldResume(result.status.progress, lastResumeAt, now)) {
           lastResumeAt = now;
-          // Scheitert der Anstoss, meldet die nächste Abfrage weiter needs_resume.
-          api.post(`/projects/${projectId}/analyses/${runId}/resume`, {}).catch(() => {});
+          // Scheitert der Anstoss dauerhaft, darf die Anzeige nichts Automatisches mehr versprechen.
+          api.post<{ resumed: boolean }>(`/projects/${projectId}/analyses/${runId}/resume`, {})
+            .then((r) => r?.resumed === true, () => false)
+            .then((resumed) => {
+              if (stopped) return;
+              current = applyResumeResult(current, resumed);
+              setState(current);
+            });
         }
       }
       schedule();

@@ -56,6 +56,9 @@ export interface StageJob {
   stage_no: number;
   no_progress_stages: number;
   resumes: number;
+  crash_count: number;
+  cold_stages: number;
+  dispatch_total: number;
   active_ms: number;
   dispatch_url: string | null;
   snapshot: RunSnapshot | null;
@@ -118,7 +121,8 @@ export interface JobStore {
   claim(analysisId: string, tokenHash: string | null, leaseId: string, leaseSeconds: number): Promise<ClaimResult | null>;
   loadJob(analysisId: string, leaseId: string): Promise<StageJob | null>;
   updateJob(analysisId: string, leaseId: string, patch: JobPatch): Promise<boolean>;
-  releaseLease(analysisId: string, leaseId: string, nowIso: string): Promise<boolean>;
+  /** Wartezeit in ms, gerechnet mit der Uhr der Datenbank. */
+  releaseLease(analysisId: string, leaseId: string, delayMs: number): Promise<boolean>;
   clearDispatchUrl(analysisId: string): Promise<void>;
   deleteJob(analysisId: string): Promise<void>;
   /** null = Zeile gibt es nicht mehr. Wirft bei DB-Fehler: Das ist kein Abbruch. */

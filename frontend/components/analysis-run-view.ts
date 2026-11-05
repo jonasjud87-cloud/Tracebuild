@@ -108,6 +108,8 @@ export interface RunPollState {
   statusKnown: boolean;
   /** Der Server meldet ein Ende oder die Analyse fehlt: Liste neu laden. */
   ended: boolean;
+  /** Wiederaufnahmen in Folge, die nichts bewirkt haben. */
+  resumeFailures: number;
 }
 
 export const INITIAL_RUN_POLL: RunPollState = {
@@ -116,7 +118,11 @@ export const INITIAL_RUN_POLL: RunPollState = {
   failures: 0,
   statusKnown: false,
   ended: false,
+  resumeFailures: 0,
 };
+
+/** Bei 30 s Abstand rund 90 Sekunden ohne Erfolg. */
+export const RESUME_STUCK_AFTER_FAILURES = 3;
 
 /** Der Balken läuft nie rückwärts, auch wenn ein Teil neu geprüft werden muss. */
 export function nextPercent(previous: number | null, reported: number): number {
@@ -135,7 +141,14 @@ export function applyPoll(state: RunPollState, poll: StatusPoll): RunPollState {
     failures: 0,
     statusKnown: true,
     ended: false,
+    // Wartet der Server nicht mehr, hat die Kette wieder gegriffen.
+    resumeFailures: progress?.needs_resume ? state.resumeFailures : 0,
   };
+}
+
+/** Ergebnis einer Wiederaufnahme: Fehler oder «nichts übernommen», obwohl der Server wartet. */
+export function applyResumeResult(state: RunPollState, resumed: boolean): RunPollState {
+  return { ...state, resumeFailures: resumed ? 0 : state.resumeFailures + 1 };
 }
 
 /** Browser als Rückfall: nur wenn der Server wartet, höchstens alle 30 s. */
@@ -204,10 +217,14 @@ export function runProgressView(state: RunPollState, createdAt: string | null, n
   if (state.failures >= CONNECTION_LOST_AFTER_FAILURES) {
     hints.push("Verbindung unterbrochen. Der Stand wird aktualisiert, sobald die Verbindung zurück ist.");
   }
-  if (state.progress?.stalled) {
+  const stuck = state.resumeFailures >= RESUME_STUCK_AFTER_FAILURES;
+  if (stuck) {
+    // Keine Zusage mehr, die wir nicht halten können.
+    hints.push("Die Analyse kommt zurzeit nicht weiter. Lassen Sie diese Seite offen oder versuchen Sie es später erneut.");
+  } else if (state.progress?.stalled) {
     hints.push("Das dauert länger als üblich. Die Analyse wird automatisch fortgesetzt.");
   }
-  if (state.progress?.background) {
+  if (state.progress?.background && !stuck) {
     hints.push("Sie können diese Seite schliessen, die Analyse läuft weiter.");
   }
   return { label: progressLabel(state.progress), percent: state.percent, hints, interrupted: false };

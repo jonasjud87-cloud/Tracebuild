@@ -127,7 +127,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: (AnalysisAutoParts & { limit?: number }) | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
+  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -637,6 +637,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       createdAt: a.created_at,
       snapshots: a.snapshots,
       autoParts: a.autoParts,
+      failedNorms: a.failedNorms,
+      preflight: a.preflight,
+      consolidationFailed: a.consolidationFailed,
     };
   }
 

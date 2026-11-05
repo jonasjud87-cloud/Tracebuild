@@ -42,6 +42,16 @@ export function buildStageUnits(planned: NormPart[], labelOf: (p: NormPart) => s
   }));
 }
 
+/**
+ * Ohne Zuweisung und ohne Normen sähe ein technischer Fehler aus wie «keine Normen hinterlegt»: lieber
+ * abbrechen als eine bezahlte Prüfung nur auf Fachwissen. Mit bestehenden Normen läuft sie auf dem letzten Stand.
+ */
+export function assertNormsUsable(source: "project_norms" | "fallback", assignError: unknown, loadError: unknown): void {
+  if (source === "fallback" && (assignError || loadError)) {
+    throw new Error("Die Normen des Projekts konnten nicht geladen werden. Bitte später erneut versuchen.");
+  }
+}
+
 /** Zurück in die Form der Engine. Der Grenzmarker ist der eingefrorene des Laufs, nie ein neuer. */
 export function toNormPart(unit: StageUnit, boundary: string): NormPart {
   return {

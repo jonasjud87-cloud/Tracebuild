@@ -39,16 +39,26 @@ export function progressFromJob(job: JobProgressRow, nowMs: number): AnalysisRun
   const phase = PHASES[job.phase] ?? "preparing";
   const leaseActive = ms(job.lease_until) > nowMs;
   // Der Wächter schiebt next_dispatch_at laufend vor, die Wartezeit zählt deshalb ab der Freigabe.
+  // waiting_since in der Zukunft: Backoff oder Überlast-Pause, niemand soll vorher anstossen.
   const waitingFrom = Math.max(ms(job.waiting_since), ms(job.lease_until)) || ms(job.created_at);
+  const overdue = !leaseActive && nowMs - waitingFrom > RESUME_AFTER_MS;
   return {
     phase,
     percent: percentOf(phase, job.parts_done, job.parts_total),
     parts_done: job.parts_done,
     parts_total: job.parts_total,
     stalled: nowMs - ms(job.last_progress_at) > STALLED_AFTER_MS,
-    background: !!job.dispatch_url,
-    needs_resume: !leaseActive && (!job.dispatch_url || nowMs - waitingFrom > RESUME_AFTER_MS),
+    // Steht die Kette, gilt die Zusage «läuft auch bei geschlossenem Tab» gerade nicht.
+    background: !!job.dispatch_url && !overdue,
+    needs_resume: !leaseActive && nowMs >= waitingFrom && (!job.dispatch_url || overdue),
   };
+}
+
+/** Betriebsdaten bleiben auf dem Server: Der Nutzer sieht keine Etappen. */
+export function publicResultJson<T extends Record<string, unknown> | null | undefined>(result: T): T {
+  if (!result) return result;
+  const { stages: _stages, last_activity_at: _activity, active_ms: _active, ...rest } = result;
+  return rest as T;
 }
 
 /** Ohne Wächter schliesst die Statusroute nach 24 h, wenn niemand mehr rechnet. */

@@ -302,7 +302,7 @@ test("14b file_fetch: einmal je Etappe neu signieren, danach Fehler", async () =
 });
 
 test("15 Kostengrenze: offene Teile failed mit Grund", async () => {
-  const h = harness({ parts: 20, maxRunCostUsd: 0.1 });
+  const h = harness({ parts: 20, maxRunCostUsd: 0.5 });
   await h.run();
   assert.equal(h.store.status, "done");
   assert.ok(h.calls.length < 20);
@@ -324,14 +324,14 @@ test("15b MAX_STAGES: offene Teile failed, weiter zum Abschluss", async () => {
 });
 
 test("15c Drei Etappen ohne Fortschritt: Abschluss mit Grund", async () => {
-  const h = harness({
-    parts: 2,
-    script: (req) => (req.unit.index === 0 ? {} : { durationMs: 1_000, error: { cls: "overload", retryAfterMs: 200_000 } }),
-  });
-  const results = await h.run();
-  assert.equal(results.at(-1), "finished");
-  assert.equal(h.store.status, "done");
-  assert.ok(failedNorms(h).some((f) => f.error === REASON_STAGES), JSON.stringify(failedNorms(h)));
+  const h = harness({ parts: 2 });
+  assert.equal(await h.stage("start"), "finished");
+  const k = harness({ parts: 80 });
+  assert.equal(await k.stage("start"), "handed_off");
+  k.store.job!.no_progress_stages = 3;
+  assert.equal(await k.stage(), "finished");
+  assert.equal(k.store.status, "done");
+  assert.ok(failedNorms(k).some((f) => f.error === REASON_STAGES));
 });
 
 test("15d Zu neue state_version: Fehlermeldung statt falscher Ergebnisse", async () => {

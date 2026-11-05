@@ -28,6 +28,7 @@ export async function POST(request: Request) {
     return started ? NextResponse.json({ ack: true }, { status: 202 }) : reject();
   } catch (e) {
     console.error(`Claim von Analyse ${analysisId} fehlgeschlagen:`, e instanceof Error ? e.message : "unbekannt");
-    return reject();
+    // Vorübergehend, kein abgelehnter Anstoss: In net._http_response klar unterscheidbar.
+    return NextResponse.json({ ack: false }, { status: 503 });
   }
 }
