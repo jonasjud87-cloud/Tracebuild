@@ -70,6 +70,7 @@ export interface VersionDocument {
   last_update_status?: string | null;
   attempts?: number | null;
   scope?: string | null;
+  manual_decision?: string | null;
 }
 
 export type VersionAction =
@@ -156,6 +157,8 @@ export function planVersionActions(
 
   const inPlay = own.filter(
     (d) =>
+      // Der Entscheid eines Admins steht über dem Vergleich: Sonst würde er beim nächsten Abruf zurückgenommen.
+      !d.manual_decision &&
       !winnerElsewhereStands(d) &&
       !isAmendmentTitle(d.title, rules) &&
       !isAnnexTitle(d.title, rules) &&

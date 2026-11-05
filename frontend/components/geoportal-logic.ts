@@ -215,7 +215,7 @@ const REJECT_REASON_LABELS: Record<string, string> = {
   too_large: "PDF zu gross",
   pdf_unreadable: "PDF nicht lesbar",
   scan_or_short: "Scan oder zu wenig Text",
-  decision_document: "Entscheid statt Reglement",
+  decision_document: "Entscheid oder Schreiben statt Reglement",
   duplicate_content: "gleicher Text wie ein anderes Dokument",
   kept_old: "neue Fassung abgelehnt, bisheriger Stand bleibt",
   no_articles: "keine Artikel erkannt",
@@ -282,6 +282,63 @@ export function documentSummaryLine(s: DocumentSummary): string {
   if (s.failed) parts.push(`${s.failed} mit Fehler`);
   if (s.pending) parts.push(`${s.pending} noch offen`);
   return parts.join(" · ");
+}
+
+/** Externe Links nur über http und https: Die Adressen stammen aus fremden Daten. */
+export function safeExternalUrl(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  try {
+    const url = new URL(raw);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.toString() : null;
+  } catch {
+    return null;
+  }
+}
+
+export interface DocumentNotices<T> {
+  /** Ohne Norm und ohne Text: Das Reglement ist in keiner Analyse enthalten. */
+  scans: T[];
+  rejected: { reason: string; label: string; items: T[] }[];
+  bothKept: T[];
+}
+
+type NoticeItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "norm_id" | "version_note">;
+
+/** Scan-Hinweis nur, solange kein Text vorliegt: Mit Texterkennung wechselt das Dokument den Status. */
+export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotices<T> {
+  const out: DocumentNotices<T> = { scans: [], rejected: [], bothKept: [] };
+  const groups = new Map<string, T[]>();
+  for (const item of items) {
+    if (item.version_note) out.bothKept.push(item);
+    if (item.status !== "rejected") continue;
+    if (item.reject_reason === "scan_or_short") {
+      if (!item.norm_id) out.scans.push(item);
+      continue;
+    }
+    const key = item.reject_reason ?? "";
+    groups.set(key, [...(groups.get(key) ?? []), item]);
+  }
+  out.rejected = Array.from(groups, ([reason, group]) => ({ reason, label: rejectReasonLabel(reason || null), items: group }));
+  return out;
+}
+
+// ── Eigene Uploads gegenüber dem amtlichen Text ──────────────────────────────
+
+/** Antworten von PUT /standards/{id}/authoritative als Text für die Nutzer. */
+export function authoritativeErrorText(status: number | undefined): string {
+  switch (status) {
+    case 400: return "Die Anfrage war ungültig. Bitte die Seite neu laden und erneut versuchen.";
+    case 401: return "Sie sind nicht mehr angemeldet. Bitte erneut anmelden.";
+    case 404: return "Diese Norm gibt es nicht mehr, oder sie gehört nicht zu Ihrer Organisation.";
+    case 409: return "Massgebend festlegen geht nur bei eigenen Gemeinde-Normen.";
+    default: return "Die Festlegung konnte nicht gespeichert werden. Bitte später erneut versuchen.";
+  }
+}
+
+/** Anteil des Uploads im amtlichen Text als ganze Prozent. Ausserhalb von 0 bis 1 keine Angabe. */
+export function similarityPercent(value: number | null | undefined): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0 || value > 1) return null;
+  return Math.round(value * 100);
 }
 
 // ── Status des ÖREB-Auszugs ──────────────────────────────────────────────────

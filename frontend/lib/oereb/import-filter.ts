@@ -52,6 +52,40 @@ export interface ImportFilterRules {
   shrink_min_ratio: number;
   /** Eine neue URL löst eine alte erst ab, wenn diese gemeindeweit so lange in keinem Auszug mehr stand. */
   supersede_after_days: number;
+  /** Mindestlänge für einen `force_import`: Der Admin übersteuert den Inhaltstest, nicht einen leeren Text. */
+  force_min_text_chars: number;
+
+  // ── Neutrale Titel: gemeindeweit nur, wenn der Inhalt es belegt ──
+  /** Thema, unter dem eine gemeindeweite Ordnung im Auszug steht. */
+  neutral_themes: string[];
+  /** Die Behörde muss eine Gemeinde sein. */
+  neutral_authority_terms: string[];
+  /** Plan oder objektbezogene Vorschrift im Titel: nie gemeindeweit, Scans werden nicht gelesen. */
+  neutral_title_block: string[];
+  /** Dieselben Begriffe am Textanfang: «Reglement» zur Schutzverordnung. */
+  neutral_head_block: string[];
+  neutral_head_chars: number;
+  /** Zonenarten im Text: Erst mehrere verschiedene belegen eine Zonenordnung. */
+  neutral_zone_terms: string[];
+  neutral_min_zone_terms: number;
+  neutral_min_article_run: number;
+
+  // ── Scans durch Claude lesen: standardmässig aus ──
+  ocr_enabled: boolean;
+  ocr_model: string;
+  /** Lesen bei neutralem Titel. Getrennt von `neutral_themes`: Lesen macht nichts gemeindeweit. */
+  ocr_themes: string[];
+  /** Weniger Seiten sind Pläne oder Beschlüsse. */
+  ocr_min_pages: number;
+  ocr_max_pages: number;
+  /** Base64 macht daraus vier Drittel, die Anfrage darf 32 MB nicht überschreiten. */
+  ocr_max_pdf_bytes: number;
+  /** Harte Grenze je Dokument: `max_tokens` wird daraus berechnet. */
+  ocr_max_cost_usd: number;
+  /** Zeit ab Beginn des Requests, nach der das Lesen abbricht (Funktionslimit 300 s). */
+  ocr_deadline_ms: number;
+  /** Bleibt weniger Zeit, startet der Aufruf nicht und das Dokument kommt später wieder dran. */
+  ocr_min_call_ms: number;
 }
 
 export const DEFAULT_IMPORT_FILTER: ImportFilterRules = {
@@ -103,15 +137,48 @@ export const DEFAULT_IMPORT_FILTER: ImportFilterRules = {
   recheck_hours: 24,
   shrink_min_ratio: 0.5,
   supersede_after_days: 30,
+  force_min_text_chars: 200,
+  neutral_themes: ["ch.Nutzungsplanung"],
+  neutral_authority_terms: ["gemeinde", "stadt", "einwohner", "commune", "communal", "municipal", "comune", "municipio"],
+  neutral_title_block: [
+    "plan", "zonenplan", "kulturlandplan", "nutzungsplan", "teilzonen", "quartierplan", "gestaltungsplan", "überbauungsplan", "überbauungsordnung", "bebauungsplan",
+    "baulinien", "sondernutzung", "arealplan", "schutzplan", "schutzverordnung", "schutzzone", "ortsplanung", "gewässer",
+    "kulturobjekt", "naturobjekt", "inventar", "plan de quartier", "plan d'affectation", "piano di quartiere",
+  ],
+  neutral_head_block: [
+    "schutzverordnung", "schutzplan", "quartierplan", "gestaltungsplan", "überbauungsplan", "überbauungsordnung",
+    "bebauungsplan", "sondernutzungsplan", "baulinienplan", "teilzonenreglement", "teilzonenplan", "plan de quartier", "piano di quartiere",
+  ],
+  neutral_head_chars: 600,
+  neutral_zone_terms: [
+    "wohnzone", "gewerbezone", "industriezone", "kernzone", "dorfzone", "landwirtschaftszone", "zonenordnung", "grundnutzung",
+    "zone d'habitation", "zone residentielle", "zone artisanale", "zone industrielle", "zone agricole",
+    "zona residenziale", "zona artigianale", "zona industriale", "zona agricola",
+  ],
+  neutral_min_zone_terms: 3,
+  neutral_min_article_run: 25,
+  ocr_enabled: false,
+  ocr_model: "claude-opus-5-5",
+  // Quarten: «Reglement» zur Schutzverordnung, 39 Seiten Scan. Gelesen, aber weiterhin `parcel`.
+  ocr_themes: ["ch.Nutzungsplanung", "ch.SG.SchutzverordnungKulturgueter"],
+  ocr_min_pages: 3,
+  ocr_max_pages: 60,
+  ocr_max_pdf_bytes: 23_000_000,
+  ocr_max_cost_usd: 3,
+  ocr_deadline_ms: 270_000,
+  ocr_min_call_ms: 120_000,
 };
 
 const ARRAY_KEYS = [
   "doc_types", "title_positive", "title_negative", "title_reject_exact", "title_not_in_force", "title_amendment",
   "content_reject_head", "letter_head_terms", "version_date_markers", "title_annex", "authority_reject", "allowed_hosts", "http_allowed_hosts",
+  "neutral_themes", "neutral_authority_terms", "neutral_title_block", "neutral_head_block", "neutral_zone_terms", "ocr_themes",
 ] as const;
 const NUMBER_KEYS = [
   "min_text_chars", "min_article_run", "min_article_run_amendment", "max_pdf_bytes", "max_accepted_per_municipality", "recheck_hours", "shrink_min_ratio", "supersede_after_days",
   "letter_head_chars", "letter_head_min_hits", "letter_override_article_run", "version_run_tie_ratio", "version_min_overlap", "older_version_recheck_hours", "upload_similarity_min",
+  "force_min_text_chars", "neutral_head_chars", "neutral_min_zone_terms", "neutral_min_article_run",
+  "ocr_min_pages", "ocr_max_pages", "ocr_max_pdf_bytes", "ocr_max_cost_usd", "ocr_deadline_ms", "ocr_min_call_ms",
 ] as const;
 
 function stringList(v: unknown): string[] | null {
@@ -137,6 +204,9 @@ export function mergeFilterRules(base: ImportFilterRules, overlay: unknown): Imp
     if (typeof v === "number" && Number.isFinite(v) && v >= 0) out[key] = v;
   }
   if (typeof o.article_pattern === "string" && capturesNumber(o.article_pattern)) out.article_pattern = o.article_pattern;
+  // Nur ein echtes Boolean schaltet um: Ein Tippfehler in der Datenzeile darf keine Kosten auslösen.
+  if (typeof o.ocr_enabled === "boolean") out.ocr_enabled = o.ocr_enabled;
+  if (typeof o.ocr_model === "string" && o.ocr_model.trim()) out.ocr_model = o.ocr_model.trim();
   return out;
 }
 
@@ -193,6 +263,47 @@ export function scopeOf(title: string, rules: ImportFilterRules): "municipal" | 
   return isTitlePositive(title, rules) ? "municipal" : "parcel";
 }
 
+interface NeutralDocument {
+  title: string;
+  theme_codes?: string[] | null;
+  authority?: string | null;
+}
+
+/** Titel, Thema und Behörde lassen eine gemeindeweite Ordnung zu. Noch kein Beleg: Der steht im Text. */
+export function isNeutralScopeCandidate(doc: NeutralDocument, rules: ImportFilterRules): boolean {
+  if (isTitlePositive(doc.title, rules)) return false;
+  const title = fold(doc.title);
+  if (rules.neutral_title_block.some((t) => matchesTerm(title, t))) return false;
+  if (rules.title_negative.some((t) => matchesTerm(title, t)) || isAmendmentTitle(doc.title, rules) || isAnnexTitle(doc.title, rules)) return false;
+  if (!(doc.theme_codes ?? []).some((c) => rules.neutral_themes.includes(c))) return false;
+  const authority = fold(doc.authority ?? "");
+  return rules.neutral_authority_terms.some((t) => matchesTerm(authority, t));
+}
+
+/**
+ * Beleg für `municipal` bei neutralem Titel (AR: «Herisau»). Alles muss zusammenkommen, sonst bleibt
+ * es `parcel`: Eine falsche Beförderung gälte für jedes Grundstück der Gemeinde. Null: kein Beleg.
+ */
+export function neutralScopeEvidence(doc: NeutralDocument, text: string, rules: ImportFilterRules): string | null {
+  if (!isNeutralScopeCandidate(doc, rules)) return null;
+  const head = fold(text.slice(0, rules.neutral_head_chars));
+  if (rules.neutral_head_block.some((t) => matchesTerm(head, t))) return null;
+  const run = articleSequence(text, rules.article_pattern).run;
+  if (run < rules.neutral_min_article_run) return null;
+  const body = fold(text);
+  const zones = rules.neutral_zone_terms.filter((t) => matchesTerm(body, t));
+  if (zones.length < Math.max(1, rules.neutral_min_zone_terms)) return null;
+  return `Neutraler Titel, Inhalt belegt eine Gemeindeordnung: ${run} fortlaufende Artikel, Zonen: ${zones.slice(0, 5).join(", ")}`;
+}
+
+/** Lohnt sich das Lesen eines Scans? Das Seitenlimit prüft der Aufruf, die Seitenzahl kennt erst das PDF. */
+export function isOcrCandidate(doc: NeutralDocument, rules: ImportFilterRules): boolean {
+  if (isTitlePositive(doc.title, rules)) return true;
+  const title = fold(doc.title);
+  if (rules.neutral_title_block.some((t) => matchesTerm(title, t))) return false;
+  return (doc.theme_codes ?? []).some((c) => rules.ocr_themes.includes(c));
+}
+
 // ── Host ─────────────────────────────────────────────────────────────────────
 
 export function isHostAllowed(host: string, rules: ImportFilterRules, canton: string): boolean {
@@ -222,6 +333,8 @@ export const PRE_DOWNLOAD_REASONS: ReadonlySet<string> = new Set<PreDownloadReas
 export type ContentReason = "scan_or_short" | "decision_document" | "no_articles" | "too_long";
 /** Grund nach dem Vergleich der Fassungen innerhalb eines Auszugs. */
 export const OLDER_VERSION_REASON = "older_version";
+/** Ein Admin hat das Dokument ausgeschlossen. Keine Regel und kein Abruf hebt das auf. */
+export const MANUAL_EXCLUDE_REASON = "manual_exclude";
 
 export interface FilterRejection<R extends string = string> {
   reason: R;

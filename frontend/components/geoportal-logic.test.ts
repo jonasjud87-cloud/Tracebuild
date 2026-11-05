@@ -8,6 +8,10 @@ import {
   extractStatusInfo,
   oerebReloadNote,
   rejectReasonLabel,
+  documentNotices,
+  safeExternalUrl,
+  authoritativeErrorText,
+  similarityPercent,
   nextActiveIndex,
   parcelHitToFields,
   parcelQueryFor,
@@ -241,4 +245,38 @@ test("Bauzone: fehlend und low brauchen Aufmerksamkeit, manuell nicht", () => {
   assert.equal(zoneNeedsAttention({ bauzone: "W2", zone_source: "oereb", zone_confidence: "exact" }), false);
   assert.equal(zoneNeedsAttention({ bauzone: "W2", zone_source: "manual", zone_confidence: "low" }), false);
   assert.equal(zoneOriginLabel({ bauzone: "W2", zone_source: "oereb", zone_confidence: "low" }), "unsicher, bitte prüfen");
+});
+
+test("Hinweise: Scan ohne Norm, Ablehnungen je Grund, beide Fassungen", () => {
+  const notices = documentNotices([
+    { status: "rejected", reject_reason: "scan_or_short", norm_id: null, version_note: null },
+    { status: "rejected", reject_reason: "scan_or_short", norm_id: "n1", version_note: null },
+    { status: "rejected", reject_reason: "older_version", norm_id: null, version_note: null },
+    { status: "rejected", reject_reason: "older_version", norm_id: null, version_note: null },
+    { status: "rejected", reject_reason: "decision_document", norm_id: null, version_note: null },
+    { status: "imported", reject_reason: null, norm_id: "n2", version_note: "Mögliche weitere Fassung, beide übernommen" },
+  ]);
+  assert.equal(notices.scans.length, 1);
+  assert.deepEqual(notices.rejected.map((g) => [g.reason, g.items.length]), [["older_version", 2], ["decision_document", 1]]);
+  assert.doesNotMatch(notices.rejected.map((g) => g.label).join(), /_/);
+  assert.equal(notices.bothKept.length, 1);
+});
+
+test("Externe Links nur über http und https", () => {
+  assert.equal(safeExternalUrl("https://oerebdocs.zh.ch/a.pdf"), "https://oerebdocs.zh.ch/a.pdf");
+  assert.equal(safeExternalUrl("javascript:alert(1)"), null);
+  assert.equal(safeExternalUrl("kein link"), null);
+  assert.equal(safeExternalUrl(null), null);
+});
+
+test("Fehler beim Festlegen sind je Antwort verständlich", () => {
+  const texts = [400, 404, 409, 500, undefined].map(authoritativeErrorText);
+  assert.equal(new Set(texts).size, 4);
+  assert.match(authoritativeErrorText(409), /Gemeinde-Normen/);
+});
+
+test("Ähnlichkeit als ganze Prozent, Unsinn ohne Angabe", () => {
+  assert.equal(similarityPercent(0.873), 87);
+  assert.equal(similarityPercent(null), null);
+  assert.equal(similarityPercent(1.4), null);
 });

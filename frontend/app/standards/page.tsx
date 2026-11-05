@@ -2,10 +2,12 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import LogoutButton from "@/components/LogoutButton";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
+import { authoritativeErrorText, formatDate, safeExternalUrl, similarityPercent } from "@/components/geoportal-logic";
+import type { NormSupersession } from "@/lib/geoadmin/contract";
 
 interface FileEntry {
   ids: string[];
@@ -17,9 +19,73 @@ interface FileEntry {
   pdf_url: string | null;
   /** Plattformweit von TraceBuild hinterlegt — für die Organisation nur lesbar. */
   global: boolean;
+  /** Stand gegenüber dem amtlichen Text, falls ein Teil der Datei einen Hinweis trägt. */
+  supersession: NormSupersession | null;
 }
 
-function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: string[]) => void }) {
+const SECONDARY_BTN = "text-xs font-medium rounded-lg px-3 py-1.5 border border-[rgba(133,166,233,0.3)] text-[#85A6E9] hover:text-white hover:bg-[#2862D7]/15 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]";
+
+/** Hinweis am eigenen Upload: Die amtliche Fassung gilt, oder die Organisation hat ihre festgelegt. */
+function VersionHint({ info, onChange }: {
+  info: NormSupersession;
+  onChange: (authoritative: boolean) => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  async function run(authoritative: boolean) {
+    if (authoritative && !confirm("Ihre Fassung als massgebend festlegen? Die Projekte Ihrer Organisation verwenden dann Ihren Upload statt des amtlichen Texts.")) return;
+    setBusy(true);
+    setProblem(null);
+    try {
+      await onChange(authoritative);
+    } catch (e) {
+      setProblem(authoritativeErrorText(e instanceof ApiError ? e.status : undefined));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const authoritative = info.version_hint === "org_authoritative";
+  const officialUrl = safeExternalUrl(info.official?.source_url);
+  const percent = similarityPercent(info.superseded_similarity);
+  const since = formatDate(info.superseded_at);
+
+  return (
+    <div className={`mt-3 rounded-lg border px-3 py-2 ${authoritative ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-400/30 bg-amber-400/5"}`}>
+      <p className={`text-xs font-semibold ${authoritative ? "text-emerald-400" : "text-amber-300"}`}>
+        {authoritative ? "Ihre Fassung ist massgebend" : "Neuere amtliche Fassung verwendet"}
+      </p>
+      <p className="mt-1 text-xs leading-relaxed text-[#ABAEBB]">
+        {authoritative
+          ? "Die Projekte Ihrer Organisation verwenden diesen Upload, auch wenn ein ähnlicher amtlicher Text vorliegt."
+          : `Die Projekte verwenden den amtlichen Text. Ihr Upload bleibt gespeichert, zählt aber nicht mehr in der Analyse.${percent !== null ? ` ${percent} % davon stehen im amtlichen Text.` : ""}${since ? ` Stand ${since}.` : ""}`}
+      </p>
+      {info.official && (
+        <p className="mt-1 text-xs text-[#ABAEBB]">
+          Amtlich:{" "}
+          {officialUrl ? (
+            <a href={officialUrl} target="_blank" rel="noreferrer" className="text-[#85A6E9] hover:text-white underline underline-offset-2 break-words">
+              {info.official.title} <span aria-hidden="true">↗</span>
+            </a>
+          ) : info.official.title}
+        </p>
+      )}
+      <div className="mt-2">
+        <button type="button" disabled={busy} onClick={() => run(!authoritative)} className={SECONDARY_BTN}>
+          {busy ? "Wird gespeichert…" : authoritative ? "Festlegung zurücknehmen" : "Meine Fassung als massgebend festlegen"}
+        </button>
+      </div>
+      {problem && <p role="alert" className="mt-2 text-xs text-red-400">{problem}</p>}
+    </div>
+  );
+}
+
+function FileCard({ entry, onDelete, onAuthoritative }: {
+  entry: FileEntry;
+  onDelete: (ids: string[]) => void;
+  onAuthoritative: (ids: string[], authoritative: boolean) => Promise<void>;
+}) {
   const [expanded, setExpanded] = useState(false);
   // Die Liste liefert keinen Volltext mehr, er wird beim ersten Aufklappen geladen.
   const [text, setText] = useState<string | null>(null);
@@ -65,6 +131,9 @@ function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: strin
           )}
         </div>
       </div>
+      {entry.supersession && (
+        <VersionHint info={entry.supersession} onChange={(value) => onAuthoritative(entry.ids, value)} />
+      )}
       {expanded && (
         <>
           <p className="mt-3 text-sm text-[#ABAEBB] leading-relaxed whitespace-pre-wrap border-t border-[rgba(60,63,68,0.4)] pt-3">
@@ -100,7 +169,7 @@ const CANTONS = [
   "TI","UR","VD","VS","ZG","ZH",
 ];
 
-interface Standard {
+interface Standard extends Partial<NormSupersession> {
   id: string;
   title?: string;
   domain: string;
@@ -115,6 +184,18 @@ interface Standard {
 }
 
 const STANDARDS_PAGE_SIZE = 200;
+
+/** Nur eigene Uploads tragen einen Hinweis. `null`: Der Upload gilt normal. */
+function supersessionFrom(s: Standard): NormSupersession | null {
+  if (!s.org_id || !s.version_hint) return null;
+  return {
+    version_hint: s.version_hint,
+    org_authoritative: s.org_authoritative === true,
+    superseded_similarity: s.superseded_similarity ?? null,
+    superseded_at: s.superseded_at ?? null,
+    official: s.official ?? null,
+  };
+}
 
 const JURISDICTIONS = [
   { value: "national",  label: "Bund" },
@@ -219,6 +300,20 @@ export default function StandardsPage() {
     setStandards((prev) => prev.filter((s) => !ids.includes(s.id)));
   }
 
+  async function handleAuthoritative(ids: string[], authoritative: boolean) {
+    // Der Reihe nach: Jeder Aufruf weist die Normen der Projekte neu zu.
+    for (const id of ids) {
+      try {
+        const info = await api.put<NormSupersession & { id: string }>(`/standards/${id}/authoritative`, { authoritative });
+        setStandards((prev) => prev.map((s) => (s.id === id ? { ...s, ...info } : s)));
+      } catch (e) {
+        // Die Norm ist weg: Die Liste zeigt sonst weiter einen Knopf, der nie mehr geht.
+        if (e instanceof ApiError && e.status === 404) void loadStandards();
+        throw e;
+      }
+    }
+  }
+
   const categories = Array.from(new Set(standards.map((s) => s.category))).sort();
 
   const fileEntries: FileEntry[] = [];
@@ -230,6 +325,7 @@ export default function StandardsPage() {
       const entry = seen.get(key)!;
       entry.ids.push(s.id);
       if (!entry.pdf_url && s.pdf_url) entry.pdf_url = s.pdf_url;
+      if (!entry.supersession) entry.supersession = supersessionFrom(s);
     } else {
       const entry: FileEntry = {
         ids: [s.id],
@@ -240,6 +336,7 @@ export default function StandardsPage() {
         zone: s.zone ?? null,
         pdf_url: s.pdf_url ?? null,
         global: s.org_id === null,
+        supersession: supersessionFrom(s),
       };
       seen.set(key, entry);
       fileEntries.push(entry);
@@ -415,8 +512,8 @@ export default function StandardsPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {fileEntries.map((entry, i) => (
-                <FileCard key={i} entry={entry} onDelete={handleDelete} />
+              {fileEntries.map((entry) => (
+                <FileCard key={entry.ids[0]} entry={entry} onDelete={handleDelete} onAuthoritative={handleAuthoritative} />
               ))}
             </div>
           )}

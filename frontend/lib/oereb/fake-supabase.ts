@@ -14,6 +14,7 @@ const DEFAULTS: Record<string, () => Row> = {
     last_update_detail: null, last_checked_at: null, next_check_at: new Date(Date.now() - 1000).toISOString(),
     official_number: null, article_run: null, article_first: null, article_hits: null, stand_date: null,
     text_sketch: null, content_reason: null, version_winner_id: null, version_note: null,
+    manual_decision: null, scope_reason: null, text_source: "pdf", ocr_status: null, ocr_pdf_sha256: null, ocr_cost_usd: null,
   }),
 };
 

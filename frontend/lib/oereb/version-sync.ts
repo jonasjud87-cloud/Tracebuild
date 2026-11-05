@@ -36,7 +36,7 @@ async function patchDoc(ctx: VersionSyncContext, doc: SyncDocument, patch: Recor
 }
 
 /** Nimmt die Norm aus der Geltung. false: Sie gehört nicht mehr dem Import oder der Schritt schlug fehl. */
-async function withdrawNorm(ctx: VersionSyncContext, normId: string): Promise<boolean> {
+export async function withdrawNorm(ctx: Pick<VersionSyncContext, "admin">, normId: string): Promise<boolean> {
   const { data, error } = await ctx.admin
     .from("norms")
     .update({ auto_scope: SUPERSEDED_SCOPE })
@@ -57,7 +57,7 @@ async function withdrawNorm(ctx: VersionSyncContext, normId: string): Promise<bo
   return true;
 }
 
-async function reinstateNorm(ctx: VersionSyncContext, doc: SyncDocument): Promise<boolean> {
+export async function reinstateNorm(ctx: Pick<VersionSyncContext, "admin">, doc: { norm_id: string | null; scope?: string | null }): Promise<boolean> {
   const { error } = await ctx.admin
     .from("norms")
     .update({ auto_scope: doc.scope ?? "parcel" })
@@ -79,6 +79,7 @@ async function reinstateNorm(ctx: VersionSyncContext, doc: SyncDocument): Promis
 async function reassessFromNorms(ctx: VersionSyncContext, changed: Set<string>): Promise<void> {
   const rulesJson = stableJson(ctx.rules);
   for (const doc of ctx.own) {
+    if (doc.manual_decision) continue;
     const withdrawnForContent = doc.status === "rejected" && !!doc.norm_id && !!doc.reject_reason && doc.reject_reason === doc.content_reason;
     if (!doc.norm_id || (doc.status !== "imported" && !withdrawnForContent)) continue;
     if (typeof doc.article_run === "number" && stableJson(doc.filter_snapshot) === rulesJson) continue;

@@ -17,6 +17,7 @@ import {
   PRE_DOWNLOAD_REASONS,
   decidePreDownload,
   documentPriority,
+  isOcrCandidate,
   resolveFilterRules,
   scopeOf,
   stableJson,
@@ -68,6 +69,23 @@ export interface OerebDocumentRow {
   content_reason?: string | null;
   version_winner_id?: string | null;
   version_note?: string | null;
+  // Ab Migration 20261109000001; davor fehlen die Felder.
+  manual_decision?: string | null;
+  manual_decision_at?: string | null;
+  scope_reason?: string | null;
+  /** `ai_read`: Der Text stammt nicht aus dem PDF-Textlayer, sondern wurde von Claude gelesen. */
+  text_source?: string | null;
+  /** started, read oder failed. Null: nie versucht. Ein Versuch je PDF-Stand. */
+  ocr_status?: string | null;
+  ocr_pdf_sha256?: string | null;
+  ocr_model?: string | null;
+  ocr_pages?: number | null;
+  ocr_input_tokens?: number | null;
+  ocr_output_tokens?: number | null;
+  /** Summe aller Läufe zu diesem Dokument. */
+  ocr_cost_usd?: number | null;
+  ocr_detail?: string | null;
+  ocr_read_at?: string | null;
 }
 
 export interface DocumentCandidate {
@@ -203,7 +221,8 @@ export function isCapped(
   all: { status: string; scope: string | null }[],
   rules: ImportFilterRules
 ): boolean {
-  if (scopeOf(doc.title, rules) !== "municipal" || documentPriority(doc.title, rules) === 0) return false;
+  const municipal = doc.scope === "municipal" || scopeOf(doc.title, rules) === "municipal";
+  if (!municipal || documentPriority(doc.title, rules) === 0) return false;
   return all.filter((d) => d.status === "imported" && d.scope === "municipal").length >= rules.max_accepted_per_municipality;
 }
 
@@ -434,13 +453,25 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
     // Nur Titel- und Host-Gründe: Inhaltlich abgelehnte PDFs werden nicht wegen einer Regeländerung
     // neu geladen. Der Deckel ist nie endgültig: Sobald er nicht mehr greift, wird neu beurteilt.
     const reconsider =
+      !row.manual_decision &&
       (row.status === "pending" || (row.status === "rejected" && PRE_DOWNLOAD_REASONS.has(row.reject_reason ?? ""))) &&
       stableJson(row.filter_snapshot) !== rulesJson;
     // Ein Abruf nach der Ablösung liefert die URL noch: Sie war doch nicht weg (Ortsteil ohne Projekte).
     const revive =
       row.status === "rejected" && row.reject_reason === "superseded" && !!row.norm_id &&
       Date.parse(fetchedAt) > Date.parse(row.last_checked_at ?? "1970-01-01");
-    if (revive) {
+    // Regel eingeschaltet: Scans, die schon abgelehnt sind, kommen einmal dran. Ohne Spalte kein Lesen,
+    // denn der Versuch liesse sich nicht festhalten und würde bei jedem Lauf erneut bezahlt.
+    const readScan =
+      rules.ocr_enabled && row.status === "rejected" && row.reject_reason === "scan_or_short" && !row.norm_id &&
+      "ocr_status" in row && !row.ocr_status &&
+      (row.manual_decision === "force_import" || isOcrCandidate(row, rules));
+    if (readScan) {
+      patch.status = "pending";
+      patch.reject_reason = null;
+      patch.reject_detail = null;
+      patch.next_check_at = nowIso;
+    } else if (revive) {
       const { error } = await admin
         .from("norms")
         .update({ auto_scope: "municipal" })
