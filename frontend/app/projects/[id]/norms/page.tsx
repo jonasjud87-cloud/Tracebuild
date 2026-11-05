@@ -38,6 +38,7 @@ interface Norm {
   zone: string | null;
   // Erst nach der Geoportal-Migration vorhanden.
   source_kind?: string | null;
+  text_truncated?: boolean;
   source_checked_at?: string | null;
 }
 
@@ -181,7 +182,13 @@ function triggerLabel(trigger: string | null | undefined): string {
 
 function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [fullText, setFullText] = useState<string | null>(null);
   const norm = pn.norms;
+  // Die Liste liefert nur den Anfang langer Texte.
+  useEffect(() => {
+    if (!expanded || !norm?.text_truncated || fullText !== null) return;
+    api.get<{ text: string }>(`/standards/${norm.id}`).then((res) => setFullText(res.text)).catch(() => {});
+  }, [expanded, norm?.id, norm?.text_truncated, fullText]);
   if (!norm) return null;
   const grp = getGroup(norm.layer);
 
@@ -225,7 +232,7 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
           {expanded && (
             <>
               <p style={{ marginTop: 8, fontSize: 13, color: "#ABAEBB", lineHeight: 1.6, whiteSpace: "pre-line", margin: "8px 0 0" }}>
-                {norm.text}
+                {fullText ?? norm.text}
               </p>
               {(norm.source_url || norm.source_doc) && (
                 <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 12 }}>

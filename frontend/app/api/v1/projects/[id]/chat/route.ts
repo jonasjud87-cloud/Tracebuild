@@ -190,10 +190,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: historyRows } = await histQuery;
 
   // Load project norms
-  const { data: normRows } = await admin
+  const { data: normRows, error: normError } = await admin
     .from("project_norms")
     .select("norms(id, title, category, text)")
     .eq("project_id", params.id);
+  if (normError) console.error(`Chat Projekt ${params.id}: Normen nicht lesbar:`, normError.message);
 
   // Load last analysis items
   const { data: docRows } = await admin

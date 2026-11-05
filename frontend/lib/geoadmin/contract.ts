@@ -149,7 +149,7 @@ export interface OerebDocumentItem {
   url: string;
   kind: string | null;
   scope: "municipal" | "parcel" | null;
-  status: "pending" | "imported" | "rejected" | "failed" | "duplicate_manual" | "removed";
+  status: "pending" | "imported" | "rejected" | "failed" | "duplicate_manual" | "removed" | "review";
   reject_reason: string | null;
   reject_detail: string | null;
   norm_id: string | null;
@@ -157,6 +157,9 @@ export interface OerebDocumentItem {
   last_update_status: string | null;
   /** Im Zweifel beide Fassungen übernommen: Hinweis zum Anzeigen, sonst null. */
   version_note?: string | null;
+  /** `ai_read`: Der Text wurde von Claude gelesen, die Anzeige sagt das. */
+  text_source?: string | null;
+  manual_decision?: string | null;
 }
 
 /**

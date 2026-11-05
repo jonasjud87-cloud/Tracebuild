@@ -9,6 +9,7 @@
 import { isGone } from "./document-decisions";
 import {
   OLDER_VERSION_REASON,
+  REVIEW_STATUS,
   assessContent,
   isAmendmentTitle,
   isAnnexTitle,
@@ -70,6 +71,7 @@ export interface VersionDocument {
   last_update_status?: string | null;
   attempts?: number | null;
   scope?: string | null;
+  manual_decision?: string | null;
 }
 
 export type VersionAction =
@@ -83,7 +85,9 @@ export type VersionAction =
   | { action: "note"; docId: string; note: string | null };
 
 const isOlder = (d: VersionDocument) => d.status === "rejected" && d.reject_reason === OLDER_VERSION_REASON;
-const isMeasured = (d: VersionDocument) => typeof d.article_run === "number" && !!d.text_sketch;
+const isMeasured = (d: VersionDocument) => typeof d.article_run === "number";
+/** Rücknahme nur unter Gemeinde-Normen: Ein objektbezogenes Dokument verdrängt nie etwas und wird nie verdrängt. */
+const isMunicipal = (d: VersionDocument) => d.scope === "municipal";
 
 /** Besteht den Inhaltstest und könnte gewinnen. */
 const isContender = (d: VersionDocument) => isMeasured(d) && !d.content_reason && (d.status === "imported" || isOlder(d));
@@ -93,9 +97,13 @@ const isContender = (d: VersionDocument) => isMeasured(d) && !d.content_reason &
  * Art. 42 und Genehmigungsunterlagen). Briefe und Scans behalten ihren eigenen Grund.
  */
 const isFragment = (d: VersionDocument) =>
-  isMeasured(d) && d.content_reason === "no_articles" && (d.article_hits ?? 0) > 0 && d.status === "rejected";
+  isMeasured(d) && d.content_reason === "no_articles" && (d.article_hits ?? 0) > 0 && (d.status === "rejected" || d.status === REVIEW_STATUS);
 
-function groupByIdentity(docs: VersionDocument[]): VersionDocument[][] {
+export function groupByIdentity<T extends VersionDocument>(docs: T[]): T[][] {
+  return groupDocs(docs) as T[][];
+}
+
+function groupDocs(docs: VersionDocument[]): VersionDocument[][] {
   const parent = new Map(docs.map((d) => [d.id, d.id]));
   const find = (id: string): string => {
     const p = parent.get(id) as string;
@@ -138,14 +146,17 @@ export function pickWinner<T extends VersionDocument>(docs: T[], rules: ImportFi
  * `own` sind die Dokumente eines Auszugs, `all` die der ganzen Gemeinde. Eine ältere Fassung, deren
  * Gewinner nur in einem anderen Auszug steht, bleibt abgelehnt, solange er gilt: Sonst würden sich
  * zwei Projekte derselben Gemeinde die Fassung gegenseitig hin- und herschalten.
+ *
+ * Zurückgenommen wird nur eine Gemeinde-Norm zugunsten einer Gemeinde-Norm und nur bei fast gleichem
+ * Text. Alles andere bleibt mit Hinweis bestehen: Objektbezogene Vorschriften aus einer Vorlage ähneln
+ * sich, gelten aber für verschiedene Grundstücke. Je Gruppe eine Aktionsliste, Freigaben zuerst.
  */
-export function planVersionActions(
+export function planVersionGroups(
   own: VersionDocument[],
   all: VersionDocument[],
   rules: ImportFilterRules,
   nowMs: number
-): VersionAction[] {
-  const actions: VersionAction[] = [];
+): VersionAction[][] {
   const graceMs = rules.supersede_after_days * 86_400_000;
   const ownIds = new Set(own.map((d) => d.id));
   const winnerElsewhereStands = (d: VersionDocument) => {
@@ -156,32 +167,39 @@ export function planVersionActions(
 
   const inPlay = own.filter(
     (d) =>
+      // Der Entscheid eines Admins steht über dem Vergleich: Sonst würde er beim nächsten Abruf zurückgenommen.
+      !d.manual_decision &&
       !winnerElsewhereStands(d) &&
       !isAmendmentTitle(d.title, rules) &&
       !isAnnexTitle(d.title, rules) &&
       (isContender(d) || isFragment(d) || isOlder(d))
   );
 
+  const out: VersionAction[][] = [];
   for (const group of groupByIdentity(inPlay)) {
+    const actions: VersionAction[] = [];
     const contenders = group.filter(isContender);
     const notes = new Map<string, string>();
-    const winner = contenders.length ? pickWinner(contenders, rules) : null;
+    const municipal = contenders.filter(isMunicipal);
+    const winner = municipal.length ? pickWinner(municipal, rules) : null;
+    // Bezugspunkt für den Hinweis, auch wenn nur objektbezogene Dokumente in der Gruppe sind.
+    const reference = winner ?? (contenders.length ? pickWinner(contenders, rules) : null);
 
     for (const d of group) {
       let loses = false;
-      if (winner && d.id !== winner.id) {
-        const newer = !!d.stand_date && (!winner.stand_date || d.stand_date > winner.stand_date);
-        if (isContender(d)) {
-          loses = !newer && sketchContainment(d.text_sketch, winner.text_sketch) >= rules.version_min_overlap;
-          if (!loses) {
-            // Im Zweifel beide: eigener Inhalt, oder neuer Stand bei kürzerer Folge.
-            notes.set(d.id, `Mögliche weitere Fassung von «${winner.title}», beide übernommen`);
-            notes.set(winner.id, `Mögliche weitere Fassung von «${d.title}», beide übernommen`);
-          }
-        } else if (isFragment(d)) {
-          // Nur bei gleichem Titel: Unter einer Nummer stehen auch Beilagen (AI: Liste Kulturobjekte).
-          loses = !newer && d.title_key === winner.title_key;
+      if (reference && d.id !== reference.id && isContender(d)) {
+        const newer = !!d.stand_date && (!reference.stand_date || d.stand_date > reference.stand_date);
+        const sameRegulation = sketchContainment(d.text_sketch, reference.text_sketch) >= rules.version_min_overlap;
+        loses = !!winner && isMunicipal(d) && !newer && sameRegulation;
+        if (!loses) {
+          // Im Zweifel beide: anderer Geltungsbereich, eigener Inhalt, oder neuer Stand bei kürzerer Folge.
+          notes.set(d.id, `Mögliche weitere Fassung von «${reference.title}», beide übernommen`);
+          notes.set(reference.id, `Mögliche weitere Fassung von «${d.title}», beide übernommen`);
         }
+      } else if (winner && isFragment(d) && isMunicipal(d)) {
+        // Nur bei gleichem Titel: Unter einer Nummer stehen auch Beilagen (AI: Liste Kulturobjekte).
+        const newer = !!d.stand_date && (!winner.stand_date || d.stand_date > winner.stand_date);
+        loses = !newer && d.title_key === winner.title_key;
       }
       if (loses && winner) {
         // Der Gewinner hat noch keine Norm: Die geltende Fassung bleibt, bis er importiert ist.
@@ -199,6 +217,12 @@ export function planVersionActions(
       const note = notes.get(d.id) ?? null;
       if ((d.version_note ?? null) !== note) actions.push({ action: "note", docId: d.id, note });
     }
+    const rank = (a: VersionAction) => (a.action === "restore" ? 0 : 1);
+    if (actions.length) out.push(actions.slice().sort((a, b) => rank(a) - rank(b)));
   }
-  return actions;
+  return out;
+}
+
+export function planVersionActions(own: VersionDocument[], all: VersionDocument[], rules: ImportFilterRules, nowMs: number): VersionAction[] {
+  return planVersionGroups(own, all, rules, nowMs).flat();
 }

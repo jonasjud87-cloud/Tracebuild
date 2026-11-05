@@ -25,6 +25,13 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
       promoted_from_org_id: norm.org_id,
       promoted_at: new Date().toISOString(),
       org_id: null,
+      // Ablösung und Massgebend gelten nur für Uploads einer Org.
+      superseded_by_norm_id: null,
+      superseded_similarity: null,
+      superseded_at: null,
+      org_authoritative: false,
+      org_authoritative_at: null,
+      org_authoritative_by: null,
     })
     .eq("id", params.id)
     .select()

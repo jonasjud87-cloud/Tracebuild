@@ -47,8 +47,8 @@ async function loadCandidateRows(orgId: string, domain: string): Promise<NormRow
   return (data ?? []) as unknown as NormRow[];
 }
 
-async function loadCandidateNorms(orgId: string, domain: string): Promise<NormRow[]> {
-  return withoutShadowedAutoNorms(await loadCandidateRows(orgId, domain));
+async function loadCandidateNorms(orgId: string, domain: string, place?: ProjectPlace): Promise<NormRow[]> {
+  return withoutShadowedAutoNorms(await loadCandidateRows(orgId, domain), place);
 }
 
 /** Ort des Projekts; bfs_number gibt es erst nach der Migration, deshalb select("*"). */
@@ -149,8 +149,8 @@ export async function planOerebAssignment(
     .or(`org_id.eq.${orgId},org_id.is.null`);
   if (mapErr) throw new Error(`ÖREB-Mappings konnten nicht gelesen werden: ${mapErr.message}`);
 
-  const norms = candidateNorms ?? (await loadCandidateNorms(orgId, domain));
   const place = knownPlace ?? (await loadProjectPlace(projectId));
+  const norms = candidateNorms ?? (await loadCandidateNorms(orgId, domain, place));
   // Das Mapping vergleicht nur die Kategorie: Gemeindenormen anderer Gemeinden gehören nicht hinein.
   const match = matchOerebNorms(themes ?? [], mappings ?? [], normsForThemeMapping(norms, place));
 
@@ -193,8 +193,8 @@ export async function assignNorms(
 ): Promise<AssignmentResult> {
   const admin = createAdminClient();
   const rows = await loadCandidateRows(orgId, domain);
-  const norms = withoutShadowedAutoNorms(rows);
   const place: ProjectPlace = { canton, municipality, bfs: (await loadProjectPlace(projectId)).bfs };
+  const norms = withoutShadowedAutoNorms(rows, place);
 
   // ── 1. Durchgang: Bund / Kanton / Gemeinde / Org ──────────────────────────
   const systemShouldHave = new Set(norms.filter((n) => applies(n, place)).map((n) => n.id));
@@ -219,7 +219,7 @@ export async function assignNorms(
 
   // Abgelöster Upload: Für die Analyse gilt nur die amtliche Fassung, auch wenn er von Hand verknüpft
   // war. Nur wo die amtliche Norm in diesem Projekt wirklich gilt. Massgebend-Setzen macht es rückgängig.
-  const replaced = replacedUploadIds(rows);
+  const replaced = replacedUploadIds(rows, place);
   const replacedLinks = (existing ?? [])
     .filter((r) => r.added_by === "user" && replaced.has(r.norm_id as string))
     .map((r) => r.norm_id as string)

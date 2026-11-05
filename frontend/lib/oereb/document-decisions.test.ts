@@ -80,7 +80,7 @@ test("Identität: gleicher Text wie eine Gemeinde-Norm", () => {
 const article = (n: number) => Array.from({ length: n }, (_, i) => `Art. ${i + 1} ${"Text ".repeat(100)}`).join("\n");
 
 test("Update: gleicher Text, Änderung, Schrumpfung, zu kurz, Inhalt abgelehnt", () => {
-  const base = { oldTextSha: "alt", oldChars: article(10).length, newTextSha: "neu", rules: R };
+  const base = { oldTextSha: "alt", oldChars: article(10).length, newTextSha: "neu", rules: R, title: "Baureglement" };
   assert.equal(decideUpdate({ ...base, newTextSha: "alt", newText: article(1) }).action, "unchanged");
   assert.equal(decideUpdate({ ...base, newText: article(9) }).action, "update");
   assert.equal(decideUpdate({ ...base, newText: article(6) }).action, "update");

@@ -466,16 +466,25 @@ test("nachgetragene Filterzeile wirkt auf bekannte Dokumente, ohne Schleife", as
   assert.equal(calls.fetch, 1);
 });
 
-test("inhaltlich abgelehntes PDF wird nicht neu geladen, auch nicht nach einer Filteränderung", async () => {
+test("inhaltlich abgelehntes PDF: fremde Regeländerung lädt nicht neu, eine passende genau einmal", async () => {
   const db = setup();
   const { calls, deps } = stubs("kurz");
   await syncNextDocument(db.asClient(), "p1", ACTOR, deps);
   assert.equal((await syncNextDocument(db.asClient(), "p1", ACTOR, deps)).processed, null);
-  db.rows("oereb_import_filters").push({ scope: "default", rules: { min_text_chars: 1 }, active: true });
+
+  db.rows("oereb_import_filters").push({ scope: "default", rules: { recheck_hours: 48 }, active: true });
   resetImportFilterCache();
   assert.equal((await syncNextDocument(db.asClient(), "p1", ACTOR, deps)).processed, null);
-  assert.equal(calls.fetch, 1);
-  assert.equal(doc(db).reject_reason, "scan_or_short");
+  assert.equal(calls.fetch, 1, "andere Regel: kein Download");
+
+  db.rows("oereb_import_filters")[0].rules = { min_text_chars: 2 };
+  resetImportFilterCache();
+  assert.equal((await syncNextDocument(db.asClient(), "p1", ACTOR, deps)).processed?.outcome, "rejected");
+  assert.equal(calls.fetch, 2, "passende Regel: neu beurteilt");
+  assert.equal(doc(db).reject_reason, "no_articles");
+  assert.equal(doc(db).status, "review", "Reglementstitel ohne Artikel: zur Prüfung, nicht verworfen");
+  assert.equal((await syncNextDocument(db.asClient(), "p1", ACTOR, deps)).processed, null);
+  assert.equal(calls.fetch, 2, "nur einmal");
 });
 
 test("ohne Migration: available false, kein Fehler", async () => {
