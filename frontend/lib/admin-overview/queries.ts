@@ -1,4 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUsdChf } from "@/lib/admin-currency";
 import { dateKey, lastDayKeys, monthLabel, monthWindows, startOfDayKey } from "./time";
 import type {
   OverviewBudget,
@@ -83,10 +84,7 @@ async function countRows(build: () => PromiseLike<{ count: number | null; error:
 }
 
 function resolveCurrency(): OverviewCurrency {
-  const raw = process.env.USD_CHF_RATE;
-  const rate = raw ? Number(raw) : NaN;
-  if (Number.isFinite(rate) && rate >= 0.1 && rate <= 10) return { code: "CHF", usdToChf: rate };
-  return { code: "USD", usdToChf: null };
+  return { code: "CHF", usdToChf: getUsdChf().usdToChf };
 }
 
 async function loadOrgs(admin: Admin, flags: Flags): Promise<OrgInfo[]> {
@@ -169,6 +167,26 @@ async function loadChatRows(admin: Admin, sinceIso: string, flags: Flags): Promi
     );
     return toRows(rows);
   }
+}
+
+async function loadNormRows(admin: Admin, sinceIso: string, flags: Flags): Promise<CostRow[]> {
+  const rows = await fetchAll<RawChatCost>(
+    (from, to) =>
+      admin
+        .from("project_norm_summaries")
+        .select("created_at, cost_usd, projects(org_id)")
+        .gt("cost_usd", 0)
+        .gte("created_at", sinceIso)
+        .order("created_at", { ascending: false })
+        .order("project_id", { ascending: false })
+        .range(from, to),
+    flags,
+  );
+  return rows.map((r) => ({
+    at: Date.parse(r.created_at),
+    cost: toNumber(r.cost_usd),
+    orgId: first(r.projects)?.org_id ?? null,
+  }));
 }
 
 function sumWindow(rows: CostRow[], from: number, to: number, orgIds?: Set<string>): number {
@@ -297,17 +315,19 @@ async function compute(): Promise<OverviewData> {
   const flags: Flags = { truncated: false };
   const unavailable: string[] = [];
 
-  const [orgsR, countsR, analysisR, chatR] = await Promise.allSettled([
+  const [orgsR, countsR, analysisR, chatR, normR] = await Promise.allSettled([
     loadOrgs(admin, flags),
     loadAnalysisCounts(admin, now),
     loadAnalysisRows(admin, new Date(since).toISOString(), flags),
     loadChatRows(admin, new Date(win.prevStart).toISOString(), flags),
+    loadNormRows(admin, new Date(win.prevStart).toISOString(), flags),
   ]);
 
   if (orgsR.status === "rejected") unavailable.push("orgs");
   if (countsR.status === "rejected") unavailable.push("analysesCount");
   if (analysisR.status === "rejected") unavailable.push("analyses");
   if (chatR.status === "rejected") unavailable.push("chat");
+  if (normR.status === "rejected") unavailable.push("norms");
 
   const orgs = orgsR.status === "fulfilled" ? orgsR.value : [];
   const counts = countsR.status === "fulfilled" ? countsR.value : { value: 0, prev: 0 };
@@ -325,13 +345,14 @@ async function compute(): Promise<OverviewData> {
     else if (r.at >= t60 && r.at < t30) prevOrgs.add(r.orgId);
   }
 
-  const allCosts = analysisRows.concat(chatRows);
+  const normRows = normR.status === "fulfilled" ? normR.value : [];
+  const allCosts = analysisRows.concat(chatRows, normRows);
   const costNow = sumWindow(allCosts, win.monthStart, now + 1);
   const costPrev = sumWindow(allCosts, win.prevStart, win.prevEnd);
 
   const budgeted = orgs.filter((o) => toNumber(o.monthly_budget) > 0);
   const budgetIds = new Set(budgeted.map((o) => o.id));
-  const budgetUsd = budgeted.reduce((s, o) => s + toNumber(o.monthly_budget), 0);
+  const budgetUsd = budgeted.reduce((s, o) => s + toNumber(o.monthly_budget), 0) / getUsdChf().usdToChf;
   const usedUsd = budgetIds.size ? sumWindow(allCosts, win.monthStart, now + 1, budgetIds) : 0;
   const budget: OverviewBudget = {
     usedUsd,

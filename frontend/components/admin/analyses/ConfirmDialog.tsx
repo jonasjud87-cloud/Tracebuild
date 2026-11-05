@@ -9,9 +9,15 @@ interface Props {
   busy: boolean;
   onConfirm: () => void;
   onClose: () => void;
+  tone?: "danger" | "primary";
 }
 
-export default function ConfirmDialog({ title, description, confirmLabel, busy, onConfirm, onClose }: Props) {
+const TONE_CLS = {
+  danger: "bg-red-600 hover:bg-red-700 focus-visible:ring-red-300",
+  primary: "bg-[#2862D7] hover:bg-[#3470E8] focus-visible:ring-[#85A6E9]",
+};
+
+export default function ConfirmDialog({ title, description, confirmLabel, busy, onConfirm, onClose, tone = "danger" }: Props) {
   const cancelRef = useRef<HTMLButtonElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const busyRef = useRef(busy);
@@ -66,7 +72,7 @@ export default function ConfirmDialog({ title, description, confirmLabel, busy, 
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 rounded-xl bg-red-600 py-2.5 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+            className={`flex-1 rounded-xl py-2.5 text-sm font-semibold text-white disabled:opacity-60 focus:outline-none focus-visible:ring-2 ${TONE_CLS[tone]}`}
           >
             {busy ? "Bitte warten …" : confirmLabel}
           </button>

@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { createClient } from "@/lib/supabase/client";
 import { roleLabel } from "@/lib/roles";
+import AnnouncementBanner from "@/components/announcements/AnnouncementBanner";
 import { DashboardContext, type Activity, type OrgInfo, type Project } from "@/lib/dashboardContext";
 
 interface MeResponse {
@@ -226,6 +227,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <div style={{ padding: "40px 48px 64px", maxWidth: 1080, position: "relative", zIndex: 1 }}>
+            <AnnouncementBanner />
             {children}
           </div>
         </main>

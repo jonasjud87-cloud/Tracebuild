@@ -125,7 +125,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
           summary={m.summary}
           loading={m.loading}
           failed={m.summaryFailed}
-          expensiveUsd={m.thresholds.expensiveUsd}
+          expensiveChf={m.thresholds.expensiveChf}
           orphanMinutes={m.thresholds.orphanMinutes}
           onSelectView={(view: AnalysisView) => patch({ view })}
           onSelectOrphans={selectOrphans}
@@ -139,7 +139,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
             org={filters.org}
             range={filters.range}
             minCost={filters.minCost}
-            expensiveUsd={m.thresholds.expensiveUsd}
+            expensiveChf={m.thresholds.expensiveChf}
             dirty={dirty}
             onOrg={(org) => patch({ org })}
             onRange={(range: RangeKey) => patch({ range })}

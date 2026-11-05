@@ -14,14 +14,17 @@ export interface MonitorFilters {
 export const AUTO_REFRESH_MS = 15_000;
 const PAGE_SIZE = 50;
 
-function buildQuery(f: MonitorFilters, cursor: string | null): string {
+function buildQuery(f: MonitorFilters, cursor: string | null, usdToChf: number): string {
   const sp = new URLSearchParams();
   sp.set("view", f.view);
   sp.set("limit", String(PAGE_SIZE));
   if (f.org) sp.set("org", f.org);
   const from = rangeToFrom(f.range, Date.now());
   if (from) sp.set("from", from);
-  if (f.view === "expensive" && f.minCost.trim() !== "") sp.set("minCost", f.minCost.trim());
+  const minChf = Number(f.minCost.trim());
+  if (f.view === "expensive" && f.minCost.trim() !== "" && Number.isFinite(minChf) && usdToChf > 0) {
+    sp.set("minCost", String(Math.round((minChf / usdToChf) * 1e6) / 1e6));
+  }
   if (cursor) sp.set("cursor", cursor);
   return sp.toString();
 }
@@ -41,7 +44,7 @@ export function useAnalysesMonitor(filters: MonitorFilters, autoRefresh: boolean
   const [items, setItems] = useState<AnalysisRow[]>([]);
   const [summary, setSummary] = useState<AnalysesSummary | null>(null);
   const [orgs, setOrgs] = useState<OrgOption[]>([]);
-  const [thresholds, setThresholds] = useState<AnalysesListResponse["thresholds"]>({ expensiveUsd: 1, orphanMinutes: 6 });
+  const [thresholds, setThresholds] = useState<AnalysesListResponse["thresholds"]>({ expensiveUsd: 1, expensiveChf: 0.8, orphanMinutes: 6 });
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -53,6 +56,7 @@ export function useAnalysesMonitor(filters: MonitorFilters, autoRefresh: boolean
 
   const filtersRef = useRef(filters);
   filtersRef.current = filters;
+  const rateRef = useRef(0.8);
   const requestId = useRef(0);
   const busy = useRef(false);
   const pagesLoaded = useRef(1);
@@ -65,7 +69,7 @@ export function useAnalysesMonitor(filters: MonitorFilters, autoRefresh: boolean
     if (mode === "manual") setRefreshing(true);
 
     const result = await requestJson<AnalysesListResponse>(
-      `/api/v1/admin/analyses?${buildQuery(filtersRef.current, null)}`,
+      `/api/v1/admin/analyses?${buildQuery(filtersRef.current, null, rateRef.current)}`,
       { cache: "no-store" },
     );
     if (id !== requestId.current) return;
@@ -80,6 +84,7 @@ export function useAnalysesMonitor(filters: MonitorFilters, autoRefresh: boolean
       cursorRef.current = d.nextCursor;
       pagesLoaded.current = 1;
       setThresholds(d.thresholds);
+      if (d.usdToChf > 0) rateRef.current = d.usdToChf;
       if (d.summary) setSummary(d.summary);
       setSummaryFailed(!d.summary);
       setExtraPages(false);
@@ -107,7 +112,7 @@ export function useAnalysesMonitor(filters: MonitorFilters, autoRefresh: boolean
     busy.current = true;
     setLoadingMore(true);
     const result = await requestJson<AnalysesListResponse>(
-      `/api/v1/admin/analyses?${buildQuery(filtersRef.current, cursor)}`,
+      `/api/v1/admin/analyses?${buildQuery(filtersRef.current, cursor, rateRef.current)}`,
       { cache: "no-store" },
     );
     if (id === requestId.current) busy.current = false;

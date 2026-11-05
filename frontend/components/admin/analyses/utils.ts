@@ -82,13 +82,13 @@ export function rowDuration(row: AnalysisRow, now: number): { text: string; live
   return { text: formatDuration(row.durationMs), live: false };
 }
 
-export function formatCost(usd: number | null): string {
-  if (usd === null || !Number.isFinite(usd)) return "—";
-  return `$${usd >= 1 ? usd.toFixed(2) : usd.toFixed(4)}`;
+export function formatCost(chf: number | null): string {
+  if (chf === null || !Number.isFinite(chf)) return "—";
+  return `CHF ${chf >= 1 ? chf.toFixed(2) : chf.toFixed(4)}`;
 }
 
-export function formatCostTotal(usd: number): string {
-  return `$${usd.toFixed(2)}`;
+export function formatCostTotal(chf: number): string {
+  return `CHF ${chf.toFixed(2)}`;
 }
 
 export function formatDateTime(iso: string): string {

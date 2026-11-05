@@ -68,7 +68,11 @@ export async function middleware(request: NextRequest) {
       }
     );
 
-    const { data: { user } } = await supabase.auth.getUser();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const user =
+      authUser && !(authUser.banned_until && Date.parse(authUser.banned_until) > Date.now())
+        ? authUser
+        : null;
 
     // Der Callback muss immer durchlaufen — auch mit bestehender Session, sonst
     // geht ein Einladungs-/Passwort-Link verloren, wenn im selben Browser noch

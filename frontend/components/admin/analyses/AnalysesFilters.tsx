@@ -10,7 +10,7 @@ interface Props {
   org: string;
   range: RangeKey;
   minCost: string;
-  expensiveUsd: number;
+  expensiveChf: number;
   dirty: boolean;
   onOrg: (v: string) => void;
   onRange: (v: RangeKey) => void;
@@ -22,7 +22,7 @@ const FIELD =
   "rounded-xl border border-[rgba(133,166,233,0.25)] bg-[rgba(23,37,64,0.6)] px-3 py-2 text-sm text-white focus:border-[#2862D7] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40";
 
 export default function AnalysesFilters({
-  view, orgs, org, range, minCost, expensiveUsd, dirty, onOrg, onRange, onMinCost, onReset,
+  view, orgs, org, range, minCost, expensiveChf, dirty, onOrg, onRange, onMinCost, onReset,
 }: Props) {
   const [draftCost, setDraftCost] = useState(minCost);
   useEffect(() => setDraftCost(minCost), [minCost]);
@@ -57,14 +57,14 @@ export default function AnalysesFilters({
       </label>
       {view === "expensive" && (
         <label className="flex w-36 flex-col gap-1">
-          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#7B8299]">Mindestkosten (USD)</span>
+          <span className="text-[10px] font-semibold uppercase tracking-widest text-[#7B8299]">Mindestkosten (CHF)</span>
           <input
             type="number"
             inputMode="decimal"
             min={0}
             step="0.1"
             value={draftCost}
-            placeholder={expensiveUsd.toFixed(2)}
+            placeholder={expensiveChf.toFixed(2)}
             onChange={(e) => setDraftCost(e.target.value)}
             onBlur={commitCost}
             onKeyDown={(e) => { if (e.key === "Enter") commitCost(); }}

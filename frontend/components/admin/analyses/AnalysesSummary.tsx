@@ -48,13 +48,13 @@ interface Props {
   summary: Summary | null;
   loading: boolean;
   failed: boolean;
-  expensiveUsd: number;
+  expensiveChf: number;
   orphanMinutes: number;
   onSelectView: (view: AnalysisView) => void;
   onSelectOrphans: () => void;
 }
 
-export default function AnalysesSummary({ summary, loading, failed, expensiveUsd, orphanMinutes, onSelectView, onSelectOrphans }: Props) {
+export default function AnalysesSummary({ summary, loading, failed, expensiveChf, orphanMinutes, onSelectView, onSelectOrphans }: Props) {
   const pending = loading && !summary;
   const v = (n: number | undefined) => (summary && n !== undefined ? String(n) : "—");
   return (
@@ -84,14 +84,14 @@ export default function AnalysesSummary({ summary, loading, failed, expensiveUsd
       <Tile
         label="Teuer"
         value={v(summary?.expensive30d)}
-        note={`ab $${expensiveUsd.toFixed(2)}, 30 Tage`}
+        note={`ab CHF ${expensiveChf.toFixed(2)}, 30 Tage`}
         loading={pending}
         onSelect={() => onSelectView("expensive")}
       />
       <Tile
         label="Kosten heute"
-        value={summary ? formatCostTotal(summary.costToday) : "—"}
-        note={summary ? `30 Tage: ${formatCostTotal(summary.cost30d)}${summary.costTruncated ? "+" : ""}` : undefined}
+        value={summary ? formatCostTotal(summary.costTodayChf) : "—"}
+        note={summary ? `30 Tage: ${formatCostTotal(summary.cost30dChf)}${summary.costTruncated ? "+" : ""}` : undefined}
         tone="accent"
         loading={pending}
       />

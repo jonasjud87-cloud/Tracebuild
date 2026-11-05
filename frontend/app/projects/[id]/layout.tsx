@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import AnnouncementBanner from "@/components/announcements/AnnouncementBanner";
 import TraceBuildLogo from "@/components/landing/TraceBuildLogo";
 
 export default function ProjectLayout({
@@ -72,6 +73,7 @@ export default function ProjectLayout({
         </div>
       </header>
       <main style={{ maxWidth: 1280, margin: "0 auto", padding: "28px 24px" }}>
+        <AnnouncementBanner />
         {children}
       </main>
     </div>

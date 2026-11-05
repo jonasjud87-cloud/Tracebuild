@@ -24,20 +24,22 @@ export default function CostTable({ costs }: Props) {
   const totals = {
     analyseCount: costs.reduce((s, c) => s + c.analyseCount, 0),
     analyseCost:  costs.reduce((s, c) => s + c.analyseCost, 0),
-    storageDb:    costs.reduce((s, c) => s + c.storageCost + c.databaseCost, 0),
+    chatCost:     costs.reduce((s, c) => s + c.chatCost, 0),
+    normCost:     costs.reduce((s, c) => s + c.normCost, 0),
     total:        costs.reduce((s, c) => s + c.totalCost, 0),
   };
 
   return (
     <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="w-full text-sm min-w-[680px]">
+        <table className="w-full text-sm min-w-[780px]">
           <thead>
             <tr className="border-b border-[rgba(60,63,68,0.4)] bg-[rgba(23,37,64,0.5)]">
               <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Organisation</th>
               <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Analysen</th>
               <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Analyse-Kosten</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Storage&thinsp;/&thinsp;DB</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Chat-Kosten</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Normen-Kosten</th>
               <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Gesamtkosten</th>
               <th className="px-4 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Monat</th>
               <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Status</th>
@@ -62,7 +64,8 @@ export default function CostTable({ costs }: Props) {
                   </td>
                   <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{c.analyseCount}</td>
                   <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.analyseCost)}</td>
-                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.storageCost + c.databaseCost)}</td>
+                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.chatCost)}</td>
+                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.normCost)}</td>
                   <td className="px-4 py-4 text-right tabular-nums">
                     <span className="font-semibold text-white">{chf(c.totalCost)}</span>
                   </td>
@@ -84,7 +87,8 @@ export default function CostTable({ costs }: Props) {
                 <td className="px-5 py-3.5 text-xs font-bold text-[#7B8299] uppercase tracking-wider">Total</td>
                 <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{totals.analyseCount}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.analyseCost)}</td>
-                <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.storageDb)}</td>
+                <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.chatCost)}</td>
+                <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.normCost)}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums">
                   <span className="font-bold text-white">{chf(totals.total)}</span>
                 </td>
