@@ -12,6 +12,7 @@ import ZoneEditor from "@/components/ZoneEditor";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { useOrgRole } from "@/components/useOrgRole";
 import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
+import type { KenndatenBlatt } from "@/lib/kenndaten";
 
 interface Project {
   id: string;
@@ -481,6 +482,8 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   const [showOtherZones, setShowOtherZones] = useState(false);
   const [showNoData, setShowNoData] = useState(false);
   const [editingZone, setEditingZone] = useState(false);
+  const [kenndatenBusy, setKenndatenBusy] = useState(false);
+  const [kenndatenError, setKenndatenError] = useState<string | null>(null);
   const { isAdmin } = useOrgRole();
   const sync = useOerebSync();
 
@@ -568,6 +571,21 @@ export default function NormenPage({ params }: { params: { id: string } }) {
       flash(e instanceof Error ? e.message : "ÖREB-Abruf fehlgeschlagen.");
     } finally {
       setFetchingOereb(false);
+    }
+  }
+
+  async function handleKenndatenblatt() {
+    setKenndatenBusy(true);
+    setKenndatenError(null);
+    try {
+      const { blatt } = await api.post<{ blatt: KenndatenBlatt }>(`/projects/${params.id}/kenndaten`, {});
+      // jsPDF erst laden, wenn jemand das Blatt wirklich will.
+      const { downloadKenndatenPdf } = await import("@/lib/kenndaten-report");
+      await downloadKenndatenPdf(blatt);
+    } catch (e: unknown) {
+      setKenndatenError(e instanceof Error ? e.message : "Das Kenndatenblatt konnte nicht erstellt werden.");
+    } finally {
+      setKenndatenBusy(false);
     }
   }
 
@@ -712,6 +730,21 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <span role="status" style={{ fontSize: 12, color: "#7B8299", maxWidth: 320 }}>{refreshMsg}</span>
           )}
           <button
+            onClick={handleKenndatenblatt}
+            disabled={kenndatenBusy}
+            aria-busy={kenndatenBusy}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", cursor: kenndatenBusy ? "not-allowed" : "pointer", opacity: kenndatenBusy ? 0.5 : 1, fontFamily: "inherit", transition: "background .15s", whiteSpace: "nowrap" }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+          >
+            <svg className={kenndatenBusy ? "animate-spin" : ""} style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {kenndatenBusy
+                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
+            </svg>
+            {kenndatenBusy ? "Wird erstellt…" : "Kenndatenblatt erstellen"}
+          </button>
+          <button
             onClick={handleRefresh}
             disabled={refreshing}
             style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", cursor: refreshing ? "not-allowed" : "pointer", opacity: refreshing ? 0.5 : 1, fontFamily: "inherit", transition: "background .15s", whiteSpace: "nowrap" }}
@@ -734,6 +767,9 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             </svg>
             Spezialnorm hinzufügen
           </button>
+          {kenndatenError && (
+            <span role="alert" style={{ flexBasis: "100%", fontSize: 12, color: "#F87171", maxWidth: 480 }}>{kenndatenError}</span>
+          )}
         </div>
       </div>
 

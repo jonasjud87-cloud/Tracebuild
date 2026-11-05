@@ -102,7 +102,7 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
 
   const monthStart = periodRange({ kind: "month", value: monthKey(now) }).from;
   const { usdToChf } = getUsdChf();
-  const projectCosts = (table: "chat_messages" | "project_norm_summaries", tiebreak: "id" | "project_id") =>
+  const projectCosts = (table: "chat_messages" | "project_norm_summaries" | "project_kenndaten", tiebreak: "id" | "project_id") =>
     fetchAll<{ cost_usd: number | string | null; project_id: string | null }>((f, t) =>
       admin
         .from(table)
@@ -113,7 +113,7 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
         .order(tiebreak, { ascending: true })
         .range(f, t),
     );
-  const [docOrg, projects, analyses, chat, norms] = await Promise.all([
+  const [docOrg, projects, analyses, chat, norms, kenndaten] = await Promise.all([
     orgIdByDocument(admin),
     fetchAll<{ id: string; org_id: string }>((f, t) => admin.from("projects").select("id, org_id").order("id").range(f, t)),
     fetchAll<{ cost_usd: number | string | null; document_id: string }>((f, t) =>
@@ -128,6 +128,8 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
     ),
     projectCosts("chat_messages", "id"),
     projectCosts("project_norm_summaries", "project_id"),
+    // Ohne Migration 20261110000001 gibt es die Tabelle noch nicht.
+    projectCosts("project_kenndaten", "project_id").catch(() => []),
   ]);
 
   const costByOrg = new Map<string, number>();
@@ -137,7 +139,7 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
   };
   for (const a of analyses) addCost(docOrg.get(a.document_id), a.cost_usd);
   const orgByProject = new Map(projects.map(p => [p.id, p.org_id]));
-  for (const r of chat.concat(norms)) addCost(r.project_id ? orgByProject.get(r.project_id) : undefined, r.cost_usd);
+  for (const r of chat.concat(norms, kenndaten)) addCost(r.project_id ? orgByProject.get(r.project_id) : undefined, r.cost_usd);
 
   const out: AdminAlert[] = [];
   for (const org of budgeted) {

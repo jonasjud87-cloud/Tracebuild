@@ -170,19 +170,25 @@ async function loadChatRows(admin: Admin, sinceIso: string, flags: Flags): Promi
 }
 
 async function loadNormRows(admin: Admin, sinceIso: string, flags: Flags): Promise<CostRow[]> {
-  const rows = await fetchAll<RawChatCost>(
-    (from, to) =>
-      admin
-        .from("project_norm_summaries")
-        .select("created_at, cost_usd, projects(org_id)")
-        .gt("cost_usd", 0)
-        .gte("created_at", sinceIso)
-        .order("created_at", { ascending: false })
-        .order("project_id", { ascending: false })
-        .range(from, to),
-    flags,
-  );
-  return rows.map((r) => ({
+  const load = (table: "project_norm_summaries" | "project_kenndaten") =>
+    fetchAll<RawChatCost>(
+      (from, to) =>
+        admin
+          .from(table)
+          .select("created_at, cost_usd, projects(org_id)")
+          .gt("cost_usd", 0)
+          .gte("created_at", sinceIso)
+          .order("created_at", { ascending: false })
+          .order("project_id", { ascending: false })
+          .range(from, to),
+      flags,
+    );
+  const [rows, kenndaten] = await Promise.all([
+    load("project_norm_summaries"),
+    // Ohne Migration 20261110000001 gibt es die Tabelle noch nicht.
+    load("project_kenndaten").catch(() => [] as RawChatCost[]),
+  ]);
+  return rows.concat(kenndaten).map((r) => ({
     at: Date.parse(r.created_at),
     cost: toNumber(r.cost_usd),
     orgId: first(r.projects)?.org_id ?? null,
