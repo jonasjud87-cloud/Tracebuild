@@ -17,6 +17,7 @@ import { measureDocument, planVersionActions } from "../lib/oereb/document-versi
 import { collectCandidates } from "../lib/oereb/documents.ts";
 import {
   assessContent,
+  contentStatus,
   decidePreDownload,
   documentPriority,
   isAmendmentTitle,
@@ -29,6 +30,7 @@ import { containment, shingleSet } from "../lib/oereb/text-measure.ts";
 import { titleKey } from "../lib/oereb/title-key.ts";
 import { xmlToObject } from "../lib/oereb/xml.ts";
 import { normTextHash } from "../lib/norm-hash.ts";
+import { normTextTooLongMessage } from "../lib/norm-text.ts";
 import { extractPdfText } from "../lib/pdf-text.ts";
 
 function args() {
@@ -114,6 +116,8 @@ async function loadPdf(url, rules, canton) {
   }
 }
 
+const c_number = (d) => d.official_number_raw;
+
 async function runCanton(label, canton, file, summary) {
   const rules = resolveFilterRules(FILTER_ROWS, canton);
   const extract = loadExtract(file, canton);
@@ -129,7 +133,8 @@ async function runCanton(label, canton, file, summary) {
     title_key: titleKey(c.title, municipality),
     url_normalized: c.url_normalized,
     official_number: c.official_number,
-    scope: scopeOf(c.title, rules),
+    official_number_raw: c.official_number_raw,
+    scope: scopeOf(c.title, rules, c.official_number_raw),
     status: "pending",
     norm_id: null,
     reject_reason: null,
@@ -181,9 +186,13 @@ async function runCanton(label, canton, file, summary) {
     const assessment = assessContent(pdf.text, rules, d.title);
     Object.assign(d, measureDocument(d.title, pdf.text, rules), { chars: pdf.text.length, letterWithArticles: assessment.letterWithArticles });
     if (assessment.rejection) {
-      d.status = "rejected";
+      d.status = contentStatus(assessment.rejection.reason, d.title, rules, c_number(d));
       d.reject_reason = assessment.rejection.reason;
       d.detail = assessment.rejection.detail;
+    } else if (normTextTooLongMessage(pdf.text)) {
+      d.status = "rejected";
+      d.reject_reason = "too_long";
+      d.detail = `${pdf.text.length} Zeichen`;
     } else {
       d.status = "imported";
       d.norm_id = d.id;
@@ -213,7 +222,7 @@ async function runCanton(label, canton, file, summary) {
       if ((d.article_first ?? 1) > 1 && !isAmendmentTitle(d.title, rules)) reasons.push(`Folge beginnt bei ${d.article_first}`);
       if (d.article_run < 10 && !isAmendmentTitle(d.title, rules)) reasons.push(`nur ${d.article_run} Artikel`);
     }
-    if (d.status === "rejected" && d.scope === "municipal" && ["no_articles", "scan_or_short", "too_large", "pdf_unreadable"].includes(d.reject_reason)) {
+    if (d.status === "rejected" && d.scope === "municipal" && ["no_articles", "scan_or_short", "too_large", "too_long", "pdf_unreadable"].includes(d.reject_reason)) {
       reasons.push(`Gemeinde-Titel abgelehnt (${d.reject_reason})`);
     }
     if (d.status === "not_loaded" && d.scope === "municipal") reasons.push("Gemeinde-Titel nicht geladen");
@@ -222,11 +231,13 @@ async function runCanton(label, canton, file, summary) {
 
   const imported = docs.filter((d) => d.status === "imported");
   const rejected = docs.filter((d) => d.status === "rejected");
+  const review = docs.filter((d) => d.status === "review");
   summary.push({
     label,
     imported: imported.length,
     municipal: imported.filter((d) => d.scope === "municipal").length,
     rejected: rejected.length,
+    review: review.length,
     downloadRejected: rejected.filter((d) => typeof d.article_run === "number" || !d.pre).length,
     older: rejected.filter((d) => d.reject_reason === "older_version").length,
     suspects: suspects.length,
@@ -247,6 +258,7 @@ async function runCanton(label, canton, file, summary) {
     if (contentful) for (const d of list) console.log(`  ABGELEHNT  ${reason.padEnd(18)} ${short(d.title)} [${facts(d)}] ${d.detail ?? ""}`);
     else console.log(`  abgelehnt  ${reason.padEnd(18)} ${list.length}×: ${list.slice(0, 3).map((d) => short(d.title)).join(" | ")}`);
   }
+  for (const d of review) console.log(`  PRÜFEN     ${d.scope.padEnd(9)} ${short(d.title)} [${facts(d)}] ${d.detail ?? ""}`);
   for (const d of docs.filter((x) => x.status === "failed")) console.log(`  FEHLER     ${short(d.title)}: ${d.detail}`);
   for (const d of docs.filter((x) => x.status === "not_loaded")) console.log(`  offen      ${d.scope.padEnd(9)} ${short(d.title)} (${d.detail})`);
   for (const { d, reasons } of suspects) console.log(`  VERDACHT   ${short(d.title)}: ${reasons.join("; ")}`);
@@ -276,9 +288,9 @@ for (const entry of opts.extra) {
   await runCanton(`${canton}+`, canton, file, summary);
 }
 
-console.log("\nKanton | übernommen (Gemeinde) | abgelehnt (nach Download) | ältere Fassung | Verdacht | nicht geladen | Nummern");
+console.log("\nKanton | übernommen (Gemeinde) | abgelehnt (nach Download) | zur Prüfung | ältere Fassung | Verdacht | nicht geladen | Nummern");
 for (const s of summary) {
   if (s.none) console.log(`${s.label} | kein Auszug`);
-  else console.log(`${s.label} | ${s.imported} (${s.municipal}) | ${s.rejected} (${s.downloadRejected}) | ${s.older} | ${s.suspects} | ${s.notLoaded} | ${s.numbers}/${s.total}`);
+  else console.log(`${s.label} | ${s.imported} (${s.municipal}) | ${s.rejected} (${s.downloadRejected}) | ${s.review} | ${s.older} | ${s.suspects} | ${s.notLoaded} | ${s.numbers}/${s.total}`);
 }
 console.log(`\nDownloads in diesem Lauf: ${downloads} (Budget ${MAX_PDF})`);

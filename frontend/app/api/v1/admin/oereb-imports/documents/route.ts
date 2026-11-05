@@ -19,7 +19,7 @@ const BASE_COLUMNS =
 // Ab Migration 20261107000001.
 const VERSION_COLUMNS = `${BASE_COLUMNS}, version_note`;
 // Spalte der Entscheide: kommt mit der Migration zu lib/oereb/manual-decision.ts.
-const DECISION_COLUMNS = `${VERSION_COLUMNS}, manual_decision`;
+const DECISION_COLUMNS = `${VERSION_COLUMNS}, manual_decision, text_source, ocr_cost_usd`;
 
 function intParam(value: string | null, fallback: number, max: number): number {
   const n = Number(value);
@@ -117,6 +117,8 @@ export async function GET(request: Request) {
     ...d,
     version_note: d.version_note ?? null,
     manual_decision: d.manual_decision ?? null,
+    text_source: d.text_source ?? null,
+    ocr_cost_usd: d.ocr_cost_usd ?? null,
   })) as AdminDocument[];
 
   return ok<DocumentsResponse>({

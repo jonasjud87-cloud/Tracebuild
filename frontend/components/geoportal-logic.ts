@@ -201,7 +201,11 @@ export async function runDocumentSync(deps: SyncDeps): Promise<SyncRunResult> {
 
 // ── Dokumente ────────────────────────────────────────────────────────────────
 
+/** Status `review`: nicht verworfen, ein Mensch soll den Erlass ansehen. */
+export const REVIEW_LABEL = "zur Prüfung vorgemerkt";
+
 const REJECT_REASON_LABELS: Record<string, string> = {
+  manual_exclude: "von einem Admin ausgeschlossen",
   doc_type: "kein Reglement (Gesetz oder Hinweis)",
   authority: "Bundesrecht, bleibt als Link",
   title_exact: "Titel ausgeschlossen",
@@ -238,13 +242,15 @@ export interface DocumentSummary {
   pending: number;
   duplicates: number;
   removed: number;
+  /** Nicht herausgefiltert: Ein Mensch soll sie ansehen. */
+  review: number;
   /** Herausgefilterte ohne Scans, je Grund. */
   filterReasons: { label: string; count: number }[];
 }
 
 export function summarizeDocuments(items: Pick<OerebDocumentItem, "status" | "reject_reason">[]): DocumentSummary {
   const out: DocumentSummary = {
-    imported: 0, filtered: 0, scans: 0, failed: 0, pending: 0, duplicates: 0, removed: 0, filterReasons: [],
+    imported: 0, filtered: 0, scans: 0, failed: 0, pending: 0, duplicates: 0, removed: 0, review: 0, filterReasons: [],
   };
   const reasons = new Map<string, number>();
   for (const item of items) {
@@ -254,6 +260,7 @@ export function summarizeDocuments(items: Pick<OerebDocumentItem, "status" | "re
       case "pending": out.pending++; break;
       case "duplicate_manual": out.duplicates++; break;
       case "removed": out.removed++; break;
+      case "review": out.review++; break;
       case "rejected":
         if (item.reject_reason === "scan_or_short") {
           out.scans++;
@@ -278,6 +285,7 @@ export function documentSummaryLine(s: DocumentSummary): string {
     const reasons = s.filterReasons.map((r) => `${r.count} × ${r.label}`).join(", ");
     parts.push(`${s.filtered} herausgefiltert (${reasons})`);
   }
+  if (s.review) parts.push(`${s.review} ${REVIEW_LABEL}`);
   if (s.scans) parts.push(`${s.scans} Scan${s.scans === 1 ? "" : "s"} ohne lesbaren Text`);
   if (s.failed) parts.push(`${s.failed} mit Fehler`);
   if (s.pending) parts.push(`${s.pending} noch offen`);
@@ -298,6 +306,8 @@ export function safeExternalUrl(raw: string | null | undefined): string | null {
 export interface DocumentNotices<T> {
   /** Ohne Norm und ohne Text: Das Reglement ist in keiner Analyse enthalten. */
   scans: T[];
+  /** Status `review`: Ein Mensch soll den Erlass ansehen. */
+  review: T[];
   rejected: { reason: string; label: string; items: T[] }[];
   bothKept: T[];
 }
@@ -306,10 +316,11 @@ type NoticeItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "norm_id"
 
 /** Scan-Hinweis nur, solange kein Text vorliegt: Mit Texterkennung wechselt das Dokument den Status. */
 export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotices<T> {
-  const out: DocumentNotices<T> = { scans: [], rejected: [], bothKept: [] };
+  const out: DocumentNotices<T> = { scans: [], review: [], rejected: [], bothKept: [] };
   const groups = new Map<string, T[]>();
   for (const item of items) {
     if (item.version_note) out.bothKept.push(item);
+    if (item.status === "review") out.review.push(item);
     if (item.status !== "rejected") continue;
     if (item.reject_reason === "scan_or_short") {
       if (!item.norm_id) out.scans.push(item);

@@ -10,11 +10,15 @@ import { getKey, localizedText } from "./adapters/generic";
 import { findSuperseded } from "./document-decisions";
 import { VERSION_COLUMNS, normalizeOfficialNumber } from "./document-versions";
 import type { TextSketch } from "./text-measure";
+import { repointAuthoritativeUploads } from "./upload-supersede";
 import { reconcileVersions } from "./version-sync";
 import {
   DEFAULT_IMPORT_FILTER,
+  FAIL_CLOSED_FILTER,
   OLDER_VERSION_REASON,
   PRE_DOWNLOAD_REASONS,
+  REVIEW_STATUS,
+  contentRulesChanged,
   decidePreDownload,
   documentPriority,
   isOcrCandidate,
@@ -96,6 +100,8 @@ export interface DocumentCandidate {
   authority: string | null;
   theme_codes: string[];
   official_number: string | null;
+  /** Rohwert der amtlichen Nummer: Auch ohne Ziffern («Baureglement») sagt er etwas über die Geltung. */
+  official_number_raw: string | null;
 }
 
 export interface ProjectDocumentState {
@@ -184,6 +190,7 @@ export function collectCandidates(themes: ThemeRow[], lang = "de"): DocumentCand
         if (kind === "LegalProvision") existing.doc_type = kind;
         if (!existing.authority) existing.authority = authority;
         if (!existing.official_number) existing.official_number = number;
+        if (!existing.official_number_raw) existing.official_number_raw = officialNumber;
         continue;
       }
       byUrl.set(normalized, {
@@ -194,6 +201,7 @@ export function collectCandidates(themes: ThemeRow[], lang = "de"): DocumentCand
         authority,
         theme_codes: [theme.theme_code],
         official_number: number,
+        official_number_raw: officialNumber,
       });
     }
   }
@@ -257,37 +265,56 @@ export function resetImportFilterCache(): void {
   filterCache.clear();
 }
 
+/**
+ * Der Stopp versagt nie offen: Ist die Tabelle nicht lesbar, wird nichts Neues importiert. Das Ergebnis
+ * wird dann nicht gemerkt, damit die Störung nicht 5 Minuten nachwirkt.
+ */
 export async function loadImportFilter(admin: SupabaseClient, canton: string): Promise<ImportFilterRules> {
   const code = canton.toUpperCase();
   const cached = filterCache.get(code);
   if (cached && Date.now() - cached.at < FILTER_CACHE_MS) return cached.rules;
-  let rules = DEFAULT_IMPORT_FILTER;
   const { data, error } = await admin
     .from("oereb_import_filters")
     .select("scope, rules, active")
     .in("scope", ["default", code]);
   if (error) {
-    if (!isMissingSchema(error.message)) console.error("Importfilter nicht lesbar, es gilt der Standard:", error.message);
-  } else {
-    rules = resolveFilterRules(data ?? [], code);
+    if (!isMissingSchema(error.message)) console.error("Importfilter nicht lesbar, es wird nichts Neues importiert:", error.message);
+    return FAIL_CLOSED_FILTER;
   }
+  const rules = resolveFilterRules(data ?? [], code);
   filterCache.set(code, { rules, at: Date.now() });
   return rules;
 }
 
 // ── Stand des Projekts ───────────────────────────────────────────────────────
 
+const DOCUMENT_COLUMNS =
+  "id, canton, bfs_number, municipality, url, url_normalized, title, title_key, doc_type, theme_codes, authority, status, " +
+  "reject_reason, reject_detail, filter_snapshot, scope, norm_id, bytes, chars, pdf_sha256, text_sha256, etag, last_modified, " +
+  "attempts, last_update_status, last_update_detail, last_seen_at, last_checked_at, next_check_at, lock_until";
+const VERSION_DOCUMENT_COLUMNS =
+  "official_number, article_run, article_first, article_hits, stand_date, content_reason, version_winner_id, version_note";
+
+/** Ab Migration 20261109000001. Ohne sie gibt es keine Entscheide und kein Lesen von Scans. */
+const EXTRA_DOCUMENT_COLUMNS =
+  "manual_decision, scope_reason, text_source, ocr_status, ocr_pdf_sha256, ocr_cost_usd";
+
 async function loadMunicipalityDocuments(
   admin: SupabaseClient,
   canton: string,
   bfs: number
 ): Promise<{ rows: OerebDocumentRow[]; missing: boolean }> {
-  const { data, error } = await admin.from("oereb_documents").select("*").eq("canton", canton).eq("bfs_number", bfs);
+  // Ohne Textskizze: Die wird nur für einen anstehenden Vergleich nachgeladen.
+  const query = (columns: string) => admin.from("oereb_documents").select(columns).eq("canton", canton).eq("bfs_number", bfs);
+  let { data, error } = await query(`${DOCUMENT_COLUMNS}, ${VERSION_DOCUMENT_COLUMNS}, ${EXTRA_DOCUMENT_COLUMNS}`);
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(`${DOCUMENT_COLUMNS}, ${VERSION_DOCUMENT_COLUMNS}`));
+  // Vor Migration 20261107000001 fehlen die Messspalten.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(DOCUMENT_COLUMNS));
   if (error) {
     if (isMissingSchema(error.message)) return { rows: [], missing: true };
     throw new Error(`ÖREB-Dokumente konnten nicht gelesen werden: ${error.message}`);
   }
-  return { rows: (data ?? []) as OerebDocumentRow[], missing: false };
+  return { rows: (data ?? []) as unknown as OerebDocumentRow[], missing: false };
 }
 
 function unavailable(canton: string, municipality: string, rules: ImportFilterRules): ProjectDocumentState {
@@ -318,6 +345,8 @@ async function retireSuperseded(
       continue;
     }
     if (!data?.length) continue;
+    const newNormId = all.find((d) => d.id === newDocId)?.norm_id;
+    if (newNormId) await repointAuthoritativeUploads(admin, oldNormId, newNormId);
     const { error: linkError } = await admin
       .from("project_norms")
       .delete()
@@ -408,7 +437,7 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
           reject_reason: rejection?.reason ?? null,
           reject_detail: rejection?.detail ?? null,
           filter_snapshot: rules,
-          scope: scopeOf(c.title, rules),
+          scope: scopeOf(c.title, rules, c.official_number_raw),
           next_check_at: nowIso,
           last_seen_at: fetchedAt,
           official_number: c.official_number,
@@ -438,6 +467,8 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
   }
 
   const rulesJson = stableJson(rules);
+  // Filter nicht lesbar: Bestehendes bleibt, wie es ist. Nur Neues wird nicht importiert.
+  const failClosed = rules === FAIL_CLOSED_FILTER;
   const candidateByUrl = new Map(candidates.map((c) => [c.url_normalized, c]));
   for (const row of own) {
     const patch: Partial<OerebDocumentRow> = {};
@@ -446,13 +477,15 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
     const merged = Array.from(new Set([...(row.theme_codes ?? []), ...codes]));
     if (merged.length !== (row.theme_codes ?? []).length) patch.theme_codes = merged;
 
-    const officialNumber = candidateByUrl.get(row.url_normalized)?.official_number ?? null;
+    const candidate = candidateByUrl.get(row.url_normalized);
+    const officialNumber = candidate?.official_number ?? null;
     const hasVersionColumns = VERSION_COLUMNS[0] in row;
     if (hasVersionColumns && officialNumber && row.official_number !== officialNumber) patch.official_number = officialNumber;
 
     // Nur Titel- und Host-Gründe: Inhaltlich abgelehnte PDFs werden nicht wegen einer Regeländerung
     // neu geladen. Der Deckel ist nie endgültig: Sobald er nicht mehr greift, wird neu beurteilt.
     const reconsider =
+      !failClosed &&
       !row.manual_decision &&
       (row.status === "pending" || (row.status === "rejected" && PRE_DOWNLOAD_REASONS.has(row.reject_reason ?? ""))) &&
       stableJson(row.filter_snapshot) !== rulesJson;
@@ -463,6 +496,7 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
     // Regel eingeschaltet: Scans, die schon abgelehnt sind, kommen einmal dran. Ohne Spalte kein Lesen,
     // denn der Versuch liesse sich nicht festhalten und würde bei jedem Lauf erneut bezahlt.
     const readScan =
+      !failClosed && rules.doc_types.length > 0 &&
       rules.ocr_enabled && row.status === "rejected" && row.reject_reason === "scan_or_short" && !row.norm_id &&
       "ocr_status" in row && !row.ocr_status &&
       (row.manual_decision === "force_import" || isOcrCandidate(row, rules));
@@ -501,8 +535,24 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
       patch.reject_reason = rejection?.reason ?? null;
       patch.reject_detail = rejection?.detail ?? null;
       patch.filter_snapshot = rules;
-      patch.scope = scopeOf(row.title, rules);
+      patch.scope = scopeOf(row.title, rules, candidate?.official_number_raw);
       if (!rejection) patch.next_check_at = nowIso;
+    } else if (
+      // Inhaltsgrund unter geänderten Regeln: fällig setzen, geladen wird einzeln beim nächsten Import-
+      // Schritt. Nicht im Stopp und nicht bei Fehlern des Filters: Dann käme nichts dabei heraus.
+      !failClosed &&
+      rules.doc_types.length > 0 &&
+      (row.status === "rejected" || row.status === REVIEW_STATUS) &&
+      !row.norm_id &&
+      contentRulesChanged(row.reject_reason, row.filter_snapshot, rules)
+    ) {
+      patch.status = "pending";
+      patch.reject_reason = null;
+      patch.reject_detail = null;
+      patch.filter_snapshot = rules;
+      patch.attempts = 0;
+      patch.scope = scopeOf(row.title, rules, candidate?.official_number_raw);
+      patch.next_check_at = nowIso;
     }
 
     if (Object.keys(patch).length === 0) continue;
@@ -514,7 +564,7 @@ export async function syncProjectDocuments(admin: SupabaseClient, projectId: str
   const now = Date.now();
   await retireSuperseded(admin, all, currentUrls, rules, now);
   // Vor der Migration fehlen die Messwerte: Dann gibt es nichts zu vergleichen.
-  const changedNormIds = own.some((d) => VERSION_COLUMNS[0] in d)
+  const changedNormIds = !failClosed && own.some((d) => VERSION_COLUMNS[0] in d)
     ? await reconcileVersions({ admin, own, all, rules, canton, municipality, bfs, nowMs: now })
     : [];
   return { ...base, all, own, currentUrls, changedNormIds, pending: own.filter((d) => isDocumentDue(d, now)).length };

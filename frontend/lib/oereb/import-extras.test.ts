@@ -193,7 +193,8 @@ test("Gelesener Text läuft durch den Inhaltstest", async () => {
   const brief = `${"Keine Artikel hier. ".repeat(300)}\n` + [1, 2, 3, 4, 5].map((p) => `-- ${p} of 5 --`).join("\n");
   const model = fakeModel(brief);
   await run(db, deps(SCAN, model.client));
-  assert.equal(row(db).status, "rejected");
+  // Reglementstitel ohne erkannte Artikel: Ein Mensch soll es ansehen (Filter-Fix).
+  assert.equal(row(db).status, "review");
   assert.equal(row(db).reject_reason, "no_articles");
   assert.equal(db.rows("norms").length, 0);
   assert.ok(Number(row(db).ocr_cost_usd) > 0, "Kosten bleiben auch bei Ablehnung");
@@ -359,6 +360,44 @@ test("force_import: ohne Herkunftsnachweis server_fetched_at abgewiesen", async 
     setDocumentDecision(db.asClient(), String(row(db).id), "force_import"),
     (e: unknown) => e instanceof ForceBlockedError && e.reason === "no_provenance"
   );
+});
+
+test("force_import: Stopp über active=false gilt auch für Admins", async () => {
+  const db = setup({ title: "Verschiedene Vorschriften" });
+  await run(db, deps(`${"Ohne Artikel. ".repeat(300)}`));
+  db.rows("oereb_import_filters").push({ scope: "AR", rules: {}, active: false });
+  resetImportFilterCache();
+  await assert.rejects(
+    setDocumentDecision(db.asClient(), String(row(db).id), "force_import"),
+    (e: unknown) => e instanceof ForceBlockedError && e.reason === "import_stopped"
+  );
+});
+
+test("Stopp: Lesen bleibt aus, auch wenn die Regel an ist", async () => {
+  const db = setup({ title: "Baureglement", rules: { ocr_enabled: true } });
+  db.rows("oereb_import_filters").push({ scope: "AR", rules: {}, active: false });
+  const model = fakeModel();
+  await run(db, deps(SCAN, model.client));
+  assert.equal(model.calls.stream, 0);
+});
+
+test("Neutraler Titel gegen amtliche Nummer: Beide führen Herisau auf municipal, ein Sonderplan bleibt parcel", () => {
+  const herisau = { title: "Herisau", theme_codes: ["ch.Nutzungsplanung"], authority: "Gemeindeverwaltung" };
+  assert.equal(scopeOf("Herisau", RULES, "Baureglement"), "municipal");
+  assert.ok(neutralScopeEvidence(herisau, ordnung(), RULES));
+  assert.equal(scopeOf("Quartierplan Gutenberg", RULES, "Baureglement"), "parcel");
+  assert.equal(neutralScopeEvidence({ ...herisau, title: "Sonderbauvorschriften Zentrum" }, ordnung(), RULES), null);
+});
+
+test("Entscheid: Abgleich steht dazwischen, die RPC weist ab und nichts ändert sich", async () => {
+  const db = setup({ title: "Baureglement" });
+  await run(db, deps(ordnung()));
+  const client = db.asClient();
+  const stale = { rpc: async () => ({ data: { applied: false, reason: "conflict" }, error: null }), from: (t: string) => client.from(t) };
+  const result = await setDocumentDecision(stale as unknown as typeof client, String(row(db).id), "exclude");
+  assert.equal(!result.ok && result.error, "locked");
+  assert.equal(row(db).manual_decision, null);
+  assert.equal(row(db).status, "imported");
 });
 
 test("force_import: Abruf lehnt zur Laufzeit ab, der Entscheid hebt das nicht auf", async () => {

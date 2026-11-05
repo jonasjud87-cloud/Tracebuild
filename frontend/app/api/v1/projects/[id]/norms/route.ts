@@ -1,6 +1,20 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
+
+const NORM_COLUMNS = "id, title, category, text, layer, zone, jurisdiction_type, jurisdiction_name, org_id, source_doc, source_url, pdf_url";
+// Vercel begrenzt Antworten auf 4.5 MB, ein Projekt kann mehrere ganze Reglemente tragen. Den vollen Text
+// liefert GET /standards/{id}, wenn jemand die Karte öffnet.
+const TEXT_PREVIEW_CHARS = 2000;
+
+function withTextPreview<T extends { norms: { text?: string | null } | null }>(rows: T[]): T[] {
+  return rows.map((row) => {
+    const text = row.norms?.text ?? "";
+    if (!row.norms || text.length <= TEXT_PREVIEW_CHARS) return row;
+    return { ...row, norms: { ...row.norms, text: `${text.slice(0, TEXT_PREVIEW_CHARS)} …`, text_truncated: true } };
+  });
+}
 
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
@@ -16,14 +30,13 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     .single();
   if (!project) return err("Projekt nicht gefunden", 404);
 
-  const { data, error } = await admin
-    .from("project_norms")
-    .select("*, norms(*)")
-    .eq("project_id", params.id)
-    .order("added_at", { ascending: true });
-
+  const query = (columns: string) =>
+    admin.from("project_norms").select(`*, norms(${columns})`).eq("project_id", params.id).order("added_at", { ascending: true });
+  let { data, error } = await query(`${NORM_COLUMNS}, source_kind, auto_scope, source_checked_at`);
+  // Ohne Geoportal-Migration fehlen die Spalten.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(NORM_COLUMNS));
   if (error) return err(error.message, 500);
-  return ok(data);
+  return ok(withTextPreview((data ?? []) as unknown as { norms: { text?: string | null } | null }[]));
 }
 
 export async function POST(request: Request, { params }: { params: { id: string } }) {

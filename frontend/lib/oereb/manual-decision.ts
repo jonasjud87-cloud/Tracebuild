@@ -1,7 +1,8 @@
 /**
  * Entscheide eines Admins zu einem ÖREB-Dokument. Sie bleiben bei späteren Abrufen bestehen: Der
  * Regelabgleich, der Fassungsvergleich und die Ablösung überspringen Dokumente mit `manual_decision`.
- * Die Rechteprüfung und das Audit-Protokoll macht die aufrufende Route.
+ * Die Rechteprüfung und das Audit-Protokoll macht die aufrufende Route. Geschrieben wird über
+ * `oereb_apply_version_actions`, nie direkt: Sonst könnte ein gleichzeitiger Abgleich dazwischenfahren.
  *
  * - `exclude`: Dokument abgelehnt, seine Norm gilt nicht mehr (sie bleibt für den Nachvollzug bestehen).
  * - `force_import`: importieren trotz Titel-, Inhalts- und Deckelregel. Host-Prüfung, Duplikate,
@@ -17,7 +18,6 @@ import { isMissingSchema } from "../supabase/schema-errors";
 import { checkDocumentUrl } from "./document-fetch";
 import { loadImportFilter, type OerebDocumentRow } from "./documents";
 import { MANUAL_EXCLUDE_REASON } from "./import-filter";
-import { reinstateNorm, withdrawNorm } from "./version-sync";
 
 export type ManualDecision = "force_import" | "exclude" | "recheck";
 
@@ -62,6 +62,8 @@ async function assertForceAllowed(admin: SupabaseClient, doc: OerebDocumentRow):
   }
   // Die Ablehnung kann aus einem anderen Grund stammen, die Host-Prüfung kommt dort erst zuletzt.
   const rules = await loadImportFilter(admin, doc.canton);
+  // Der Stopp (active=false, Filter nicht lesbar) gilt auch für Admins.
+  if (rules.doc_types.length === 0) throw new ForceBlockedError("import_stopped", "Der Import ist für diesen Kanton gestoppt");
   let bad: { reason: string; detail: string } | null;
   try {
     bad = checkDocumentUrl(new URL(doc.url_normalized), rules, doc.canton);
@@ -104,11 +106,12 @@ export async function setDocumentDecision(
 
   const nowIso = new Date(now).toISOString();
   const wasExcluded = doc.manual_decision === "exclude" || doc.reject_reason === MANUAL_EXCLUDE_REASON;
-  const ctx = { admin };
+  const base = { doc_id: doc.id, expect_status: doc.status, expect_reason: doc.reject_reason ?? null };
 
+  let norm: "withdraw" | "reinstate" | undefined;
   let patch: Record<string, unknown>;
   if (decision === "exclude") {
-    if (doc.norm_id && doc.status === "imported" && (await withdrawNorm(ctx, doc.norm_id))) await releaseUploads(admin, doc.norm_id);
+    norm = doc.norm_id && doc.status === "imported" ? "withdraw" : undefined;
     patch = {
       manual_decision: "exclude",
       manual_decision_at: nowIso,
@@ -120,7 +123,7 @@ export async function setDocumentDecision(
   } else {
     // Text gelesen und als Norm vorhanden: Derselbe PDF-Stand wird nicht nochmals bezahlt.
     const keepRead = doc.ocr_status === "read" && !!doc.norm_id;
-    if (doc.norm_id && doc.status !== "imported") await reinstateNorm(ctx, doc);
+    norm = doc.norm_id && doc.status !== "imported" ? "reinstate" : undefined;
     patch = {
       manual_decision: decision === "force_import" ? "force_import" : null,
       manual_decision_at: nowIso,
@@ -137,10 +140,21 @@ export async function setDocumentDecision(
     };
   }
 
-  const { error: updateError } = await admin.from("oereb_documents").update(patch).eq("id", docId);
-  if (updateError) {
-    if (isMissingSchema(updateError.message)) return MISSING;
-    throw new Error(`Entscheid konnte nicht gespeichert werden: ${updateError.message}`);
+  // Dieselbe RPC wie der Fassungsvergleich: Sperre je Gemeinde, prüft lock_until und den gelesenen Stand.
+  const apply = (action: Record<string, unknown>) =>
+    admin.rpc("oereb_apply_version_actions", { p_canton: doc.canton, p_bfs: doc.bfs_number, p_actions: [action] });
+  let { data: result, error: rpcError } = await apply({ ...base, ...(norm ? { norm } : {}), patch });
+  const applied = () => (result ?? {}) as { applied?: boolean; doc_ids?: string[] };
+  // Inzwischen manuell gepflegte Norm: Sie bleibt unberührt, der Entscheid zum Dokument gilt trotzdem.
+  const normUntouched = !rpcError && applied().applied && norm === "withdraw" && !(applied().doc_ids ?? []).includes(doc.id);
+  if (normUntouched) ({ data: result, error: rpcError } = await apply({ ...base, patch }));
+  if (rpcError) {
+    if (isMissingSchema(rpcError.message)) return MISSING;
+    throw new Error(`Entscheid konnte nicht gespeichert werden: ${rpcError.message}`);
   }
+  if (!applied().applied) {
+    return { ok: false, error: "locked", detail: "Das Dokument wurde gerade verarbeitet, bitte später erneut versuchen" };
+  }
+  if (norm === "withdraw" && !normUntouched) await releaseUploads(admin, doc.norm_id as string);
   return { ok: true, docId, decision, status: patch.status as string, normId: doc.norm_id };
 }

@@ -55,6 +55,9 @@ export interface AdminDocument {
   last_update_status: string | null;
   version_note: string | null;
   manual_decision: DocumentDecision | null;
+  /** `ai_read`: Text von Claude gelesen. */
+  text_source: string | null;
+  ocr_cost_usd: number | null;
 }
 
 export interface DocumentsResponse {

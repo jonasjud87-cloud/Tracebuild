@@ -280,3 +280,16 @@ test("Ähnlichkeit als ganze Prozent, Unsinn ohne Angabe", () => {
   assert.equal(similarityPercent(null), null);
   assert.equal(similarityPercent(1.4), null);
 });
+
+test("review: eigene Zeile, nicht unter herausgefiltert, und eigener Hinweis", () => {
+  const items = [
+    { status: "review" as const, reject_reason: "no_articles", norm_id: null, version_note: null },
+    { status: "imported" as const, reject_reason: null, norm_id: "n", version_note: null },
+  ];
+  const summary = summarizeDocuments(items);
+  assert.equal(summary.review, 1);
+  assert.equal(summary.filtered, 0);
+  assert.match(documentSummaryLine(summary), /1 zur Prüfung vorgemerkt/);
+  assert.equal(documentNotices(items).review.length, 1);
+  assert.equal(documentNotices(items).rejected.length, 0);
+});

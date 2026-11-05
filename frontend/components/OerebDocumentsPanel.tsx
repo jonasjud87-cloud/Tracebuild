@@ -2,8 +2,11 @@
 
 import { useState } from "react";
 import type { OerebDocumentItem } from "@/lib/geoadmin/contract";
-import { documentNotices, documentSummaryLine, formatDate, rejectReasonLabel, safeExternalUrl, summarizeDocuments } from "./geoportal-logic";
+import { api } from "@/lib/api";
+import { AI_READ_LABEL } from "@/lib/oereb/ai-read-label";
+import { REVIEW_LABEL, documentNotices, documentSummaryLine, formatDate, rejectReasonLabel, safeExternalUrl, summarizeDocuments } from "./geoportal-logic";
 import { useOerebSync } from "./useOerebDocumentSync";
+import { useOrgRole } from "./useOrgRole";
 
 const STATUS: Record<OerebDocumentItem["status"], { label: string; color: string; bg: string }> = {
   imported:         { label: "importiert",           color: "#34D399", bg: "rgba(52,211,153,0.12)"  },
@@ -12,6 +15,7 @@ const STATUS: Record<OerebDocumentItem["status"], { label: string; color: string
   failed:           { label: "Fehler",               color: "#F87171", bg: "rgba(248,113,113,0.12)" },
   duplicate_manual: { label: "bereits von Hand erfasst", color: "#ABAEBB", bg: "rgba(133,166,233,0.1)" },
   removed:          { label: "vom Admin entfernt",   color: "#7B8299", bg: "rgba(133,166,233,0.1)"  },
+  review:           { label: REVIEW_LABEL,           color: "#85A6E9", bg: "rgba(133,166,233,0.1)"  },
 };
 
 function statusFor(item: OerebDocumentItem) {
@@ -33,6 +37,55 @@ function DocumentLink({ item }: { item: OerebDocumentItem }) {
   );
 }
 
+type Decision = "force_import" | "exclude" | "recheck";
+
+const DECISIONS: { decision: Decision; label: string; confirm: string }[] = [
+  { decision: "force_import", label: "Trotzdem importieren", confirm: "Dieses Dokument wird als globale Norm importiert und gilt für alle Organisationen. Fortfahren?" },
+  { decision: "exclude", label: "Ausschliessen", confirm: "Dieses Dokument wird für alle Organisationen ausgeschlossen, seine Norm gilt nicht mehr. Fortfahren?" },
+  { decision: "recheck", label: "Neu prüfen", confirm: "Frühere Entscheide werden aufgehoben und das Dokument nach den normalen Regeln neu beurteilt. Fortfahren?" },
+];
+
+/** Nur für Plattform-Admins: Die Route lässt sonst niemanden zu. Wirkt global, darum mit Rückfrage. */
+function DocumentActions({ item }: { item: OerebDocumentItem }) {
+  const { role } = useOrgRole();
+  const { state, run, reloadDocuments } = useOerebSync();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (role !== "super_admin") return null;
+
+  async function decide({ decision, confirm }: (typeof DECISIONS)[number]) {
+    if (!window.confirm(confirm)) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post(`/admin/oereb-imports/${item.id}/decision`, { decision });
+      const documents = await reloadDocuments();
+      if (documents?.available && documents.pending > 0) void run(documents.pending);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Der Entscheid konnte nicht gespeichert werden.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 4 }}>
+      {DECISIONS.map((d) => (
+        <button
+          key={d.decision}
+          type="button"
+          disabled={busy || state.running || (d.decision === "force_import" && item.status === "imported") || (d.decision === "exclude" && item.manual_decision === "exclude")}
+          onClick={() => void decide(d)}
+          style={{ minHeight: 26, padding: "2px 10px", borderRadius: 6, border: "1px solid rgba(133,166,233,0.35)", background: "none", color: "#85A6E9", fontFamily: "inherit", fontSize: 11, cursor: "pointer" }}
+        >
+          {d.label}
+        </button>
+      ))}
+      {error && <span role="alert" style={{ fontSize: 11, color: "#F87171", overflowWrap: "anywhere" }}>{error}</span>}
+    </span>
+  );
+}
+
 const NOTICE_HEAD: React.CSSProperties = { fontSize: 12, fontWeight: 600, margin: 0 };
 const NOTICE_TEXT: React.CSSProperties = { fontSize: 12, color: "#ABAEBB", margin: "3px 0 0", lineHeight: 1.45 };
 const NOTICE_LIST: React.CSSProperties = { listStyle: "none", margin: "6px 0 0", padding: 0, display: "flex", flexDirection: "column", gap: 4, fontSize: 12 };
@@ -42,7 +95,7 @@ const NOTICE_DETAIL: React.CSSProperties = { display: "block", color: "#7B8299",
 const OPEN_REASONS = new Set(["older_version", "decision_document"]);
 
 function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
-  const { scans, rejected, bothKept } = documentNotices(items);
+  const { scans, review, rejected, bothKept } = documentNotices(items);
   const rejectedCount = rejected.reduce((sum, group) => sum + group.items.length, 0);
   return (
     <>
@@ -56,6 +109,23 @@ function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
           </p>
           <ul style={NOTICE_LIST}>
             {scans.map((item) => <li key={item.id}><DocumentLink item={item} /></li>)}
+          </ul>
+        </div>
+      )}
+      {review.length > 0 && (
+        <div style={{ marginTop: 10, background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.25)", borderRadius: 8, padding: "8px 12px" }}>
+          <p style={{ ...NOTICE_HEAD, color: "#85A6E9" }}>
+            {review.length === 1 ? `1 Dokument ${REVIEW_LABEL}` : `${review.length} Dokumente ${REVIEW_LABEL}`}
+          </p>
+          <p style={NOTICE_TEXT}>Der Titel nennt ein Reglement, im Text wurden aber keine Artikel erkannt. Es fehlt deshalb in der Analyse, bis es jemand angesehen hat.</p>
+          <ul style={NOTICE_LIST}>
+            {review.map((item) => (
+              <li key={item.id}>
+                <DocumentLink item={item} />
+                {item.reject_detail && <span style={NOTICE_DETAIL}>{item.reject_detail}</span>}
+                <DocumentActions item={item} />
+              </li>
+            ))}
           </ul>
         </div>
       )}
@@ -150,13 +220,16 @@ export default function OerebDocumentsPanel() {
               <li key={item.id} style={{ borderLeft: "2px solid rgba(133,166,233,0.2)", paddingLeft: 10 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100, background: status.bg, color: status.color, whiteSpace: "nowrap" }}>{status.label}</span>
+                  {item.text_source === "ai_read" && (
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100, background: "rgba(251,191,36,0.12)", color: "#FBBF24", whiteSpace: "nowrap" }}>{AI_READ_LABEL}</span>
+                  )}
                   <a href={safeExternalUrl(item.url) ?? undefined} target="_blank" rel="noreferrer" style={{ fontSize: 13, color: "#fff", textDecoration: "none", overflowWrap: "anywhere" }}>
                     {item.title} <span style={{ color: "#85A6E9" }}>↗</span>
                   </a>
                 </div>
                 <p style={{ fontSize: 11, color: "#7B8299", margin: "3px 0 0", lineHeight: 1.45, overflowWrap: "anywhere" }}>
                   {[
-                    item.status === "rejected" ? `Grund: ${rejectReasonLabel(item.reject_reason)}` : null,
+                    item.status === "rejected" || item.status === "review" ? `Grund: ${rejectReasonLabel(item.reject_reason)}` : null,
                     item.status !== "imported" ? item.reject_detail : null,
                     item.scope === "parcel" ? "gilt nur für dieses Grundstück" : item.scope === "municipal" ? "gilt für die Gemeinde" : null,
                     item.version_note ?? null,
@@ -165,6 +238,7 @@ export default function OerebDocumentsPanel() {
                     checked ? `Stand ${checked}` : null,
                   ].filter(Boolean).join(" · ")}
                 </p>
+                <DocumentActions item={item} />
               </li>
             );
           })}

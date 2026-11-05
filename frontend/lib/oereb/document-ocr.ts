@@ -7,8 +7,7 @@ import type Anthropic from "@anthropic-ai/sdk";
 import { dataBlock, inlineData, newDataBoundary } from "../analysis-reference";
 import type { ImportFilterRules } from "./import-filter";
 
-/** Für die Anzeige: Gelesener Text ist immer als solcher erkennbar. */
-export const AI_READ_LABEL = "per KI gelesen";
+export { AI_READ_LABEL } from "./ai-read-label";
 
 /** USD pro 1M Tokens. Ein Modell ohne Preis wird nicht aufgerufen: Sonst hielte die Kostengrenze nicht. */
 export const OCR_PRICES: Record<string, { input: number; output: number }> = {

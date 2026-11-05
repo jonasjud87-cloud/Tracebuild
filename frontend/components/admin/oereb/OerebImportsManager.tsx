@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "@/components/admin/analyses/ConfirmDialog";
 import Toast from "@/components/admin/Toast";
 import type { ToastMessage } from "@/components/admin/types";
-import { formatDate, rejectReasonLabel, safeExternalUrl } from "@/components/geoportal-logic";
+import { REVIEW_LABEL, formatDate, rejectReasonLabel, safeExternalUrl } from "@/components/geoportal-logic";
+import { AI_READ_LABEL } from "@/lib/oereb/ai-read-label";
 import { api } from "@/lib/api";
 import type { ImportFilterRules } from "@/lib/oereb/import-filter";
 import type {
@@ -27,6 +28,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   failed: { label: "Fehler", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
   duplicate_manual: { label: "Von Hand erfasst", cls: "border-[rgba(133,166,233,0.3)] bg-white/5 text-[#ABAEBB]" },
   removed: { label: "Entfernt", cls: "border-[rgba(60,63,68,0.6)] bg-white/5 text-[#7B8299]" },
+  review: { label: REVIEW_LABEL, cls: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
 };
 const SCAN_STATUS = { label: "Scan", cls: "border-amber-500/30 bg-amber-500/10 text-amber-300" };
 
@@ -204,6 +206,7 @@ function DocumentRow({ doc, busy, onDecide }: { doc: AdminDocument; busy: boolea
     doc.reject_reason ? `Grund: ${rejectReasonLabel(doc.reject_reason)}` : null,
     doc.scope === "municipal" ? "Geltung: ganze Gemeinde" : doc.scope === "parcel" ? "Geltung: einzelne Grundstücke" : "Geltung: offen",
     checked ? `geprüft ${checked}` : "noch nicht geprüft",
+    typeof doc.ocr_cost_usd === "number" ? `Lesekosten ${Number(doc.ocr_cost_usd).toFixed(2)} USD` : null,
   ].filter(Boolean).join(" · ");
 
   return (
@@ -213,6 +216,11 @@ function DocumentRow({ doc, busy, onDecide }: { doc: AdminDocument; busy: boolea
         {doc.manual_decision && (
           <span className="whitespace-nowrap rounded-full border border-[#85A6E9]/40 bg-[#2862D7]/15 px-2 py-0.5 text-[11px] font-medium text-[#85A6E9]">
             {DECISION_BADGE[doc.manual_decision]}
+          </span>
+        )}
+        {doc.text_source === "ai_read" && (
+          <span className="whitespace-nowrap rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
+            {AI_READ_LABEL}
           </span>
         )}
         {href ? (

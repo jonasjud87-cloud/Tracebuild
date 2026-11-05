@@ -2,7 +2,7 @@ import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 import { isUuid } from "@/lib/announcements";
-import { MANUAL_DECISIONS, setDocumentDecision, type ManualDecision } from "@/lib/oereb/manual-decision";
+import { ForceBlockedError, MANUAL_DECISIONS, setDocumentDecision, type ManualDecision } from "@/lib/oereb/manual-decision";
 import type { DecisionResponse } from "@/components/admin/oereb/types";
 
 export const dynamic = "force-dynamic";
@@ -42,6 +42,10 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
     return ok<DecisionResponse>({ id: params.id, decision, status: result.status, norm_id: result.normId });
   } catch (e) {
+    if (e instanceof ForceBlockedError) {
+      console.warn(`ÖREB-Entscheid ${decision} zu ${params.id} abgewiesen: ${e.code} (${e.reason})`);
+      return err(`Trotzdem importieren ist hier nicht erlaubt: ${e.message}.`, 422);
+    }
     console.error(`ÖREB-Entscheid ${decision} zu ${params.id} fehlgeschlagen:`, e);
     return err("Der Entscheid konnte nicht gespeichert werden.", 500);
   }

@@ -21,7 +21,23 @@ DELETE FROM project_norms
 WHERE norm_id IN (SELECT id FROM norms WHERE source_kind = 'oereb_auto')
    OR trigger LIKE 'oereb-doc:%';
 
+-- Uploads, die eine amtliche Fassung abgelöst hat: Der Verweis fällt per ON DELETE SET NULL, die
+-- Zuweisung kommt unten zurück. Setzt Migration 20261107000001 voraus; ohne sie diese Blöcke weglassen.
+CREATE TEMP TABLE _abg ON COMMIT DROP AS SELECT id FROM norms WHERE superseded_by_norm_id IS NOT NULL;
+
 DELETE FROM norms WHERE source_kind = 'oereb_auto';
+
+UPDATE norms SET superseded_similarity = NULL, superseded_at = NULL WHERE id IN (SELECT id FROM _abg);
+
+INSERT INTO project_norms (project_id, norm_id, added_by)
+SELECT p.id, n.id, 'system'
+FROM norms n
+JOIN _abg USING (id)
+JOIN projects p
+  ON p.org_id = n.org_id
+ AND COALESCE(p.domain, 'bau') = n.domain
+ AND p.location->>'municipality' = n.jurisdiction_name
+ON CONFLICT (project_id, norm_id) DO NOTHING;
 
 -- Ergebnis prüfen, dann COMMIT von Hand. Im Zweifel ROLLBACK.
 SELECT count(*) AS verbleibend_sollte_0_sein FROM norms WHERE source_kind = 'oereb_auto';

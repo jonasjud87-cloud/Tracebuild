@@ -24,9 +24,30 @@ export function foldText(s: string): string {
 
 const SPACED_LETTERS = new RegExp("(?<![\\p{L}\\p{N}])\\p{L}(?:[ \\t]\\p{L}(?![\\p{L}\\p{N}])){2,}", "gu");
 
+const STARTS_WITH_LETTER = new RegExp("^\\p{L}", "u");
+const ENDS_WITH_LETTER = new RegExp("\\p{L}$", "u");
+const PARAGRAPH_ONE = new RegExp("(?:^|\\t)[ \\t]*1[ \\t]+\\p{Lu}\\p{Ll}+[ \\t]+\\p{L}", "gmu");
+
 /** Schlechter OCR-Text sperrt Buchstaben («A r t .42», «B a u r e g l e m e n t»). */
 export function collapseSpacedLetters(text: string): string {
   return text.replace(SPACED_LETTERS, (m) => m.replace(/[ 	]/g, ""));
+}
+
+export interface ArticleReferences {
+  after: string[];
+  before: string[];
+}
+
+function isReference(source: string, start: number, end: number, refs: ArticleReferences): boolean {
+  const next = source.slice(end, end + 16).replace(/^\s+/, "");
+  if (refs.after.some((t) => next.startsWith(t) && !STARTS_WITH_LETTER.test(next.slice(t.length)))) return true;
+  const previous = source.slice(Math.max(0, start - 24), start).replace(/\s+$/, "");
+  return refs.before.some((t) => previous.endsWith(t) && !ENDS_WITH_LETTER.test(previous.slice(0, previous.length - t.length)));
+}
+
+/** Abschnitte mit Absatz «1» am Zeilenanfang oder nach einer Randnotiz (Tabulator), gefolgt von Text. */
+export function countParagraphGroups(text: string): number {
+  return (text.match(PARAGRAPH_ONE) ?? []).length;
 }
 
 /**
@@ -47,7 +68,7 @@ function articleCandidates(digits: string, source: string, index: number): numbe
  * Längste fortlaufende Folge. Die Nummer folgt auf ihren Vorgänger nur, wenn dieser früher im Text
  * stand; Querverweise stören deshalb kaum, und ein Inhaltsverzeichnis zählt wie der Erlass selbst.
  */
-export function articleSequence(text: string, pattern: string): ArticleSequence {
+export function articleSequence(text: string, pattern: string, references?: ArticleReferences): ArticleSequence {
   let re: RegExp;
   try {
     re = new RegExp(pattern, "gi");
@@ -61,8 +82,10 @@ export function articleSequence(text: string, pattern: string): ArticleSequence 
   const source = collapseSpacedLetters(text);
   for (const m of Array.from(source.matchAll(re))) {
     if (!/^\d+$/.test(m[1] ?? "")) continue;
+    const index = m.index ?? 0;
+    if (references && isReference(source, index, index + m[0].length, references)) continue;
     hits++;
-    for (const n of articleCandidates(m[1], source, m.index ?? 0)) {
+    for (const n of articleCandidates(m[1], source, index)) {
       const length = (lengths.get(n - 1) ?? 0) + 1;
       if (length <= (lengths.get(n) ?? 0)) continue;
       lengths.set(n, length);

@@ -55,20 +55,21 @@ export function applies(n: ApplicableNorm, place: ProjectPlace): boolean {
   return false;
 }
 
-function isActiveOfficial(n: ApplicableNorm | undefined): boolean {
-  return !!n && isAutoNorm(n) && n.auto_scope === "municipal";
+function isActiveOfficial(n: ApplicableNorm | undefined, place?: ProjectPlace): boolean {
+  return !!n && isAutoNorm(n) && n.auto_scope === "municipal" && (!place || applies(n, place));
 }
 
 /**
- * Uploads, die eine geltende amtliche Fassung ablöst. Fehlt die amtliche Norm oder wurde sie
- * zurückgenommen, bleibt der Upload aktiv: Sonst stünde die Gemeinde ohne Reglement da.
+ * Uploads, die eine geltende amtliche Fassung ablöst. Fehlt die amtliche Norm, wurde sie zurückgenommen
+ * oder gilt sie am Projektort nicht (gleichnamige Gemeinde in einem anderen Kanton), bleibt der Upload
+ * aktiv: Sonst stünde das Projekt ohne Reglement da.
  */
-export function replacedUploadIds(norms: ApplicableNorm[]): Set<string> {
+export function replacedUploadIds(norms: ApplicableNorm[], place?: ProjectPlace): Set<string> {
   const byId = new Map(norms.map((n) => [n.id, n]));
   const out = new Set<string>();
   for (const n of norms) {
     if (isAutoNorm(n) || !n.superseded_by_norm_id || n.org_authoritative) continue;
-    if (isActiveOfficial(byId.get(n.superseded_by_norm_id))) out.add(n.id);
+    if (isActiveOfficial(byId.get(n.superseded_by_norm_id), place)) out.add(n.id);
   }
   return out;
 }
@@ -81,8 +82,8 @@ export function replacedUploadIds(norms: ApplicableNorm[]): Set<string> {
  * - Sonst wie bisher: Dieselbe Vorschrift, manuell gepflegt und gleichen Titels, schlägt den Import.
  *   Grenze: Abweichende Titel werden so nicht erkannt.
  */
-export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[]): T[] {
-  const replaced = replacedUploadIds(norms);
+export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[], place?: ProjectPlace): T[] {
+  const replaced = replacedUploadIds(norms, place);
   const manual = new Set<string>();
   const authoritativeOver = new Set<string>();
   for (const n of norms) {
