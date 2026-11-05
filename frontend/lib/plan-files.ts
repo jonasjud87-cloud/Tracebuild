@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+
 /**
  * Plansatz-Dateien: was hochgeladen werden darf und wo es liegt.
  *
@@ -50,4 +52,27 @@ export function ownedStoragePaths(projectId: string, paths: Iterable<string>): s
   return Array.from(paths).filter(
     (p) => typeof p === "string" && p.startsWith(`${projectId}/`) && p.length > projectId.length + 1 && !/\.\.|\\|%2e|%2f|%5c/i.test(p),
   );
+}
+
+/**
+ * Räumt nach einem gescheiterten Start auf. Die Pfade kommen vom Browser: Was zu einer Analyse gehört, bleibt,
+ * auch wenn die Prüfung nicht klappt. Im Zweifel bleibt die Datei liegen.
+ */
+export async function removeUnreferencedPlanFiles(
+  admin: SupabaseClient,
+  projectId: string,
+  paths: Iterable<string>,
+  fileUrl: (path: string) => string,
+): Promise<void> {
+  const owned = ownedStoragePaths(projectId, paths);
+  if (owned.length === 0) return;
+  const [files, docs] = await Promise.all([
+    admin.from("document_files").select("storage_path").in("storage_path", owned),
+    admin.from("documents").select("file_url").in("file_url", owned.map(fileUrl)),
+  ]);
+  if (files.error || docs.error) return;
+  const used = new Set((files.data ?? []).map((r) => r.storage_path as string));
+  const usedUrls = new Set((docs.data ?? []).map((r) => r.file_url as string));
+  const free = owned.filter((p) => !used.has(p) && !usedUrls.has(fileUrl(p)));
+  if (free.length > 0) await admin.storage.from("documents").remove(free);
 }

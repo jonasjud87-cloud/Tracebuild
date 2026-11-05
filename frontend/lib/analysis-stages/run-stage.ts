@@ -9,6 +9,7 @@ import type { CallOutcome, CheckItem, ConsolidationResult, NormCallResult, PlanF
 import {
   CANCEL_POLL_MS,
   DEFAULT_OVERLOAD_WAIT_MS,
+  EMPTY_ANSWER_MAX_OUTPUT_TOKENS,
   LEASE_SECONDS,
   LOST_ATTEMPT_USD,
   MAX_CONSOLIDATION_ATTEMPTS,
@@ -435,7 +436,13 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
         ? { unmetered_attempts: part.unmetered_attempts + 1 }
         : {};
 
-      if (r.ok) {
+      // Leer ist erlaubt, aber ohne Denken nicht glaubhaft: einmal wiederholen. Bleibt es leer, nennt es der Bericht.
+      const hollow = r.ok && outcome.items.length === 0 && r.output_tokens < EMPTY_ANSWER_MAX_OUTPUT_TOKENS && part.attempts < 2;
+
+      if (hollow) {
+        patch = { status: "pending", lease_id: null, items: merged.items, call: merged.call, ...merged.tokens };
+        requeue = "back";
+      } else if (r.ok) {
         patch = { status: "done", lease_id: null, items: merged.items, call: merged.call, next_effort: null, ...merged.tokens };
       } else {
         const cut = r.duration_ms < PER_CALL_BUDGET_MS - 1_000;

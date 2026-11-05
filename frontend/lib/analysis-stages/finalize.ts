@@ -40,6 +40,13 @@ export function failedNormsOf(parts: StagePart[]): { norm_id: string; norm_title
     .map((p) => ({ norm_id: p.unit.norm.id, norm_title: p.unit.label, error: p.call?.error ?? "unbekannt" }));
 }
 
+/** Normteile ohne Prüfpunkte. Kann korrekt sein, darf aber nicht wie geprüft und in Ordnung aussehen. */
+export function emptyPartsOf(parts: StagePart[]): string[] {
+  return byPosition(parts)
+    .filter((p) => p.status === "done" && (p.items?.length ?? 0) === 0)
+    .map((p) => p.unit.label);
+}
+
 export function stagesInfo(job: StageJob, parts: StagePart[]) {
   return {
     count: job.stage_no,
@@ -127,6 +134,7 @@ export async function finalizeRun(
     usage,
     calls: callsOf(parts),
     failed_norms: failedNorms,
+    empty_parts: emptyPartsOf(parts),
     insert_errors: insertErrors,
     stages: stagesInfo(job, parts),
     preflight: job.preflight,

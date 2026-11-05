@@ -2,8 +2,12 @@
 
 export const STAGE_DEADLINE_MS = 265_000; // Modellaufrufe enden spätestens hier
 export const LEASE_SECONDS = 330; // 300 s Funktionsgrenze + 30 s
-export const PER_CALL_BUDGET_MS = 150_000; // wie Engine
+export const PER_CALL_BUDGET_MS = 240_000; // wie Engine
 export const CALL_START_MIN_REMAINING_MS = 100_000;
+/** Ab so viel Restzeit startet jeder Aufruf. Wird er vom Etappenende gekappt, geht er ohne Denktiefe-Abzug weiter. */
+const CALL_START_ALWAYS_REMAINING_MS = 150_000;
+/** Darunter hat das Modell nicht gedacht: Eine leere Antwort wird einmal wiederholt. Gemessen: 9 leer, 326 mit Prüfpunkt. */
+export const EMPTY_ANSWER_MAX_OUTPUT_TOKENS = 100;
 export const MAX_PART_ATTEMPTS = 3;
 export const MAX_STAGES = 40;
 export const MAX_NO_PROGRESS_STAGES = 3;
@@ -47,7 +51,7 @@ export function maxStagedAutoParts(env: Env = process.env): number {
 }
 
 export function mayStartCall(remainingMs: number, longestCallMs: number): boolean {
-  return remainingMs >= Math.min(PER_CALL_BUDGET_MS, Math.max(CALL_START_MIN_REMAINING_MS, longestCallMs * 1.3));
+  return remainingMs >= Math.min(CALL_START_ALWAYS_REMAINING_MS, Math.max(CALL_START_MIN_REMAINING_MS, longestCallMs * 1.3));
 }
 
 /** Wartezeit nach dem n-ten Absturz in Folge: 1, 2, 4 ... höchstens 10 Minuten. */
