@@ -8,6 +8,7 @@
 -- analysis_items Titel und Befund kopiert haben (analysis_items.norm_id wird per ON DELETE SET NULL leer).
 -- norm_versions fällt per CASCADE mit der Norm weg. Vorher sichern, falls der Nachvollzug nötig ist.
 --
+-- oereb_ocr_runs bleibt als Kostennachweis (der Verweis aufs Dokument fällt per ON DELETE SET NULL).
 -- Die Rechte aus der Migration (Auszug nur lesbar, Identität per Trigger geschützt) bleiben bewusst
 -- bestehen: Auch alter Code schreibt nur über die Service-Role.
 

@@ -44,8 +44,20 @@ export interface OcrInput {
   rules: ImportFilterRules;
   /** Zeitpunkt (ms), zu dem der Aufruf abbricht. Abgebrochener Text wird nie verwendet. */
   deadlineAt: number;
-  /** Direkt vor dem kostenpflichtigen Aufruf. Wirft es, wird nicht aufgerufen. */
-  onBeforeCall?: () => Promise<void>;
+  /** Tiefer als `ocr_max_cost_usd`, wenn das Dokument schon Kosten verursacht hat. */
+  maxCostUsd?: number;
+  /** Direkt vor dem kostenpflichtigen Aufruf, mit dem Höchstbetrag. Wirft es, wird nicht aufgerufen. */
+  onBeforeCall?: (worstCaseUsd: number) => Promise<void>;
+}
+
+/** Budget erschöpft. `retry`: Das Tagesbudget ist morgen wieder frei, die Summe je Dokument nicht. */
+export class OcrBudgetError extends Error {
+  readonly retry: boolean;
+  constructor(detail: string, retry: boolean) {
+    super(detail);
+    this.name = "OcrBudgetError";
+    this.retry = retry;
+  }
 }
 
 export type OcrClient = { messages: Pick<Anthropic["messages"], "countTokens" | "stream"> };
@@ -140,12 +152,13 @@ export async function readPdfWithClaude(input: OcrInput, client: OcrClient): Pro
   try {
     // Kostenlos, und die einzige Art, die Grenze vor dem Aufruf einzuhalten.
     const counted = await client.messages.countTokens({ model, system, messages }, { signal: controller.signal, maxRetries: 0 });
-    const maxTokens = outputBudget(counted.input_tokens, pages, model, rules.ocr_max_cost_usd);
+    const maxCostUsd = input.maxCostUsd ?? rules.ocr_max_cost_usd;
+    const maxTokens = outputBudget(counted.input_tokens, pages, model, maxCostUsd);
     if (maxTokens === null) {
-      return failed("cost_limit", `${counted.input_tokens} Eingabe-Tokens und ${pages} Seiten passen nicht in ${rules.ocr_max_cost_usd} USD`);
+      return failed("cost_limit", `${counted.input_tokens} Eingabe-Tokens und ${pages} Seiten passen nicht in ${maxCostUsd} USD`);
     }
 
-    await input.onBeforeCall?.();
+    await input.onBeforeCall?.(ocrCost({ input_tokens: counted.input_tokens, output_tokens: maxTokens }, model));
 
     // Keine Wiederholung durch das SDK: Ein zweiter Lauf kostet doppelt und sprengt die Zeit des Requests.
     // Keine Refusal-Fallbacks: Das Ersatzmodell ist nicht bekannt, die Kostengrenze hielte nicht mehr.
@@ -181,6 +194,7 @@ export async function readPdfWithClaude(input: OcrInput, client: OcrClient): Pro
 
     return { kind: "read", text, model, usage, costUsd: ocrCost(usage, model), stopReason: message.stop_reason, durationMs: Date.now() - startedAt };
   } catch (e) {
+    if (e instanceof OcrBudgetError) return e.retry ? { kind: "retry", detail: e.message } : failed("cost_limit", e.message);
     const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
     if (controller.signal.aborted) return failed("timeout", `Nach ${Date.now() - startedAt} ms abgebrochen, Text wird nicht verwendet`);
     const status = statusOf(e);

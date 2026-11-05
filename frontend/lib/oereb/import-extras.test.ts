@@ -6,7 +6,8 @@ import { FakeSupabase } from "./fake-supabase";
 import type { OcrClient } from "./document-ocr";
 import { syncNextDocument, type ImportDeps } from "./document-import";
 import { resetImportFilterCache, syncProjectDocuments } from "./documents";
-import { DEFAULT_IMPORT_FILTER, isOcrCandidate, mergeFilterRules, neutralScopeEvidence, scopeOf } from "./import-filter";
+import { readFileSync } from "node:fs";
+import { DEFAULT_IMPORT_FILTER, contentStatus, foreignPlaceInTitle, isOcrCandidate, mergeFilterRules, neutralScopeEvidence, scopeOf } from "./import-filter";
 import { ForceBlockedError, setDocumentDecision } from "./manual-decision";
 
 const ACTOR = { id: "user-1", email: "a@example.ch" };
@@ -439,4 +440,152 @@ test("recheck: gelesener Text bleibt, fehlgeschlagener Versuch darf neu", async 
   await setDocumentDecision(db.asClient(), String(row(db).id), "recheck");
   assert.equal(row(db).ocr_status, null);
   assert.equal(scopeOf("Baureglement", RULES), "municipal");
+});
+
+// ── Letzte Korrekturen ───────────────────────────────────────────────────────
+
+test("Nummer: Zonenplan und Bericht bleiben parcel, neutraler Titel wird municipal", () => {
+  assert.equal(scopeOf("Zonenplan", RULES, "Baureglement 2016"), "parcel");
+  assert.equal(scopeOf("Planungsbericht", RULES, "Baureglement 2016"), "parcel");
+  assert.equal(scopeOf("Herisau", RULES, "Baureglement"), "municipal");
+});
+
+test("Fremder Ort: Ortsteile fallen auf, die eigene Gemeinde und Sachbegriffe nicht", () => {
+  const foreign = (title: string, town = "Sion") => foreignPlaceInTitle(title, town, RULES);
+  assert.equal(foreign("Règlement communal des constructions et des zones des Agettes"), "Agettes");
+  assert.equal(foreign("Règlement communal des constructions et des zones de Salins"), "Salins");
+  assert.equal(foreign("Règlement communal des constructions et des zones de Sion"), null);
+  assert.equal(foreign("Règlement de construction et de zones"), null);
+  assert.equal(foreign("Bauordnung der Stadt Bern (BO) vom 28-12-2006", "Bern"), null);
+  assert.equal(foreign("Baugesetz der Stadt Chur (3901_V_Stadt_Chur_BauG.pdf)", "Chur"), null);
+  assert.equal(foreign("Reglement über den Vollzug der Bauordnung und des Reklamereglements", "St. Gallen"), null);
+  assert.equal(foreign("Modification partielle du règlement communal des constructions - Ancienne voirie de Champsec"), null, "Änderung");
+});
+
+test("Fremder Ort im Ablauf: zur Prüfung, keine Norm; force_import übersteuert", async () => {
+  const db = setup({ title: "Baureglement von Schwellbrunn" });
+  const d = deps(ordnung());
+  await run(db, d);
+  assert.equal(row(db).status, "review");
+  assert.equal(row(db).reject_reason, "foreign_place");
+  assert.equal(db.rows("norms").length, 0);
+  assert.ok((await setDocumentDecision(db.asClient(), String(row(db).id), "force_import")).ok);
+  await run(db, d);
+  assert.equal(row(db).status, "imported");
+});
+
+test("Budget: Summe je Dokument hält auch über neue PDF-Stände", async () => {
+  const db = setup({ title: "Baureglement", rules: { ocr_enabled: true, ocr_max_total_cost_usd: 0.2 } });
+  const model = fakeModel();
+  let pdf = SCAN;
+  const d: ImportDeps = {
+    fetchDoc: async () => ({ kind: "ok", bytes: Buffer.from(`%PDF-${pdf}`), etag: null, lastModified: null }),
+    extractText: async (b) => b.toString().slice(5),
+    ocrClient: model.client,
+  };
+  await run(db, d);
+  assert.equal(model.calls.stream, 1);
+  row(db).ocr_cost_usd = 0.2;
+  pdf = `${SCAN} `;
+  makeDue(db);
+  await run(db, d);
+  assert.equal(model.calls.stream, 1, "kein weiterer Lauf");
+  assert.match(String(row(db).ocr_detail), /cost_limit/);
+});
+
+test("Budget: Tagesbudget erreicht, kein Lauf, und später wieder möglich", async () => {
+  const db = setup({ title: "Baureglement", rules: { ocr_enabled: true, ocr_daily_budget_usd: 1 } });
+  db.rows("oereb_ocr_runs").push({ id: "alt", document_id: "anderes", reserved_usd: 1, cost_usd: 1 });
+  const model = fakeModel();
+  await run(db, deps(SCAN, model.client));
+  assert.equal(model.calls.stream, 0);
+  assert.equal(row(db).ocr_status, null, "kein endgültiger Versuch");
+  assert.equal(row(db).status, "failed");
+});
+
+test("Budget: RPC fehlt, also nicht lesen", async () => {
+  const db = setup({ title: "Baureglement", rules: { ocr_enabled: true } });
+  db.missing.add("oereb_ocr_reserve");
+  const model = fakeModel();
+  await run(db, deps(SCAN, model.client));
+  assert.equal(model.calls.stream, 0);
+});
+
+test("Budget: tatsächliche Kosten ersetzen die Reservierung", async () => {
+  const db = setup({ title: "Baureglement", rules: { ocr_enabled: true } });
+  await run(db, deps(SCAN, fakeModel().client));
+  const [ledger] = db.rows("oereb_ocr_runs");
+  assert.ok(Number(ledger.reserved_usd) >= Number(ledger.cost_usd));
+  assert.equal(ledger.cost_usd, (10_000 * 4 + 5000 * 20) / 1e6);
+});
+
+test("Stopp: keine Beförderung, recheck reaktiviert keine Norm", async () => {
+  const db = setup();
+  const d = deps(ordnung());
+  await run(db, d);
+  Object.assign(row(db), { scope: "parcel", scope_reason: null });
+  db.rows("norms")[0].auto_scope = "parcel";
+  await setDocumentDecision(db.asClient(), String(row(db).id), "exclude");
+  db.rows("oereb_import_filters").push({ scope: "AR", rules: {}, active: false });
+  resetImportFilterCache();
+  await assert.rejects(
+    setDocumentDecision(db.asClient(), String(row(db).id), "recheck"),
+    (e: unknown) => e instanceof ForceBlockedError && e.reason === "import_stopped"
+  );
+  assert.equal(db.rows("norms")[0].auto_scope, "superseded");
+  assert.equal(row(db).manual_decision, "exclude");
+});
+
+test("Stopp: importiertes Dokument wird nicht befördert", async () => {
+  const db = setup();
+  const d = deps(ordnung());
+  await run(db, d);
+  Object.assign(row(db), { scope: "parcel", scope_reason: null });
+  db.rows("norms")[0].auto_scope = "parcel";
+  db.rows("oereb_import_filters").push({ scope: "AR", rules: {}, active: false });
+  resetImportFilterCache();
+  makeDue(db);
+  await run(db, d);
+  assert.equal(db.rows("norms")[0].auto_scope, "parcel");
+});
+
+test("contentStatus: positive Nummer und Gemeindeumfang ergeben review, Plan mit Nummer nicht", () => {
+  assert.equal(contentStatus("no_articles", "Herisau", RULES, "Baureglement 1994"), "review");
+  assert.equal(contentStatus("no_articles", "Herisau", RULES, null, "municipal"), "review");
+  assert.equal(contentStatus("no_articles", "Herisau", RULES, null, "parcel"), "rejected");
+  assert.equal(contentStatus("no_articles", "Zonenplan", RULES, "Baureglement 1994"), "rejected");
+});
+
+test("Skizzen nicht lesbar: Fassungsvergleich pausiert, ältere Fassung bleibt abgelehnt", async () => {
+  const db = setup({ title: "Baureglement" });
+  await run(db, deps(ordnung()));
+  const older = { ...row(db), id: "alt", url_normalized: "https://oereblex.ar.ch/api/attachments/1", url: "https://oereblex.ar.ch/api/attachments/1", status: "rejected", reject_reason: "older_version", version_winner_id: row(db).id, norm_id: null, next_check_at: new Date(Date.now() + 1e8).toISOString() };
+  db.rows("oereb_themes")[0].law_links = [...(db.rows("oereb_themes")[0].law_links as object[]), { title: "Baureglement", url: older.url, kind: "LegalProvision", authority: "Gemeindeverwaltung" }];
+  db.rows("oereb_documents").push(older);
+  row(db).text_sketch = null;
+  const client = db.asClient();
+  const failing = {
+    rpc: (n: string, a: never) => (client as unknown as { rpc: (n: string, a: never) => unknown }).rpc(n, a),
+    from: (t: string) => {
+      const q = client.from(t) as unknown as { select: (c?: string) => unknown };
+      const select = q.select.bind(q);
+      q.select = (c?: string) => (c === "id, text_sketch" ? { in: async () => ({ data: null, error: { message: "Zeitüberschreitung" } }) } : select(c));
+      return q;
+    },
+  };
+  await syncProjectDocuments(failing as unknown as typeof client, "p1");
+  assert.equal(db.rows("oereb_documents").find((x) => x.id === "alt")?.reject_reason, "older_version");
+});
+
+test("Migrationen: Funktionen und Trigger nur in 20261109, Budget service-only", () => {
+  const read = (f: string) => readFileSync(new URL(`../../../supabase/migrations/${f}`, import.meta.url), "utf8").replace(/^--.*$/gm, "");
+  const first = read("20261107000001_oereb_filter_fix.sql");
+  const second = read("20261109000001_oereb_import_extras.sql");
+  assert.ok(!/CREATE (OR REPLACE )?(FUNCTION|TRIGGER)/.test(first));
+  assert.ok(!first.includes("oereb_apply_version_actions"));
+  assert.match(second, /CREATE TRIGGER norms_protect_system_fields/);
+  assert.match(second, /NEW\.text_read_by_ai := OLD\.text_read_by_ai/);
+  assert.match(second, /REVOKE ALL ON FUNCTION public\.oereb_ocr_reserve/);
+  assert.match(second, /oereb_ocr_runs ENABLE ROW LEVEL SECURITY/);
+  assert.ok(second.indexOf("ADD COLUMN IF NOT EXISTS text_read_by_ai") < second.indexOf("CREATE OR REPLACE FUNCTION public.protect_norm_system_fields"));
 });

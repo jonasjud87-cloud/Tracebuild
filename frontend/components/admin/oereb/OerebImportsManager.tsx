@@ -121,6 +121,7 @@ function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[
             <th scope="col" className={TH}>Scans</th>
             <th scope="col" className={TH}>Fehler</th>
             <th scope="col" className={TH}>Offen</th>
+            <th scope="col" className={TH}>Zur Prüfung</th>
           </tr>
         </thead>
         <tbody>
@@ -144,6 +145,7 @@ function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[
               <td className={TD}>{c.scans}</td>
               <td className={TD}>{c.failed}</td>
               <td className={TD}>{c.pending}</td>
+              <td className={TD}>{c.review}</td>
             </tr>
           ))}
         </tbody>

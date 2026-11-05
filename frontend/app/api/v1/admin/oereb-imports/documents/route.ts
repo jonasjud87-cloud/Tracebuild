@@ -11,7 +11,7 @@ const DEFAULT_LIMIT = 100;
 const MAX_LIMIT = 200;
 const SCAN_PAGE = 1000;
 const SCAN_MAX_PAGES = 20;
-const STATUSES = new Set(["pending", "imported", "rejected", "failed", "duplicate_manual", "removed"]);
+const STATUSES = new Set(["pending", "imported", "rejected", "failed", "duplicate_manual", "removed", "review"]);
 
 // Ohne filter_snapshot und text_sketch: gross und für die Anzeige ohne Nutzen.
 const BASE_COLUMNS =

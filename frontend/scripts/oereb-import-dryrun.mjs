@@ -20,6 +20,7 @@ import {
   contentStatus,
   decidePreDownload,
   documentPriority,
+  foreignPlaceInTitle,
   isAmendmentTitle,
   resolveFilterRules,
   scopeOf,
@@ -193,6 +194,10 @@ async function runCanton(label, canton, file, summary) {
       d.status = "rejected";
       d.reject_reason = "too_long";
       d.detail = `${pdf.text.length} Zeichen`;
+    } else if (foreignPlaceInTitle(d.title, municipality, rules)) {
+      d.status = "review";
+      d.reject_reason = "foreign_place";
+      d.detail = `Titel nennt «${foreignPlaceInTitle(d.title, municipality, rules)}»`;
     } else {
       d.status = "imported";
       d.norm_id = d.id;

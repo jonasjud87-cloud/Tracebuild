@@ -20,6 +20,7 @@ export interface CantonOverview {
   scans: number;
   failed: number;
   pending: number;
+  review: number;
 }
 
 export interface FilterRow {

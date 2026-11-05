@@ -235,7 +235,9 @@ test("Inhaltsgründe: nur Regeln desselben Grundes lösen eine Neubeurteilung au
 // ── 7. Rechte (statisch; die Ausführung prüft nur eine echte Datenbank) ──────
 
 test("Migration: Trigger setzt Systemspalten für anon und authenticated zurück, RPC nur für service_role", () => {
-  const sql = readFileSync(new URL("../../../supabase/migrations/20261107000001_oereb_filter_fix.sql", import.meta.url), "utf8");
+  const sql =
+    readFileSync(new URL("../../../supabase/migrations/20261107000001_oereb_filter_fix.sql", import.meta.url), "utf8") +
+    readFileSync(new URL("../../../supabase/migrations/20261109000001_oereb_import_extras.sql", import.meta.url), "utf8");
   const trigger = sql.slice(sql.indexOf("protect_norm_system_fields() RETURNS"), sql.indexOf("DROP TRIGGER IF EXISTS norms_protect_system_fields"));
   assert.match(trigger, /current_user NOT IN \('anon', 'authenticated'\)/);
   for (const column of ["source_kind", "auto_scope", "superseded_by_norm_id", "superseded_similarity", "superseded_at", "org_authoritative_at", "org_authoritative_by"]) {

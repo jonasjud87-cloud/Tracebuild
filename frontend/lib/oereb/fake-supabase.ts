@@ -142,7 +142,19 @@ export class FakeSupabase {
     return new Query(this, table);
   }
   /** Bildet oereb_apply_version_actions nach. Die SQL-Fassung prüft sie nicht. */
-  async rpc(name: string, args: { p_canton: string; p_bfs: number; p_actions: FakeAction[] }) {
+  async rpc(name: string, args: { p_canton: string; p_bfs: number; p_actions: FakeAction[] } & Record<string, unknown>) {
+    if (name === "oereb_ocr_reserve" && !this.missing.has(name)) {
+      const runs = this.rows("oereb_ocr_runs");
+      const sum = (list: Row[]) => list.reduce((s, r) => s + Number(r.cost_usd ?? r.reserved_usd), 0);
+      const reserve = Number(args.p_reserve_usd);
+      if (sum(runs) + reserve > Number(args.p_daily_budget_usd)) return { data: { ok: false, reason: "daily" }, error: null };
+      if (sum(runs.filter((r) => r.document_id === args.p_document_id)) + reserve > Number(args.p_document_max_usd)) {
+        return { data: { ok: false, reason: "document" }, error: null };
+      }
+      const id = this.nextId("oereb_ocr_runs");
+      runs.push({ id, document_id: args.p_document_id, reserved_usd: reserve, cost_usd: null });
+      return { data: { ok: true, run_id: id }, error: null };
+    }
     if (name !== "oereb_apply_version_actions" || this.missing.has(name)) {
       return { data: null, error: { message: `Could not find the function public.${name} in the schema cache` } };
     }

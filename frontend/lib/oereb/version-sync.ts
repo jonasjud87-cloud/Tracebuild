@@ -130,7 +130,7 @@ async function reassessFromNorms(ctx: VersionSyncContext, changed: Set<string>):
     const { rejection } = assessContent(norm.text ?? "", ctx.rules, doc.title);
     const common = { ...measures, filter_snapshot: ctx.rules };
     if (rejection && doc.status === "imported") {
-      const status = contentStatus(rejection.reason, doc.title, ctx.rules);
+      const status = contentStatus(rejection.reason, doc.title, ctx.rules, doc.official_number, doc.scope);
       await applyActions(ctx, [{ ...expected(doc), norm: "withdraw", patch: { ...common, status, reject_reason: rejection.reason, reject_detail: rejection.detail } }]);
     } else if (!rejection && withdrawnForContent) {
       const result = await applyActions(ctx, [{ ...expected(doc), norm: "reinstate", patch: { ...common, status: "imported", reject_reason: null, reject_detail: null } }]);
@@ -171,7 +171,7 @@ function toRpcAction(step: VersionAction, ctx: VersionSyncContext, byId: Map<str
     return {
       ...base,
       patch: {
-        status: contentStatus(doc.content_reason, doc.title, ctx.rules),
+        status: contentStatus(doc.content_reason, doc.title, ctx.rules, doc.official_number, doc.scope),
         reject_reason: doc.content_reason,
         reject_detail: "Nach Wegfall der neueren Fassung erneut beurteilt",
         version_winner_id: null,
@@ -187,24 +187,26 @@ function toRpcAction(step: VersionAction, ctx: VersionSyncContext, byId: Map<str
 }
 
 /** Skizzen nur laden, wo ein Vergleich ansteht: Die Dokumentliste trägt sie sonst nicht. */
-async function loadSketches(ctx: VersionSyncContext): Promise<void> {
+/** false: nicht lesbar. Ohne Skizzen sähe der Vergleich keine Gewinner und gäbe ältere Fassungen frei. */
+async function loadSketches(ctx: VersionSyncContext): Promise<boolean> {
   const measured = ctx.own.filter((d) => typeof d.article_run === "number" && !d.text_sketch);
   const ids = groupByIdentity(measured.concat(ctx.own.filter((d) => !!d.text_sketch)))
     .filter((group) => group.length > 1)
     .flat()
     .filter((d) => !d.text_sketch)
     .map((d) => d.id);
-  if (!ids.length) return;
+  if (!ids.length) return true;
   const { data, error } = await ctx.admin.from("oereb_documents").select("id, text_sketch").in("id", ids);
   if (error) {
-    if (!isMissingSchema(error.message)) console.error("Textskizzen nicht lesbar:", error.message);
-    return;
+    if (!isMissingSchema(error.message)) console.error("Textskizzen nicht lesbar, Fassungsvergleich ausgesetzt:", error.message);
+    return false;
   }
   const byId = new Map(ctx.own.map((d) => [d.id, d]));
   for (const row of (data ?? []) as { id: string; text_sketch: TextSketch | null }[]) {
     const doc = byId.get(row.id);
     if (doc) doc.text_sketch = row.text_sketch;
   }
+  return true;
 }
 
 /** Gibt die Normen zurück, deren Zuweisung neu berechnet werden muss. Fehler einzelner Schritte blockieren nichts. */
@@ -212,7 +214,7 @@ export async function reconcileVersions(ctx: VersionSyncContext): Promise<string
   const changed = new Set<string>();
   await repairInconsistentNorms(ctx, changed);
   await reassessFromNorms(ctx, changed);
-  await loadSketches(ctx);
+  if (!(await loadSketches(ctx))) return Array.from(changed);
 
   const byId = new Map(ctx.all.map((d) => [d.id, d]));
   const nowIso = new Date(ctx.nowMs).toISOString();

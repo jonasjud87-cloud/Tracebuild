@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   } catch (e) {
     if (e instanceof ForceBlockedError) {
       console.warn(`ÖREB-Entscheid ${decision} zu ${params.id} abgewiesen: ${e.code} (${e.reason})`);
-      return err(`Trotzdem importieren ist hier nicht erlaubt: ${e.message}.`, 422);
+      return err(`Dieser Entscheid ist hier nicht möglich: ${e.message}.`, 422);
     }
     console.error(`ÖREB-Entscheid ${decision} zu ${params.id} fehlgeschlagen:`, e);
     return err("Der Entscheid konnte nicht gespeichert werden.", 500);

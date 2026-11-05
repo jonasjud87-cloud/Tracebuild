@@ -80,6 +80,10 @@ export interface ImportFilterRules {
   neutral_authority_terms: string[];
   /** Plan oder objektbezogene Vorschrift im Titel: nie gemeindeweit, Scans werden nicht gelesen. */
   neutral_title_block: string[];
+  /** Ortsname am Titelende, in Gruppe 1: «… des zones des Agettes». Fusionsgemeinde: Das Reglement gilt evtl. nur für den Ortsteil. */
+  place_title_pattern: string;
+  /** Kein Ortsname: «Stadt Bern» meint Bern, «… des Reklamereglements» gar keinen Ort. */
+  place_generic_terms: string[];
   /** Dieselben Begriffe am Textanfang: «Reglement» zur Schutzverordnung. */
   neutral_head_block: string[];
   neutral_head_chars: number;
@@ -100,6 +104,10 @@ export interface ImportFilterRules {
   ocr_max_pdf_bytes: number;
   /** Harte Grenze je Dokument: `max_tokens` wird daraus berechnet. */
   ocr_max_cost_usd: number;
+  /** Summe aller Läufe zu einem Dokument, auch über neue PDF-Stände hinweg. */
+  ocr_max_total_cost_usd: number;
+  /** Alle Dokumente zusammen je Kalendertag (Zürich). Abgebrochene Läufe zählen mit ihrem Höchstbetrag. */
+  ocr_daily_budget_usd: number;
   /** Zeit ab Beginn des Requests, nach der das Lesen abbricht (Funktionslimit 300 s). */
   ocr_deadline_ms: number;
   /** Bleibt weniger Zeit, startet der Aufruf nicht und das Dokument kommt später wieder dran. */
@@ -196,6 +204,8 @@ export const DEFAULT_IMPORT_FILTER: ImportFilterRules = {
     "schutzverordnung", "schutzplan", "quartierplan", "gestaltungsplan", "überbauungsplan", "überbauungsordnung",
     "bebauungsplan", "sondernutzungsplan", "baulinienplan", "teilzonenreglement", "teilzonenplan", "plan de quartier", "piano di quartiere",
   ],
+  place_title_pattern: "(?:\\b(?:de|des|du|von|der|di|della|dei)\\s+|\\bd')((?:[Ll]es?\\s+|[Ll]a\\s+)?\\p{Lu}[\\p{L}'.-]+(?:[ -]\\p{Lu}[\\p{L}'.-]+)*)\\s*(?:\\d{4}\\s*)?(?:\\([^)]*\\)\\s*)?(?:vom\\s.*)?$",
+  place_generic_terms: ["stadt", "gemeinde", "einwohnergemeinde", "ville", "commune", "comune", "citta", "reglement", "ordnung", "gesetz", "zonen"],
   neutral_head_chars: 600,
   neutral_zone_terms: [
     "wohnzone", "gewerbezone", "industriezone", "kernzone", "dorfzone", "landwirtschaftszone", "zonenordnung", "grundnutzung",
@@ -212,6 +222,8 @@ export const DEFAULT_IMPORT_FILTER: ImportFilterRules = {
   ocr_max_pages: 60,
   ocr_max_pdf_bytes: 23_000_000,
   ocr_max_cost_usd: 3,
+  ocr_max_total_cost_usd: 6,
+  ocr_daily_budget_usd: 20,
   ocr_deadline_ms: 270_000,
   ocr_min_call_ms: 120_000,
 };
@@ -220,13 +232,13 @@ const ARRAY_KEYS = [
   "doc_types", "title_positive", "title_negative", "title_reject_exact", "title_not_in_force", "title_amendment",
   "content_reject_head", "letter_head_terms", "version_date_markers", "title_annex", "title_special_plan", "title_regulation", "hint_allow",
   "doc_types_positive_title", "article_reference_after", "article_reference_before", "enactment_terms", "authority_reject", "allowed_hosts", "http_allowed_hosts",
-  "neutral_themes", "neutral_authority_terms", "neutral_title_block", "neutral_head_block", "neutral_zone_terms", "ocr_themes",
+  "neutral_themes", "neutral_authority_terms", "neutral_title_block", "neutral_head_block", "neutral_zone_terms", "ocr_themes", "place_generic_terms",
 ] as const;
 const NUMBER_KEYS = [
   "min_text_chars", "min_article_run", "min_article_run_amendment", "min_article_run_neutral", "min_paragraph_groups", "max_pdf_bytes", "max_accepted_per_municipality", "recheck_hours", "shrink_min_ratio", "supersede_after_days",
   "letter_head_chars", "letter_head_min_hits", "letter_override_article_run", "version_run_tie_ratio", "version_min_overlap", "older_version_recheck_hours", "upload_similarity_min",
   "force_min_text_chars", "neutral_head_chars", "neutral_min_zone_terms", "neutral_min_article_run",
-  "ocr_min_pages", "ocr_max_pages", "ocr_max_pdf_bytes", "ocr_max_cost_usd", "ocr_deadline_ms", "ocr_min_call_ms",
+  "ocr_min_pages", "ocr_max_pages", "ocr_max_pdf_bytes", "ocr_max_cost_usd", "ocr_max_total_cost_usd", "ocr_daily_budget_usd", "ocr_deadline_ms", "ocr_min_call_ms",
 ] as const;
 
 function stringList(v: unknown): string[] | null {
@@ -255,6 +267,7 @@ export function mergeFilterRules(base: ImportFilterRules, overlay: unknown): Imp
   // Nur ein echtes Boolean schaltet um: Ein Tippfehler in der Datenzeile darf keine Kosten auslösen.
   if (typeof o.ocr_enabled === "boolean") out.ocr_enabled = o.ocr_enabled;
   if (typeof o.ocr_model === "string" && o.ocr_model.trim()) out.ocr_model = o.ocr_model.trim();
+  if (typeof o.place_title_pattern === "string" && capturesNumber(o.place_title_pattern, "u")) out.place_title_pattern = o.place_title_pattern;
   return out;
 }
 
@@ -352,7 +365,37 @@ export function documentPriority(title: string, rules: ImportFilterRules): numbe
 /** `municipal` bei positivem Titel oder positiver Nummer, nie bei Sondernutzung und Schutz. Sonst gilt die Vorschrift nur für Grundstücke mit ihr im Auszug. */
 export function scopeOf(title: string, rules: ImportFilterRules, officialNumber?: string | null): "municipal" | "parcel" {
   if (isSpecialPlanTitle(title, rules)) return "parcel";
-  return isTitlePositive(title, rules) || isOfficialNumberPositive(officialNumber, rules) ? "municipal" : "parcel";
+  return isTitlePositive(title, rules) || numberNamesRegulation(title, officialNumber, rules) ? "municipal" : "parcel";
+}
+
+/** Die Nummer zählt nur bei neutralem Titel: Ein «Zonenplan» mit der Nummer «Baureglement …» bleibt ein Plan. */
+function numberNamesRegulation(title: string, officialNumber: string | null | undefined, rules: ImportFilterRules): boolean {
+  if (!isOfficialNumberPositive(officialNumber, rules)) return false;
+  const f = fold(title);
+  return !rules.neutral_title_block.some((t) => matchesTerm(f, t)) && !rules.title_negative.some((t) => matchesTerm(f, t));
+}
+
+/**
+ * Fremder Ort am Titelende eines Hauptreglements: Nach einer Fusion gilt es vielleicht nur für den Ortsteil
+ * (Sion: «… des Agettes», «… de Salins»), `municipal` träfe die ganze Gemeinde. Geht zur Prüfung. Eine andere
+ * Schreibweise der Gemeinde (Sitten/Sion) landet ebenfalls dort, verloren geht also nichts.
+ */
+export function foreignPlaceInTitle(title: string, municipality: string, rules: ImportFilterRules): string | null {
+  if (!isTitlePositive(title, rules) || isAmendmentTitle(title, rules)) return null;
+  let match: RegExpExecArray | null;
+  try {
+    match = new RegExp(rules.place_title_pattern, "u").exec(title.trim());
+  } catch {
+    return null;
+  }
+  const generic = rules.place_generic_terms.map(fold);
+  const place = fold(match?.[1] ?? "")
+    .split(/[\s-]+/)
+    .filter((word) => word && !["le", "les", "la"].includes(word) && !generic.some((g) => word.includes(g)))
+    .join(" ");
+  if (!place) return null;
+  const home = fold(municipality).replace(/-/g, " ");
+  return home.includes(place) || place.includes(home) ? null : (match?.[1] ?? null);
 }
 
 interface NeutralDocument {
@@ -488,9 +531,9 @@ export function decidePreDownload(
 // ── Entscheid nach dem Download ──────────────────────────────────────────────
 
 /** Das Muster muss kompilieren und die Nummer als erste Gruppe liefern. */
-function capturesNumber(source: string): boolean {
+function capturesNumber(source: string, flags = ""): boolean {
   try {
-    return (new RegExp(`${source}|`).exec("") as RegExpExecArray).length > 1;
+    return (new RegExp(`${source}|`, flags).exec("") as RegExpExecArray).length > 1;
   } catch {
     return false;
   }
@@ -564,8 +607,15 @@ function isParagraphEnactment(text: string, rules: ImportFilterRules): boolean {
  * Was ein Inhaltsgrund für den Status bedeutet. Ein Reglement oder eine Sondernutzungsvorschrift ohne
  * erkannte Artikel wird nicht verworfen, sondern geht zur manuellen Prüfung.
  */
-export function contentStatus(reason: string | null | undefined, title: string, rules: ImportFilterRules, officialNumber?: string | null): "rejected" | typeof REVIEW_STATUS {
-  const named = isTitlePositive(title, rules) || isSpecialPlanTitle(title, rules) || isOfficialNumberPositive(officialNumber, rules);
+export function contentStatus(
+  reason: string | null | undefined,
+  title: string,
+  rules: ImportFilterRules,
+  officialNumber?: string | null,
+  /** Die Zeile trägt nur die normalisierte Nummer: «Baureglement» ohne Ziffer zeigt sich nur noch am Umfang. */
+  scope?: string | null
+): "rejected" | typeof REVIEW_STATUS {
+  const named = isTitlePositive(title, rules) || isSpecialPlanTitle(title, rules) || scope === "municipal" || numberNamesRegulation(title, officialNumber, rules);
   return reason === "no_articles" && named ? REVIEW_STATUS : "rejected";
 }
 

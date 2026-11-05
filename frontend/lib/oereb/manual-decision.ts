@@ -103,6 +103,11 @@ export async function setDocumentDecision(
   }
 
   if (decision === "force_import") await assertForceAllowed(admin, doc);
+  // Der Stopp lässt keine zurückgenommene Norm wieder gelten. Ohne Norm bleibt «neu prüfen» erlaubt.
+  if (decision === "recheck" && doc.norm_id && doc.status !== "imported") {
+    const rules = await loadImportFilter(admin, doc.canton);
+    if (rules.doc_types.length === 0) throw new ForceBlockedError("import_stopped", "Der Import ist für diesen Kanton gestoppt");
+  }
 
   const nowIso = new Date(now).toISOString();
   const wasExcluded = doc.manual_decision === "exclude" || doc.reject_reason === MANUAL_EXCLUDE_REASON;

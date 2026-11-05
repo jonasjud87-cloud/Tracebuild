@@ -20,13 +20,15 @@ import {
   type ProjectDocumentState,
 } from "./documents";
 import { VERSION_COLUMNS, measureDocument } from "./document-versions";
-import { readPdfWithClaude, textWithoutPageMarkers, pageCountFromText, type OcrClient, type OcrResult } from "./document-ocr";
+import { OcrBudgetError, readPdfWithClaude, textWithoutPageMarkers, pageCountFromText, type OcrClient, type OcrResult } from "./document-ocr";
 import {
   MANUAL_EXCLUDE_REASON,
   OLDER_VERSION_REASON,
+  REVIEW_STATUS,
   contentStatus,
   decideContent,
   decidePreDownload,
+  foreignPlaceInTitle,
   isNeutralScopeCandidate,
   isOcrCandidate,
   neutralScopeEvidence,
@@ -281,7 +283,8 @@ async function relinkUploads(ctx: ImportContext, doc: OerebDocumentRow, normId: 
  */
 async function upgradeNeutralScope(ctx: ImportContext, doc: OerebDocumentRow, normId: string, knownText?: string): Promise<void> {
   const { admin, rules, state } = ctx;
-  if (doc.scope === "municipal" || !isNeutralScopeCandidate(doc, rules)) return;
+  // Im Stopp ändert sich an der Geltung nichts.
+  if (rules.doc_types.length === 0 || doc.scope === "municipal" || !isNeutralScopeCandidate(doc, rules)) return;
   if (knownText === undefined && typeof doc.article_run === "number" && doc.article_run < rules.neutral_min_article_run) return;
   let text = knownText;
   if (text === undefined) {
@@ -377,6 +380,14 @@ async function readScan(ctx: ImportContext, doc: OerebDocumentRow, bytes: Buffer
     return null;
   }
 
+  // Summe je Dokument: Sonst zahlte jeder neue PDF-Stand wieder den vollen Betrag.
+  const spent = Number(doc.ocr_cost_usd ?? 0);
+  const left = rules.ocr_max_total_cost_usd - spent;
+  if (left <= 0) {
+    await saveOcrState(ctx, doc, { ocr_status: "failed", ocr_pdf_sha256: pdfSha, ocr_detail: `cost_limit: ${spent} USD von ${rules.ocr_max_total_cost_usd} USD verbraucht`, ocr_read_at: nowIso });
+    return null;
+  }
+
   const pages = pageCountFromText(text);
   const deadlineAt = now + rules.ocr_deadline_ms;
   if (deadlineAt - Date.now() < rules.ocr_min_call_ms) {
@@ -384,6 +395,7 @@ async function readScan(ctx: ImportContext, doc: OerebDocumentRow, bytes: Buffer
     throw new Error("Zu wenig Zeit für das Lesen des Scans in diesem Request");
   }
 
+  let runId: string | null = null;
   const client = deps.ocrClient ?? ((await import("../anthropic")).anthropic as unknown as OcrClient);
   const result = await readPdfWithClaude(
     {
@@ -392,7 +404,24 @@ async function readScan(ctx: ImportContext, doc: OerebDocumentRow, bytes: Buffer
       pages,
       rules,
       deadlineAt,
-      onBeforeCall: async () => {
+      maxCostUsd: Math.min(rules.ocr_max_cost_usd, left),
+      onBeforeCall: async (worstCaseUsd) => {
+        // Atomar reserviert, auch gegen parallele Läufe. Nicht prüfbar heisst: nicht lesen.
+        const { data, error } = await ctx.admin.rpc("oereb_ocr_reserve", {
+          p_document_id: doc.id,
+          p_pdf_sha256: pdfSha,
+          p_model: rules.ocr_model,
+          p_reserve_usd: worstCaseUsd,
+          p_daily_budget_usd: rules.ocr_daily_budget_usd,
+          p_document_max_usd: rules.ocr_max_total_cost_usd,
+        });
+        if (error) throw new OcrBudgetError(`Budget nicht prüfbar: ${error.message}`, true);
+        const reserved = data as { ok?: boolean; reason?: string; run_id?: string } | null;
+        if (!reserved?.ok) {
+          const daily = reserved?.reason !== "document";
+          throw new OcrBudgetError(daily ? `Tagesbudget von ${rules.ocr_daily_budget_usd} USD erreicht` : `Summe von ${rules.ocr_max_total_cost_usd} USD für dieses Dokument erreicht`, daily);
+        }
+        runId = reserved.run_id ?? null;
         const saved = await saveOcrState(ctx, doc, { ocr_status: "started", ocr_pdf_sha256: pdfSha, ocr_model: rules.ocr_model, ocr_pages: pages, ocr_detail: null, ocr_read_at: nowIso });
         if (!saved) throw new Error("Leseversuch konnte nicht festgehalten werden");
       },
@@ -400,6 +429,11 @@ async function readScan(ctx: ImportContext, doc: OerebDocumentRow, bytes: Buffer
     client
   );
 
+  // Tatsächlicher Betrag statt der Reservierung. Bleibt das aus (Absturz), zählt der Höchstbetrag weiter.
+  if (runId) {
+    const { error } = await ctx.admin.from("oereb_ocr_runs").update({ cost_usd: result.kind === "retry" ? 0 : result.costUsd }).eq("id", runId);
+    if (error) console.error(`Lesekosten des Laufs ${runId} nicht gespeichert:`, error.message);
+  }
   if (result.kind === "retry") {
     await saveOcrState(ctx, doc, { ocr_status: null, ocr_pdf_sha256: null, ocr_detail: `retry: ${result.detail}` });
     throw new Error(`Scan konnte nicht gelesen werden: ${result.detail}`);
@@ -779,7 +813,13 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
 
   const rejected = decideContent(text, rules, doc.title);
   if (rejected && !(forced && textWithoutPageMarkers(text).length >= rules.force_min_text_chars)) {
-    await rejectNew(ctx, doc, rejected.reason, rejected.detail, { ...measured, status: contentStatus(rejected.reason, doc.title, rules, doc.official_number) });
+    await rejectNew(ctx, doc, rejected.reason, rejected.detail, { ...measured, status: contentStatus(rejected.reason, doc.title, rules, doc.official_number, finalScope) });
+    return { outcome: "rejected" };
+  }
+  // Hauptreglement mit fremdem Ort im Titel: Vielleicht gilt es nur für einen Ortsteil. Ein Mensch entscheidet.
+  const foreignPlace = forced ? null : foreignPlaceInTitle(doc.title, state.municipality, rules);
+  if (foreignPlace) {
+    await rejectNew(ctx, doc, "foreign_place", `Titel nennt «${foreignPlace}», der Auszug gilt für ${state.municipality}`, { ...measured, status: REVIEW_STATUS });
     return { outcome: "rejected" };
   }
   if (evidence && !forced && isCapped({ title: doc.title, scope: "municipal" }, state.all, rules)) {

@@ -206,6 +206,7 @@ export const REVIEW_LABEL = "zur Prüfung vorgemerkt";
 
 const REJECT_REASON_LABELS: Record<string, string> = {
   manual_exclude: "von einem Admin ausgeschlossen",
+  foreign_place: "Titel nennt einen anderen Ort, gilt vielleicht nur für einen Ortsteil",
   doc_type: "kein Reglement (Gesetz oder Hinweis)",
   authority: "Bundesrecht, bleibt als Link",
   title_exact: "Titel ausgeschlossen",

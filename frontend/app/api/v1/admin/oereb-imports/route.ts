@@ -46,7 +46,7 @@ export async function GET() {
         canton,
         release: releaseOf(filters, canton),
         own_rules: own ? (own.active ? "active" : "inactive") : "none",
-        total: 0, imported: 0, rejected: 0, scans: 0, failed: 0, pending: 0,
+        total: 0, imported: 0, rejected: 0, scans: 0, failed: 0, pending: 0, review: 0,
       } satisfies CantonOverview];
     })
   );
@@ -70,6 +70,7 @@ export async function GET() {
       if (row.status === "imported") entry.imported++;
       else if (row.status === "failed") entry.failed++;
       else if (row.status === "pending") entry.pending++;
+      else if (row.status === "review") entry.review++;
       else if (row.status === "rejected") {
         if (row.reject_reason === "scan_or_short") entry.scans++;
         else entry.rejected++;

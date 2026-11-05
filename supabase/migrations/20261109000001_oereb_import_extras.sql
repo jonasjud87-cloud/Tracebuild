@@ -1,6 +1,6 @@
 -- Erweiterungen des Reglement-Imports: Scans durch Claude lesen, Herkunft des Umfangs, Admin-Entscheide.
--- Additiv und mehrfach ausführbar. NICHT automatisch ausführen. Nach 20261107000001 einspielen, deren Trigger und RPC hier erweitert werden.
--- Wird 20261107000001 erneut ausgeführt, danach auch diese Datei: Sonst gelten dort wieder die engeren Fassungen.
+-- Additiv und mehrfach ausführbar. NICHT automatisch ausführen. Nach 20261107000001 einspielen (deren Spalten braucht es hier).
+-- Einzige Definition von Trigger und RPC des Imports. Ohne diese Datei bleibt der Fassungsvergleich ausgesetzt.
 
 SET lock_timeout = '3s';
 
@@ -47,8 +47,10 @@ BEGIN
   END IF;
 END $$;
 
--- ── Rechte: Auch die Herkunft «per KI gelesen» setzt nur der Server ──────────
--- Dieselbe Funktion wie in 20261107000001, ergänzt um text_read_by_ai. Der Trigger bleibt bestehen.
+-- ── Rechte: Herkunft, Ablösung und «per KI gelesen» setzt nur der Server ─────
+-- norms_org_insert erlaubt Inserts mit Anon-Key. Ohne diesen Trigger liesse sich damit ein Upload als
+-- massgebend setzen, eine Herkunft fälschen und über den Fremdschlüssel prüfen, ob eine fremde Norm existiert.
+-- Der Trigger läuft vor der FK-Prüfung, das Orakel entfällt. Prüft die Rolle der Anfrage, also SECURITY INVOKER.
 CREATE OR REPLACE FUNCTION public.protect_norm_system_fields() RETURNS trigger
 LANGUAGE plpgsql
 SET search_path = ''
@@ -82,8 +84,18 @@ BEGIN
 END;
 $$;
 
--- ── Entscheide atomar, über dieselbe Sperre wie der Fassungsvergleich ────────
--- Wie in 20261107000001, zusätzlich mit den Feldern der Admin-Entscheide im Patch.
+DROP TRIGGER IF EXISTS norms_protect_system_fields ON norms;
+CREATE TRIGGER norms_protect_system_fields
+  BEFORE INSERT OR UPDATE ON norms
+  FOR EACH ROW EXECUTE FUNCTION public.protect_norm_system_fields();
+
+-- ── Fassungsvergleich und Entscheide atomar anwenden ─────────────────────────
+-- Lauf A (Import) und Lauf B (Vergleich, auch aus einem GET) dürfen sich nicht überschreiben: Sonst steht
+-- ein Dokument auf `imported`, seine Norm aber auf `superseded`, und der Gemeinde fehlt das Reglement.
+-- Sperre je Gemeinde, weil sich Versionsgruppen je nach Auszug unterscheiden. Bricht ganz ab, wenn ein
+-- beteiligtes Dokument gerade verarbeitet wird oder sich sein Stand seit dem Lesen geändert hat; der
+-- nächste Abgleich entscheidet neu.
+-- Aktion: { doc_id, expect_status, expect_reason, winner_id?, expect_winner_status?, norm?: 'withdraw'|'reinstate', patch: {...} }
 CREATE OR REPLACE FUNCTION public.oereb_apply_version_actions(p_canton text, p_bfs integer, p_actions jsonb)
 RETURNS jsonb
 LANGUAGE plpgsql
@@ -181,5 +193,57 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.oereb_apply_version_actions(text, integer, jsonb) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.oereb_apply_version_actions(text, integer, jsonb) TO service_role;
+
+-- ── Lesekosten: Summe je Dokument und Tagesbudget ────────────────────────────
+-- Jeder Lauf reserviert vor dem Modellaufruf seinen Höchstbetrag und trägt danach den echten Betrag ein.
+-- Bleibt das aus (Absturz), zählt der Höchstbetrag weiter: Die Grenze hält im Zweifel zu früh.
+CREATE TABLE IF NOT EXISTS oereb_ocr_runs (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id  uuid REFERENCES oereb_documents(id) ON DELETE SET NULL,
+  pdf_sha256   text,
+  model        text,
+  reserved_usd numeric(10, 4) NOT NULL,
+  cost_usd     numeric(10, 4),
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS oereb_ocr_runs_created_idx ON oereb_ocr_runs (created_at);
+CREATE INDEX IF NOT EXISTS oereb_ocr_runs_document_idx ON oereb_ocr_runs (document_id);
+-- Ohne Policy: nur die Service-Role.
+ALTER TABLE oereb_ocr_runs ENABLE ROW LEVEL SECURITY;
+
+CREATE OR REPLACE FUNCTION public.oereb_ocr_reserve(
+  p_document_id uuid, p_pdf_sha256 text, p_model text,
+  p_reserve_usd numeric, p_daily_budget_usd numeric, p_document_max_usd numeric
+) RETURNS jsonb
+LANGUAGE plpgsql
+SET search_path = ''
+AS $$
+DECLARE
+  v_today numeric;
+  v_document numeric;
+  v_id uuid;
+BEGIN
+  PERFORM pg_advisory_xact_lock(hashtext('oereb_ocr_budget'));
+
+  SELECT COALESCE(sum(COALESCE(r.cost_usd, r.reserved_usd)), 0) INTO v_today FROM public.oereb_ocr_runs r
+    WHERE r.created_at >= date_trunc('day', now() AT TIME ZONE 'Europe/Zurich') AT TIME ZONE 'Europe/Zurich';
+  IF v_today + p_reserve_usd > p_daily_budget_usd THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'daily');
+  END IF;
+
+  SELECT COALESCE(sum(COALESCE(r.cost_usd, r.reserved_usd)), 0) INTO v_document FROM public.oereb_ocr_runs r
+    WHERE r.document_id = p_document_id;
+  IF v_document + p_reserve_usd > p_document_max_usd THEN
+    RETURN jsonb_build_object('ok', false, 'reason', 'document');
+  END IF;
+
+  INSERT INTO public.oereb_ocr_runs (document_id, pdf_sha256, model, reserved_usd)
+    VALUES (p_document_id, p_pdf_sha256, p_model, p_reserve_usd)
+    RETURNING id INTO v_id;
+  RETURN jsonb_build_object('ok', true, 'run_id', v_id);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.oereb_ocr_reserve(uuid, text, text, numeric, numeric, numeric) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.oereb_ocr_reserve(uuid, text, text, numeric, numeric, numeric) TO service_role;
 
 RESET lock_timeout;
