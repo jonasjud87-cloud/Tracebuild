@@ -2,6 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 import type { AuthUser } from "@/lib/auth";
 import { ORPHAN_AFTER_MS, TIMEOUT_ERROR_TEXT } from "./constants";
+import { orphanFilter } from "./orphan";
 import type { CancelResponse } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -43,7 +44,10 @@ export async function cancelAnalysis(admin: Admin, id: string, actor: AuthUser, 
 
   const project = pick(pick(target.documents)?.projects);
   const cutoff = new Date(now.getTime() - ORPHAN_AFTER_MS).toISOString();
-  const orphaned = Date.parse(target.created_at) < Date.parse(cutoff);
+  // Massgebend ist das letzte Lebenszeichen: Eine gesunde lange Analyse wird nicht als Zeitüberschreitung geschlossen.
+  const lastActivity = target.result_json?.last_activity_at;
+  const activityBase = typeof lastActivity === "string" && lastActivity ? lastActivity : target.created_at;
+  const orphaned = Date.parse(activityBase) < Date.parse(cutoff);
   const newStatus: CancelResponse["status"] = orphaned ? "error" : "cancelled";
 
   let update = admin
@@ -58,7 +62,7 @@ export async function cancelAnalysis(admin: Admin, id: string, actor: AuthUser, 
     )
     .eq("id", id)
     .eq("status", "running");
-  if (orphaned) update = update.lt("created_at", cutoff);
+  if (orphaned) update = update.or(orphanFilter(cutoff));
 
   const { data: changed, error: updateError } = await update.select("id");
   if (updateError) return { ok: false, status: 500, error: updateError.message };

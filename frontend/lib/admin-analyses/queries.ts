@@ -12,6 +12,7 @@ import {
 } from "./constants";
 import { getUsdChf, toChf, toChfPrecise } from "@/lib/admin-currency";
 import { encodeCursor, type ListParams } from "./params";
+import { orphanFilter } from "./orphan";
 import type { AnalysesListResponse, AnalysesSummary, AnalysisRow, OrgOption } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -24,6 +25,8 @@ const LIST_SELECT = [
   "duration_ms:result_json->>duration_ms",
   "error_text:result_json->>error",
   "run_id:result_json->>run_id",
+  "last_activity_at:result_json->>last_activity_at",
+  "stage_count:result_json->stages->>count",
   "documents!inner(id,doc_type,projects!inner(id,name,org_id,organizations(id,name)))",
 ].join(",");
 
@@ -50,6 +53,8 @@ interface RawRow {
   duration_ms: string | null;
   error_text: string | null;
   run_id: string | null;
+  last_activity_at: string | null;
+  stage_count: string | null;
   documents: RawDocument | RawDocument[] | null;
 }
 
@@ -75,13 +80,15 @@ function mapRow(raw: RawRow, now: Date, rate: number): AnalysisRow {
   const doc = first(raw.documents);
   const project = first(doc?.projects);
   const org = first(project?.organizations);
-  const created = Date.parse(raw.created_at);
+  const lastActivity = raw.last_activity_at ? Date.parse(raw.last_activity_at) : NaN;
+  const activityBase = Number.isFinite(lastActivity) ? lastActivity : Date.parse(raw.created_at);
   const durationMs = toNumber(raw.duration_ms);
   const costUsd = toNumber(raw.cost_usd);
   return {
     id: raw.id,
     status: raw.status,
-    orphaned: raw.status === "running" && Number.isFinite(created) && now.getTime() - created > ORPHAN_AFTER_MS,
+    // Lange Analysen laufen in Etappen: Massgebend ist das letzte Lebenszeichen, nicht der Start.
+    orphaned: raw.status === "running" && Number.isFinite(activityBase) && now.getTime() - activityBase > ORPHAN_AFTER_MS,
     orgId: project?.org_id ?? org?.id ?? null,
     orgName: org?.name ?? "Unbekannt",
     projectId: project?.id ?? null,
@@ -94,6 +101,8 @@ function mapRow(raw: RawRow, now: Date, rate: number): AnalysisRow {
     costChf: costUsd === null ? null : toChfPrecise(costUsd, rate),
     errorText: truncate(raw.error_text),
     runId: raw.run_id || null,
+    lastActivityAt: raw.last_activity_at || null,
+    stageCount: toNumber(raw.stage_count),
   };
 }
 
@@ -228,7 +237,7 @@ async function loadSummary(admin: Admin, now: Date, rate: number): Promise<Analy
 
   const [running, orphaned, failed24h, expensive30d, costs] = await Promise.all([
     countRows(() => admin.from("analyses").select("id", head).eq("status", "running")),
-    countRows(() => admin.from("analyses").select("id", head).eq("status", "running").lt("created_at", orphanCutoff)),
+    countRows(() => admin.from("analyses").select("id", head).eq("status", "running").or(orphanFilter(orphanCutoff))),
     countRows(() => admin.from("analyses").select("id", head).eq("status", "error").gte("created_at", failedSince)),
     countRows(() =>
       admin.from("analyses").select("id", head).gte("cost_usd", EXPENSIVE_DEFAULT_USD).gte("created_at", expensiveSince),

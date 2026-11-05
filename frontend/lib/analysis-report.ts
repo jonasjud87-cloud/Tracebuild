@@ -1,6 +1,7 @@
 import { type AnalysisItem, type Category, type Confidence, CATEGORY_LABELS, CONFIDENCE_LABELS } from "./domains/bau";
 import { esc, csvCell } from "./report-utils";
 import type { AnalysisAutoParts, AnalysisSnapshots } from "./geoadmin/contract";
+import type { AnalysisPreflight } from "./analysis-stages/contract";
 
 /**
  * Export eines Analyse-Ergebnisses: druckfertiger Prüfbericht (→ PDF über den
@@ -20,6 +21,12 @@ export interface ReportMeta {
   snapshots?: Partial<AnalysisSnapshots> | null;
   /** result_json.auto_parts: Teile importierter Reglemente, die der Deckel ausgelassen hat. */
   autoParts?: AnalysisAutoParts | null;
+  /** result_json.failed_norms: Normen ohne sauberes Ergebnis. Fehlt bei älteren Analysen. */
+  failedNorms?: { norm_title: string; error: string }[] | null;
+  /** result_json.preflight: Stand der Vorprüfung beim Start. */
+  preflight?: AnalysisPreflight | null;
+  /** result_json.consolidation.applied === false: Dubletten wurden nicht zusammengeführt. */
+  consolidationFailed?: boolean | null;
 }
 
 const STATUS_LABEL: Record<string, string> = { fail: "Verstoss", warn: "Unklar", ok: "Konform" };
@@ -75,8 +82,36 @@ export function autoNormLines(s: ReportMeta["snapshots"]): string[] {
 export function autoPartsWarning(p: AnalysisAutoParts | null | undefined): string {
   if (!p || !(p.skipped > 0)) return "";
   const titles = p.skipped_titles?.length ? ` Betroffen: ${p.skipped_titles.join(", ")}.` : "";
-  return `Vom Reglement wurden ${p.run} von ${p.total} Teilen geprüft, der Rest ist in dieser Analyse nicht berücksichtigt.${titles}`;
+  const limit = p.limit ? " (Sicherheitsgrenze)" : "";
+  return `Vom Reglement wurden ${p.run} von ${p.total} Teilen geprüft${limit}, der Rest ist in dieser Analyse nicht berücksichtigt.${titles}`;
 }
+
+/** Ausfälle je Norm für den Bericht: Was nicht geprüft wurde, darf nicht wie konform aussehen. */
+export function failedNormLines(failed: ReportMeta["failedNorms"]): string[] {
+  return (failed ?? []).map((f) => `${f.norm_title}: ${f.error}`);
+}
+
+/** Einschränkungen der Vorprüfung. Nur aus den festen Werten, nie freier Text. */
+export function preflightLines(p: ReportMeta["preflight"]): string[] {
+  if (!p) return [];
+  const lines: string[] = [];
+  if (p.oereb === "stale") {
+    const stand = shortDate(p.stale_fetched_at);
+    lines.push(`ÖREB-Auszug: Aktualisierung fehlgeschlagen, es gilt der ältere Stand${stand ? ` vom ${stand}` : ""}.`);
+  } else if (p.oereb === "failed" || p.oereb === "timeout") {
+    lines.push("ÖREB-Auszug: Konnte vor der Analyse nicht aktualisiert werden.");
+  } else if (p.oereb === "skipped") {
+    lines.push("ÖREB-Auszug: Aktualisierung vor der Analyse wurde übersprungen.");
+  }
+  if (p.documents === "skipped" || p.documents === "aborted") {
+    lines.push("Reglemente aus dem ÖREB-Kataster: Import vor der Analyse wurde nicht abgeschlossen.");
+  } else if (p.documents !== "not_needed" && p.documents !== "done") {
+    lines.push("Reglemente aus dem ÖREB-Kataster: Konnten vor der Analyse nicht vollständig übernommen werden.");
+  }
+  return lines;
+}
+
+export const CONSOLIDATION_FAILED_TEXT = "Dubletten nicht zusammengeführt: Gleiche Sachverhalte können mehrfach aufgeführt sein.";
 
 export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string {
   const counts = {
@@ -160,7 +195,13 @@ export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string
   ${autoPartsWarning(meta.autoParts)
     ? `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt;font-weight:600">Unvollständig geprüft: ${esc(autoPartsWarning(meta.autoParts))}</p>`
     : ""}
-
+  ${failedNormLines(meta.failedNorms).length
+    ? `<div style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt"><b>Ergebnis unvollständig, nicht vollständig geprüft:</b><ul style="margin:4pt 0 0;padding-left:14pt">${failedNormLines(meta.failedNorms).map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>`
+    : ""}
+  ${meta.consolidationFailed
+    ? `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt">${esc(CONSOLIDATION_FAILED_TEXT)}</p>`
+    : ""}
+  ${preflightLines(meta.preflight).map((l) => `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt">${esc(l)}</p>`).join("")}
   <table>
     <thead><tr><th>Status</th><th>Prüfpunkt</th><th>Details</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="3">Keine Prüfpunkte.</td></tr>`}</tbody>
@@ -210,6 +251,9 @@ export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string 
     `Prüfung;${csvCell(meta.planType)};Version;${meta.version}`,
     `Analyse vom;${csvCell(new Date(meta.createdAt).toLocaleDateString("de-CH"))}`,
     ...(autoPartsWarning(meta.autoParts) ? [`Unvollständig geprüft;${csvCell(autoPartsWarning(meta.autoParts))}`] : []),
+    ...failedNormLines(meta.failedNorms).map((l) => `Ergebnis unvollständig;${csvCell(l)}`),
+    ...(meta.consolidationFailed ? [`Hinweis;${csvCell(CONSOLIDATION_FAILED_TEXT)}`] : []),
+    ...preflightLines(meta.preflight).map((l) => `Hinweis;${csvCell(l)}`),
     ...[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots)].filter(Boolean).map((line) => csvCell(line)),
     "",
   ];

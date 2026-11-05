@@ -6,6 +6,8 @@
 /** Live gemessen: Die Normphase hat rund 225 s, ein Aufruf dauert rund 72 s. */
 const CALL_ESTIMATE_MS = 72_000;
 export const MAX_AUTO_PARTS = 8;
+/** Sicherheitsgrenze für importierte Teile, wenn die Analyse in Etappen läuft. */
+export const MAX_STAGED_AUTO_PARTS = 30;
 
 interface PlannedPart {
   norm: { title: string; source_kind?: string | null; auto_scope?: string | null };
@@ -17,6 +19,8 @@ export interface AutoPartsSummary {
   skipped: number;
   /** Normen mit mindestens einem ausgelassenen Teil. */
   skipped_titles: string[];
+  /** Gesetzt, wenn die Sicherheitsgrenze der Etappen gilt statt des Zeit-Deckels. */
+  limit?: number;
 }
 
 export function planAutoParts<T extends PlannedPart>(
@@ -46,6 +50,32 @@ export function planAutoParts<T extends PlannedPart>(
       run: run.length,
       skipped: skipped.length,
       skipped_titles: Array.from(new Set(skipped.map((u) => u.norm.title))),
+    },
+  };
+}
+
+/** In Etappen fällt die Zeitrechnung weg. Gepflegte Normen laufen immer ganz, importierte bis zur Grenze. */
+export function planStagedParts<T extends PlannedPart>(
+  units: T[],
+  limit: number = MAX_STAGED_AUTO_PARTS
+): { units: T[]; summary: AutoPartsSummary } {
+  const isAuto = (u: T) => u.norm.source_kind === "oereb_auto";
+  const fixed = units.filter((u) => !isAuto(u));
+  const auto = units
+    .filter(isAuto)
+    .map((u, i) => ({ u, i }))
+    .sort((a, b) => Number(a.u.norm.auto_scope === "parcel") - Number(b.u.norm.auto_scope === "parcel") || a.i - b.i)
+    .map(({ u }) => u);
+  const run = auto.slice(0, limit);
+  const skipped = auto.slice(limit);
+  return {
+    units: [...fixed, ...run],
+    summary: {
+      total: auto.length,
+      run: run.length,
+      skipped: skipped.length,
+      skipped_titles: Array.from(new Set(skipped.map((u) => u.norm.title))),
+      limit,
     },
   };
 }

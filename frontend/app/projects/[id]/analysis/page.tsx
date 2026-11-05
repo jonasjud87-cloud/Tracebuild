@@ -7,6 +7,21 @@ import type { AnalysisAutoParts, AnalysisSnapshots, OerebRefreshExtras } from "@
 import ProjectGeoPanel from "@/components/ProjectGeoPanel";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { formatDate } from "@/components/geoportal-logic";
+import AnalysisRunProgress from "@/components/AnalysisRunProgress";
+import { useAnalysisRun } from "@/components/useAnalysisRun";
+import {
+  buildPreflight,
+  consolidationFailed,
+  findActiveRun,
+  preflightNoteText,
+  readPreflight,
+  runProgressView,
+  safetyLimitHint,
+  selectionAfterRun,
+  sortAnalysisItems,
+  type PreflightInput,
+} from "@/components/analysis-run-view";
+import type { AnalysisPreflight } from "@/lib/analysis-stages/contract";
 import {
   MAX_PLAN_FILES,
   MAX_PLAN_FILE_BYTES,
@@ -69,8 +84,12 @@ interface AnalysisWithDoc {
   failedNorms: { norm_title: string; error: string }[];
   /** Stand von ÖREB, Geodaten und Normen dieser Analyse. Fehlt bei älteren Analysen. */
   snapshots: Partial<AnalysisSnapshots> | null;
-  /** Vom Deckel ausgelassene Teile importierter Reglemente. */
-  autoParts: AnalysisAutoParts | null;
+  /** Vom Deckel oder der Sicherheitsgrenze ausgelassene Teile importierter Reglemente. */
+  autoParts: (AnalysisAutoParts & { limit?: number }) | null;
+  /** Stand der Aktualisierung vor dem Start. Fehlt bei älteren Analysen. */
+  preflight: AnalysisPreflight | null;
+  /** Doppelte Prüfpunkte konnten nicht zusammengeführt werden. */
+  consolidationFailed: boolean;
 }
 
 /** So lange wartet der Analysestart höchstens auf ÖREB-Abruf und Reglemente. */
@@ -85,6 +104,8 @@ const DEFAULT_CHECK_NAME = "Baugesuch";
 function planKey(name: string): string {
   return name.trim().toLowerCase();
 }
+
+const RUN_LOCK_HINT = "Eine weitere Analyse können Sie starten, sobald diese abgeschlossen ist.";
 
 const STATUS_BADGE: Record<string, { label: string; color: string }> = {
   running: { label: "Läuft",  color: "#85A6E9" },
@@ -106,7 +127,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: AnalysisAutoParts | null } & Partial<AnalysisSnapshots> | null;
+  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: (AnalysisAutoParts & { limit?: number }) | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -117,7 +138,7 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     created_at: a.created_at,
     planType: planType ?? a.documents?.doc_type ?? DEFAULT_CHECK_NAME,
     files: a.files ?? (a.documents?.file_url ? [{ name: "Plan", url: a.documents.file_url }] : []),
-    items: a.items ?? a.analysis_items ?? [],
+    items: sortAnalysisItems(a.items ?? a.analysis_items ?? [], a.result_json?.norm_versions),
     errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
     failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
     snapshots: a.result_json
@@ -128,6 +149,8 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
         }
       : null,
     autoParts: a.result_json?.auto_parts ?? null,
+    preflight: readPreflight(a.result_json?.preflight),
+    consolidationFailed: consolidationFailed(a.result_json?.consolidation),
   };
 }
 
@@ -241,6 +264,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [previewIdx, setPreviewIdx]         = useState(0);
   const [uploading, setUploading]           = useState(false);
   const [cancelling, setCancelling]         = useState(false);
+  const [cancelError, setCancelError]       = useState<string | null>(null);
   const [info, setInfo]                     = useState<string | null>(null);
   const [project, setProject]               = useState<ProjectInfo | null>(null);
   const [error, setError]                   = useState<string | null>(null);
@@ -270,21 +294,32 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     // Die geöffnete Version ist ein Snapshot — nach dem Nachladen den frischen Stand
     // übernehmen (z.B. "läuft" → "done" mit Items), sonst bleibt der Hinweis stehen.
     setSelectedAnalysis((prev) => (prev ? list.find((a) => a.id === prev.id) ?? prev : prev));
+    return list;
   }, [params.id]);
+
+  /** Lauf zu Ende (auch abgebrochen oder gelöscht): Liste holen und das Ergebnis oder den Fehler zeigen. */
+  async function settleRun(runId: string) {
+    const list = await loadAnalyses();
+    if (view !== "plantype") return;
+    const typeList = list.filter((a) => planKey(a.planType) === planKey(selectedPlanType));
+    if (typeList.some((a) => a.id === runId)) setDetailFilter("all");
+    setSelectedAnalysis((prev) => selectionAfterRun(typeList, runId, prev));
+  }
+
+  // Der laufende Lauf kommt aus der Liste: Reload, Wiederöffnen und zweiter Tab zeigen denselben Stand.
+  const activeRun = findActiveRun(analyses);
+  const runState = useAnalysisRun(params.id, activeRun?.id ?? null, activeRun?.created_at ?? null, (runId) => {
+    settleRun(runId).catch(() => {});
+  });
+  const runView = runProgressView(runState, activeRun?.created_at ?? null, Date.now());
+  /** Sperrt neue Analysen. Ein unterbrochener Altlauf rechnet nicht mehr und sperrt deshalb nicht. */
+  const lockingRun = activeRun && !runView.interrupted ? activeRun : null;
+  const runNote = activeRun?.preflight ? preflightNoteText(activeRun.preflight) : preflightNote;
 
   useEffect(() => {
     api.get<ProjectInfo>(`/projects/${params.id}`).then(setProject).catch(() => {});
     loadAnalyses().catch(() => {});
   }, [params.id, loadAnalyses]);
-
-  // Läuft serverseitig noch eine Analyse (z.B. nach einem Reload), holt die Liste sich
-  // selbst nach — sonst bliebe die "Läuft"-Version stehen, bis der Nutzer neu lädt.
-  const hasRunning = analyses.some((a) => a.status === "running");
-  useEffect(() => {
-    if (!hasRunning || uploading) return;
-    const t = setInterval(() => { loadAnalyses().catch(() => {}); }, 10_000);
-    return () => clearInterval(t);
-  }, [hasRunning, uploading, loadAnalyses]);
 
   useEffect(() => {
     if (!menuOpenId) return;
@@ -326,6 +361,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     setDetailFilter("all");
     setError(null);
     setInfo(null);
+    setCancelError(null);
     setPendingFiles([]);
   }
 
@@ -371,20 +407,24 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   /**
    * ÖREB neu abrufen und offene Reglemente abwarten, damit die Analyse den frischen Stand
    * prüft. Blockiert nie: Fehler, Zeitlimit und «Ohne Warten starten» führen direkt weiter.
+   * Das Ergebnis geht mit dem Start an den Server, der Hinweis überlebt so das Schliessen der Seite.
    */
-  async function refreshBeforeAnalysis(signal: AbortSignal): Promise<void> {
+  async function refreshBeforeAnalysis(signal: AbortSignal): Promise<AnalysisPreflight> {
     setPreflightNote(null);
     setPreflight("oereb");
-    let usedStale = false;
-    let staleDate: string | null = null;
+    const seen: Pick<PreflightInput, "oereb" | "syncEnd"> = { oereb: null, syncEnd: null };
 
     const work = (async () => {
       const res = await api.post<OerebRefreshExtras>(`/projects/${params.id}/oereb`, { force: true }, signal);
-      usedStale = !!res?.used_stale;
-      staleDate = formatDate(res?.stale_fetched_at);
-      if (res?.documents_pending > 0) {
+      const documentsPending = res?.documents_pending ?? 0;
+      seen.oereb = {
+        usedStale: !!res?.used_stale,
+        staleFetchedAt: res?.stale_fetched_at ?? null,
+        documentsPending,
+      };
+      if (documentsPending > 0) {
         setPreflight("documents");
-        await sync.run(res.documents_pending);
+        seen.syncEnd = (await sync.run(documentsPending)).end;
       }
       return "done" as const;
     })();
@@ -397,25 +437,23 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       signal.addEventListener("abort", () => resolve("aborted"), { once: true });
     });
 
+    let outcome: PreflightInput["outcome"] = "failed";
     try {
-      const outcome = await Promise.race([work, timeout, skipped, aborted]);
-      if (outcome === "aborted") throw new DOMException("Abgebrochen", "AbortError");
-      if (outcome === "timeout") {
-        setPreflightNote("Die Aktualisierung der Reglemente dauert länger. Die Analyse prüft den bisherigen Stand, der Rest läuft im Hintergrund weiter.");
-      } else if (outcome === "skipped") {
-        setPreflightNote("Ohne Warten gestartet: Die Analyse prüft den bisherigen Stand der Reglemente.");
-      } else if (usedStale) {
-        setPreflightNote(`Der ÖREB-Auszug konnte nicht aktualisiert werden. Die Analyse prüft den Stand${staleDate ? ` vom ${staleDate}` : ""}.`);
-      }
+      const raced = await Promise.race([work, timeout, skipped, aborted]);
+      if (raced === "aborted") throw new DOMException("Abgebrochen", "AbortError");
+      outcome = raced;
     } catch (e) {
       if (signal.aborted) throw e;
-      setPreflightNote("Der ÖREB-Auszug konnte nicht aktualisiert werden. Die Analyse läuft trotzdem, der Bericht nennt den Stand.");
     } finally {
       clearTimeout(timer);
       skipPreflightRef.current = null;
       work.catch(() => {});
       setPreflight(null);
     }
+
+    const result = buildPreflight({ outcome, ...seen });
+    setPreflightNote(preflightNoteText(result) || null);
+    return result;
   }
 
   async function runAnalysis() {
@@ -423,9 +461,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     // Prüfung beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
     // wechseln — das Ergebnis gehört trotzdem zur Prüfung, unter der es gestartet wurde.
     const planType = selectedPlanType;
-    if (files.length === 0 || uploading) return;
+    if (files.length === 0 || uploading || lockingRun) return;
     setError(null);
     setInfo(null);
+    setCancelError(null);
     setUploading(true);
     setCancelling(false);
 
@@ -459,19 +498,21 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       setUploadProgress(null);
 
       // 2. ÖREB und Reglemente auffrischen. Serverseitig läuft noch nichts, Abbrechen bleibt lokal.
-      await refreshBeforeAnalysis(controller.signal);
+      const preflightResult = await refreshBeforeAnalysis(controller.signal);
       uploadPhaseRef.current = false;
 
-      // 3. Analyse über den ganzen Plansatz.
+      // 3. Analyse über den ganzen Plansatz. Der Server antwortet sofort und rechnet im Hintergrund
+      //    weiter (status "running"); ohne eingespielte Migration wartet diese Anfrage wie bisher.
       const raw = await api.post<RawGetAnalysis>(
         `/projects/${params.id}/analyses`,
-        { files: uploaded, doc_type: planType, run_id: runId },
+        { files: uploaded, doc_type: planType, run_id: runId, preflight: preflightResult },
         controller.signal,
       );
       const analysis = normalizeAnalysis(raw, planType);
-      setAnalyses((prev) => [analysis, ...prev]);
+      setAnalyses((prev) => [analysis, ...prev.filter((a) => a.id !== analysis.id)]);
       setLocalPlanTypes((prev) => prev.filter((t) => planKey(t) !== planKey(planType)));
-      if (planKey(planType) === planKey(selectedPlanType)) {
+      // Läuft sie noch, zeigt die Hauptfläche den Fortschritt; das Ergebnis folgt über settleRun.
+      if (analysis.status !== "running" && planKey(planType) === planKey(selectedPlanType)) {
         setSelectedAnalysis(analysis);
         setDetailFilter("all");
       }
@@ -550,6 +591,28 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     }
   }
 
+  /** Abbruch der laufenden Analyse; die ID kommt aus der Liste, geht also auch nach einem Reload. */
+  async function cancelActiveRun() {
+    if (!activeRun || cancelling) return;
+    const runId = activeRun.id;
+    setCancelling(true);
+    setCancelError(null);
+    try {
+      const r = await api.post<{ cancelled: number }>(`/projects/${params.id}/analyses/cancel`, { analysis_id: runId });
+      if ((r?.cancelled ?? 0) > 0) {
+        // Abgebrochene Versionen stehen nicht in der Liste; auch ohne Nachladen gleich aus der Anzeige.
+        setAnalyses((prev) => prev.filter((a) => a.id !== runId));
+        setSelectedAnalysis((prev) => (prev?.id === runId ? null : prev));
+        setInfo("Analyse abgebrochen.");
+      }
+      await settleRun(runId).catch(() => {});
+    } catch {
+      setCancelError("Der Abbruch konnte nicht bestätigt werden. Die Analyse läuft möglicherweise weiter, bitte versuchen Sie es erneut.");
+    } finally {
+      setCancelling(false);
+    }
+  }
+
   function handleFiles(files: FileList | null) {
     if (files && files.length > 0) addFiles(Array.from(files));
   }
@@ -621,6 +684,19 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             Neue Prüfung
           </button>
         </div>
+
+        {lockingRun && !uploading && (
+          <AnalysisRunProgress
+            variant="banner"
+            view={runView}
+            title={lockingRun.planType}
+            notes={[runNote]}
+            cancelling={cancelling}
+            cancelError={cancelError}
+            onCancel={cancelActiveRun}
+            onOpen={() => openPlanType(lockingRun.planType)}
+          />
+        )}
 
         <ProjectGeoPanel projectId={params.id} />
 
@@ -999,6 +1075,17 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         {!selectedAnalysis ? (
           <>
+            {lockingRun && !uploading ? (
+              <AnalysisRunProgress
+                variant="full"
+                view={runView}
+                title={planKey(lockingRun.planType) !== planKey(selectedPlanType) ? lockingRun.planType : null}
+                notes={[runNote, RUN_LOCK_HINT]}
+                cancelling={cancelling}
+                cancelError={cancelError}
+                onCancel={cancelActiveRun}
+              />
+            ) : (
             <div
               onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -1109,6 +1196,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 </div>
               )}
             </div>
+            )}
             {error && (
               <div style={{ marginTop: 12, fontSize: 13, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "10px 16px", textAlign: "center" }}>
                 {error}
@@ -1124,6 +1212,9 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         ) : (() => {
           const vIdx = typeAnalyses.findIndex((a) => a.id === selectedAnalysis.id);
           const vNr  = typeAnalyses.length - vIdx;
+          const isRunningVersion = selectedAnalysis.status === "running";
+          const persistedNote = selectedAnalysis.preflight ? preflightNoteText(selectedAnalysis.preflight) : null;
+          const sessionNote = !selectedAnalysis.preflight && !isRunningVersion && !lockingRun && !uploading ? preflightNote : null;
           return (
             <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
               {/* PDF Viewer */}
@@ -1186,6 +1277,23 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
                 </div>
               )}
+              {activeRun && !uploading && (lockingRun || selectedAnalysis.id === activeRun.id) && (
+                <AnalysisRunProgress
+                  variant="banner"
+                  view={runView}
+                  title={planKey(activeRun.planType) !== planKey(selectedPlanType) ? activeRun.planType : null}
+                  notes={[runNote, lockingRun ? RUN_LOCK_HINT : null]}
+                  cancelling={cancelling}
+                  cancelError={cancelError}
+                  onCancel={cancelActiveRun}
+                />
+              )}
+              {error && (
+                <p role="alert" style={{ fontSize: 13, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "10px 14px", margin: 0 }}>{error}</p>
+              )}
+              {info && (
+                <p role="status" style={{ fontSize: 13, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", borderRadius: 12, padding: "10px 14px", margin: 0 }}>{info}</p>
+              )}
               {/* Header */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
                 <div>
@@ -1197,6 +1305,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   </h3>
                 </div>
                 <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+                  {!isRunningVersion && (
+                  <>
                   <button
                     onClick={() => exportPdf(selectedAnalysis)}
                     title="Prüfbericht als PDF (Druckansicht)"
@@ -1221,11 +1331,15 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                     </svg>
                     CSV
                   </button>
+                  </>
+                  )}
                   <button
                     onClick={() => setSelectedAnalysis(null)}
-                    style={SECONDARY_BTN}
-                    onMouseEnter={secondaryHoverIn}
-                    onMouseLeave={secondaryHoverOut}
+                    disabled={!!lockingRun}
+                    title={lockingRun ? RUN_LOCK_HINT : undefined}
+                    style={lockingRun ? { ...SECONDARY_BTN, opacity: 0.5, cursor: "not-allowed" } : SECONDARY_BTN}
+                    onMouseEnter={lockingRun ? undefined : secondaryHoverIn}
+                    onMouseLeave={lockingRun ? undefined : secondaryHoverOut}
                   >
                     <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -1235,7 +1349,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 </div>
               </div>
 
-              {selectedAnalysis.status !== "done" && (
+              {selectedAnalysis.status !== "done" && selectedAnalysis.id !== activeRun?.id && (
                 <div style={{ background: `${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}12`, border: `1px solid ${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}40`, borderRadius: 12, padding: "12px 16px" }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: (STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color, margin: 0 }}>
                     {selectedAnalysis.status === "running"
@@ -1248,10 +1362,12 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 </div>
               )}
 
-              {preflightNote && !uploading && (
+              {!isRunningVersion && (persistedNote || sessionNote) && (
                 <div role="status" style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px" }}>
-                  <p style={{ flex: 1, fontSize: 12.5, color: "#FBBF24", margin: 0, lineHeight: 1.45 }}>{preflightNote}</p>
-                  <button type="button" aria-label="Hinweis schliessen" onClick={() => setPreflightNote(null)} style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+                  <p style={{ flex: 1, fontSize: 12.5, color: "#FBBF24", margin: 0, lineHeight: 1.45 }}>{persistedNote || sessionNote}</p>
+                  {!persistedNote && (
+                    <button type="button" aria-label="Hinweis schliessen" onClick={() => setPreflightNote(null)} style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
+                  )}
                 </div>
               )}
 
@@ -1265,7 +1381,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               {autoPartsWarning(selectedAnalysis.autoParts) && (
                 <div role="alert" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "12px 16px" }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: "0 0 4px" }}>Ergebnis unvollständig</p>
-                  <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.5 }}>{autoPartsWarning(selectedAnalysis.autoParts)}</p>
+                  <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.5 }}>{autoPartsWarning(selectedAnalysis.autoParts)} {safetyLimitHint(selectedAnalysis.autoParts)}</p>
                 </div>
               )}
 
@@ -1282,6 +1398,14 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 </div>
               )}
 
+              {selectedAnalysis.status === "done" && selectedAnalysis.consolidationFailed && (
+                <p role="status" style={{ fontSize: 12.5, color: "#FBBF24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px", margin: 0, lineHeight: 1.45 }}>
+                  Doppelte Prüfpunkte konnten nicht zusammengeführt werden. Dieselbe Feststellung kann deshalb mehrfach erscheinen.
+                </p>
+              )}
+
+              {!isRunningVersion && (
+              <>
               {/* Stat tiles */}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
                 {(["fail", "warn", "ok"] as const).map((s) => {
@@ -1334,6 +1458,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   filteredItems.map((item) => <CheckCard key={item.id} item={item} />)
                 )}
               </div>
+              </>
+              )}
               </div>
             </div>
           );

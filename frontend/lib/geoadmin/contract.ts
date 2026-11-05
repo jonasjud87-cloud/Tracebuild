@@ -133,6 +133,8 @@ export interface AnalysisAutoParts {
   run: number;
   skipped: number;
   skipped_titles: string[];
+  /** Gesetzt, wenn die Sicherheitsgrenze der Etappen gilt. */
+  limit?: number;
 }
 
 // GET /projects/{id}/oereb/documents

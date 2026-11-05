@@ -248,7 +248,7 @@ export default function AnleitungPage() {
             <li><p>Öffnen Sie das Projekt. Im Reiter <Ui>Plan-Analyse</Ui> klicken Sie auf <Ui>+ Pläne hochladen</Ui>. Die Prüfung heisst dann <Ui>Baugesuch</Ui>. Einen eigenen Namen vergeben Sie über <Ui>Neue Prüfung</Ui>, z.&nbsp;B. für eine Vorabklärung.</p></li>
             <li><p>Ziehen Sie alle Dateien des Plansatzes auf einmal in das Feld <Ui>Pläne hochladen</Ui> oder klicken Sie hinein. Erlaubt sind PDF und Bilder, bis zu 20 Dateien mit je höchstens 50&nbsp;MB.</p></li>
             <li><p>Kontrollieren Sie die Liste. Mit <Ui>+ Weitere Dateien</Ui> ergänzen Sie, was fehlt, mit <Ui>×</Ui> entfernen Sie eine Datei. Dann klicken Sie auf <Ui>Analyse starten</Ui>.</p></li>
-            <li><p>Die Dateien werden zuerst hochgeladen und dann gemeinsam geprüft. Das kann einige Minuten dauern. Sie können jederzeit mit <Ui>Analyse abbrechen</Ui> stoppen.</p></li>
+            <li><p>Die Dateien werden zuerst hochgeladen und dann gemeinsam geprüft. Das dauert je nach Umfang einige Minuten, bei umfangreichen Reglementen auch länger. Erscheint beim Fortschrittsbalken der Hinweis, dass Sie die Seite schliessen können, läuft die Analyse auch ohne offene Seite weiter. Das Ergebnis steht danach in der Prüfung. Sie können jederzeit mit <Ui>Analyse abbrechen</Ui> stoppen.</p></li>
           </ol>
           <Fig
             src={imgUpload}
