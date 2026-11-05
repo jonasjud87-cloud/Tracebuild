@@ -12,7 +12,7 @@ export interface AuthUser {
   role:   UserRole;
 }
 
-const ADMIN_EMAILS = new Set([
+export const ADMIN_EMAILS = new Set([
   "tracebuild.info@gmail.com",
   "livio.thoma07@gmail.com",
   "jonasjud87@gmail.com",
@@ -25,6 +25,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return null;
+  if (user.banned_until && Date.parse(user.banned_until) > Date.now()) return null;
 
   const email = user.email ?? "";
   const admin = createAdminClient();
@@ -41,7 +42,7 @@ export async function getAuthUser(): Promise<AuthUser | null> {
         .is("deleted_at", null)
         .maybeSingle();
       if (org) {
-        return { id: user.id, email, org_id: activeOrgId, role: "super_admin" };
+        return { id: user.id, email, org_id: org.id, role: "super_admin" };
       }
     }
 

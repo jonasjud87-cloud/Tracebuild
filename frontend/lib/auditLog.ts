@@ -10,6 +10,8 @@ export type AuditAction =
   | "norm_refresh" | "project_norm_add" | "project_norm_remove"
   | "analysis_run" | "analysis_delete" | "chat_message"
   | "profile_name_change"
+  | "announcement_create" | "announcement_update" | "announcement_delete"
+  | "block" | "unblock" | "password_reset"
   | "norm_auto_import" | "norm_auto_update" | "norm_auto_update_rejected";
 
 export async function logAudit(
@@ -25,7 +27,7 @@ export async function logAudit(
   },
 ): Promise<void> {
   try {
-    await admin.from("audit_log").insert({
+    const { error } = await admin.from("audit_log").insert({
       org_id: entry.orgId,
       actor_id: entry.actorId,
       actor_email: entry.actorEmail,
@@ -34,8 +36,8 @@ export async function logAudit(
       target_email: entry.targetEmail ?? null,
       meta: entry.meta ?? {},
     });
+    if (error) console.error("audit_log", entry.action, error.code);
   } catch {
-    // Audit-Log ist best effort — ein Logging-Fehler darf die eigentliche
-    // Aktion nie blockieren.
+    console.error("audit_log", entry.action, "exception");
   }
 }

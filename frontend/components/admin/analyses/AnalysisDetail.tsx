@@ -153,7 +153,7 @@ export default function AnalysisDetail({ row, stale, now, orphanMinutes, busy, e
             <dl>
               <Field label="Erstellt">{formatDateTime(row.createdAt)}</Field>
               <Field label={dur.live ? "Laufzeit bisher" : "Dauer"}>{dur.text}</Field>
-              <Field label="Kosten">{formatCost(row.costUsd)}</Field>
+              <Field label="Kosten">{formatCost(row.costChf)}</Field>
             </dl>
           </Section>
 

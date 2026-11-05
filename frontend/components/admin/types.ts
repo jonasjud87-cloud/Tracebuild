@@ -63,6 +63,10 @@ export interface OrgCost {
   month: string; // "YYYY-MM"
   analyseCount: number;
   analyseCost: number;   // CHF — Claude API
+  chatCount: number;
+  chatCost: number;      // CHF — Claude Chat
+  normCount: number;
+  normCost: number;      // CHF — Normen-Zusammenfassungen
   storageCost: number;   // CHF — Supabase Storage
   databaseCost: number;  // CHF — Supabase DB
   ocrCost: number;       // CHF — OCR processing

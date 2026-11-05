@@ -25,6 +25,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div
       style={{
         minHeight: "100vh",
+        backgroundColor: "var(--tb-canvas-solid)",
         backgroundImage: [
           "radial-gradient(1100px 750px at 8% 0%, rgba(79,209,255,0.28), transparent 60%)",
           "radial-gradient(1000px 750px at 100% 12%, rgba(143,179,245,0.20), transparent 60%)",

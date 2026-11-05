@@ -102,6 +102,17 @@ const ADMIN_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: "Ankündigungen",
+    href: "/admin/announcements",
+    path: "/admin/announcements",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M4 10v4h3l7 4V6L7 10H4z" />
+        <path d="M17.5 9.5a3.5 3.5 0 010 5" />
+      </svg>
+    ),
+  },
+  {
     label: "Logs & Monitoring",
     href: "/admin/audit",
     path: "/admin/audit",

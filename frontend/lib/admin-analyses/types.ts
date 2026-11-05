@@ -15,6 +15,7 @@ export interface AnalysisRow {
   createdAt: string;
   durationMs: number | null;
   costUsd: number | null;
+  costChf: number | null;
   errorText: string | null;
   runId: string | null;
 }
@@ -26,6 +27,8 @@ export interface AnalysesSummary {
   expensive30d: number;
   costToday: number;
   cost30d: number;
+  costTodayChf: number;
+  cost30dChf: number;
   costTruncated: boolean;
 }
 
@@ -38,7 +41,9 @@ export interface AnalysesListResponse {
   items: AnalysisRow[];
   nextCursor: string | null;
   view: AnalysisView;
-  thresholds: { expensiveUsd: number; orphanMinutes: number };
+  currency: "CHF";
+  usdToChf: number;
+  thresholds: { expensiveUsd: number; expensiveChf: number; orphanMinutes: number };
   appliedFilters: { org: string | null; from: string | null; to: string | null; minCost: number | null };
   summary: AnalysesSummary | null;
   orgs: OrgOption[] | null;

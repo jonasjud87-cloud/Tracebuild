@@ -54,6 +54,12 @@ export const ACTION_LABELS: Record<string, string> = {
   analysis_delete: "Analyse gelöscht",
   chat_message: "Chatnachricht",
   profile_name_change: "Profilname geändert",
+  announcement_create: "Ankündigung erstellt",
+  announcement_update: "Ankündigung geändert",
+  announcement_delete: "Ankündigung gelöscht",
+  block: "Benutzer gesperrt",
+  unblock: "Benutzer entsperrt",
+  password_reset: "Passwort-Reset ausgelöst",
 };
 
 export function actionLabel(action: string, meta: Record<string, unknown> | null | undefined): string {

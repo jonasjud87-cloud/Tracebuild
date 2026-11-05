@@ -164,9 +164,9 @@ export default function OverviewDashboard() {
   const noAnalyses = lacks("analysesCount");
   const noOrgs = lacks("orgs", "analyses");
   const noUsers = lacks("activeUsers", "orgs");
-  const noCost = lacks("analyses", "chat");
+  const noCost = lacks("analyses", "chat", "norms");
   const noSeries = lacks("analyses");
-  const noBudget = lacks("orgs", "analyses", "chat");
+  const noBudget = lacks("orgs", "analyses", "chat", "norms");
   const noLatest = lacks("latest");
 
   return (

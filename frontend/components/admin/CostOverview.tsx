@@ -24,10 +24,8 @@ export default function CostOverview({
 }: Props) {
   const totalThisMonth    = costs.reduce((s, c) => s + c.totalCost,    0);
   const totalAnalyse      = costs.reduce((s, c) => s + c.analyseCost,  0);
-  const totalStorage      = costs.reduce((s, c) => s + c.storageCost,  0);
-  const totalDatabase     = costs.reduce((s, c) => s + c.databaseCost, 0);
-  const totalOcr          = costs.reduce((s, c) => s + c.ocrCost,      0);
-  const totalInfra        = costs.reduce((s, c) => s + c.infraCost,    0);
+  const totalChat         = costs.reduce((s, c) => s + c.chatCost,     0);
+  const totalNorm         = costs.reduce((s, c) => s + c.normCost,     0);
   const totalAnalyseCount = costs.reduce((s, c) => s + c.analyseCount, 0);
   const avgPerAnalyse     = totalAnalyseCount > 0 ? totalThisMonth / totalAnalyseCount : 0;
   const budgetRemaining   = monthlyBudget - totalThisMonth;
@@ -37,11 +35,9 @@ export default function CostOverview({
   const maxOrgCost        = Math.max(...costs.map(c => c.totalCost), 1);
 
   const breakdownCards = [
-    { label: "Analyse-KI",    value: totalAnalyse,  key: "ai"  },
-    { label: "Storage",       value: totalStorage,  key: "st"  },
-    { label: "Datenbank",     value: totalDatabase, key: "db"  },
-    { label: "OCR",           value: totalOcr,      key: "ocr" },
-    { label: "Infrastruktur", value: totalInfra,    key: "in"  },
+    { label: "Analysen", value: totalAnalyse, key: "ai"   },
+    { label: "Chat",     value: totalChat,    key: "chat" },
+    { label: "Normen",   value: totalNorm,    key: "norm" },
   ];
 
   return (
@@ -97,7 +93,7 @@ export default function CostOverview({
       </div>
 
       {/* Breakdown cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {breakdownCards.map(card => (
           <div key={card.key} className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4">
             <p className="text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest mb-1">{card.label}</p>

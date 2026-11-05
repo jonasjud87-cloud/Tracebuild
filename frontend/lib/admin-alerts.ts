@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getUsdChf } from "@/lib/admin-currency";
+import { monthKey, periodRange } from "@/lib/admin-billing";
 
 export type AlertRule = "budget" | "service" | "invitation" | "inactive_org";
 export type AlertSeverity = "critical" | "warning" | "info";
@@ -49,8 +51,9 @@ async function fetchAll<T>(
     if (error) throw new Error("query failed");
     const rows = data ?? [];
     out.push(...rows);
-    if (rows.length < PAGE) break;
+    if (rows.length < PAGE) return out;
   }
+  console.error("admin-alerts: Abfrage nach", MAX_PAGES, "Seiten abgebrochen, Daten unvollständig");
   return out;
 }
 
@@ -74,14 +77,15 @@ async function loadOrgs(admin: SupabaseClient): Promise<OrgInfo[]> {
       .from("organizations")
       .select("id, name, status, monthly_budget, created_at")
       .is("deleted_at", null)
+      .order("id")
       .range(from, to),
   );
 }
 
 async function orgIdByDocument(admin: SupabaseClient): Promise<Map<string, string>> {
   const [projects, docs] = await Promise.all([
-    fetchAll<{ id: string; org_id: string }>((f, t) => admin.from("projects").select("id, org_id").range(f, t)),
-    fetchAll<{ id: string; project_id: string }>((f, t) => admin.from("documents").select("id, project_id").range(f, t)),
+    fetchAll<{ id: string; org_id: string }>((f, t) => admin.from("projects").select("id, org_id").order("id").range(f, t)),
+    fetchAll<{ id: string; project_id: string }>((f, t) => admin.from("documents").select("id, project_id").order("id").range(f, t)),
   ]);
   const orgByProject = new Map(projects.map(p => [p.id, p.org_id]));
   const map = new Map<string, string>();
@@ -96,31 +100,49 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
   const budgeted = orgs.filter(o => Number(o.monthly_budget) > 0);
   if (!budgeted.length) return [];
 
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-  const [docOrg, analyses] = await Promise.all([
+  const monthStart = periodRange({ kind: "month", value: monthKey(now) }).from;
+  const { usdToChf } = getUsdChf();
+  const projectCosts = (table: "chat_messages" | "project_norm_summaries", tiebreak: "id" | "project_id") =>
+    fetchAll<{ cost_usd: number | string | null; project_id: string | null }>((f, t) =>
+      admin
+        .from(table)
+        .select("cost_usd, project_id")
+        .gt("cost_usd", 0)
+        .gte("created_at", monthStart)
+        .order("created_at", { ascending: true })
+        .order(tiebreak, { ascending: true })
+        .range(f, t),
+    );
+  const [docOrg, projects, analyses, chat, norms] = await Promise.all([
     orgIdByDocument(admin),
+    fetchAll<{ id: string; org_id: string }>((f, t) => admin.from("projects").select("id, org_id").order("id").range(f, t)),
     fetchAll<{ cost_usd: number | string | null; document_id: string }>((f, t) =>
       admin
         .from("analyses")
         .select("cost_usd, document_id")
-        .eq("status", "done")
-        .not("cost_usd", "is", null)
+        .gt("cost_usd", 0)
         .gte("created_at", monthStart)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
         .range(f, t),
     ),
+    projectCosts("chat_messages", "id"),
+    projectCosts("project_norm_summaries", "project_id"),
   ]);
 
   const costByOrg = new Map<string, number>();
-  for (const a of analyses) {
-    const orgId = docOrg.get(a.document_id);
-    if (!orgId) continue;
-    costByOrg.set(orgId, (costByOrg.get(orgId) ?? 0) + (Number(a.cost_usd) || 0));
-  }
+  const addCost = (orgId: string | undefined, cost: number | string | null) => {
+    if (!orgId) return;
+    costByOrg.set(orgId, (costByOrg.get(orgId) ?? 0) + (Number(cost) || 0));
+  };
+  for (const a of analyses) addCost(docOrg.get(a.document_id), a.cost_usd);
+  const orgByProject = new Map(projects.map(p => [p.id, p.org_id]));
+  for (const r of chat.concat(norms)) addCost(r.project_id ? orgByProject.get(r.project_id) : undefined, r.cost_usd);
 
   const out: AdminAlert[] = [];
   for (const org of budgeted) {
     const budget = Number(org.monthly_budget);
-    const cost = costByOrg.get(org.id) ?? 0;
+    const cost = (costByOrg.get(org.id) ?? 0) * usdToChf;
     const pct = (cost / budget) * 100;
     if (pct < 80) continue;
     const critical = pct >= 100;
@@ -129,7 +151,7 @@ async function budgetAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Date): 
       rule: "budget",
       severity: critical ? "critical" : "warning",
       title: critical ? "Monatsbudget überschritten" : "Monatsbudget fast aufgebraucht",
-      message: `${cost.toFixed(2)} von ${budget.toFixed(2)} (${Math.round(pct)} %), USD-Basis`,
+      message: `CHF ${cost.toFixed(2)} von CHF ${budget.toFixed(2)} (${Math.round(pct)} %)`,
       orgId: org.id,
       orgName: org.name,
       href: orgHref(org.id, "kosten"),

@@ -713,9 +713,9 @@ function KostenTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-[11px] text-[#7B8299]">
-                  <span>{c.analyseCount} Analysen</span>
-                  <span>Ø {chf(c.analyseCount > 0 ? c.totalCost / c.analyseCount : 0)}</span>
-                  <span>{c.storageGB} GB Storage</span>
+                  <span>Analysen {chf(c.analyseCost)}</span>
+                  <span>Chat {chf(c.chatCost)}</span>
+                  <span>Normen {chf(c.normCost)}</span>
                 </div>
               </div>
             ))}

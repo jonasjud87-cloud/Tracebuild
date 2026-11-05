@@ -127,7 +127,7 @@ export default function AnalysesTable(p: Props) {
                       {dur.live && <span className="block text-[11px] text-[#7B8299]">seit Start</span>}
                     </td>
                     <td className={`whitespace-nowrap px-4 py-3 text-right align-top tabular-nums ${expensive ? "font-semibold text-orange-300" : "text-[#ABAEBB]"}`}>
-                      {formatCost(row.costUsd)}
+                      {formatCost(row.costChf)}
                       {expensive && <span className="block text-[11px] font-medium">teuer</span>}
                     </td>
                     <td className="px-4 py-3 align-top">

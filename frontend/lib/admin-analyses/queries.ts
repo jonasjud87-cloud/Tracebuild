@@ -10,6 +10,7 @@ import {
   ORPHAN_AFTER_MINUTES,
   ORPHAN_AFTER_MS,
 } from "./constants";
+import { getUsdChf, toChf, toChfPrecise } from "@/lib/admin-currency";
 import { encodeCursor, type ListParams } from "./params";
 import type { AnalysesListResponse, AnalysesSummary, AnalysisRow, OrgOption } from "./types";
 
@@ -70,12 +71,13 @@ function truncate(text: string | null): string | null {
   return clean.length > ERROR_TEXT_MAX ? `${clean.slice(0, ERROR_TEXT_MAX - 1)}…` : clean;
 }
 
-function mapRow(raw: RawRow, now: Date): AnalysisRow {
+function mapRow(raw: RawRow, now: Date, rate: number): AnalysisRow {
   const doc = first(raw.documents);
   const project = first(doc?.projects);
   const org = first(project?.organizations);
   const created = Date.parse(raw.created_at);
   const durationMs = toNumber(raw.duration_ms);
+  const costUsd = toNumber(raw.cost_usd);
   return {
     id: raw.id,
     status: raw.status,
@@ -88,7 +90,8 @@ function mapRow(raw: RawRow, now: Date): AnalysisRow {
     docType: doc?.doc_type ?? null,
     createdAt: raw.created_at,
     durationMs: durationMs !== null && durationMs >= 0 ? durationMs : null,
-    costUsd: toNumber(raw.cost_usd),
+    costUsd,
+    costChf: costUsd === null ? null : toChfPrecise(costUsd, rate),
     errorText: truncate(raw.error_text),
     runId: raw.run_id || null,
   };
@@ -98,6 +101,7 @@ async function listAnalyses(
   admin: Admin,
   p: ListParams,
   now: Date,
+  rate: number,
 ): Promise<{ items: AnalysisRow[]; nextCursor: string | null }> {
   let q = admin
     .from("analyses")
@@ -124,7 +128,7 @@ async function listAnalyses(
   const page = hasMore ? rows.slice(0, p.limit) : rows;
   const last = page[page.length - 1];
   return {
-    items: page.map((r) => mapRow(r, now)),
+    items: page.map((r) => mapRow(r, now, rate)),
     nextCursor: hasMore && last ? encodeCursor({ createdAt: last.created_at, id: last.id }) : null,
   };
 }
@@ -216,7 +220,7 @@ async function computeCosts(admin: Admin, now: Date): Promise<CostSums> {
   return { today, month, truncated: true };
 }
 
-async function loadSummary(admin: Admin, now: Date): Promise<AnalysesSummary> {
+async function loadSummary(admin: Admin, now: Date, rate: number): Promise<AnalysesSummary> {
   const orphanCutoff = new Date(now.getTime() - ORPHAN_AFTER_MS).toISOString();
   const failedSince = new Date(now.getTime() - FAILED_WINDOW_MS).toISOString();
   const expensiveSince = new Date(now.getTime() - EXPENSIVE_WINDOW_MS).toISOString();
@@ -239,6 +243,8 @@ async function loadSummary(admin: Admin, now: Date): Promise<AnalysesSummary> {
     expensive30d,
     costToday: costs.today,
     cost30d: costs.month,
+    costTodayChf: toChf(costs.today, rate),
+    cost30dChf: toChf(costs.month, rate),
     costTruncated: costs.truncated,
   };
 }
@@ -251,16 +257,23 @@ async function loadOrgOptions(admin: Admin): Promise<OrgOption[]> {
 
 export async function buildListResponse(admin: Admin, p: ListParams, now: Date): Promise<AnalysesListResponse> {
   const withExtras = !p.cursor;
+  const { usdToChf } = getUsdChf();
   const [page, summary, orgs] = await Promise.all([
-    listAnalyses(admin, p, now),
-    withExtras ? loadSummary(admin, now).catch(() => null) : Promise.resolve(null),
+    listAnalyses(admin, p, now, usdToChf),
+    withExtras ? loadSummary(admin, now, usdToChf).catch(() => null) : Promise.resolve(null),
     withExtras ? loadOrgOptions(admin).catch(() => null) : Promise.resolve(null),
   ]);
   return {
     items: page.items,
     nextCursor: page.nextCursor,
     view: p.view,
-    thresholds: { expensiveUsd: EXPENSIVE_DEFAULT_USD, orphanMinutes: ORPHAN_AFTER_MINUTES },
+    currency: "CHF",
+    usdToChf,
+    thresholds: {
+      expensiveUsd: EXPENSIVE_DEFAULT_USD,
+      expensiveChf: toChfPrecise(EXPENSIVE_DEFAULT_USD, usdToChf),
+      orphanMinutes: ORPHAN_AFTER_MINUTES,
+    },
     appliedFilters: { org: p.org, from: p.from, to: p.to, minCost: p.minCost },
     summary,
     orgs,
