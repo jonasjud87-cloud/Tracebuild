@@ -10,6 +10,7 @@ import type {
   OverviewSeriesPoint,
   TrendValue,
 } from "./types";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -68,7 +69,7 @@ async function fetchAll<T>(
   const out: T[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
     const { data, error } = await build(page * PAGE, page * PAGE + PAGE - 1);
-    if (error) throw new Error("query failed");
+    if (error) throw new Error((error as { message?: string }).message ?? "query failed");
     const rows = (data ?? []) as T[];
     out.push(...rows);
     if (rows.length < PAGE) break;
@@ -170,7 +171,7 @@ async function loadChatRows(admin: Admin, sinceIso: string, flags: Flags): Promi
 }
 
 async function loadNormRows(admin: Admin, sinceIso: string, flags: Flags): Promise<CostRow[]> {
-  const load = (table: "project_norm_summaries" | "project_kenndaten") =>
+  const load = (table: "project_norm_summaries" | "project_kenndaten_kosten", tiebreak: "project_id" | "id") =>
     fetchAll<RawChatCost>(
       (from, to) =>
         admin
@@ -179,14 +180,17 @@ async function loadNormRows(admin: Admin, sinceIso: string, flags: Flags): Promi
           .gt("cost_usd", 0)
           .gte("created_at", sinceIso)
           .order("created_at", { ascending: false })
-          .order("project_id", { ascending: false })
+          .order(tiebreak, { ascending: false })
           .range(from, to),
       flags,
     );
   const [rows, kenndaten] = await Promise.all([
-    load("project_norm_summaries"),
+    load("project_norm_summaries", "project_id"),
     // Ohne Migration 20261110000001 gibt es die Tabelle noch nicht.
-    load("project_kenndaten").catch(() => [] as RawChatCost[]),
+    load("project_kenndaten_kosten", "id").catch((e: Error) => {
+      if (isMissingSchema(e.message)) return [] as RawChatCost[];
+      throw e;
+    }),
   ]);
   return rows.concat(kenndaten).map((r) => ({
     at: Date.parse(r.created_at),

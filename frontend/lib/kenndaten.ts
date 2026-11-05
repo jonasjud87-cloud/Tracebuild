@@ -1,11 +1,14 @@
 /**
- * Kenndatenblatt: Beleg-Prüfung, Auswahl der Werte und Berechnung der Geschossfläche. Rein, läuft auf
- * Server und im Browser und kommt ohne Modell aus. Die Berechnung stammt immer von hier, nie vom Modell.
+ * Kenndatenblatt: Zahlenformat, Berechnung der Geschossfläche und Aufbau des Blatts. Rein, läuft auf Server
+ * und im Browser und kommt ohne Modell aus. Die Berechnung stammt immer von hier, nie vom Modell.
+ * Die Prüfung der Modellangaben steht in kenndaten-beleg.ts.
  */
 
 export const KENNDATEN_FELDER = [
   "vollgeschosse",
   "ausnuetzungsziffer",
+  "baumassenziffer",
+  "ueberbauungsziffer",
   "grenzabstand_gross",
   "grenzabstand_klein",
   "gebaeudelaenge",
@@ -17,34 +20,14 @@ export const KENNDATEN_FELDER = [
 ] as const;
 
 export type KenndatenFeld = (typeof KENNDATEN_FELDER)[number];
-export type ModellEinheit = "m" | "cm" | "mm" | "%" | "";
 
-/** Eine Angabe des Modells, noch ungeprüft. `normIndex` ist 1-basiert. */
-export interface KenndatenKandidat {
-  feld: KenndatenFeld;
-  zahl: number | null;
-  einheit: ModellEinheit;
-  text: string | null;
-  zusatz: string | null;
-  normIndex: number;
-  artikel: string | null;
-  zitat: string;
-  zoneImText: string;
-  giltFuerAlleZonen: boolean;
-}
-
-/** Eine dem Modell vorgelegte Norm. `text` ist genau das, was das Modell gesehen hat. */
-export interface BelegNorm {
-  title: string;
-  layer: number;
-  text: string;
-}
-
-/** Geprüfter Wert: Masse in m, AZ als Zahl, Vollgeschosse als ganze Zahl, Dachform als Text. */
+/** Geprüfter Wert: Masse in m, Ziffern als Zahl, Vollgeschosse als ganze Zahl, Dachform als Text. */
 export interface KenndatenWert {
   zahl: number | null;
   text: string | null;
   zusatz: string | null;
+  /** Wie die Norm das Mass nennt, etwa «Fassadenhöhe». Sonst vermischt das Blatt Messweisen. */
+  bezeichnung: string | null;
   normTitle: string;
   artikel: string | null;
   layer: number;
@@ -56,8 +39,14 @@ export interface KenndatenAuswertung {
   werte: KenndatenWerte;
   /** Felder, zu denen Normen derselben Ebene verschiedene Werte nennen. Sie bleiben leer. */
   widerspruechlich: KenndatenFeld[];
+  /** Felder, zu denen es eine Angabe gab, die sich nicht belegen oder an die Zone binden liess. */
+  unbelegt: KenndatenFeld[];
   /** Anzahl verworfener Angaben, nur zur Nachvollziehbarkeit. */
   verworfen: number;
+  /** Warum eine Gemeindenorm auf dem gespeicherten Text statt dem Original-PDF lief. */
+  hinweise: string[];
+  /** Das Original war nur vorübergehend nicht abrufbar. Das Ergebnis wird später neu berechnet. */
+  vorbehalt: boolean;
 }
 
 export const LEER = "–";
@@ -68,11 +57,13 @@ export function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+const groupThousands = (whole: string) => whole.replace(/\B(?=(\d{3})+(?!\d))/g, "'");
+
 /** 1'839.00. Mindestens zwei Stellen; mehr nur, wenn der Wert sie hat (AZ 0.375 bleibt 0.375). */
 export function formatCh(n: number): string {
   const fixed = n.toFixed(4).replace(/(\.\d\d\d*?)0+$/, "$1");
   const [whole, decimals] = fixed.split(".");
-  return `${whole.replace(/\B(?=(\d{3})+(?!\d))/g, "'")}.${decimals}`;
+  return `${groupThousands(whole)}.${decimals}`;
 }
 
 export const formatM = (n: number) => `${formatCh(n)} m`;
@@ -86,209 +77,6 @@ export function formatDateCh(iso: string | null | undefined): string | null {
   return d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Zurich" });
 }
 
-// ── Beleg-Prüfung ────────────────────────────────────────────────────────────
-
-const NUMBER_RE = /\d{1,3}(?:['’]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?/g;
-
-function canonicalNumber(raw: string): number {
-  return Number(raw.replace(/['’]/g, "").replace(",", "."));
-}
-
-/** Alle Zahlen eines Texts als Werte: 3.50, 3,50 und 3.5 sind dieselbe Zahl, 13.50 enthält nicht 3.50. */
-export function numbersIn(text: string): Set<number> {
-  return new Set(Array.from(text.matchAll(NUMBER_RE), (m) => canonicalNumber(m[0])));
-}
-
-export function numberInText(value: number, text: string): boolean {
-  return numbersIn(text).has(value);
-}
-
-const ZAHLWORTE = ["ein", "zwei", "drei", "vier", "fünf", "sechs"];
-const ROEMISCH = ["I", "II", "III", "IV", "V", "VI"];
-
-/** Geschosse stehen in Reglementen auch als «dreigeschossig» oder römisch in der Zonentabelle. */
-function geschossInText(value: number, text: string): boolean {
-  if (numberInText(value, text)) return true;
-  const wort = ZAHLWORTE[value - 1];
-  if (!wort) return false;
-  if (new RegExp(`(?:^|[^\\p{L}])${wort}(?:e|es|er)?[\\s-]*(?:voll)?gesch`, "iu").test(text)) return true;
-  if (value > 1 && new RegExp(`(?:^|[^\\p{L}])${wort}(?:[^\\p{L}]|$)`, "iu").test(text)) return true;
-  return new RegExp(`(?:^|[^A-Za-z])${ROEMISCH[value - 1]}(?:[^A-Za-z]|$)`).test(text);
-}
-
-const WORD_RE = new RegExp("[\\p{L}\\p{N}]+", "gu");
-
-function wordsOf(text: string): string[] {
-  return text.toLowerCase().match(WORD_RE) ?? [];
-}
-
-/** Das Zitat muss im Normtext stehen. PDF-Text bricht Wörter um, deshalb wortweise und mit Toleranz. */
-export function zitatInText(zitat: string, text: string): boolean {
-  const words = wordsOf(zitat);
-  if (words.length === 0) return false;
-  const known = new Set(wordsOf(text));
-  return words.filter((w) => known.has(w)).length / words.length >= 0.8;
-}
-
-/** «Art. 12» muss es im Normtext geben. Freie Angaben wie «Zonentabelle» bleiben ungeprüft. */
-export function artikelInText(artikel: string, text: string): boolean {
-  const m = artikel.match(/(art(?:ikel|\.)?|§|anhang|ziff(?:er|\.)?)\s*(\d+[a-z]?)/i);
-  if (!m) return true;
-  const word = m[1].toLowerCase();
-  const family = word.startsWith("art") ? "art(?:ikel|\\.)?" : word === "§" ? "§" : word === "anhang" ? "anhang" : "ziff(?:er|\\.)?";
-  return new RegExp(`${family}\\s*${m[2]}(?![\\da-z])`, "i").test(text);
-}
-
-// ── Zonenabgleich ────────────────────────────────────────────────────────────
-
-function zoneTokens(zone: string): string[] {
-  const s = zone
-    .toLowerCase()
-    .replace(/wohn[\s-]*(?:und[\s-]*)?gewerbe\s*zone|misch\s*zone/g, "wg")
-    .replace(/wohn\s*zone/g, "w")
-    .replace(/kern\s*zone/g, "k")
-    .replace(/zentrums?\s*zone/g, "z")
-    .replace(/gewerbe\s*zone/g, "g")
-    .replace(/industrie\s*zone/g, "i")
-    .replace(/\b(?:bau)?zone\b/g, " ")
-    .replace(/\b([a-z]{1,3})[\s-]+(?=\d)/g, "$1");
-  const tokens = s.split(new RegExp("[^\\p{L}\\p{N}]+", "u")).filter(Boolean);
-  // «Wohnzone W2» heisst nur W2.
-  return tokens.filter((t) => !(/^[a-z]{1,3}$/.test(t) && tokens.some((o) => o !== t && o.startsWith(t) && /\d/.test(o))));
-}
-
-/** Im Zweifel nein: W2 passt zu «Wohnzone 2» und «W2, W3», aber nicht zu W3, W21, W2a oder «Wohnzone». */
-export function zoneMatches(projectZone: string, zoneImText: string): boolean {
-  const a = zoneTokens(projectZone);
-  const b = new Set(zoneTokens(zoneImText));
-  return a.length > 0 && a.every((t) => b.has(t));
-}
-
-const ALLE_ZONEN_RE = /^(?:in\s+)?(?:alle|allgemein|sämtliche|jede)/i;
-
-// ── Prüfung eines Kandidaten ─────────────────────────────────────────────────
-
-/** `zone`: Wert gehört zu einer anderen Zone. `beleg`: Wert ist im Normtext nicht belegt. */
-export type Verwerfung = "zone" | "beleg";
-
-function normalize(k: KenndatenKandidat): { zahl: number | null; text: string | null } | null {
-  if (k.feld === "dachform") {
-    const text = (k.text ?? "").replace(/\s+/g, " ").trim().slice(0, 80);
-    return text ? { zahl: null, text } : null;
-  }
-  if (k.zahl == null || !Number.isFinite(k.zahl) || k.zahl <= 0) return null;
-  if (k.feld === "vollgeschosse") {
-    return Number.isInteger(k.zahl) && k.zahl <= 30 && k.einheit === "" ? { zahl: k.zahl, text: null } : null;
-  }
-  if (k.feld === "ausnuetzungsziffer") {
-    if (k.einheit !== "" && k.einheit !== "%") return null;
-    const az = k.einheit === "%" ? k.zahl / 100 : k.zahl;
-    return az <= 10 ? { zahl: az, text: null } : null;
-  }
-  if (k.einheit === "%") return null;
-  const metres = k.einheit === "cm" ? k.zahl / 100 : k.einheit === "mm" ? k.zahl / 1000 : k.zahl;
-  return metres <= 300 ? { zahl: metres, text: null } : null;
-}
-
-export function pruefeKandidat(
-  k: KenndatenKandidat,
-  norm: BelegNorm | undefined,
-  projectZone: string,
-): { ok: true; wert: KenndatenWert } | { ok: false; grund: Verwerfung } {
-  if (!norm) return { ok: false, grund: "beleg" };
-
-  const zone = k.zoneImText.trim();
-  const zoneOk = k.giltFuerAlleZonen ? !zone || ALLE_ZONEN_RE.test(zone) || zoneMatches(projectZone, zone) : zoneMatches(projectZone, zone);
-  if (!zoneOk) return { ok: false, grund: "zone" };
-
-  const value = normalize(k);
-  if (!value) return { ok: false, grund: "beleg" };
-
-  const zitat = k.zitat.trim();
-  const artikel = (k.artikel ?? "").trim();
-  if (!zitat && !artikel) return { ok: false, grund: "beleg" };
-  if (zitat && !zitatInText(zitat, norm.text)) return { ok: false, grund: "beleg" };
-  if (!zitat && !artikelInText(artikel, norm.text)) return { ok: false, grund: "beleg" };
-
-  // Geprüft wird die Zahl, wie sie im Text steht (50 %, 750 cm), nicht die umgerechnete.
-  if (value.zahl != null) {
-    const found = k.feld === "vollgeschosse"
-      ? (t: string) => geschossInText(k.zahl!, t)
-      : (t: string) => numberInText(k.zahl!, t);
-    if (!found(norm.text)) return { ok: false, grund: "beleg" };
-    if (zitat && !found(zitat)) return { ok: false, grund: "beleg" };
-  } else {
-    const known = new Set(wordsOf(norm.text));
-    if (!wordsOf(value.text!).some((w) => w.length >= 4 && known.has(w))) return { ok: false, grund: "beleg" };
-  }
-
-  // Jede Zahl aus Zusatz und Dachform muss ebenfalls im Normtext stehen.
-  const zusatz = (k.zusatz ?? "").replace(/^\(|\)$/g, "").replace(/\s+/g, " ").trim().slice(0, 80) || null;
-  const normNumbers = numbersIn(norm.text);
-  for (const n of Array.from(numbersIn(`${zusatz ?? ""} ${value.text ?? ""}`))) {
-    if (!normNumbers.has(n)) return { ok: false, grund: "beleg" };
-  }
-
-  return {
-    ok: true,
-    wert: {
-      ...value,
-      zusatz,
-      normTitle: norm.title,
-      artikel: artikel && artikelInText(artikel, norm.text) ? artikel.slice(0, 40) : null,
-      layer: norm.layer,
-    },
-  };
-}
-
-// ── Vorrang der Ebenen ───────────────────────────────────────────────────────
-
-/** Gemeinde vor projektbezogener Spezialnorm vor Kanton vor Bund. */
-export function layerRank(layer: number): number {
-  return layer === 4 ? 0 : layer === 5 ? 1 : layer === 3 ? 2 : 3;
-}
-
-function sameValue(a: KenndatenWert, b: KenndatenWert): boolean {
-  return a.zahl === b.zahl && (a.text ?? "").toLowerCase() === (b.text ?? "").toLowerCase();
-}
-
-/**
- * Pro Feld der Wert der höchsten Ebene, die einen hat. Ein Wert einer anderen Zone sagt nichts über
- * diese Zone, die nächste Ebene darf einspringen. Eine unbelegte Angabe heisst dagegen: Die Gemeinde
- * regelt es vermutlich, wir können es nur nicht belegen. Dann bleibt das Feld leer, sonst stünde
- * dort der Kantonswert, den die Gemeinde womöglich verschärft hat.
- */
-export function waehleWerte(kandidaten: KenndatenKandidat[], normen: BelegNorm[], projectZone: string): KenndatenAuswertung {
-  const werte: KenndatenWerte = {};
-  const widerspruechlich: KenndatenFeld[] = [];
-  let verworfen = 0;
-
-  for (const feld of KENNDATEN_FELDER) {
-    const ranks = new Map<number, { ok: KenndatenWert[]; unbelegt: boolean }>();
-    for (const k of kandidaten.filter((c) => c.feld === feld)) {
-      const norm = normen[k.normIndex - 1];
-      const result = pruefeKandidat(k, norm, projectZone);
-      if (!result.ok) verworfen += 1;
-      if (!norm) continue;
-      const rank = layerRank(norm.layer);
-      const entry = ranks.get(rank) ?? { ok: [], unbelegt: false };
-      if (result.ok) entry.ok.push(result.wert);
-      else if (result.grund === "beleg") entry.unbelegt = true;
-      ranks.set(rank, entry);
-    }
-    for (const rank of Array.from(ranks.keys()).sort((a, b) => a - b)) {
-      const { ok, unbelegt } = ranks.get(rank)!;
-      if (ok.length > 0) {
-        if (ok.every((w) => sameValue(w, ok[0]))) werte[feld] = ok[0];
-        else widerspruechlich.push(feld);
-        break;
-      }
-      if (unbelegt) break;
-    }
-  }
-  return { werte, widerspruechlich, verworfen };
-}
-
 // ── Berechnung ───────────────────────────────────────────────────────────────
 
 export const ANGENOMMENE_GESCHOSSHOEHE_M = 3;
@@ -296,6 +84,10 @@ export const ANGENOMMENE_GESCHOSSHOEHE_M = 3;
 export interface GeschossflaecheInput {
   landflaeche: number | null;
   az: number | null;
+  /** Eine AZ ist genannt, aber widersprüchlich oder unbelegt. Sie fehlt also nicht wirklich. */
+  azUnklar?: boolean;
+  /** Das Reglement regelt die Dichte über eine andere Ziffer, etwa «Baumassenziffer». */
+  andereZiffer?: string | null;
   laenge: number | null;
   breite: number | null;
   gebaeudehoehe: number | null;
@@ -303,43 +95,44 @@ export interface GeschossflaecheInput {
 }
 
 export type GeschossflaecheResult =
-  | { art: "az" | "volumen"; zeilen: string[]; ergebnis: number; hinweis: string }
-  | { art: "keine"; zeilen: string[]; ergebnis: null; hinweis: string };
+  | { art: "az" | "volumen"; titel: string; zeilen: string[]; ergebnis: number; hinweis: string }
+  | { art: "keine"; titel: string; zeilen: string[]; ergebnis: null; hinweis: string };
 
 const usable = (n: number | null): n is number => n != null && Number.isFinite(n) && n > 0;
 
+function keine(hinweis: string): GeschossflaecheResult {
+  return { art: "keine", titel: "Geschossfläche", zeilen: [], ergebnis: null, hinweis };
+}
+
 export function berechneGeschossflaeche(i: GeschossflaecheInput): GeschossflaecheResult {
-  if (!usable(i.landflaeche)) {
-    return { art: "keine", zeilen: [], ergebnis: null, hinweis: "Eine Berechnung ist mangels Werten nicht möglich: Die Landfläche fehlt." };
-  }
+  if (!usable(i.landflaeche)) return keine("Eine Berechnung ist mangels Werten nicht möglich: Die Landfläche fehlt.");
   if (usable(i.az)) {
     const ergebnis = round2(i.landflaeche * i.az);
     return {
       art: "az",
+      titel: "Max. anrechenbare Geschossfläche, theoretisch",
       zeilen: [`${formatM2(i.landflaeche)} x ${formatCh(i.az)} (AZ) = ${formatM2(ergebnis)}`],
       ergebnis,
-      hinweis: "Berechnet mit der ganzen Landfläche, ohne Bestandesabzug.",
+      hinweis: "Grundbuchfläche, ohne Bestand und Boni; Anrechenbarkeit gemäss Reglement.",
     };
   }
+  if (i.azUnklar) return keine("Eine Berechnung ist nicht möglich: Die Angabe zur Ausnützungsziffer ist widersprüchlich oder nicht belegt, bitte am Original prüfen.");
+  if (i.andereZiffer) return keine(`Eine Berechnung der Geschossfläche ist nicht möglich: Das Reglement regelt die Dichte über die ${i.andereZiffer}.`);
   if (usable(i.laenge) && usable(i.breite) && usable(i.gebaeudehoehe) && usable(i.firsthoehe)) {
     const volumen = round2(i.laenge * i.breite * ((i.gebaeudehoehe + i.firsthoehe) / 2));
-    const ergebnis = round2(volumen / ANGENOMMENE_GESCHOSSHOEHE_M);
+    const ergebnis = Math.round(volumen / ANGENOMMENE_GESCHOSSHOEHE_M / 10) * 10;
     return {
       art: "volumen",
+      titel: "Geschossfläche, grober Richtwert",
       zeilen: [
         `${formatM(i.laenge)} x ${formatM(i.breite)} x ((${formatM(i.gebaeudehoehe)} + ${formatM(i.firsthoehe)}) : 2) = ${formatM3(volumen)}`,
-        `${formatM3(volumen)} : ${formatM(ANGENOMMENE_GESCHOSSHOEHE_M)} = ${formatM2(ergebnis)}`,
+        `${formatM3(volumen)} : ${formatM(ANGENOMMENE_GESCHOSSHOEHE_M)} = ca. ${groupThousands(String(ergebnis))} m²`,
       ],
       ergebnis,
-      hinweis: `Richtwert mit angenommener Geschosshöhe ${formatM(ANGENOMMENE_GESCHOSSHOEHE_M)}, ohne Bestandesabzug. Keine Ausnützungsziffer gefunden.`,
+      hinweis: `Grober Richtwert aus Gebäudehülle, inkl. Aussenwände, mit angenommener Geschosshöhe ${formatM(ANGENOMMENE_GESCHOSSHOEHE_M)}; keine zulässige Nutzung; Abstände, Parzelle, Geschosszahl ungeprüft.`,
     };
   }
-  return {
-    art: "keine",
-    zeilen: [],
-    ergebnis: null,
-    hinweis: "Eine Berechnung ist mangels Werten nicht möglich: Es fehlen die Ausnützungsziffer oder Gebäudelänge, Gebäudebreite, Gebäudehöhe und Firsthöhe.",
-  };
+  return keine("Eine Berechnung ist mangels Werten nicht möglich: Es fehlen die Ausnützungsziffer oder Gebäudelänge, Gebäudebreite, Gebäudehöhe und Firsthöhe.");
 }
 
 // ── Blatt ────────────────────────────────────────────────────────────────────
@@ -368,9 +161,11 @@ export interface KenndatenBlatt {
   zeilen: KenndatenZeile[];
   berechnung: GeschossflaecheResult;
   oerebStand: string;
+  hinweise: string[];
 }
 
 const WIDERSPRUCH = "Normen widersprechen sich, am Original prüfen";
+const UNBELEGT = "Nicht eindeutig belegt, am Original prüfen";
 
 function quelleVon(w: KenndatenWert | undefined): string {
   if (!w) return LEER;
@@ -383,7 +178,19 @@ function mitZusatz(wert: string, w: KenndatenWert): string {
 }
 
 function masswert(w: KenndatenWert | undefined): string {
-  return w?.zahl != null ? mitZusatz(formatM(w.zahl), w) : LEER;
+  if (!w) return LEER;
+  if (w.zahl != null) return mitZusatz(formatM(w.zahl), w);
+  return w.zusatz ?? LEER;
+}
+
+const squeeze = (s: string) => s.toLowerCase().replace(/[^a-zäöü]/g, "");
+
+/** «Gebäudehöhe (Fassadenhöhe)», aber nicht «Firsthöhe (First)»: Nur eine andere Messweise ist eine Angabe wert. */
+function mitBezeichnung(label: string, w: KenndatenWert | undefined): string {
+  const b = w?.bezeichnung ? squeeze(w.bezeichnung) : "";
+  const l = squeeze(label);
+  if (!b || b.includes(l) || l.includes(b) || b.includes("grenzabstand")) return label;
+  return `${label} (${w!.bezeichnung})`;
 }
 
 export function baueKenndatenBlatt(input: {
@@ -396,13 +203,18 @@ export function baueKenndatenBlatt(input: {
 }): KenndatenBlatt {
   const { projekt, landflaeche, auswertung: a } = input;
   const w = a.werte;
+  const unklar = (feld: KenndatenFeld) => a.widerspruechlich.includes(feld) || a.unbelegt.includes(feld);
 
   const zeile = (bezeichnung: string, feld: KenndatenFeld, wert: string): KenndatenZeile => ({
-    bezeichnung,
+    bezeichnung: mitBezeichnung(bezeichnung, w[feld]),
     wert,
-    quelle: a.widerspruechlich.includes(feld) ? WIDERSPRUCH : quelleVon(w[feld]),
+    quelle: a.widerspruechlich.includes(feld) ? WIDERSPRUCH : a.unbelegt.includes(feld) ? UNBELEGT : quelleVon(w[feld]),
   });
   const massZeile = (bezeichnung: string, feld: KenndatenFeld) => zeile(bezeichnung, feld, masswert(w[feld]));
+  const zifferZeile = (bezeichnung: string, feld: KenndatenFeld) => {
+    const v = w[feld];
+    return zeile(bezeichnung, feld, v?.zahl != null ? mitZusatz(formatCh(v.zahl), v) : LEER);
+  };
 
   const zone = projekt.zoneConfidence === "low" ? `${projekt.bauzone} (unsicher)` : projekt.bauzone;
   const zoneQuelle = projekt.zoneSource === "oereb" ? "ÖREB-Auszug" : projekt.zoneSource === "manual" ? "Manuell erfasst" : "Projektangabe";
@@ -412,10 +224,9 @@ export function baueKenndatenBlatt(input: {
   if (w.gebaeudebreite?.zahl != null) {
     laengeZeile.wert = `${laengeZeile.wert} / Breite ${masswert(w.gebaeudebreite)}`;
     const quellen = [w.gebaeudelaenge, w.gebaeudebreite].filter(Boolean).map((x) => quelleVon(x));
-    if (!a.widerspruechlich.includes("gebaeudelaenge")) laengeZeile.quelle = Array.from(new Set(quellen)).join("; ");
+    if (!unklar("gebaeudelaenge")) laengeZeile.quelle = Array.from(new Set(quellen)).join("; ");
   }
 
-  const az = w.ausnuetzungsziffer;
   const geschosse = w.vollgeschosse;
   const zeilen: KenndatenZeile[] = [
     { bezeichnung: "Zone", wert: zone, quelle: zoneQuelle },
@@ -425,7 +236,9 @@ export function baueKenndatenBlatt(input: {
       quelle: landflaeche != null ? "ÖREB-Auszug (Grundbuch)" : LEER,
     },
     zeile("Vollgeschosse", "vollgeschosse", geschosse?.zahl != null ? mitZusatz(String(geschosse.zahl), geschosse) : LEER),
-    zeile("Ausnützungsziffer", "ausnuetzungsziffer", az?.zahl != null ? mitZusatz(formatCh(az.zahl), az) : LEER),
+    zifferZeile("Ausnützungsziffer", "ausnuetzungsziffer"),
+    ...(w.baumassenziffer ? [zifferZeile("Baumassenziffer", "baumassenziffer")] : []),
+    ...(w.ueberbauungsziffer ? [zifferZeile("Überbauungsziffer", "ueberbauungsziffer")] : []),
     massZeile("Grenzabstand gross", "grenzabstand_gross"),
     massZeile("Grenzabstand klein", "grenzabstand_klein"),
     laengeZeile,
@@ -441,6 +254,7 @@ export function baueKenndatenBlatt(input: {
     : `Stand ÖREB-Auszug: ${stand}${input.oerebStale ? " (letzte Aktualisierung fehlgeschlagen, älterer Stand)" : ""}`;
 
   const ort = [projekt.municipality, projekt.canton ? `Kanton ${projekt.canton}` : null].filter(Boolean).join(", ");
+  const andereZiffer = w.baumassenziffer ? "Baumassenziffer" : w.ueberbauungsziffer ? "Überbauungsziffer" : null;
 
   return {
     projektName: projekt.name,
@@ -450,13 +264,16 @@ export function baueKenndatenBlatt(input: {
     zeilen,
     berechnung: berechneGeschossflaeche({
       landflaeche,
-      az: az?.zahl ?? null,
+      az: w.ausnuetzungsziffer?.zahl ?? null,
+      azUnklar: unklar("ausnuetzungsziffer"),
+      andereZiffer,
       laenge: w.gebaeudelaenge?.zahl ?? null,
       breite: w.gebaeudebreite?.zahl ?? null,
       gebaeudehoehe: w.gebaeudehoehe?.zahl ?? null,
       firsthoehe: w.firsthoehe?.zahl ?? null,
     }),
     oerebStand,
+    hinweise: a.hinweise ?? [],
   };
 }
 

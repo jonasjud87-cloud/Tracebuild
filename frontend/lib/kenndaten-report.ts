@@ -129,7 +129,9 @@ export function buildKenndatenDoc(blatt: KenndatenBlatt, logo: string | null): j
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   const hinweis = doc.splitTextToSize(pdfText(b.hinweis), contentWidth) as string[];
-  const needed = 11 + b.zeilen.length * 5.5 + hinweis.length * 4 + 7;
+  doc.setFontSize(8);
+  const hinweise = blatt.hinweise.flatMap((h) => doc.splitTextToSize(pdfText(h), contentWidth) as string[]);
+  const needed = 11 + b.zeilen.length * 5.5 + hinweis.length * 4 + 7 + hinweise.length * 3.6;
   if (y + needed > pageHeight - FOOT_SPACE) {
     doc.addPage();
     y = 20;
@@ -139,7 +141,7 @@ export function buildKenndatenDoc(blatt: KenndatenBlatt, logo: string | null): j
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
-  doc.text("Geschossfläche", MARGIN, y);
+  doc.text(pdfText(b.titel), MARGIN, y);
   y += 5;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(10);
@@ -157,6 +159,7 @@ export function buildKenndatenDoc(blatt: KenndatenBlatt, logo: string | null): j
   doc.setFontSize(8);
   doc.setTextColor(...MUTED);
   doc.text(pdfText(blatt.oerebStand), MARGIN, y);
+  if (hinweise.length > 0) doc.text(hinweise, MARGIN, y + 4.5);
 
   // Fusszeile
   const pages = doc.getNumberOfPages();

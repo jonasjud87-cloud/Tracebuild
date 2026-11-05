@@ -54,7 +54,7 @@ export interface BillingData {
 }
 
 export async function loadBilling(admin: Admin, range?: { from: string; to: string }): Promise<BillingData> {
-  const projectCosts = (table: "chat_messages" | "project_norm_summaries" | "project_kenndaten", tiebreak: "id" | "project_id") =>
+  const projectCosts = (table: "chat_messages" | "project_norm_summaries" | "project_kenndaten_kosten", tiebreak: "id" | "project_id") =>
     fetchAll<RawProjectCost>((from, to) => {
       let q = admin.from(table).select("created_at, cost_usd, project_id").gt("cost_usd", 0);
       if (range) q = q.gte("created_at", range.from).lt("created_at", range.to);
@@ -74,7 +74,7 @@ export async function loadBilling(admin: Admin, range?: { from: string; to: stri
     projectCosts("chat_messages", "id"),
     projectCosts("project_norm_summaries", "project_id"),
     // Ohne Migration 20261110000001 gibt es die Tabelle noch nicht.
-    projectCosts("project_kenndaten", "project_id").catch((e: Error) => {
+    projectCosts("project_kenndaten_kosten", "id").catch((e: Error) => {
       if (isMissingSchema(e.message)) return [] as RawProjectCost[];
       throw e;
     }),
