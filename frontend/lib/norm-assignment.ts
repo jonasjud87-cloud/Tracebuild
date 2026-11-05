@@ -6,6 +6,7 @@ import {
   applies,
   normsForThemeMapping,
   isAutoNorm,
+  replacedUploadIds,
   withoutShadowedAutoNorms,
   type ApplicableNorm,
   type ProjectPlace,
@@ -32,16 +33,22 @@ export interface AssignmentResult {
 }
 
 /** Kandidaten: Normen der Org plus plattformweite Normen (org_id IS NULL), je Domäne. */
-async function loadCandidateNorms(orgId: string, domain: string): Promise<NormRow[]> {
+async function loadCandidateRows(orgId: string, domain: string): Promise<NormRow[]> {
   const admin = createAdminClient();
   const base = "id, title, layer, jurisdiction_type, jurisdiction_name, org_id, category";
   const query = (select: string) =>
     admin.from("norms").select(select).eq("domain", domain).or(`org_id.eq.${orgId},org_id.is.null`);
-  let { data, error } = await query(`${base}, source_kind, auto_scope, jurisdiction_canton, jurisdiction_bfs, source_url`);
-  // Ohne Geoportal-Migration fehlen die neuen Spalten.
+  const geoportal = `${base}, source_kind, auto_scope, jurisdiction_canton, jurisdiction_bfs, source_url`;
+  let { data, error } = await query(`${geoportal}, superseded_by_norm_id, org_authoritative`);
+  // Ohne die jeweilige Migration fehlen die neuen Spalten.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(geoportal));
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(base));
   if (error) throw new Error(`Normen konnten nicht gelesen werden: ${error.message}`);
-  return withoutShadowedAutoNorms((data ?? []) as unknown as NormRow[]);
+  return (data ?? []) as unknown as NormRow[];
+}
+
+async function loadCandidateNorms(orgId: string, domain: string, place?: ProjectPlace): Promise<NormRow[]> {
+  return withoutShadowedAutoNorms(await loadCandidateRows(orgId, domain), place);
 }
 
 /** Ort des Projekts; bfs_number gibt es erst nach der Migration, deshalb select("*"). */
@@ -142,8 +149,8 @@ export async function planOerebAssignment(
     .or(`org_id.eq.${orgId},org_id.is.null`);
   if (mapErr) throw new Error(`ÖREB-Mappings konnten nicht gelesen werden: ${mapErr.message}`);
 
-  const norms = candidateNorms ?? (await loadCandidateNorms(orgId, domain));
   const place = knownPlace ?? (await loadProjectPlace(projectId));
+  const norms = candidateNorms ?? (await loadCandidateNorms(orgId, domain, place));
   // Das Mapping vergleicht nur die Kategorie: Gemeindenormen anderer Gemeinden gehören nicht hinein.
   const match = matchOerebNorms(themes ?? [], mappings ?? [], normsForThemeMapping(norms, place));
 
@@ -185,8 +192,9 @@ export async function assignNorms(
   domain: string
 ): Promise<AssignmentResult> {
   const admin = createAdminClient();
-  const norms = await loadCandidateNorms(orgId, domain);
+  const rows = await loadCandidateRows(orgId, domain);
   const place: ProjectPlace = { canton, municipality, bfs: (await loadProjectPlace(projectId)).bfs };
+  const norms = withoutShadowedAutoNorms(rows, place);
 
   // ── 1. Durchgang: Bund / Kanton / Gemeinde / Org ──────────────────────────
   const systemShouldHave = new Set(norms.filter((n) => applies(n, place)).map((n) => n.id));
@@ -209,6 +217,17 @@ export async function assignNorms(
     .filter((r) => r.added_by === "system" && !systemShouldHave.has(r.norm_id as string))
     .map((r) => r.norm_id as string);
 
+  // Abgelöster Upload: Für die Analyse gilt nur die amtliche Fassung, auch wenn er von Hand verknüpft
+  // war. Nur wo die amtliche Norm in diesem Projekt wirklich gilt. Massgebend-Setzen macht es rückgängig.
+  const replaced = replacedUploadIds(rows, place);
+  const replacedLinks = (existing ?? [])
+    .filter((r) => r.added_by === "user" && replaced.has(r.norm_id as string))
+    .map((r) => r.norm_id as string)
+    .filter((id) => {
+      const target = rows.find((n) => n.id === id)?.superseded_by_norm_id;
+      return !!target && systemShouldHave.has(target);
+    });
+
   if (toAdd.length) {
     const { error } = await admin
       .from("project_norms")
@@ -224,6 +243,16 @@ export async function assignNorms(
       .eq("added_by", "system")
       .in("norm_id", toRemove);
     if (error) throw new Error(`Veraltete Normen konnten nicht entfernt werden: ${error.message}`);
+  }
+
+  if (replacedLinks.length) {
+    const { error } = await admin
+      .from("project_norms")
+      .delete()
+      .eq("project_id", projectId)
+      .eq("added_by", "user")
+      .in("norm_id", replacedLinks);
+    if (error) throw new Error(`Abgelöste Uploads konnten nicht entfernt werden: ${error.message}`);
   }
 
   // ── 2. Durchgang: ÖREB-Themen → Normen ────────────────────────────────────

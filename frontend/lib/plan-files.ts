@@ -41,3 +41,13 @@ export function planStoragePath(projectId: string, fileName: string): string {
   const safe = fileName.normalize("NFKD").replace(/[^\w.\-]+/g, "_").replace(/_+/g, "_").slice(-120) || "plan";
   return `${projectId}/${crypto.randomUUID()}_${safe}`;
 }
+
+/**
+ * Was das Löschen einer Analyse aus dem Storage entfernen darf: nur Pfade dieses Projekts. Die Pfade stammen
+ * aus Tabellen, und das Löschen läuft mit Service-Role: Ein fremder Pfad darf dort nie etwas bewirken.
+ */
+export function ownedStoragePaths(projectId: string, paths: Iterable<string>): string[] {
+  return Array.from(paths).filter(
+    (p) => typeof p === "string" && p.startsWith(`${projectId}/`) && p.length > projectId.length + 1 && !/\.\.|\\|%2e|%2f|%5c/i.test(p),
+  );
+}

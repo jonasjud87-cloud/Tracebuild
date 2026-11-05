@@ -18,6 +18,9 @@ export interface AnalysisRow {
   costChf: number | null;
   errorText: string | null;
   runId: string | null;
+  /** Letztes Lebenszeichen einer Analyse in Etappen. Fehlt bei älteren Analysen. */
+  lastActivityAt: string | null;
+  stageCount: number | null;
 }
 
 export interface AnalysesSummary {

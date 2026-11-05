@@ -8,6 +8,7 @@ import type { DocumentSyncResponse } from "../geoadmin/contract";
 import { logAudit, type AuditAction } from "../auditLog";
 import { normTextHash } from "../norm-hash";
 import { normTextTooLongMessage } from "../norm-text";
+import { isMissingSchema } from "../supabase/schema-errors";
 import { backoffUntil, decideIdentity, decideUpdate, nextRecheck, type ManualNormRef } from "./document-decisions";
 import { fetchDocument, type DocumentFetchResult } from "./document-fetch";
 import {
@@ -18,8 +19,24 @@ import {
   type OerebDocumentRow,
   type ProjectDocumentState,
 } from "./documents";
-import { decideContent, decidePreDownload, scopeOf, type ImportFilterRules } from "./import-filter";
+import { VERSION_COLUMNS, measureDocument } from "./document-versions";
+import { OcrBudgetError, readPdfWithClaude, textWithoutPageMarkers, pageCountFromText, type OcrClient, type OcrResult } from "./document-ocr";
+import {
+  MANUAL_EXCLUDE_REASON,
+  OLDER_VERSION_REASON,
+  REVIEW_STATUS,
+  contentStatus,
+  decideContent,
+  decidePreDownload,
+  foreignPlaceInTitle,
+  isNeutralScopeCandidate,
+  isOcrCandidate,
+  neutralScopeEvidence,
+  scopeOf,
+  type ImportFilterRules,
+} from "./import-filter";
 import { titleKey } from "./title-key";
+import { linkSimilarUploads } from "./upload-supersede";
 
 const LOCK_SECONDS = 300;
 const PARSE_TIMEOUT_MS = 120_000;
@@ -40,7 +57,15 @@ export interface ImportDeps {
   extractText?: (bytes: Buffer) => Promise<string>;
   /** Weist eine neue Norm den betroffenen Projekten zu. */
   assignNew?: (normId: string) => Promise<void>;
+  /** Modell-Client fürs Lesen von Scans. Der Standard wird erst bei Bedarf geladen. */
+  ocrClient?: OcrClient;
 }
+
+/** Spalten aus 20261109000001. Fehlen sie noch, speichert der Import ohne sie. */
+const EXTRA_COLUMNS = ["scope_reason", "text_source"] as const;
+
+/** Der Admin hat den Import verlangt. Host-Prüfung, Duplikate und Schrumpfschutz gelten weiter. */
+const isForced = (doc: { manual_decision?: string | null }) => doc.manual_decision === "force_import";
 
 async function defaultExtractText(bytes: Buffer): Promise<string> {
   const { extractPdfText } = await import("../pdf-text");
@@ -134,10 +159,18 @@ async function loadNorm(admin: SupabaseClient, id: string): Promise<NormRow | nu
 // ── Schreiben ────────────────────────────────────────────────────────────────
 
 async function finish(admin: SupabaseClient, doc: OerebDocumentRow, patch: Record<string, unknown>): Promise<void> {
-  const { error } = await admin
-    .from("oereb_documents")
-    .update({ ...patch, lock_until: null })
-    .eq("id", doc.id);
+  const update = (p: Record<string, unknown>) => admin.from("oereb_documents").update({ ...p, lock_until: null }).eq("id", doc.id);
+  let { error } = await update(patch);
+  // Vor den Migrationen 20261107000001 und 20261109000001 fehlen Spalten: Der Entscheid selbst muss trotzdem halten.
+  if (error && isMissingSchema(error.message)) {
+    const reduced = { ...patch };
+    for (const column of EXTRA_COLUMNS) delete reduced[column];
+    ({ error } = await update(reduced));
+    if (error && isMissingSchema(error.message)) {
+      for (const column of VERSION_COLUMNS) delete reduced[column];
+      ({ error } = await update(reduced));
+    }
+  }
   if (error) throw new Error(`ÖREB-Dokument konnte nicht gespeichert werden: ${error.message}`);
 }
 
@@ -154,6 +187,8 @@ interface ImportContext {
   projectId: string;
   now: number;
   nowIso: string;
+  /** Normen, deren Zuweisung am Ende neu zu berechnen ist. */
+  reassign: Set<string>;
 }
 
 async function audit(ctx: ImportContext, action: AuditAction, normId: string, doc: OerebDocumentRow, meta: Record<string, unknown>) {
@@ -183,7 +218,8 @@ async function insertNorm(
   scope: string,
   text: string,
   textSha: string,
-  pdfSha: string
+  pdfSha: string,
+  aiRead: boolean
 ): Promise<InsertResult> {
   const { admin, state } = ctx;
   const row = {
@@ -204,6 +240,7 @@ async function insertNorm(
     source_doc: `ÖREB ${state.canton}`,
     source_checked_at: ctx.nowIso,
     zone: null,
+    ...(aiRead ? { text_read_by_ai: true } : {}),
   };
 
   const conflictingNorm = async (title: string) => {
@@ -232,6 +269,179 @@ async function insertNorm(
   throw new Error("Norm konnte wegen eines Titelkonflikts nicht angelegt werden");
 }
 
+/** Nur amtliche Gemeinde-Normen lösen Uploads ab. Zählt für die Neuzuweisung der Gemeinde. */
+async function relinkUploads(ctx: ImportContext, doc: OerebDocumentRow, normId: string, text: string): Promise<void> {
+  if ((doc.scope ?? scopeOf(doc.title, ctx.rules)) !== "municipal") return;
+  const { municipality, canton, bfs } = ctx.state;
+  const changed = await linkSimilarUploads(ctx.admin, { id: normId, text, municipality, canton, bfs }, ctx.rules, ctx.nowIso);
+  if (changed > 0) ctx.reassign.add(normId);
+}
+
+/**
+ * Neutraler Titel, inzwischen als Gemeindeordnung belegt. Auch ohne neuen Download: Bereits als
+ * `parcel` importierte Dokumente (Herisau) sollen nicht auf ein neues PDF warten müssen.
+ */
+async function upgradeNeutralScope(ctx: ImportContext, doc: OerebDocumentRow, normId: string, knownText?: string): Promise<void> {
+  const { admin, rules, state } = ctx;
+  // Im Stopp ändert sich an der Geltung nichts.
+  if (rules.doc_types.length === 0 || doc.scope === "municipal" || !isNeutralScopeCandidate(doc, rules)) return;
+  if (knownText === undefined && typeof doc.article_run === "number" && doc.article_run < rules.neutral_min_article_run) return;
+  let text = knownText;
+  if (text === undefined) {
+    const norm = await loadNorm(admin, normId);
+    if (norm?.source_kind !== "oereb_auto") return;
+    text = norm.text ?? "";
+  }
+  const evidence = neutralScopeEvidence(doc, text, rules);
+  if (!evidence || isCapped({ title: doc.title, scope: "municipal" }, state.all, rules)) return;
+
+  const { data, error } = await admin
+    .from("norms")
+    .update({ auto_scope: "municipal" })
+    .eq("id", normId)
+    .eq("source_kind", "oereb_auto")
+    .eq("auto_scope", "parcel")
+    .select("id");
+  if (error) {
+    console.error(`Norm ${normId} nicht gemeindeweit gesetzt:`, error.message);
+    return;
+  }
+  if (!data?.length) return;
+  await finish(admin, doc, { scope: "municipal", scope_reason: evidence });
+  ctx.reassign.add(normId);
+  await relinkUploads(ctx, { ...doc, scope: "municipal" }, normId, text);
+}
+
+// ── Scans durch Claude lesen ─────────────────────────────────────────────────
+
+async function saveOcrState(ctx: ImportContext, doc: OerebDocumentRow, patch: Record<string, unknown>): Promise<boolean> {
+  const { error } = await ctx.admin.from("oereb_documents").update(patch).eq("id", doc.id);
+  if (error) console.error(`Lesestand des ÖREB-Dokuments ${doc.id} nicht gespeichert:`, error.message);
+  return !error;
+}
+
+/**
+ * Derselbe PDF-Stand wurde schon gelesen und steht als Norm: Nicht nochmals bezahlen. Nur wenn die
+ * Norm noch genau diesen Text trägt, sonst wäre es ein fremder Stand.
+ */
+async function findReadText(ctx: ImportContext, pdfSha: string): Promise<{ text: string; docId: string } | null> {
+  const { data, error } = await ctx.admin
+    .from("oereb_documents")
+    .select("id, norm_id, text_sha256")
+    .eq("ocr_pdf_sha256", pdfSha)
+    .eq("ocr_status", "read")
+    .not("norm_id", "is", null)
+    .limit(5);
+  if (error) throw new Error(`Gelesene Dokumente konnten nicht geprüft werden: ${error.message}`);
+  for (const row of (data ?? []) as { id: string; norm_id: string; text_sha256: string | null }[]) {
+    const norm = await loadNorm(ctx.admin, row.norm_id);
+    if (norm?.text && norm.source_kind === "oereb_auto" && norm.text_sha256 === row.text_sha256) return { text: norm.text, docId: row.id };
+  }
+  return null;
+}
+
+function ocrStatePatch(doc: OerebDocumentRow, result: Exclude<OcrResult, { kind: "retry" }>, pdfSha: string, pages: number, nowIso: string): Record<string, unknown> {
+  return {
+    ocr_status: result.kind === "read" ? "read" : "failed",
+    ocr_pdf_sha256: pdfSha,
+    ocr_model: result.model,
+    ocr_pages: pages,
+    ocr_input_tokens: result.usage.input_tokens,
+    ocr_output_tokens: result.usage.output_tokens,
+    ocr_cost_usd: Number(((doc.ocr_cost_usd ?? 0) + result.costUsd).toFixed(6)),
+    ocr_detail: result.kind === "read" ? null : `${result.reason}: ${result.detail}`,
+    ocr_read_at: nowIso,
+  };
+}
+
+/**
+ * Text eines Scans, oder null, wenn es beim PDF-Text bleibt. Ein Versuch je PDF-Stand: Der Versuch wird
+ * VOR dem Aufruf festgehalten, sodass auch ein Absturz der Funktion keinen zweiten Lauf bezahlt.
+ * Wiederholt wird nur, was nichts gekostet hat. Einen neuen Versuch löst sonst nur ein neues PDF oder
+ * ein Admin aus. Gesendet werden die Bytes aus dem eigenen, geprüften Abruf, nie die URL.
+ */
+async function readScan(ctx: ImportContext, doc: OerebDocumentRow, bytes: Buffer, text: string, pdfSha: string, deps: ImportDeps): Promise<string | null> {
+  const { rules, nowIso, now } = ctx;
+  // Im Stopp (auch wenn der Filter nicht lesbar ist) entstehen keine Kosten.
+  if (!rules.ocr_enabled || rules.doc_types.length === 0 || !("ocr_status" in doc)) return null;
+  if (textWithoutPageMarkers(text).length >= rules.min_text_chars) return null;
+  if (!isForced(doc) && !isOcrCandidate(doc, rules)) return null;
+
+  const known = await findReadText(ctx, pdfSha);
+  if (known) {
+    await saveOcrState(ctx, doc, { ocr_status: "read", ocr_pdf_sha256: pdfSha, ocr_detail: `Text von Dokument ${known.docId} übernommen`, ocr_read_at: nowIso });
+    return known.text;
+  }
+
+  if (doc.ocr_status && doc.ocr_pdf_sha256 === pdfSha) {
+    if (doc.ocr_status === "started") {
+      await saveOcrState(ctx, doc, { ocr_status: "failed", ocr_detail: "aborted: Lauf wurde abgebrochen, Kosten unbekannt" });
+    }
+    return null;
+  }
+
+  // Summe je Dokument: Sonst zahlte jeder neue PDF-Stand wieder den vollen Betrag.
+  const spent = Number(doc.ocr_cost_usd ?? 0);
+  const left = rules.ocr_max_total_cost_usd - spent;
+  if (left <= 0) {
+    await saveOcrState(ctx, doc, { ocr_status: "failed", ocr_pdf_sha256: pdfSha, ocr_detail: `cost_limit: ${spent} USD von ${rules.ocr_max_total_cost_usd} USD verbraucht`, ocr_read_at: nowIso });
+    return null;
+  }
+
+  const pages = pageCountFromText(text);
+  const deadlineAt = now + rules.ocr_deadline_ms;
+  if (deadlineAt - Date.now() < rules.ocr_min_call_ms) {
+    // Download und Textprüfung haben die Zeit verbraucht. Nichts bezahlt: Ein neuer Request versucht es.
+    throw new Error("Zu wenig Zeit für das Lesen des Scans in diesem Request");
+  }
+
+  let runId: string | null = null;
+  const client = deps.ocrClient ?? ((await import("../anthropic")).anthropic as unknown as OcrClient);
+  const result = await readPdfWithClaude(
+    {
+      bytes,
+      title: doc.title,
+      pages,
+      rules,
+      deadlineAt,
+      maxCostUsd: Math.min(rules.ocr_max_cost_usd, left),
+      onBeforeCall: async (worstCaseUsd) => {
+        // Atomar reserviert, auch gegen parallele Läufe. Nicht prüfbar heisst: nicht lesen.
+        const { data, error } = await ctx.admin.rpc("oereb_ocr_reserve", {
+          p_document_id: doc.id,
+          p_pdf_sha256: pdfSha,
+          p_model: rules.ocr_model,
+          p_reserve_usd: worstCaseUsd,
+          p_daily_budget_usd: rules.ocr_daily_budget_usd,
+          p_document_max_usd: rules.ocr_max_total_cost_usd,
+        });
+        if (error) throw new OcrBudgetError(`Budget nicht prüfbar: ${error.message}`, true);
+        const reserved = data as { ok?: boolean; reason?: string; run_id?: string } | null;
+        if (!reserved?.ok) {
+          const daily = reserved?.reason !== "document";
+          throw new OcrBudgetError(daily ? `Tagesbudget von ${rules.ocr_daily_budget_usd} USD erreicht` : `Summe von ${rules.ocr_max_total_cost_usd} USD für dieses Dokument erreicht`, daily);
+        }
+        runId = reserved.run_id ?? null;
+        const saved = await saveOcrState(ctx, doc, { ocr_status: "started", ocr_pdf_sha256: pdfSha, ocr_model: rules.ocr_model, ocr_pages: pages, ocr_detail: null, ocr_read_at: nowIso });
+        if (!saved) throw new Error("Leseversuch konnte nicht festgehalten werden");
+      },
+    },
+    client
+  );
+
+  // Tatsächlicher Betrag statt der Reservierung. Bleibt das aus (Absturz), zählt der Höchstbetrag weiter.
+  if (runId) {
+    const { error } = await ctx.admin.from("oereb_ocr_runs").update({ cost_usd: result.kind === "retry" ? 0 : result.costUsd }).eq("id", runId);
+    if (error) console.error(`Lesekosten des Laufs ${runId} nicht gespeichert:`, error.message);
+  }
+  if (result.kind === "retry") {
+    await saveOcrState(ctx, doc, { ocr_status: null, ocr_pdf_sha256: null, ocr_detail: `retry: ${result.detail}` });
+    throw new Error(`Scan konnte nicht gelesen werden: ${result.detail}`);
+  }
+  await saveOcrState(ctx, doc, ocrStatePatch(doc, result, pdfSha, pages, nowIso));
+  return result.kind === "read" ? result.text : null;
+}
+
 // ── Vorhandene Norm aktualisieren (5.6) ──────────────────────────────────────
 
 interface Downloaded {
@@ -247,7 +457,8 @@ async function updateNorm(
   normId: string,
   text: string,
   file: Downloaded,
-  supersededDocId: string | null
+  supersededDocId: string | null,
+  aiRead: boolean
 ): Promise<Outcome> {
   const { admin, rules, now, nowIso } = ctx;
   const norm = await loadNorm(admin, normId);
@@ -256,6 +467,7 @@ async function updateNorm(
     return "rejected";
   }
   const textSha = normTextHash(text);
+  const measures = measureDocument(doc.title, text, rules);
   const common = {
     status: "imported",
     norm_id: normId,
@@ -298,12 +510,15 @@ async function updateNorm(
         newTextSha: textSha,
         newText: text,
         rules,
+        title: doc.title,
+        forced: isForced(doc),
       });
 
   if (decision.action === "unchanged") {
     await supersede();
-    await finish(admin, doc, { ...common, chars: text.length, text_sha256: textSha, last_update_status: "unchanged", last_update_detail: null });
+    await finish(admin, doc, { ...common, ...measures, chars: text.length, text_sha256: textSha, last_update_status: "unchanged", last_update_detail: null });
     await touchNorm(admin, normId, nowIso);
+    await upgradeNeutralScope(ctx, { ...doc, ...common }, normId, text);
     return "unchanged";
   }
 
@@ -342,6 +557,8 @@ async function updateNorm(
     source_url: doc.url_normalized,
     pdf_url: doc.url_normalized,
     source_checked_at: nowIso,
+    // Nur wenn es zählt: Vor der Migration fehlt die Spalte, und mit Lesen aus ist sie immer false.
+    ...(aiRead || doc.text_source === "ai_read" ? { text_read_by_ai: aiRead } : {}),
   };
   const applyPatch = (p: Record<string, unknown>) => {
     let q = admin.from("norms").update(p).eq("id", norm.id).eq("source_kind", "oereb_auto");
@@ -361,12 +578,16 @@ async function updateNorm(
   }
 
   await supersede();
-  await finish(admin, doc, { ...common, chars: text.length, text_sha256: textSha, last_update_status: "updated", last_update_detail: null });
+  await finish(admin, doc, { ...common, ...measures, chars: text.length, text_sha256: textSha, text_source: aiRead ? "ai_read" : "pdf", last_update_status: "updated", last_update_detail: null });
+  await relinkUploads(ctx, doc, norm.id, text);
+  await upgradeNeutralScope(ctx, { ...doc, ...common }, norm.id, text);
   await audit(ctx, "norm_auto_update", norm.id, doc, {
     old_sha: norm.text_sha256,
     new_sha: textSha,
     old_chars: (norm.text ?? "").length,
     new_chars: text.length,
+    ai_read: aiRead,
+    forced: isForced(doc),
   });
   return "updated";
 }
@@ -384,8 +605,57 @@ async function rejectNew(ctx: ImportContext, doc: OerebDocumentRow, reason: stri
   });
 }
 
+/**
+ * Abgelehnte ältere Fassung nachprüfen: Hat sie sich geändert, zählen die neuen Messwerte beim
+ * nächsten Vergleich. Selbst bleibt sie abgelehnt, den Entscheid fällt nur der Vergleich.
+ */
+async function recheckOlderVersion(ctx: ImportContext, doc: OerebDocumentRow, deps: ImportDeps): Promise<{ outcome: Outcome }> {
+  const { admin, state, rules, now, nowIso } = ctx;
+  const later = {
+    attempts: 0,
+    last_checked_at: nowIso,
+    next_check_at: new Date(now + rules.older_version_recheck_hours * 3_600_000).toISOString(),
+  };
+  const res = await (deps.fetchDoc ?? fetchDocument)(doc.url_normalized, {
+    rules,
+    canton: state.canton,
+    etag: doc.etag,
+    lastModified: doc.last_modified,
+  });
+  if (res.kind !== "ok") {
+    await finish(admin, doc, later);
+    return { outcome: res.kind === "failed" ? "failed" : "unchanged" };
+  }
+  const pdfSha = createHash("sha256").update(res.bytes).digest("hex");
+  const file = { etag: res.etag, last_modified: res.lastModified, pdf_sha256: pdfSha, bytes: res.bytes.length };
+  if (doc.pdf_sha256 === pdfSha) {
+    await finish(admin, doc, { ...later, ...file });
+    return { outcome: "unchanged" };
+  }
+  try {
+    const text = cleanText(await (deps.extractText ?? defaultExtractText)(res.bytes));
+    await finish(admin, doc, { ...later, ...file, ...measureDocument(doc.title, text, rules), chars: text.length, text_sha256: normTextHash(text) });
+    return { outcome: "updated" };
+  } catch (e) {
+    console.error(`Ältere Fassung ${doc.id} nicht lesbar:`, e instanceof Error ? e.message : String(e));
+    await finish(admin, doc, later);
+    return { outcome: "unchanged" };
+  }
+}
+
 async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: ImportDeps): Promise<{ outcome: Outcome; newNormId?: string }> {
   const { admin, state, rules, now, nowIso } = ctx;
+
+  // Ein Entscheid kann zwischen der Liste und der Sperre gefallen sein.
+  if (doc.manual_decision === "exclude") {
+    await finish(admin, doc, { status: "rejected", reject_reason: MANUAL_EXCLUDE_REASON, last_checked_at: nowIso });
+    return { outcome: "rejected" };
+  }
+  if (doc.status === "rejected" && doc.reject_reason === OLDER_VERSION_REASON) return recheckOlderVersion(ctx, doc, deps);
+
+  const forced = isForced(doc);
+  // Der Admin hat eine Norm wieder freigegeben: Zuweisungen neu berechnen, egal wie der Abruf ausgeht.
+  if (doc.norm_id && doc.last_update_status === "manual_restored") ctx.reassign.add(doc.norm_id);
 
   const isExisting = !!doc.norm_id;
   const scope = doc.scope ?? scopeOf(doc.title, rules);
@@ -402,7 +672,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
   };
 
   const early = decideIdentity(identity);
-  if (early.action === "removed") {
+  if (early.action === "removed" && !forced) {
     await finish(admin, doc, { status: "removed", reject_detail: early.detail, last_checked_at: nowIso });
     return { outcome: "rejected" };
   }
@@ -417,11 +687,12 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
       rules,
       state.canton
     );
-    if (pre) {
+    // Der Stopp und die Host-Prüfung gelten auch für einen Admin-Entscheid.
+    if (pre && (!forced || pre.reason === "host_not_allowed" || rules.doc_types.length === 0)) {
       await rejectNew(ctx, doc, pre.reason, pre.detail);
       return { outcome: "rejected" };
     }
-    if (early.action === "insert" && isCapped(doc, state.all, rules)) {
+    if (!forced && early.action === "insert" && isCapped(doc, state.all, rules)) {
       await rejectNew(ctx, doc, "cap_reached", `Gemeinde hat bereits ${rules.max_accepted_per_municipality} importierte Gemeinde-Dokumente`);
       return { outcome: "rejected" };
     }
@@ -441,7 +712,10 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
       next_check_at: nextRecheck(rules, now),
       last_update_status: "unchanged",
     });
-    if (doc.norm_id) await touchNorm(admin, doc.norm_id, nowIso);
+    if (doc.norm_id) {
+      await touchNorm(admin, doc.norm_id, nowIso);
+      await upgradeNeutralScope(ctx, doc, doc.norm_id);
+    }
     return { outcome: "unchanged" };
   }
 
@@ -482,6 +756,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
       last_update_status: "unchanged",
     });
     await touchNorm(admin, doc.norm_id as string, nowIso);
+    await upgradeNeutralScope(ctx, doc, doc.norm_id as string);
     return { outcome: "unchanged" };
   }
 
@@ -497,20 +772,38 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
 
   const file: Downloaded = { bytes: res.bytes.length, pdfSha, etag: res.etag, lastModified: res.lastModified };
 
+  // Der gelesene Text läuft ab hier denselben Weg wie jeder andere: Inhaltstest, Schrumpfschutz, Fassungsvergleich.
+  const readText = await readScan(ctx, doc, res.bytes, text, pdfSha, deps);
+  const aiRead = readText !== null;
+  if (readText !== null) text = cleanText(readText);
+
   if (isExisting) {
-    return { outcome: await updateNorm(ctx, doc, doc.norm_id as string, text, file, null) };
+    return { outcome: await updateNorm(ctx, doc, doc.norm_id as string, text, file, null, aiRead) };
   }
 
+  const evidence = scope === "municipal" ? null : neutralScopeEvidence(doc, text, rules);
+  const finalScope = evidence ? "municipal" : scope;
   const textSha = normTextHash(text);
-  const measured = { bytes: file.bytes, chars: text.length, pdf_sha256: pdfSha, text_sha256: textSha, scope };
+  const measured = {
+    bytes: file.bytes,
+    chars: text.length,
+    pdf_sha256: pdfSha,
+    text_sha256: textSha,
+    scope: finalScope,
+    ...(evidence ? { scope_reason: evidence } : {}),
+    ...(aiRead ? { text_source: "ai_read" } : {}),
+    etag: res.etag,
+    last_modified: res.lastModified,
+    ...measureDocument(doc.title, text, rules),
+  };
 
-  const decision = decideIdentity({ ...identity, textSha });
+  const decision = decideIdentity({ ...identity, doc: { ...self, scope: finalScope }, textSha });
   if (decision.action === "duplicate_manual") {
     await finish(admin, doc, { status: "duplicate_manual", reject_detail: decision.detail, last_checked_at: nowIso, ...measured });
     return { outcome: "duplicate_manual" };
   }
   if (decision.action === "new_version") {
-    return { outcome: await updateNorm(ctx, doc, decision.normId, text, file, decision.supersededDocId) };
+    return { outcome: await updateNorm(ctx, { ...doc, scope: finalScope }, decision.normId, text, file, decision.supersededDocId, aiRead) };
   }
 
   if (decision.action === "duplicate_content") {
@@ -518,9 +811,19 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
     return { outcome: "rejected" };
   }
 
-  const rejected = decideContent(text, rules);
-  if (rejected) {
-    await rejectNew(ctx, doc, rejected.reason, rejected.detail, measured);
+  const rejected = decideContent(text, rules, doc.title);
+  if (rejected && !(forced && textWithoutPageMarkers(text).length >= rules.force_min_text_chars)) {
+    await rejectNew(ctx, doc, rejected.reason, rejected.detail, { ...measured, status: contentStatus(rejected.reason, doc.title, rules, doc.official_number, finalScope) });
+    return { outcome: "rejected" };
+  }
+  // Hauptreglement mit fremdem Ort im Titel: Vielleicht gilt es nur für einen Ortsteil. Ein Mensch entscheidet.
+  const foreignPlace = forced ? null : foreignPlaceInTitle(doc.title, state.municipality, rules);
+  if (foreignPlace) {
+    await rejectNew(ctx, doc, "foreign_place", `Titel nennt «${foreignPlace}», der Auszug gilt für ${state.municipality}`, { ...measured, status: REVIEW_STATUS });
+    return { outcome: "rejected" };
+  }
+  if (evidence && !forced && isCapped({ title: doc.title, scope: "municipal" }, state.all, rules)) {
+    await rejectNew(ctx, doc, "cap_reached", `Gemeinde hat bereits ${rules.max_accepted_per_municipality} importierte Gemeinde-Dokumente`, measured);
     return { outcome: "rejected" };
   }
   const tooLong = normTextTooLongMessage(text);
@@ -529,7 +832,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
     return { outcome: "rejected" };
   }
 
-  const inserted = await insertNorm(ctx, doc, scope, text, textSha, pdfSha);
+  const inserted = await insertNorm(ctx, doc, finalScope, text, textSha, pdfSha, aiRead);
   if (inserted.kind === "manual") {
     await finish(admin, doc, {
       status: "duplicate_manual",
@@ -554,7 +857,8 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
     last_update_status: "imported",
     filter_snapshot: rules,
   });
-  await audit(ctx, "norm_auto_import", inserted.id, doc, { new_sha: textSha, new_chars: text.length, scope });
+  await audit(ctx, "norm_auto_import", inserted.id, doc, { new_sha: textSha, new_chars: text.length, scope: finalScope, ai_read: aiRead, forced });
+  await relinkUploads(ctx, { ...doc, scope: finalScope }, inserted.id, text);
   return { outcome: "imported", newNormId: inserted.id };
 }
 
@@ -575,7 +879,15 @@ export async function syncNextDocument(
 
   const now = Date.now();
   const due = orderDueDocuments(state.own.filter((d) => isDocumentDue(d, now)), state.rules);
-  if (due.length === 0) return { available: true, processed: null, in_progress: false, remaining: 0 };
+  if (due.length === 0) {
+    // Der erste Abgleich kann eine Norm freigegeben haben, ohne dass etwas fällig ist.
+    if (deps.assignNew) {
+      for (const normId of state.changedNormIds ?? []) {
+        await deps.assignNew(normId).catch((e) => console.error(`Norm ${normId} nicht zugewiesen:`, e));
+      }
+    }
+    return { available: true, processed: null, in_progress: false, remaining: 0 };
+  }
 
   const ctx: ImportContext = {
     admin,
@@ -585,6 +897,7 @@ export async function syncNextDocument(
     projectId,
     now,
     nowIso: new Date(now).toISOString(),
+    reassign: new Set(),
   };
 
   for (const candidate of due) {
@@ -606,11 +919,19 @@ export async function syncNextDocument(
       }).catch((err) => console.error(`ÖREB-Dokument ${doc.id} nicht entsperrt:`, err));
     }
 
-    if (newNormId && deps.assignNew) {
-      await deps.assignNew(newNormId).catch((e) => console.error(`Norm ${newNormId} nicht zugewiesen:`, e));
-    }
-
+    // Der Abgleich danach kann einen Verlierer zurücknehmen oder eine Fassung wieder freigeben.
     const after = await syncProjectDocuments(admin, projectId);
+    if (deps.assignNew) {
+      const toAssign = new Set([
+        ...(newNormId ? [newNormId] : []),
+        ...Array.from(ctx.reassign),
+        ...(state.changedNormIds ?? []),
+        ...(after.changedNormIds ?? []),
+      ]);
+      for (const normId of Array.from(toAssign)) {
+        await deps.assignNew(normId).catch((e) => console.error(`Norm ${normId} nicht zugewiesen:`, e));
+      }
+    }
     return {
       available: true,
       processed: { id: doc.id, title: doc.title, outcome },

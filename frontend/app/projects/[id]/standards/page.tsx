@@ -20,6 +20,8 @@ interface Norm {
   jurisdiction_name: string | null;
   category: string;
   text: string;
+  /** Die Liste liefert nur den Anfang langer Texte. */
+  text_truncated?: boolean;
   source_url: string | null;
   source_doc: string | null;
   org_id: string | null;
@@ -52,7 +54,13 @@ const LAYER_COLORS: Record<number, { bg: string; text: string; border: string; d
 
 function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (id: string) => void }) {
   const [expanded, setExpanded] = useState(false);
+  const [fullText, setFullText] = useState<string | null>(null);
   const norm = pn.norms;
+  // Die Liste liefert nur den Anfang langer Texte.
+  useEffect(() => {
+    if (!expanded || !norm?.text_truncated || fullText !== null) return;
+    api.get<{ text: string }>(`/standards/${norm.id}`).then((res) => setFullText(res.text)).catch(() => {});
+  }, [expanded, norm?.id, norm?.text_truncated, fullText]);
   if (!norm) return null;
   const layer = norm.layer ?? 3;
   const cfg = LAYER_COLORS[layer] ?? LAYER_COLORS[3];
@@ -75,7 +83,7 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (id: string) =>
           </div>
           <p className="text-sm font-medium text-stone-800 leading-snug">{norm.title}</p>
           {expanded && (
-            <p className="mt-2 text-sm text-stone-600 leading-relaxed">{norm.text}</p>
+            <p className="mt-2 text-sm text-stone-600 leading-relaxed">{fullText ?? norm.text}</p>
           )}
           {norm.source_url && expanded && (
             <a

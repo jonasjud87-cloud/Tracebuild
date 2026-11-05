@@ -43,6 +43,7 @@ export const ACTION_LABELS: Record<string, string> = {
   org_status_change: "Organisationsstatus geändert",
   norm_delete: "Norm gelöscht",
   norm_promote: "Norm hochgestuft",
+  oereb_document_decision: "ÖREB-Dokument entschieden",
   norm_upload_platform: "Plattformnorm hochgeladen",
   norm_upload: "Norm hochgeladen",
   norm_remove: "Norm entfernt",

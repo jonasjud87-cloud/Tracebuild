@@ -2,6 +2,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 import type { AuthUser } from "@/lib/auth";
 import { ORPHAN_AFTER_MS, TIMEOUT_ERROR_TEXT } from "./constants";
+import { orphanFilter } from "./orphan";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import type { CancelResponse } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -43,24 +45,25 @@ export async function cancelAnalysis(admin: Admin, id: string, actor: AuthUser, 
 
   const project = pick(pick(target.documents)?.projects);
   const cutoff = new Date(now.getTime() - ORPHAN_AFTER_MS).toISOString();
-  const orphaned = Date.parse(target.created_at) < Date.parse(cutoff);
+  // Massgebend ist das letzte Lebenszeichen: Eine gesunde lange Analyse wird nicht als Zeitüberschreitung geschlossen.
+  const lastActivity = target.result_json?.last_activity_at;
+  const activityBase = typeof lastActivity === "string" && lastActivity ? lastActivity : target.created_at;
+  const orphaned = Date.parse(activityBase) < Date.parse(cutoff);
   const newStatus: CancelResponse["status"] = orphaned ? "error" : "cancelled";
 
-  let update = admin
-    .from("analyses")
-    .update(
-      orphaned
-        ? {
-            status: "error",
-            result_json: { ...(target.result_json ?? {}), error: TIMEOUT_ERROR_TEXT, timed_out: true, closed_by_admin: true },
-          }
-        : { status: "cancelled" },
-    )
-    .eq("id", id)
-    .eq("status", "running");
-  if (orphaned) update = update.lt("created_at", cutoff);
-
-  const { data: changed, error: updateError } = await update.select("id");
+  const fields = orphaned
+    ? {
+        status: "error",
+        result_json: { ...(target.result_json ?? {}), error: TIMEOUT_ERROR_TEXT, timed_out: true, closed_by_admin: true },
+      }
+    : { status: "cancelled" };
+  const closeRow = (row: Record<string, unknown>) => {
+    const update = admin.from("analyses").update(row).eq("id", id).eq("status", "running");
+    return (orphaned ? update.or(orphanFilter(cutoff)) : update).select("id");
+  };
+  let { data: changed, error: updateError } = await closeRow({ ...fields, finished_at: now.toISOString() });
+  // finished_at fehlt, solange die Monitor-Migration nicht eingespielt ist.
+  if (updateError && isMissingSchema(updateError.message)) ({ data: changed, error: updateError } = await closeRow(fields));
   if (updateError) return { ok: false, status: 500, error: updateError.message };
   if (!changed || changed.length === 0) {
     return { ok: false, status: 409, error: "Der Status hat sich inzwischen geändert. Bitte neu laden." };

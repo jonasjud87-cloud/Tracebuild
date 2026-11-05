@@ -12,7 +12,8 @@ export type AuditAction =
   | "profile_name_change"
   | "announcement_create" | "announcement_update" | "announcement_delete"
   | "block" | "unblock" | "password_reset"
-  | "norm_auto_import" | "norm_auto_update" | "norm_auto_update_rejected";
+  | "norm_auto_import" | "norm_auto_update" | "norm_auto_update_rejected"
+  | "norm_org_authoritative" | "oereb_document_decision";
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

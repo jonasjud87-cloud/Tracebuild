@@ -15,6 +15,10 @@ export interface ApplicableNorm {
   auto_scope?: string | null;
   jurisdiction_canton?: string | null;
   jurisdiction_bfs?: number | null;
+  /** Amtliche Norm, die diesen Upload ablöst (Textvergleich). Nur auf Zeilen einer Org gesetzt. */
+  superseded_by_norm_id?: string | null;
+  /** Die Org hat ihre Fassung als massgebend festgelegt. */
+  org_authoritative?: boolean | null;
 }
 
 export interface ProjectPlace {
@@ -51,24 +55,52 @@ export function applies(n: ApplicableNorm, place: ProjectPlace): boolean {
   return false;
 }
 
+function isActiveOfficial(n: ApplicableNorm | undefined, place?: ProjectPlace): boolean {
+  return !!n && isAutoNorm(n) && n.auto_scope === "municipal" && (!place || applies(n, place));
+}
+
 /**
- * Importierte Normen weglassen, wenn dieselbe Vorschrift schon manuell gepflegt ist (eigene Org
- * oder global), sonst würde sie doppelt geprüft und doppelt bezahlt.
- * Grenze: Abweichende Titel werden so nicht erkannt.
+ * Uploads, die eine geltende amtliche Fassung ablöst. Fehlt die amtliche Norm, wurde sie zurückgenommen
+ * oder gilt sie am Projektort nicht (gleichnamige Gemeinde in einem anderen Kanton), bleibt der Upload
+ * aktiv: Sonst stünde das Projekt ohne Reglement da.
  */
-export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[]): T[] {
-  const manual = new Set<string>();
+export function replacedUploadIds(norms: ApplicableNorm[], place?: ProjectPlace): Set<string> {
+  const byId = new Map(norms.map((n) => [n.id, n]));
+  const out = new Set<string>();
   for (const n of norms) {
-    if (isAutoNorm(n) || !n.jurisdiction_name || !n.title) continue;
+    if (isAutoNorm(n) || !n.superseded_by_norm_id || n.org_authoritative) continue;
+    if (isActiveOfficial(byId.get(n.superseded_by_norm_id), place)) out.add(n.id);
+  }
+  return out;
+}
+
+/**
+ * Löst doppelte Vorschriften auf, sonst würden sie doppelt geprüft und doppelt bezahlt:
+ * - Upload dem amtlichen Text sehr ähnlich (`superseded_by_norm_id`): Die amtliche Fassung gilt, der
+ *   Upload bleibt bestehen, ist aber inaktiv. Ausser die Org hat ihn als massgebend festgelegt; dann
+ *   entfällt umgekehrt die amtliche Norm.
+ * - Sonst wie bisher: Dieselbe Vorschrift, manuell gepflegt und gleichen Titels, schlägt den Import.
+ *   Grenze: Abweichende Titel werden so nicht erkannt.
+ */
+export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[], place?: ProjectPlace): T[] {
+  const replaced = replacedUploadIds(norms, place);
+  const manual = new Set<string>();
+  const authoritativeOver = new Set<string>();
+  for (const n of norms) {
+    if (isAutoNorm(n) || replaced.has(n.id)) continue;
+    if (n.org_authoritative && n.superseded_by_norm_id) authoritativeOver.add(n.superseded_by_norm_id);
+    if (!n.jurisdiction_name || !n.title) continue;
     manual.add(`${n.jurisdiction_name}|${titleKey(n.title, n.jurisdiction_name)}`);
   }
-  return norms.filter(
-    (n) =>
+  return norms.filter((n) => {
+    if (replaced.has(n.id) || authoritativeOver.has(n.id)) return false;
+    return (
       !isAutoNorm(n) ||
       !n.jurisdiction_name ||
       !n.title ||
       !manual.has(`${n.jurisdiction_name}|${titleKey(n.title, n.jurisdiction_name)}`)
-  );
+    );
+  });
 }
 
 /**

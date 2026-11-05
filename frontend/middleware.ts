@@ -25,6 +25,10 @@ const isAuthPath = (p: string) =>
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Eigene Prüfung per Einmal-Token, ohne Sitzung. Muss vor der Auth-Weiterleitung stehen.
+  // analysis-spike ist temporär: nach dem Spike samt Route entfernen.
+  if (pathname === "/api/v1/internal/analysis-stage" || pathname === "/api/v1/internal/analysis-spike") return NextResponse.next();
+
   // Handy-Tastaturen schreiben den ersten Buchstaben gross ("/Anleitung"). Ohne
   // diese Weiterleitung gilt das als unbekannte Route → /login → auf dem Handy
   // weiter zur Startseite, und der geteilte Link scheint kaputt.

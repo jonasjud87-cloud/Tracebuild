@@ -200,6 +200,8 @@ function parseLawLinks(v: unknown, lang: string): OerebLawLink[] {
     if (kind) link.kind = kind;
     const authority = localizedText(getKey(getKey(lp, "ResponsibleOffice"), "Name"), lang);
     if (authority) link.authority = authority;
+    const officialNumber = localizedText(getKey(lp, "OfficialNumber"), lang)?.trim();
+    if (officialNumber) link.officialNumber = officialNumber;
     links.push(link);
   }
   return links;

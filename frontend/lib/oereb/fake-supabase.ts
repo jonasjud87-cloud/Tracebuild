@@ -12,6 +12,9 @@ const DEFAULTS: Record<string, () => Row> = {
     status: "pending", attempts: 0, lock_until: null, norm_id: null, etag: null, last_modified: null,
     pdf_sha256: null, text_sha256: null, reject_reason: null, reject_detail: null, last_update_status: null,
     last_update_detail: null, last_checked_at: null, next_check_at: new Date(Date.now() - 1000).toISOString(),
+    official_number: null, article_run: null, article_first: null, article_hits: null, stand_date: null,
+    text_sketch: null, content_reason: null, version_winner_id: null, version_note: null,
+    manual_decision: null, scope_reason: null, text_source: "pdf", ocr_status: null, ocr_pdf_sha256: null, ocr_cost_usd: null,
   }),
 };
 
@@ -45,6 +48,11 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   select(_cols?: string) { return this; }
   eq(col: string, v: unknown) { this.filters.push((r) => r[col] === v); return this; }
   is(col: string, v: unknown) { this.filters.push((r) => (r[col] ?? null) === v); return this; }
+  not(col: string, op: string, v: unknown) {
+    if (op !== "is") throw new Error(`not-Operator nicht unterstützt: ${op}`);
+    this.filters.push((r) => (r[col] ?? null) !== v);
+    return this;
+  }
   in(col: string, vs: unknown[]) { this.filters.push((r) => vs.includes(r[col])); return this; }
   lte(col: string, v: string) { this.filters.push((r) => String(r[col]) <= v); return this; }
   or(expr: string) { this.filters.push(parseOr(expr)); return this; }
@@ -59,6 +67,7 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   delete() { this.op = "delete"; return this; }
 
   private run(): { data: unknown; error: { message: string; code?: string } | null } {
+    if (this.db.failing.has(this.table)) return { data: null, error: { message: "Verbindung unterbrochen" } };
     if (this.db.missing.has(this.table)) {
       return { data: null, error: { message: `Could not find the table 'public.${this.table}' in the schema cache` } };
     }
@@ -102,8 +111,20 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   }
 }
 
+interface FakeAction {
+  doc_id: string;
+  expect_status: string;
+  expect_reason: string | null;
+  winner_id?: string;
+  expect_winner_status?: string;
+  norm?: string;
+  patch: Row;
+}
+
 export class FakeSupabase {
   missing = new Set<string>();
+  /** Tabellen, deren Abfragen an einem technischen Fehler scheitern. */
+  failing = new Set<string>();
   private tables = new Map<string, Row[]>();
   private counter = 0;
 
@@ -119,6 +140,57 @@ export class FakeSupabase {
   }
   from(table: string) {
     return new Query(this, table);
+  }
+  /** Bildet oereb_apply_version_actions nach. Die SQL-Fassung prüft sie nicht. */
+  async rpc(name: string, args: { p_canton: string; p_bfs: number; p_actions: FakeAction[] } & Record<string, unknown>) {
+    if (name === "oereb_ocr_reserve" && !this.missing.has(name)) {
+      const runs = this.rows("oereb_ocr_runs");
+      const sum = (list: Row[]) => list.reduce((s, r) => s + Number(r.cost_usd ?? r.reserved_usd), 0);
+      const reserve = Number(args.p_reserve_usd);
+      if (sum(runs) + reserve > Number(args.p_daily_budget_usd)) return { data: { ok: false, reason: "daily" }, error: null };
+      if (sum(runs.filter((r) => r.document_id === args.p_document_id)) + reserve > Number(args.p_document_max_usd)) {
+        return { data: { ok: false, reason: "document" }, error: null };
+      }
+      const id = this.nextId("oereb_ocr_runs");
+      runs.push({ id, document_id: args.p_document_id, reserved_usd: reserve, cost_usd: null });
+      return { data: { ok: true, run_id: id }, error: null };
+    }
+    if (name !== "oereb_apply_version_actions" || this.missing.has(name)) {
+      return { data: null, error: { message: `Could not find the function public.${name} in the schema cache` } };
+    }
+    const docs = this.rows("oereb_documents");
+    const ids = args.p_actions.flatMap((a) => (a.winner_id ? [a.doc_id, a.winner_id] : [a.doc_id]));
+    const involved = docs.filter((d) => ids.includes(d.id as string));
+    if (involved.some((d) => d.lock_until && Date.parse(d.lock_until as string) > Date.now())) {
+      return { data: { applied: false, reason: "locked" }, error: null };
+    }
+    for (const a of args.p_actions) {
+      const doc = docs.find((d) => d.id === a.doc_id && d.canton === args.p_canton && d.bfs_number === args.p_bfs);
+      if (!doc || doc.status !== a.expect_status || (doc.reject_reason ?? null) !== a.expect_reason) {
+        return { data: { applied: false, reason: "conflict" }, error: null };
+      }
+      if (a.winner_id && docs.find((d) => d.id === a.winner_id)?.status !== a.expect_winner_status) {
+        return { data: { applied: false, reason: "conflict" }, error: null };
+      }
+    }
+    const applied: string[] = [];
+    const changed: string[] = [];
+    const norms = this.rows("norms");
+    for (const a of args.p_actions) {
+      const doc = docs.find((d) => d.id === a.doc_id) as Row;
+      const norm = norms.find((n) => n.id === doc.norm_id && n.source_kind === "oereb_auto");
+      if (a.norm === "withdraw" && doc.norm_id) {
+        if (!norm) continue;
+        norm.auto_scope = "superseded";
+        this.setRows("project_norms", this.rows("project_norms").filter((r) => r.norm_id !== doc.norm_id || !["system", "oereb"].includes(r.added_by as string)));
+      } else if (a.norm === "reinstate" && norm?.auto_scope === "superseded") {
+        norm.auto_scope = doc.scope ?? "parcel";
+        changed.push(norm.id as string);
+      }
+      Object.assign(doc, a.patch);
+      applied.push(doc.id as string);
+    }
+    return { data: { applied: true, doc_ids: applied, changed_norm_ids: changed }, error: null };
   }
   asClient(): SupabaseClient {
     return this as unknown as SupabaseClient;

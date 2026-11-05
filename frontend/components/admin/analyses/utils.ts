@@ -54,10 +54,15 @@ export function statusMeta(status: string, orphaned: boolean): StatusMeta {
   }
 }
 
-export function isOrphaned(row: AnalysisRow, now: number, orphanMinutes: number): boolean {
+/** Massgebend ist die letzte Aktivität: Lange Analysen laufen gesund über die Schwelle hinaus. */
+export function isOrphaned(
+  row: Pick<AnalysisRow, "status" | "createdAt"> & { lastActivityAt?: string | null },
+  now: number,
+  orphanMinutes: number,
+): boolean {
   if (row.status !== "running") return false;
-  const created = Date.parse(row.createdAt);
-  return Number.isFinite(created) && now - created > orphanMinutes * 60_000;
+  const reference = Date.parse(row.lastActivityAt ?? row.createdAt);
+  return Number.isFinite(reference) && now - reference > orphanMinutes * 60_000;
 }
 
 export function formatDuration(ms: number | null): string {

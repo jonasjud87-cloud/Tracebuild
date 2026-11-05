@@ -36,6 +36,7 @@ import {
   type ReferenceBlock,
 } from "@/lib/analysis-reference";
 import { planAutoParts, type AutoPartsSummary } from "@/lib/analysis-plan";
+import { classifyModelError, type ModelErrorClass } from "./analysis-stages/errors";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
 
 // ── Modell & Preise ───────────────────────────────────────────────────────────
@@ -60,7 +61,7 @@ const MAX_TOKENS_PER_NORM = 32_000;
 const MAX_CHECKS_PER_NORM = 25;
 
 /** Wie viele Norm-Calls gleichzeitig laufen dürfen. */
-const MAX_CONCURRENCY = Math.max(1, Number(process.env.ANALYSIS_MAX_CONCURRENCY) || 8);
+export const MAX_CONCURRENCY = Math.max(1, Number(process.env.ANALYSIS_MAX_CONCURRENCY) || 8);
 
 /**
  * Denktiefe. Gemessen an der Norm Mels_Baureglement (53'825 Zeichen):
@@ -647,11 +648,12 @@ function layerOf(norms: NormInput[], normId: string | null): number {
  * Anweisungen (zusammenlegen / herabstufen), die deterministisch angewendet werden.
  * Wirft nie; ohne Ergebnis bleiben die Items unverändert.
  */
-async function consolidateItems(
+export async function consolidateItems(
   items: CheckItem[],
   norms: NormInput[],
   deadlineAt: number,
   cancelSignal: AbortSignal | null,
+  options: { callMs?: number; maxTokens?: number } = {},
 ): Promise<{ items: CheckItem[]; result: ConsolidationResult; usage: UsageTotals }> {
   const startedAt = Date.now();
   const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
@@ -678,7 +680,7 @@ async function consolidateItems(
   const controller = new AbortController();
   const onCancel = () => controller.abort();
   cancelSignal?.addEventListener("abort", onCancel, { once: true });
-  const remaining = Math.min(CONSOLIDATION_CALL_MS, deadlineAt - Date.now());
+  const remaining = Math.min(options.callMs ?? CONSOLIDATION_CALL_MS, deadlineAt - Date.now());
   const killTimer = setTimeout(() => controller.abort(), Math.max(1_000, remaining));
 
   try {
@@ -687,7 +689,7 @@ async function consolidateItems(
     const message = await anthropic.messages.create(
       {
         model: ANALYSIS_MODEL,
-        max_tokens: 4_000,
+        max_tokens: options.maxTokens ?? 4_000,
         system: [{ type: "text", text: CONSOLIDATION_SYSTEM }],
         messages: [{ role: "user", content: `PRÜFPUNKTE (id | Ebene | status | category | Titel | Befund | Empfehlung):
 ${listing.join("\n")}` }],
@@ -888,16 +890,19 @@ export function computeCost(usage: UsageTotals, model: string = ANALYSIS_MODEL):
 
 // ── Ein Call pro Norm ─────────────────────────────────────────────────────────
 
-interface CallOutcome {
+export interface CallOutcome {
   result: NormCallResult;
   items: CheckItem[];
+  /** null = kein Fehler. Nur die Etappen werten das aus, runNormAnalysis ignoriert es. */
+  error_class: ModelErrorClass | null;
+  retry_after_ms: number | null;
 }
 
 function isTimeoutError(msg: string | null): boolean {
   return !!msg && /Zeitbudget|timeout|timed out|aborted/i.test(msg);
 }
 
-async function analyseOneNorm(
+export async function analyseOneNorm(
   part: NormPart,
   index: number,
   total: number,
@@ -916,7 +921,10 @@ async function analyseOneNorm(
   const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
   let stopReason: string | null = null;
   let text = "";
+  let streamedChars = 0;
   let error: string | null = null;
+  let errorClass: ModelErrorClass | null = null;
+  let retryAfterMs: number | null = null;
   let gateFired = false;
 
   const fireGate = () => {
@@ -974,6 +982,8 @@ async function analyseOneNorm(
       } else if (ev.type === "content_block_start") {
         // Prefill ist durch — ab jetzt ist der Cache-Eintrag für die anderen Calls lesbar.
         fireGate();
+      } else if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+        streamedChars += ev.delta.text.length;
       } else if (ev.type === "message_delta") {
         usage.output_tokens = ev.usage.output_tokens ?? usage.output_tokens;
       }
@@ -998,10 +1008,13 @@ async function analyseOneNorm(
     // stop_reason wird ausgewertet — abgeschnitten ist kein Erfolg.
     if (stopReason === "max_tokens") {
       error = `Antwort bei ${MAX_TOKENS_PER_NORM} Output-Tokens abgeschnitten`;
+      errorClass = "max_tokens";
     } else if (stopReason === "refusal") {
       error = `Modell hat die Prüfung abgelehnt (${message.stop_details?.category ?? "unbekannt"})`;
+      errorClass = "refusal";
     } else if (stopReason !== "end_turn" && stopReason !== null) {
       error = `Unerwarteter stop_reason: ${stopReason}`;
+      errorClass = "other";
     }
   } catch (e) {
     error = cancelSignal?.aborted
@@ -1009,6 +1022,15 @@ async function analyseOneNorm(
       : controller.signal.aborted
         ? "Zeitbudget der Analyse überschritten"
         : e instanceof Error ? e.message : "Unbekannter Fehler";
+    // Der Output-Zähler kommt erst am Ende des Streams. Abgebrochen wird er aus dem Empfangenen geschätzt.
+    usage.output_tokens = Math.max(usage.output_tokens, Math.ceil(streamedChars / 3));
+    if (cancelSignal?.aborted) errorClass = "cancelled";
+    else if (controller.signal.aborted) errorClass = "timeout";
+    else {
+      const classified = classifyModelError(e);
+      errorClass = classified.error_class;
+      retryAfterMs = classified.retry_after_ms;
+    }
   } finally {
     clearTimeout(killTimer);
     cancelSignal?.removeEventListener("abort", onCancel);
@@ -1029,6 +1051,8 @@ async function analyseOneNorm(
 
   return {
     items,
+    error_class: error === null ? null : errorClass ?? "other",
+    retry_after_ms: retryAfterMs,
     result: {
       norm_id: norm.id,
       norm_title: partLabel(part),
@@ -1049,6 +1073,18 @@ async function analyseOneNorm(
 }
 
 // ── Orchestrierung ────────────────────────────────────────────────────────────
+
+/**
+ * Reihenfolge: gepflegte kommunale Normen zuerst (längste Calls, sie schreiben ohnehin den Cache),
+ * dann nach Textlänge. Importierte Normen kommen danach.
+ */
+export function sortNormsForRun(normsInput: NormInput[]): NormInput[] {
+  return normsInput.slice().sort((a, b) => {
+    const auto = (n: NormInput) => (n.source_kind === "oereb_auto" ? 1 : 0);
+    const ra = isReferenceNorm(a) ? 0 : 1, rb = isReferenceNorm(b) ? 0 : 1;
+    return auto(a) - auto(b) || ra - rb || b.text.length - a.text.length;
+  });
+}
 
 /**
  * Fährt einen Call pro Norm.
@@ -1076,14 +1112,9 @@ export async function runNormAnalysis(
   // Zufällig je Lauf: Ein Text aus einem fremden PDF kann die Grenze nicht nachbilden.
   const boundary = newDataBoundary();
   const system = buildSystemPrompt(ctx, boundary);
-  // Reihenfolge: gepflegte kommunale Normen zuerst (längste Calls, sie schreiben ohnehin den
-  // Cache), dann nach Textlänge — der langsamste Call bekommt das grösste Zeitfenster.
-  // Importierte Normen kommen danach und gedeckelt, sonst fehlt Bund und Kanton die Zeit.
-  const norms = normsInput.slice().sort((a, b) => {
-    const auto = (n: NormInput) => (n.source_kind === "oereb_auto" ? 1 : 0);
-    const ra = isReferenceNorm(a) ? 0 : 1, rb = isReferenceNorm(b) ? 0 : 1;
-    return auto(a) - auto(b) || ra - rb || b.text.length - a.text.length;
-  });
+  // Der langsamste Call bekommt das grösste Zeitfenster. Importierte Normen sind gedeckelt, sonst
+  // fehlt Bund und Kanton die Zeit.
+  const norms = sortNormsForRun(normsInput);
   const referenceNorms = norms.filter(isReferenceNorm);
   const reference = buildReferenceBlock(ctx, referenceNorms, boundary);
   const { units: planned, summary: autoParts } = planAutoParts(toNormParts(norms), deadlineAt - startedAt, MAX_CONCURRENCY);

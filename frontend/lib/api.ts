@@ -1,5 +1,15 @@
 const BASE = "/api/v1";
 
+/** Fehler einer API-Antwort. `status` erlaubt es, einzelne Antworten eigens zu behandeln. */
+export class ApiError extends Error {
+  readonly status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 /**
  * Reads the API envelope `{ data, error }`.
  *
@@ -17,11 +27,11 @@ async function unwrap<T>(res: Response): Promise<T> {
     const hint = body.trim().startsWith("<")
       ? "Der Server hat eine Fehlerseite statt einer Antwort geliefert."
       : body.slice(0, 200);
-    throw new Error(`Serverfehler (HTTP ${res.status}). ${hint}`);
+    throw new ApiError(`Serverfehler (HTTP ${res.status}). ${hint}`, res.status);
   }
 
-  if (!res.ok) throw new Error(json.detail ?? json.error ?? `Fehler (HTTP ${res.status})`);
-  if (json.error) throw new Error(json.error);
+  if (!res.ok) throw new ApiError(json.detail ?? json.error ?? `Fehler (HTTP ${res.status})`, res.status);
+  if (json.error) throw new ApiError(json.error, res.status);
   return json.data as T;
 }
 
@@ -51,6 +61,8 @@ export const api = {
     request<T>(path, { method: "POST", body: JSON.stringify(body), signal }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: "PATCH", body: JSON.stringify(body) }),
+  put: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: "PUT", body: JSON.stringify(body) }),
   postForm: <T>(path: string, formData: FormData, signal?: AbortSignal) => requestForm<T>(path, formData, signal),
   delete: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: "DELETE", body: body ? JSON.stringify(body) : undefined }),

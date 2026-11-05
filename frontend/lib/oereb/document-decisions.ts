@@ -15,6 +15,7 @@ export interface IdentityDocument {
   last_seen_at?: string | null;
   last_update_status?: string | null;
   attempts?: number | null;
+  manual_decision?: string | null;
 }
 
 export interface ManualNormRef {
@@ -126,7 +127,7 @@ export function findSuperseded(
   const live = all.filter((d) => d.status === "imported" && !!d.norm_id && d.scope === "municipal");
   const out: { oldDocId: string; oldNormId: string; newDocId: string }[] = [];
   for (const old of live) {
-    if (currentUrls.has(old.url_normalized) || !isGone(old, nowMs, graceMs)) continue;
+    if (old.manual_decision === "force_import" || currentUrls.has(old.url_normalized) || !isGone(old, nowMs, graceMs)) continue;
     const successor = live.find(
       (d) => d.id !== old.id && d.title_key === old.title_key && d.norm_id !== old.norm_id && currentUrls.has(d.url_normalized)
     );
@@ -150,17 +151,22 @@ export function decideUpdate(input: {
   newTextSha: string;
   newText: string;
   rules: ImportFilterRules;
+  /** Änderungserlasse haben eine tiefere Artikelgrenze. */
+  title?: string;
+  /** Admin-Entscheid `force_import`: tiefere Mindestlänge, kein Inhaltstest. Der Schrumpfschutz bleibt. */
+  forced?: boolean;
 }): UpdateDecision {
-  const { oldTextSha, oldChars, newTextSha, newText, rules } = input;
+  const { oldTextSha, oldChars, newTextSha, newText, rules, title, forced } = input;
   if (oldTextSha && oldTextSha === newTextSha) return { action: "unchanged" };
   const chars = newText.trim().length;
-  if (chars < rules.min_text_chars) {
-    return { action: "kept_old", detail: `Neuer Text hat nur ${chars} Zeichen (Minimum ${rules.min_text_chars})` };
+  const minChars = forced ? rules.force_min_text_chars : rules.min_text_chars;
+  if (chars < minChars) {
+    return { action: "kept_old", detail: `Neuer Text hat nur ${chars} Zeichen (Minimum ${minChars})` };
   }
   if (chars < rules.shrink_min_ratio * oldChars) {
     return { action: "kept_old", detail: `Neuer Text schrumpft von ${oldChars} auf ${chars} Zeichen` };
   }
-  const rejected = decideContent(newText, rules);
+  const rejected = forced ? null : decideContent(newText, rules, title);
   if (rejected) return { action: "kept_old", detail: `${rejected.reason}: ${rejected.detail}` };
   return { action: "update" };
 }

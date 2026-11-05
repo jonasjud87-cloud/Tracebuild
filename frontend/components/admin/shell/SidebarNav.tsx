@@ -102,6 +102,17 @@ const ADMIN_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: "ÖREB-Importe",
+    href: "/admin/oereb-imports",
+    path: "/admin/oereb-imports",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <path d="M7 3.5h7l4 4V20.5H7z" />
+        <path d="M14 3.5v4h4M10 12h5M10 15.5h5" />
+      </svg>
+    ),
+  },
+  {
     label: "Ankündigungen",
     href: "/admin/announcements",
     path: "/admin/announcements",
