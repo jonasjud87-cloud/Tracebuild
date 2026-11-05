@@ -1,11 +1,10 @@
 /**
  * Parser-/Zonen-Tests gegen das Fixture __fixtures__/extract-sample.json.
  *
- * Läuft ohne Test-Framework mit Node ≥ 22 (natives Type-Stripping):
- *   node --test lib/oereb/parse.test.ts
- * Weil die Imports hier bewusst ohne .ts-Endung geschrieben sind (tsc/Next-Konvention),
- * braucht Node einen kleinen Resolve-Hook — siehe Report / Skript im Scratchpad:
- *   node --import <hook.mjs> --test lib/oereb/parse.test.ts
+ * Läuft ohne Test-Framework mit Node ≥ 22 (natives Type-Stripping). Weil die Imports bewusst
+ * ohne .ts-Endung geschrieben sind (tsc/Next-Konvention), braucht Node einen Resolve-Hook:
+ *   npm test
+ *   node --import ./scripts/ts-resolve-hook.mjs --test lib/oereb/parse.test.ts
  */
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,6 +21,7 @@ import {
 } from "./adapters/generic";
 import { ArOerebAdapter, arExactZoneCode, arZoneClass } from "./adapters/ar";
 import { SgOerebAdapter, sgExactZoneCode, sgZoneClass } from "./adapters/sg";
+import { resetGeoAdminBucket } from "../geoadmin/client";
 import type { OerebExtract, OerebTheme } from "./types";
 
 const fixture = JSON.parse(
@@ -81,8 +81,8 @@ test("Fixture: Details einer Restriction (Nutzungsplanung W2)", () => {
   assert.equal(w2.areaM2, 747);
   assert.equal(w2.legendText, "BauG Wohnzone W2");
   assert.deepEqual(w2.lawLinks, [
-    { title: "Baureglement", url: "https://oereblex.sg.ch/api/attachments/17273" },
-    { title: "Planungs- und Baugesetz", url: "https://www.lexfind.ch/tolv/258420/de" },
+    { title: "Baureglement", url: "https://oereblex.sg.ch/api/attachments/17273", kind: "LegalProvision" },
+    { title: "Planungs- und Baugesetz", url: "https://www.lexfind.ch/tolv/258420/de", kind: "Law" },
   ]);
   assert.deepEqual(w2.authority, { name: "Gemeinde Mels", url: "http://www.mels.ch" });
 });
@@ -409,11 +409,23 @@ test("AR: ohne Basis-URL → unreachable", async () => {
 });
 
 test("geo.admin-Fallback: Umlaute umschreiben, Kantonszusatz akzeptieren, zweite Suche mit Kanton", async () => {
+  resetGeoAdminBucket();
   const searches: string[] = [];
+  const stands: Record<string, { gemeindename: string; kanton: string }> = {
+    CH767765607741: { gemeindename: "Bühler", kanton: "Appenzell Ausserrhoden" },
+    CH312181527734: { gemeindename: "Teufen (AR)", kanton: "Appenzell Ausserrhoden" },
+    CH000000000001: { gemeindename: "Teufenthal (AG)", kanton: "Aargau" },
+    CH000000000002: { gemeindename: "Stein (AG)", kanton: "Aargau" },
+    CH175477742904: { gemeindename: "Stein (AR)", kanton: "Appenzell Ausserrhoden" },
+  };
   const original = globalThis.fetch;
   globalThis.fetch = (async (url: string | URL) => {
     const u = new URL(String(url));
     const text = u.searchParams.get("searchText") ?? "";
+    if (!u.pathname.endsWith("SearchServer")) {
+      const attributes = { egris_egrid: text, number: "10", realestate_type: "Liegenschaft", ...stands[text] };
+      return new Response(JSON.stringify({ results: [{ attributes }] }), { status: 200 });
+    }
     searches.push(text);
     const results: Record<string, string[]> = {
       "buehler 10": ["10 buehler 3021 ch767765607741"],
@@ -422,7 +434,8 @@ test("geo.admin-Fallback: Umlaute umschreiben, Kantonszusatz akzeptieren, zweite
       "stein ar 10": ["10 stein _ar_ 3005 ch175477742904"],
     };
     const details = results[text] ?? [];
-    return new Response(JSON.stringify({ results: details.map((detail) => ({ attrs: { detail } })) }), { status: 200 });
+    const hits = details.map((detail) => ({ attrs: { origin: "parcel", detail, label: "", x: 1250000, y: 2750000 } }));
+    return new Response(JSON.stringify({ results: hits }), { status: 200 });
   }) as typeof fetch;
   try {
     assert.deepEqual(await ar.getEgrid({ municipality: "Bühler", parcelNumber: "10" }), ["CH767765607741"]);

@@ -43,7 +43,7 @@ const QUICKSTART = [
   {
     href: "#projekt-anlegen",
     title: "Projekt anlegen",
-    text: "Kanton, Gemeinde und Parzelle eingeben. In SG und AR ermittelt TraceBuild die Bauzone selbst.",
+    text: "Adresse oder Parzelle suchen. TraceBuild füllt die Angaben aus und ermittelt die Bauzone aus dem ÖREB-Kataster.",
   },
   {
     href: "#plan-hochladen",
@@ -225,9 +225,10 @@ export default function AnleitungPage() {
           <Sub id="projekt-anlegen" />
           <ol className={s.steps}>
             <li><p>Klicken Sie in der linken Navigation auf <Ui>Projekte</Ui> und dann auf <Ui>+ Neues Projekt</Ui>.</p></li>
-            <li><p>Geben Sie <Ui>Projektname</Ui>, <Ui>Kanton</Ui>, <Ui>Gemeinde</Ui> und <Ui>Parzellennummer</Ui> ein.</p></li>
-            <li><p>In SG und AR wird die Bauzone automatisch ermittelt. In anderen Kantonen tragen Sie die Bauzone selbst ein oder lassen das Feld leer.</p></li>
-            <li><p>Klicken Sie auf <Ui>Projekt erstellen →</Ui>.</p></li>
+            <li><p>Suchen Sie die <Ui>Adresse oder Parzelle</Ui>. Der Treffer füllt <Ui>Kanton</Ui>, <Ui>Gemeinde</Ui> und <Ui>Parzellennummer</Ui> aus. Passen mehrere Grundstücke, wählen Sie das richtige. Ohne Treffer tragen Sie die Felder von Hand ein.</p></li>
+            <li><p>Geben Sie den <Ui>Projektname</Ui> ein. Die <Ui>Bauzone</Ui> lassen Sie leer, wenn Sie sie nicht kennen: TraceBuild ermittelt sie schweizweit aus dem ÖREB-Kataster. Ihre Angabe gilt nur, wenn der Kataster keine sichere Zone liefert.</p></li>
+            <li><p>Klicken Sie auf <Ui>Projekt erstellen →</Ui>. Im Projekt zeigt der Abschnitt <Ui>Grundstück</Ui> die ermittelte Zone, weitere Daten und Links. Steht dort «unsicher, bitte prüfen», bestätigen oder korrigieren Sie die Zone. Das dürfen Organisations-Admins.</p></li>
+            <li><p>Die Baureglemente der Gemeinde übernimmt TraceBuild automatisch aus dem ÖREB-Kataster, solange das Projekt offen ist. Was übernommen oder aussortiert wurde, steht mit Grund im Reiter <Ui>Normen</Ui>.</p></li>
           </ol>
           <div className={s.two}>
             <Fig
@@ -331,8 +332,9 @@ export default function AnleitungPage() {
                 <span className={s.sourceTag}>Automatisch</span>
                 <strong>ÖREB-Kataster</strong>
                 <p>
-                  In SG und AR lädt TraceBuild beim Anlegen eines Projekts den ÖREB-Auszug der Parzelle und ermittelt
-                  die Bauzone, z.&nbsp;B. <Ui>W2</Ui>.
+                  TraceBuild lädt beim Anlegen eines Projekts, bei jedem Analysestart und bei <Ui>Neu laden</Ui> den
+                  ÖREB-Auszug der Parzelle und ermittelt die Bauzone, z.&nbsp;B. <Ui>W2</Ui>. Das gilt für alle Kantone;
+                  Neuenburg ist vorerst nur mit Status und Link zum PDF-Auszug angebunden.
                 </p>
               </li>
               <li>

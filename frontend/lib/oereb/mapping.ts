@@ -11,6 +11,7 @@
  */
 export const FEDERAL_THEME_CODES: ReadonlySet<string> = new Set([
   "ch.Nutzungsplanung",
+  "ch.Planungszonen",
   "ch.ProjektierungszonenNationalstrassen",
   "ch.BaulinienNationalstrassen",
   "ch.ProjektierungszonenEisenbahnanlagen",
@@ -34,8 +35,21 @@ export const FEDERAL_THEME_CODES: ReadonlySet<string> = new Set([
   "ch.BaulinienStarkstromanlagen",
 ]);
 
+/**
+ * Kantonale Schreibweisen eines Bundesthemas auf das Grundthema abbilden. In der DB bleibt der
+ * Originalcode, verglichen wird kanonisch:
+ *   ch.<Thema>AenderungMitVorwirkung, …OhneVorwirkung (ZH, NW, OW, UR) → ch.<Thema>
+ *   ch.GR.NutzungsplanungZpGgp, …Gep, …Fp und ch.NutzungsplanungSchutz u. Ä. → ch.Nutzungsplanung
+ */
+export function canonicalThemeCode(code: string): string {
+  const base = code.replace(/(?:Aenderung)?(?:Mit|Ohne)Vorwirkung$/, "");
+  if (/^ch\.GR\.Nutzungsplanung(ZpGgp|Gep|Fp)$/.test(base)) return "ch.Nutzungsplanung";
+  if (/^ch\.Nutzungsplanung[A-Z]\w*$/.test(base)) return "ch.Nutzungsplanung";
+  return base;
+}
+
 export function isFederalTheme(themeCode: string): boolean {
-  return FEDERAL_THEME_CODES.has(themeCode);
+  return FEDERAL_THEME_CODES.has(canonicalThemeCode(themeCode));
 }
 
 export interface MappingThemeInput {
@@ -94,16 +108,19 @@ export function matchOerebNorms(
   const themes: MappingThemeInput[] = [];
   const seen = new Set<string>();
   for (const t of affectedThemes) {
-    if (!t.theme_code || seen.has(t.theme_code)) continue;
-    seen.add(t.theme_code);
-    themes.push({ theme_code: t.theme_code, theme_name: t.theme_name || t.theme_code });
+    if (!t.theme_code) continue;
+    const code = canonicalThemeCode(t.theme_code);
+    if (seen.has(code)) continue;
+    seen.add(code);
+    themes.push({ theme_code: code, theme_name: t.theme_name || code });
   }
 
   const patternsByTheme = new Map<string, string[]>();
   for (const m of mappings) {
-    const list = patternsByTheme.get(m.theme_code) ?? [];
+    const code = canonicalThemeCode(m.theme_code);
+    const list = patternsByTheme.get(code) ?? [];
     if (!list.includes(m.category_pattern)) list.push(m.category_pattern);
-    patternsByTheme.set(m.theme_code, list);
+    patternsByTheme.set(code, list);
   }
 
   const byNorm = new Map<string, string[]>();

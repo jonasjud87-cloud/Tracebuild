@@ -26,6 +26,17 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
+import {
+  buildDataRules,
+  buildReferenceBlock,
+  dataBlock,
+  inlineData,
+  newDataBoundary,
+  zoneNote,
+  type ReferenceBlock,
+} from "@/lib/analysis-reference";
+import { planAutoParts, type AutoPartsSummary } from "@/lib/analysis-plan";
+import type { GeodataFacts } from "@/lib/geoadmin/geodata";
 
 // ── Modell & Preise ───────────────────────────────────────────────────────────
 
@@ -77,9 +88,6 @@ const PREFILL_GATE_MAX_MS = 75_000;
 const CONSOLIDATION_RESERVE_MS = 40_000;
 const CONSOLIDATION_CALL_MS = 35_000;
 const CONSOLIDATION_MIN_BUDGET_MS = 150_000;
-
-/** Referenzrahmen (kommunale Normtexte) wird gedeckelt, damit der Cache-Prefix nicht explodiert. */
-const REFERENCE_MAX_CHARS = 160_000;
 
 /**
  * Lange Normen werden an Artikelgrenzen in Teile geschnitten und parallel geprüft.
@@ -159,6 +167,9 @@ export interface NormInput {
   /** 1 = Bund/International, 3 = Kanton, 4 = Gemeinde, 5 = Spezial/Org. */
   layer?: number | null;
   jurisdiction_type?: string | null;
+  /** 'oereb_auto' oder null (manuell gepflegt). */
+  source_kind?: string | null;
+  auto_scope?: string | null;
 }
 
 /** Fakten aus dem ÖREB-Auszug der Parzelle — der Prüfer soll wissen, was nachweislich (nicht) gilt. */
@@ -168,6 +179,11 @@ export interface OerebFacts {
   notAffected: string[];
   /** Grundbuchfläche der Parzelle in m² (aus dem Auszug), wenn bekannt. */
   parcelAreaM2: number | null;
+  /** Stand des Auszugs. */
+  fetchedAt?: string | null;
+  /** Letzte Aktualisierung fehlgeschlagen: Es gilt der ältere Stand. */
+  stale?: boolean;
+  staleReason?: string | null;
 }
 
 export interface ConsolidationResult {
@@ -230,6 +246,8 @@ export interface AnalysisRunResult {
   failed_norms: { norm_id: string; norm_title: string; error: string }[];
   /** null = Konsolidierung war nicht vorgesehen (zu wenig Budget). */
   consolidation: ConsolidationResult | null;
+  /** Automatisch importierte Normen: wie viele Teile geprüft wurden und wie viele der Deckel ausliess. */
+  auto_parts: AutoPartsSummary;
 }
 
 export type FileBlock = Anthropic.DocumentBlockParam | Anthropic.ImageBlockParam;
@@ -247,7 +265,11 @@ export interface ProjectContext {
   parcel?: string | null;
   /** 'oereb' | 'manual' | null — sagt dem Prüfer, wie belastbar die Zone ist. */
   zoneSource?: string | null;
+  /** 'exact' | 'coarse' | 'low' | null. Bei 'low' ist die Zone nur ein Kandidat. */
+  zoneConfidence?: string | null;
   oereb?: OerebFacts | null;
+  /** Zusatzdaten des Bundes, ohne Rechtswirkung. */
+  geodata?: GeodataFacts | null;
 }
 
 // ── Prompt ────────────────────────────────────────────────────────────────────
@@ -356,19 +378,13 @@ FORM:
 - Maximal ${MAX_CHECKS_PER_NORM} Prüfpunkte. Priorisiere fail vor warn vor ok.
 - category aus der vorgegebenen Liste; "andere" nur, wenn nichts passt.`;
 
-export function buildSystemPrompt(ctx: ProjectContext): string {
-  const zoneNote =
-    ctx.zoneSource === "oereb"
-      ? " (aus dem ÖREB-Kataster, verbindlich)"
-      : ctx.zoneSource === "manual"
-        ? " (manuell erfasst)"
-        : "";
+export function buildSystemPrompt(ctx: ProjectContext, boundary: string = newDataBoundary()): string {
   return (
-    `${SYSTEM_BASE}\n\n` +
+    `${SYSTEM_BASE}\n\n${buildDataRules(boundary)}\n\n` +
     `PROJEKTKONTEXT (gilt für alle Prüfungen):\n` +
     `- Gemeinde: ${ctx.municipality || "unbekannt"}\n` +
     `- Kanton: ${ctx.canton || "unbekannt"}\n` +
-    `- Bauzone: ${ctx.bauzone || "unbekannt"}${ctx.bauzone ? zoneNote : ""}\n` +
+    `- Bauzone: ${ctx.bauzone || "unbekannt"}${ctx.bauzone ? zoneNote(ctx) : ""}\n` +
     (ctx.parcel ? `- Parzelle: ${ctx.parcel}\n` : "")
   );
 }
@@ -378,64 +394,8 @@ export function isReferenceNorm(norm: NormInput): boolean {
   return norm.layer === 4 || norm.jurisdiction_type === "municipal";
 }
 
-/**
- * Referenzrahmen: ÖREB-Fakten + Volltext der kommunalen Normen. Steht in jedem Call
- * VOR dem Cache-Breakpoint, ist also über alle Calls byte-identisch.
- */
-export interface ReferenceBlock {
-  text: string;
-  /** Normen, deren Text VOLLSTÄNDIG im Block steht — nur die dürfen den Text im Norm-Call weglassen. */
-  completeIds: Set<string>;
-}
-
-export function buildReferenceBlock(ctx: ProjectContext, referenceNorms: NormInput[]): ReferenceBlock {
-  const lines: string[] = ["REFERENZRAHMEN (zur Einordnung — nicht selbst zu prüfen, ausser es ist die zu prüfende Norm)"];
-  const completeIds = new Set<string>();
-
-  const o = ctx.oereb;
-  if (o) {
-    lines.push("", "ÖREB-Kataster der Parzelle (amtlich):");
-    if (o.parcelAreaM2 != null) lines.push(`- Parzellenfläche (Grundbuch): ${o.parcelAreaM2} m²`);
-    if (o.affects.length) {
-      lines.push("- Betroffen:");
-      for (const a of o.affects) {
-        const area = a.areaM2 != null ? ` — ${a.areaM2} m²${a.areaPct != null ? ` (${a.areaPct} % der Parzelle)` : ""}` : "";
-        lines.push(`  · ${a.name}${a.legend ? `: ${a.legend}` : ""}${a.typeCode ? ` [${a.typeCode}]` : ""}${area}`);
-      }
-    } else {
-      lines.push("- Betroffen: keine Einschränkung erfasst");
-    }
-    if (o.notAffected.length) lines.push(`- Nicht betroffen: ${o.notAffected.join(", ")}`);
-    if (o.noData.length) lines.push(`- Ohne Daten im Kataster: ${o.noData.join(", ")}`);
-    if (o.parcelAreaM2 != null) {
-      lines.push("- Hinweis: Für Ausnützungs-/Überbauungsziffern ist die anrechenbare Fläche der Bauzone massgebend (Zonenanteil oben), nicht zwingend die ganze Parzelle.");
-    }
-  } else {
-    lines.push("", "ÖREB-Kataster: kein Auszug vorhanden.");
-  }
-
-  if (referenceNorms.length === 0) {
-    lines.push("", "Kommunale Normen: keine hinterlegt. Die Hierarchieregel entfällt — prüfe die Rahmennorm vollständig.");
-    return { text: lines.join("\n"), completeIds };
-  }
-
-  // Nur Normen, die ganz hineinpassen, kommen in den Block — eine gekürzte Referenz
-  // wäre für den Call der Norm selbst gefährlich (er würde gegen einen Torso prüfen).
-  let budget = REFERENCE_MAX_CHARS;
-  const included: NormInput[] = [];
-  for (const n of referenceNorms) {
-    if (n.text.length > budget) continue;
-    budget -= n.text.length;
-    included.push(n);
-    completeIds.add(n.id);
-  }
-  const skipped = referenceNorms.length - included.length;
-  lines.push("", `Kommunale Normen (${included.length}${skipped ? `, ${skipped} weitere aus Platzgründen nicht enthalten` : ""}):`);
-  for (const n of included) {
-    lines.push("", `=== ${n.title}${n.category ? ` (${n.category})` : ""} ===`, n.text, `=== ENDE ${n.title} ===`);
-  }
-  return { text: lines.join("\n"), completeIds };
-}
+export { buildReferenceBlock };
+export type { ReferenceBlock };
 
 /** Ein Prüfauftrag: eine Norm oder ein Artikel-Abschnitt davon. */
 export interface NormPart {
@@ -445,6 +405,8 @@ export interface NormPart {
   text: string;
   /** Erster/letzter Artikel im Teil — nur zur Beschriftung. */
   range: string | null;
+  /** Grenzmarker des Laufs für den Normtext (W3). */
+  boundary?: string;
 }
 
 const ARTICLE_RE = /(?:^|\n)\s*(?:Art(?:ikel|\.)\s*\d+[a-z]?)\b/g;
@@ -536,11 +498,13 @@ export function partLabel(p: NormPart): string {
 
 export function buildNormBlock(p: NormPart, index: number, total: number, inReference: boolean = false): string {
   const norm = p.norm;
+  const boundary = p.boundary ?? newDataBoundary();
+  const title = inlineData(norm.title);
   const head =
     `ZU PRÜFENDE NORM (Auftrag ${index + 1} von ${total}):\n` +
-    `Titel: ${norm.title}\n` +
+    `Titel: ${title}\n` +
     `Ebene: ${norm.layer === 4 ? "Gemeinde" : norm.layer === 3 ? "Kanton" : norm.layer === 1 ? "Bund" : "Spezialnorm"}\n` +
-    `Kategorie: ${norm.category ?? "unbekannt"}\n`;
+    `Kategorie: ${inlineData(norm.category ?? "unbekannt")}\n`;
   const scope =
     p.parts > 1
       ? `Diese Norm ist in ${p.parts} Teile aufgeteilt; dieser Auftrag umfasst NUR Teil ${p.part}` +
@@ -550,15 +514,15 @@ export function buildNormBlock(p: NormPart, index: number, total: number, inRefe
   if (inReference) {
     return (
       head + scope +
-      `Der vollständige Text dieser Norm steht bereits im Referenzrahmen oben unter "=== ${norm.title} ==="; ` +
+      `Der vollständige Text dieser Norm steht bereits im Referenzrahmen oben unter dem Titel "${title}"; ` +
       `sie ist die massgebende kommunale Norm.\n` +
-      (p.parts > 1 ? `--- ZU PRÜFENDER ABSCHNITT ANFANG ---\n${p.text}\n--- ZU PRÜFENDER ABSCHNITT ENDE ---\n\n` : "") +
+      (p.parts > 1 ? `Zu prüfender Abschnitt:\n${dataBlock(boundary, "Abschnitt", p.text)}\n\n` : "") +
       `Prüfe den beigefügten Bauplan gegen ${p.parts > 1 ? "diesen Abschnitt" : "diese Norm"}.`
     );
   }
   return (
     head + scope +
-    `--- NORMTEXT ANFANG ---\n${p.text}\n--- NORMTEXT ENDE ---\n\n` +
+    `Normtext:\n${dataBlock(boundary, "Normtext", p.text)}\n\n` +
     `Prüfe den beigefügten Bauplan gegen ${p.parts > 1 ? "diesen Abschnitt" : "diese Norm"}.`
   );
 }
@@ -1109,16 +1073,21 @@ export async function runNormAnalysis(
   // Konsolidierung nur, wenn das Budget sie hergibt — sonst bekommt die Norm-Phase alles.
   const withConsolidation = budgetMs >= CONSOLIDATION_MIN_BUDGET_MS;
   const deadlineAt = withConsolidation ? runDeadlineAt - CONSOLIDATION_RESERVE_MS : runDeadlineAt;
-  const system = buildSystemPrompt(ctx);
-  // Reihenfolge: kommunale Normen zuerst (längste Calls, sie schreiben ohnehin den
+  // Zufällig je Lauf: Ein Text aus einem fremden PDF kann die Grenze nicht nachbilden.
+  const boundary = newDataBoundary();
+  const system = buildSystemPrompt(ctx, boundary);
+  // Reihenfolge: gepflegte kommunale Normen zuerst (längste Calls, sie schreiben ohnehin den
   // Cache), dann nach Textlänge — der langsamste Call bekommt das grösste Zeitfenster.
+  // Importierte Normen kommen danach und gedeckelt, sonst fehlt Bund und Kanton die Zeit.
   const norms = normsInput.slice().sort((a, b) => {
+    const auto = (n: NormInput) => (n.source_kind === "oereb_auto" ? 1 : 0);
     const ra = isReferenceNorm(a) ? 0 : 1, rb = isReferenceNorm(b) ? 0 : 1;
-    return ra - rb || b.text.length - a.text.length;
+    return auto(a) - auto(b) || ra - rb || b.text.length - a.text.length;
   });
   const referenceNorms = norms.filter(isReferenceNorm);
-  const reference = buildReferenceBlock(ctx, referenceNorms);
-  const units = toNormParts(norms);
+  const reference = buildReferenceBlock(ctx, referenceNorms, boundary);
+  const { units: planned, summary: autoParts } = planAutoParts(toNormParts(norms), deadlineAt - startedAt, MAX_CONCURRENCY);
+  const units = planned.map((u) => ({ ...u, boundary }));
   const total = units.length;
   const call = (
     unit: NormPart, index: number, gate: (() => void) | null, effort?: "low" | "medium" | "high",
@@ -1222,5 +1191,6 @@ export async function runNormAnalysis(
       .filter((o) => !o.result.ok)
       .map((o) => ({ norm_id: o.result.norm_id, norm_title: o.result.norm_title, error: o.result.error ?? "unbekannt" })),
     consolidation,
+    auto_parts: autoParts,
   };
 }

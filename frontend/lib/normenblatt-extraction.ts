@@ -15,6 +15,7 @@
 
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
+import { buildDataRules, buildKennwerteBlock, newDataBoundary } from "@/lib/analysis-reference";
 import { splitNormText, normalizeCategory, computeCost, type Category, type UsageTotals } from "@/lib/analysis-engine";
 
 export const KENNWERTE_MODEL = "claude-haiku-4-5-20251001";
@@ -112,20 +113,8 @@ function clipNormText(text: string): string {
   return parts[0] ?? text.slice(0, MAX_CHARS_PER_NORM);
 }
 
-function buildNormsBlock(norms: KennwertNormInput[]): string {
-  const lines: string[] = [`NORMEN (${norms.length}):`];
-  norms.forEach((n, i) => {
-    lines.push(
-      "",
-      `=== Norm ${i + 1} ===`,
-      `Titel: ${n.title}`,
-      `Kategorie: ${n.category ?? "unbekannt"}`,
-      "--- Text ---",
-      clipNormText(n.text),
-      "--- Ende ---",
-    );
-  });
-  return lines.join("\n");
+function buildNormsBlock(norms: KennwertNormInput[], boundary: string): string {
+  return buildKennwerteBlock(norms.map((n) => ({ ...n, text: clipNormText(n.text) })), boundary);
 }
 
 /**
@@ -197,14 +186,19 @@ export async function runKennwerteExtraction(norms: KennwertNormInput[]): Promis
     return { items: [], usage, cost_usd: 0, model: KENNWERTE_MODEL, duration_ms: 0 };
   }
 
+  const boundary = newDataBoundary();
   const message = await anthropic.messages.create({
     model: KENNWERTE_MODEL,
     max_tokens: MAX_TOKENS,
     // System-Text ist über alle Projekte byte-identisch — der Cache-Breakpoint
     // erlaubt Anthropic-Prompt-Caching über aufeinanderfolgende Extraktionen
     // hinweg (verschiedene Projekte, gleicher System-Prompt).
-    system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
-    messages: [{ role: "user", content: buildNormsBlock(norms) }],
+    // Die Datenregel enthält die zufällige Grenze und steht deshalb hinter dem Breakpoint.
+    system: [
+      { type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } },
+      { type: "text", text: buildDataRules(boundary) },
+    ],
+    messages: [{ role: "user", content: buildNormsBlock(norms, boundary) }],
     output_config: { format: KENNWERTE_OUTPUT_SCHEMA },
   });
 

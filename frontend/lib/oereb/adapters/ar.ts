@@ -6,7 +6,7 @@
  *   https://oereb.ar.ch/ktar/wsgi/oereb
  *   {base}/versions/json, {base}/getegrid/json/?EN=…, {base}/getegrid/json/?IDENTDN=…&NUMBER=…,
  *   {base}/extract/json/?EGRID=…
- * Die URL kommt aus OEREB_BASE_URL_AR; ist sie leer, endet jeder Abruf mit 'unreachable'.
+ * OEREB_BASE_URL_AR ist nur noch ein Override; die Basis steht in service-quirks.ts.
  *
  * Besonderheiten AR (gleiche Plattform wie SG):
  *  - Kein Treffer → HTTP 204 (kein leeres JSON).
@@ -19,10 +19,8 @@
  *    sich mit den übrigen Zonen auf 100 %. Überlagernd sind nur 5x und 6x (Summe > 100 %).
  */
 import type { OerebExtract, OerebTheme, ZoneResult } from "../types";
-import { GenericOerebAdapter, pickZoneRestriction, type GetEgridInput } from "./generic";
+import { GenericOerebAdapter, pickZoneRestriction, type GetEgridInput, type ServiceSource } from "./generic";
 import { sgExactZoneCode } from "./sg";
-
-export const AR_OEREB_BASE_URL_ENV = "OEREB_BASE_URL_AR";
 
 /**
  * Code → Grobklasse. 2-stellige Hauptnutzung nach ARE (wie SG), 4-stellige Verfeinerungen
@@ -97,8 +95,8 @@ export function arExactZoneCode(legendText: string | null): string | null {
 }
 
 export class ArOerebAdapter extends GenericOerebAdapter {
-  constructor(baseUrl: string | null | undefined = process.env[AR_OEREB_BASE_URL_ENV]) {
-    super("AR", baseUrl);
+  constructor(service?: ServiceSource) {
+    super("AR", service);
   }
 
   protected identDnCandidates(input: GetEgridInput): string[] {

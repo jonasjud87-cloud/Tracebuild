@@ -17,6 +17,8 @@ const JURISDICTIONS = [
   { value: "municipal", label: "Gemeinde" },
 ] as const;
 
+const NORMS_PAGE_SIZE = 200;
+
 interface AdminNorm {
   id: string;
   title?: string;
@@ -25,7 +27,6 @@ interface AdminNorm {
   jurisdiction_type: string;
   jurisdiction_name: string | null;
   category: string;
-  text: string;
   source_url: string | null;
   zone: string | null;
   org_id: string | null;
@@ -73,6 +74,16 @@ function NormRow({
   promoting: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
+  // Die Liste liefert keinen Volltext, er wird beim ersten Aufklappen geladen.
+  const [normText, setNormText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!expanded || normText !== null) return;
+    let active = true;
+    api.get<{ text: string }>(`/admin/norms/${norm.id}`)
+      .then((row) => { if (active) setNormText(row.text); })
+      .catch(() => { if (active) setNormText("Text konnte nicht geladen werden. Bitte später erneut versuchen."); });
+    return () => { active = false; };
+  }, [expanded, normText, norm.id]);
 
   return (
     <div className="border-b border-[rgba(60,63,68,0.3)] last:border-0">
@@ -103,7 +114,7 @@ function NormRow({
           <p className="text-sm text-white font-medium truncate">{norm.title || norm.source_url || "Ohne Titel"}</p>
           {expanded && (
             <>
-              <p className="mt-2 text-xs text-[#ABAEBB] leading-relaxed whitespace-pre-wrap">{norm.text}</p>
+              <p className="mt-2 text-xs text-[#ABAEBB] leading-relaxed whitespace-pre-wrap">{normText ?? "Text wird geladen …"}</p>
               {norm.pdf_url && (
                 <div className="mt-2">
                   <iframe
@@ -408,8 +419,16 @@ export default function AdminNormsPage() {
     try {
       const params = new URLSearchParams({ domain: "bau" });
       if (ownerFilter === "platform") params.set("platform_only", "true");
-      const data = await api.get<AdminNorm[]>(`/admin/norms?${params}`);
-      setNorms(data ?? []);
+      // Seitenweise, damit keine Antwort das Limit von Vercel erreicht.
+      const all: AdminNorm[] = [];
+      for (let offset = 0; ; offset += NORMS_PAGE_SIZE) {
+        params.set("limit", String(NORMS_PAGE_SIZE));
+        params.set("offset", String(offset));
+        const page = (await api.get<AdminNorm[]>(`/admin/norms?${params}`)) ?? [];
+        all.push(...page);
+        if (page.length < NORMS_PAGE_SIZE) break;
+      }
+      setNorms(all);
     } catch {
       setNorms([]);
     } finally {

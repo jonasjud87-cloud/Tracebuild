@@ -1,4 +1,6 @@
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import type { ParcelCandidate } from "@/lib/geoadmin/contract";
 import type { ExtractStatus, OerebExtract, OerebTheme, ZoneResult } from "./types";
 import { OerebError } from "./errors";
 import { getAdapter } from "./registry";
@@ -11,6 +13,18 @@ export interface FetchExtractResult {
   affectsCount: number;
   noDataCount: number;
   zone: ZoneResult | null;
+  /** Bei 'ambiguous': die Grundstücke zur Auswahl. */
+  candidates?: ParcelCandidate[];
+}
+
+export interface FetchExtractOptions {
+  /** Bekannte EGRID: die Parzellensuche entfällt. */
+  egrid?: string | null;
+  /** LV95-Koordinate: GetEGRID des Kantons statt Parzellensuche. */
+  en?: [number, number] | null;
+  bfs?: number | null;
+  /** Gesamtbudget des Abrufs. */
+  signal?: AbortSignal;
 }
 
 const THEME_INSERT_CHUNK = 100;
@@ -33,14 +47,24 @@ async function upsertExtractRow(
     status: ExtractStatus;
     status_detail: string | null;
     raw: unknown;
-  }
+  },
+  lastError: string | null
 ): Promise<string> {
   const admin = createAdminClient();
-  const { data, error } = await admin
+  const now = new Date().toISOString();
+  const base = { project_id: projectId, ...row, fetched_at: now };
+  let { data, error } = await admin
     .from("oereb_extracts")
-    .upsert({ project_id: projectId, ...row, fetched_at: new Date().toISOString() }, { onConflict: "project_id" })
+    .upsert(
+      { ...base, last_attempt_at: now, last_error: lastError, ...(row.status === "ok" ? { server_fetched_at: now } : {}) },
+      { onConflict: "project_id" }
+    )
     .select("id")
     .single();
+  // Geoportal-Migration noch nicht eingespielt → ohne die neuen Spalten.
+  if (error && isMissingSchema(error.message)) {
+    ({ data, error } = await admin.from("oereb_extracts").upsert(base, { onConflict: "project_id" }).select("id").single());
+  }
   if (error || !data) throw new Error(`ÖREB-Auszug konnte nicht gespeichert werden: ${error?.message ?? "keine id"}`);
 
   const { error: delErr } = await admin.from("oereb_themes").delete().eq("extract_id", data.id);
@@ -48,10 +72,8 @@ async function upsertExtractRow(
   return data.id as string;
 }
 
-async function insertThemes(extractId: string, themes: OerebTheme[]): Promise<void> {
-  const admin = createAdminClient();
-  const rows = themes.map((t) => ({
-    extract_id: extractId,
+function themeRows(themes: OerebTheme[]) {
+  return themes.map((t) => ({
     theme_code: t.themeCode,
     theme_name: t.themeName,
     sub_theme: t.subTheme,
@@ -65,6 +87,11 @@ async function insertThemes(extractId: string, themes: OerebTheme[]): Promise<vo
     authority: t.authority,
     raw: t.raw ?? null,
   }));
+}
+
+async function insertThemes(extractId: string, themes: OerebTheme[]): Promise<void> {
+  const admin = createAdminClient();
+  const rows = themeRows(themes).map((r) => ({ extract_id: extractId, ...r }));
   for (let i = 0; i < rows.length; i += THEME_INSERT_CHUNK) {
     const { error } = await admin.from("oereb_themes").insert(rows.slice(i, i + THEME_INSERT_CHUNK));
     if (error) throw new Error(`ÖREB-Themen konnten nicht gespeichert werden: ${error.message}`);
@@ -72,8 +99,32 @@ async function insertThemes(extractId: string, themes: OerebTheme[]): Promise<vo
 }
 
 /**
+ * Ersetzt Auszug und Themen atomar über die RPC. Fehlt die Funktion (Migration nicht
+ * eingespielt), bleibt es beim bisherigen Weg in zwei Schritten.
+ */
+async function replaceExtract(
+  projectId: string,
+  row: { canton: string; egrid: string; identdn: string | null; parcel_number: string | null; raw: unknown },
+  themes: OerebTheme[]
+): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin.rpc("replace_oereb_extract", {
+    p_project_id: projectId,
+    p_extract: row,
+    p_themes: themeRows(themes),
+  });
+  if (!error) return;
+  if (error.code !== "PGRST202" && !isMissingSchema(error.message)) {
+    throw new Error(`ÖREB-Auszug konnte nicht gespeichert werden: ${error.message}`);
+  }
+  const extractId = await upsertExtractRow(projectId, { ...row, status: "ok", status_detail: null }, null);
+  await insertThemes(extractId, themes);
+}
+
+/**
  * Überträgt die ÖREB-Zone ins Projekt — ausser der Nutzer hat die Bauzone von Hand
  * gesetzt (zone_source = 'manual'); dann gilt seine Angabe (Entscheidung 1).
+ * Auch 'low' wird mit dem Kandidaten geschrieben: Die UI zeigt «unsicher, bitte prüfen».
  * Ohne ermittelbare Zone bleibt das Projekt unverändert.
  */
 async function applyZone(projectId: string, zone: ZoneResult): Promise<void> {
@@ -94,12 +145,50 @@ async function applyZone(projectId: string, zone: ZoneResult): Promise<void> {
   if (updErr) throw new Error(`Bauzone konnte nicht gespeichert werden: ${updErr.message}`);
 }
 
+/** Ergänzt EGRID, BFS und (falls leer) Koordinaten im Projekt. Fehlende Spalten sind kein Fehler. */
+async function enrichProject(
+  projectId: string,
+  egrid: string,
+  bfs: number | null | undefined,
+  position: { e: number | null; n: number | null } | null
+): Promise<void> {
+  const admin = createAdminClient();
+  const updates: Record<string, unknown> = { egrid };
+  if (bfs !== null && bfs !== undefined) updates.bfs_number = bfs;
+  const { error } = await admin.from("projects").update(updates).eq("id", projectId);
+  if (error) {
+    if (!isMissingSchema(error.message)) console.error(`EGRID für Projekt ${projectId} nicht gespeichert:`, error.message);
+    return;
+  }
+  if (position?.e === null || position?.e === undefined || position.n === null) return;
+  const { error: posErr } = await admin
+    .from("projects")
+    .update({ lv95_e: position.e, lv95_n: position.n })
+    .eq("id", projectId)
+    .is("lv95_e", null);
+  if (posErr && !isMissingSchema(posErr.message)) {
+    console.error(`Koordinaten für Projekt ${projectId} nicht gespeichert:`, posErr.message);
+  }
+}
+
+/** Letzten Versuch am gültigen Auszug festhalten. Fehlende Spalten sind kein Fehler. */
+async function noteAttempt(projectId: string, lastError: string): Promise<void> {
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("oereb_extracts")
+    .update({ last_attempt_at: new Date().toISOString(), last_error: lastError })
+    .eq("project_id", projectId);
+  if (error && !isMissingSchema(error.message)) {
+    console.error(`ÖREB-Versuch für Projekt ${projectId} nicht festgehalten:`, error.message);
+  }
+}
+
 /**
  * Hält einen Fehlschlag fest — aber nie auf Kosten eines gültigen Auszugs: Liegt für
  * das Projekt bereits ein 'ok'-Auszug, bleibt er samt Themen stehen (ein temporärer
- * Ausfall des Dienstes oder eine fehlende Env-Variable darf keine Daten löschen).
- * Der Fehler wird dann nur im Rückgabewert gemeldet. Soll ein alter Auszug bewusst
- * weg (Parzelle gewechselt), vorher invalidateExtract() aufrufen.
+ * Ausfall des Dienstes darf keine Daten löschen). Der Fehler wird dann nur im
+ * Rückgabewert und in last_error gemeldet. Soll ein alter Auszug bewusst weg (Parzelle
+ * gewechselt), vorher invalidateExtract() aufrufen.
  */
 async function persistFailure(
   projectId: string,
@@ -118,6 +207,7 @@ async function persistFailure(
       .maybeSingle();
     if (existing?.status === "ok") {
       console.warn(`ÖREB-Abruf für Projekt ${projectId} fehlgeschlagen (${status}: ${detail}); gültiger Auszug bleibt erhalten`);
+      await noteAttempt(projectId, detail);
       return summarize(status, detail, egrid);
     }
 
@@ -129,7 +219,7 @@ async function persistFailure(
       status,
       status_detail: detail,
       raw: null,
-    });
+    }, detail);
   } catch (e) {
     console.error(`ÖREB-Fehlerstatus für Projekt ${projectId} konnte nicht gespeichert werden:`, e);
   }
@@ -139,7 +229,8 @@ async function persistFailure(
 /**
  * Entfernt den Auszug eines Projekts (Themen hängen per CASCADE daran). Nötig, wenn
  * Parzelle oder Standort wechseln — der alte Auszug gehört dann zu einem anderen
- * Grundstück und darf nicht als 'ok' stehen bleiben. Wirft nie.
+ * Grundstück und darf nicht als 'ok' stehen bleiben. Eine daraus abgeleitete Zone ebenso wenig,
+ * auch wenn der neue Abruf nichts liefert; eine manuelle Zone bleibt. Wirft nie.
  */
 export async function invalidateExtract(projectId: string): Promise<void> {
   const admin = createAdminClient();
@@ -147,6 +238,34 @@ export async function invalidateExtract(projectId: string): Promise<void> {
   // Tabelle fehlt (Migration nicht eingespielt) → nichts zu invalidieren.
   if (error && !/oereb_extracts/.test(error.message)) {
     console.error(`ÖREB-Auszug für Projekt ${projectId} konnte nicht entfernt werden:`, error.message);
+  }
+  const { error: zoneError } = await admin
+    .from("projects")
+    .update({ bauzone: null, zone_source: null, zone_confidence: null })
+    .eq("id", projectId)
+    .eq("zone_source", "oereb");
+  if (zoneError && !zoneError.message.includes("zone_source")) {
+    console.error(`Bauzone für Projekt ${projectId} nicht zurückgesetzt:`, zoneError.message);
+  }
+}
+
+/**
+ * Bestand: Ein Auszug ohne bekannte EGRID stammt aus der alten Parzellensuche und kann das
+ * falsche Grundstück sein (SH, VS). Ist die Parzelle mehrdeutig, darf er nicht stehen bleiben,
+ * und eine daraus abgeleitete Zone ebenso wenig. Wirft nie.
+ */
+async function discardUnverifiedExtract(projectId: string): Promise<void> {
+  try {
+    const admin = createAdminClient();
+    const [{ data: project }, { data: existing }] = await Promise.all([
+      admin.from("projects").select("*").eq("id", projectId).maybeSingle(),
+      admin.from("oereb_extracts").select("status").eq("project_id", projectId).maybeSingle(),
+    ]);
+    if (existing?.status !== "ok" || project?.egrid) return;
+
+    await invalidateExtract(projectId);
+  } catch (e) {
+    console.error(`Alter ÖREB-Auszug für Projekt ${projectId} konnte nicht geprüft werden:`, e);
   }
 }
 
@@ -213,7 +332,9 @@ function statusOf(e: unknown): { status: ExtractStatus; detail: string } {
 
 /**
  * Holt den ÖREB-Auszug eines Grundstücks und legt ihn für das Projekt ab:
- *   Adapter → EGRID → Auszug → oereb_extracts (UPSERT) + oereb_themes → Zone ins Projekt.
+ *   Adapter → EGRID → Auszug → oereb_extracts + oereb_themes → Zone und EGRID ins Projekt.
+ *
+ * Mit `egrid` entfällt die Suche, mit `en` fragt der Adapter das GetEGRID des Kantons.
  *
  * Wirft nie nach aussen: jeder Fehlerfall wird als status/status_detail im Auszugs-
  * Datensatz festgehalten und im Ergebnis zurückgegeben.
@@ -222,45 +343,62 @@ export async function fetchAndPersistExtract(
   projectId: string,
   canton: string,
   municipality: string,
-  parcelNumber: string
+  parcelNumber: string,
+  opts: FetchExtractOptions = {}
 ): Promise<FetchExtractResult> {
   const cantonCode = (canton ?? "").trim().toUpperCase();
   const parcel = (parcelNumber ?? "").trim() || null;
+  const place = (municipality ?? "").trim();
+  const { signal, en } = opts;
+  const bfs = opts.bfs ?? undefined;
 
   const adapter = getAdapter(cantonCode);
   if (!adapter) {
-    return persistFailure(projectId, cantonCode || "?", parcel, null, "unreachable",
-      `Kanton ${cantonCode || "(leer)"} wird vom ÖREB-Abruf noch nicht unterstützt`);
-  }
-  if (!parcel) {
-    return persistFailure(projectId, cantonCode, null, null, "no_egrid", "Keine Parzellennummer hinterlegt");
-  }
-  if (!municipality?.trim()) {
-    return persistFailure(projectId, cantonCode, parcel, null, "no_egrid", "Keine Gemeinde hinterlegt");
+    return persistFailure(projectId, cantonCode || "?", parcel, null, "no_cadastre",
+      `Für Kanton ${cantonCode || "(leer)"} ist kein ÖREB-Dienst bekannt`);
   }
 
   // 1. EGRID
-  let egrids: string[];
-  try {
-    egrids = await adapter.getEgrid({ municipality: municipality.trim(), parcelNumber: parcel });
-  } catch (e) {
-    const { status, detail } = statusOf(e);
-    return persistFailure(projectId, cantonCode, parcel, null, status, detail);
+  let egrid = opts.egrid?.trim().toUpperCase() || null;
+  let position: { e: number | null; n: number | null } | null = null;
+  if (!egrid) {
+    if (!en && !parcel) {
+      return persistFailure(projectId, cantonCode, null, null, "no_egrid", "Keine Parzellennummer hinterlegt");
+    }
+    if (!en && !place && bfs === undefined) {
+      return persistFailure(projectId, cantonCode, parcel, null, "no_egrid", "Keine Gemeinde hinterlegt");
+    }
+    let resolved;
+    try {
+      resolved = await adapter.resolveEgrid({
+        municipality: place,
+        parcelNumber: parcel ?? "",
+        bfsNumber: bfs,
+        en: en ?? undefined,
+        signal,
+      });
+    } catch (e) {
+      const { status, detail } = statusOf(e);
+      return persistFailure(projectId, cantonCode, parcel, null, status, detail);
+    }
+    if (resolved.egrids.length === 0) {
+      return persistFailure(projectId, cantonCode, parcel, null, "no_egrid",
+        `Kein Grundstück Nr. ${parcel ?? "?"} in ${place || "?"} (${cantonCode}) gefunden`);
+    }
+    if (resolved.egrids.length > 1) {
+      await discardUnverifiedExtract(projectId);
+      const result = await persistFailure(projectId, cantonCode, parcel, null, "ambiguous",
+        `Mehrere Grundstücke zu Nr. ${parcel ?? "?"} in ${place || "?"}: ${resolved.egrids.join(", ")}`);
+      return { ...result, candidates: resolved.candidates };
+    }
+    egrid = resolved.egrids[0];
+    position = resolved.candidates[0] ?? null;
   }
-  if (egrids.length === 0) {
-    return persistFailure(projectId, cantonCode, parcel, null, "no_egrid",
-      `Kein Grundstück Nr. ${parcel} in ${municipality.trim()} (${cantonCode}) gefunden`);
-  }
-  if (egrids.length > 1) {
-    return persistFailure(projectId, cantonCode, parcel, null, "ambiguous",
-      `Mehrere Grundstücke zu Nr. ${parcel} in ${municipality.trim()}: ${egrids.join(", ")}`);
-  }
-  const egrid = egrids[0];
 
   // 2. Auszug
   let extract: OerebExtract;
   try {
-    extract = await adapter.getExtract(egrid);
+    extract = await adapter.getExtract(egrid, { signal });
   } catch (e) {
     const { status, detail } = statusOf(e);
     return persistFailure(projectId, cantonCode, parcel, egrid, status, detail);
@@ -269,17 +407,15 @@ export async function fetchAndPersistExtract(
   // 3. Persistieren + Zone
   const zone = adapter.extractZone(extract);
   try {
-    const extractId = await upsertExtractRow(projectId, {
+    await replaceExtract(projectId, {
       canton: extract.canton || cantonCode,
       egrid: extract.egrid,
       identdn: extract.identDn,
       parcel_number: extract.parcelNumber ?? parcel,
-      status: "ok",
-      status_detail: null,
       raw: extract.raw ?? null,
-    });
-    await insertThemes(extractId, extract.themes);
+    }, extract.themes);
     await applyZone(projectId, zone);
+    await enrichProject(projectId, extract.egrid, extract.bfsNumber ?? bfs, position);
   } catch (e) {
     const { status, detail } = statusOf(e);
     return persistFailure(projectId, cantonCode, parcel, egrid, status, detail);
