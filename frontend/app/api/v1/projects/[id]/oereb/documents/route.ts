@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { syncProjectDocuments } from "@/lib/oereb/documents";
+import { assignChangedNorms } from "@/lib/oereb/documents-pending";
 import type { DocumentsResponse, OerebDocumentItem } from "@/lib/geoadmin/contract";
 
 export const dynamic = "force-dynamic";
@@ -22,6 +23,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
     if (!project) return err("Projekt nicht gefunden", 404);
 
     const state = await syncProjectDocuments(admin, params.id);
+    await assignChangedNorms(state.changedNormIds);
     if (!state.available) return ok<DocumentsResponse>({ available: false, items: [], pending: 0 });
 
     return ok<DocumentsResponse>({

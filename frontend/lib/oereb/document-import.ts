@@ -20,7 +20,7 @@ import {
   type ProjectDocumentState,
 } from "./documents";
 import { VERSION_COLUMNS, measureDocument } from "./document-versions";
-import { OLDER_VERSION_REASON, decideContent, decidePreDownload, scopeOf, type ImportFilterRules } from "./import-filter";
+import { OLDER_VERSION_REASON, contentStatus, decideContent, decidePreDownload, scopeOf, type ImportFilterRules } from "./import-filter";
 import { titleKey } from "./title-key";
 import { linkSimilarUploads } from "./upload-supersede";
 
@@ -589,7 +589,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
 
   const rejected = decideContent(text, rules, doc.title);
   if (rejected) {
-    await rejectNew(ctx, doc, rejected.reason, rejected.detail, measured);
+    await rejectNew(ctx, doc, rejected.reason, rejected.detail, { ...measured, status: contentStatus(rejected.reason, doc.title, rules, doc.official_number) });
     return { outcome: "rejected" };
   }
   const tooLong = normTextTooLongMessage(text);
@@ -645,7 +645,15 @@ export async function syncNextDocument(
 
   const now = Date.now();
   const due = orderDueDocuments(state.own.filter((d) => isDocumentDue(d, now)), state.rules);
-  if (due.length === 0) return { available: true, processed: null, in_progress: false, remaining: 0 };
+  if (due.length === 0) {
+    // Der erste Abgleich kann eine Norm freigegeben haben, ohne dass etwas fällig ist.
+    if (deps.assignNew) {
+      for (const normId of state.changedNormIds ?? []) {
+        await deps.assignNew(normId).catch((e) => console.error(`Norm ${normId} nicht zugewiesen:`, e));
+      }
+    }
+    return { available: true, processed: null, in_progress: false, remaining: 0 };
+  }
 
   const ctx: ImportContext = {
     admin,
@@ -680,7 +688,12 @@ export async function syncNextDocument(
     // Der Abgleich danach kann einen Verlierer zurücknehmen oder eine Fassung wieder freigeben.
     const after = await syncProjectDocuments(admin, projectId);
     if (deps.assignNew) {
-      const toAssign = new Set([...(newNormId ? [newNormId] : []), ...Array.from(ctx.reassign), ...(after.changedNormIds ?? [])]);
+      const toAssign = new Set([
+        ...(newNormId ? [newNormId] : []),
+        ...Array.from(ctx.reassign),
+        ...(state.changedNormIds ?? []),
+        ...(after.changedNormIds ?? []),
+      ]);
       for (const normId of Array.from(toAssign)) {
         await deps.assignNew(normId).catch((e) => console.error(`Norm ${normId} nicht zugewiesen:`, e));
       }

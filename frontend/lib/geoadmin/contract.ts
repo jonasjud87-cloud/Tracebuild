@@ -147,7 +147,7 @@ export interface OerebDocumentItem {
   url: string;
   kind: string | null;
   scope: "municipal" | "parcel" | null;
-  status: "pending" | "imported" | "rejected" | "failed" | "duplicate_manual" | "removed";
+  status: "pending" | "imported" | "rejected" | "failed" | "duplicate_manual" | "removed" | "review";
   reject_reason: string | null;
   reject_detail: string | null;
   norm_id: string | null;

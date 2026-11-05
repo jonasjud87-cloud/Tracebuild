@@ -97,7 +97,7 @@ test("Merge: x ersetzt, x_add ergänzt, Kanton über default, Fehlerhaftes zähl
   assert.equal(merged.min_text_chars, 200);
   assert.deepEqual(merged.doc_types, ["LegalProvision", "Hint"]);
   assert.ok(merged.title_negative.includes("foo"));
-  assert.ok(merged.title_negative.includes("zonenplan"));
+  assert.ok(merged.title_negative.includes("=zonenplan"));
   assert.equal(merged.recheck_hours, 24);
   assert.equal(merged.article_pattern, R.article_pattern);
   assert.equal(resolveFilterRules([{ scope: "BE", rules: { min_text_chars: 1 }, active: false }], "BE").min_text_chars, 3000);
@@ -115,13 +115,13 @@ test("Inhalt: Scan, wenige Artikel, Paragrafen zählen, Beschluss am Textanfang"
   assert.equal(decideContent("kurz", R)?.reason, "scan_or_short");
   assert.equal(decideContent("x ".repeat(2000), R)?.reason, "no_articles");
   const arts = Array.from({ length: 6 }, (_, i) => `Art. ${i + 1} ${"Text ".repeat(120)}`).join("\n");
-  assert.equal(decideContent(arts, R), null);
+  assert.equal(decideContent(arts, R, "Bauordnung"), null);
   const paras = Array.from({ length: 6 }, (_, i) => `§ ${i + 1} ${"Text ".repeat(120)}`).join("\n");
-  assert.equal(decideContent(paras, R), null);
+  assert.equal(decideContent(paras, R, "Bauordnung"), null);
   const fr = Array.from({ length: 6 }, (_, i) => `Article ${i + 1} ${"Text ".repeat(120)}`).join("\n");
-  assert.equal(decideContent(fr, R), null);
+  assert.equal(decideContent(fr, R, "Règlement de construction"), null);
   assert.equal(decideContent(`PROTOKOLL DES REGIERUNGSRATS Sitzung ${arts}`, R)?.reason, "decision_document");
-  assert.equal(decideContent(`Regierungsrat erwähnt in Bauordnung\n${"Einleitung ".repeat(50)}${arts}`, R), null);
+  assert.equal(decideContent(`Regierungsrat erwähnt in Bauordnung\n${"Einleitung ".repeat(50)}${arts}`, R, "Bauordnung"), null);
 });
 
 // ── Host ─────────────────────────────────────────────────────────────────────

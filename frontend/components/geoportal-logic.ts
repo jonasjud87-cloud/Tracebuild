@@ -254,6 +254,10 @@ export function summarizeDocuments(items: Pick<OerebDocumentItem, "status" | "re
       case "pending": out.pending++; break;
       case "duplicate_manual": out.duplicates++; break;
       case "removed": out.removed++; break;
+      case "review":
+        out.filtered++;
+        reasons.set("zur manuellen Prüfung", (reasons.get("zur manuellen Prüfung") ?? 0) + 1);
+        break;
       case "rejected":
         if (item.reject_reason === "scan_or_short") {
           out.scans++;

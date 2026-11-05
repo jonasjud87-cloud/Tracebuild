@@ -12,6 +12,7 @@ const STATUS: Record<OerebDocumentItem["status"], { label: string; color: string
   failed:           { label: "Fehler",               color: "#F87171", bg: "rgba(248,113,113,0.12)" },
   duplicate_manual: { label: "bereits von Hand erfasst", color: "#ABAEBB", bg: "rgba(133,166,233,0.1)" },
   removed:          { label: "vom Admin entfernt",   color: "#7B8299", bg: "rgba(133,166,233,0.1)"  },
+  review:           { label: "zur Prüfung",          color: "#85A6E9", bg: "rgba(133,166,233,0.1)"  },
 };
 
 function statusFor(item: OerebDocumentItem) {

@@ -367,13 +367,17 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (cancel.signal.aborted) return await finishCancelled();
     const geo = await refreshGeodata(admin, project, { budgetMs: GEODATA_BUDGET_MS, minAgeMs: REFRESH_MIN_AGE_MS, signal: cancel.signal });
     if (cancel.signal.aborted) return await finishCancelled();
+    let assignError: unknown = null;
     await assignNorms(
       params.id,
       project.org_id,
       project.location?.canton ?? "",
       project.location?.municipality ?? "",
       project.domain ?? "bau",
-    ).catch((e) => console.error(`Normzuweisung vor Analyse von Projekt ${params.id} fehlgeschlagen:`, e));
+    ).catch((e) => {
+      assignError = e;
+      console.error(`Normzuweisung vor Analyse von Projekt ${params.id} fehlgeschlagen:`, e);
+    });
     // Die Zone kann sich durch den Abruf geändert haben.
     const { data: reread } = await admin.from("projects").select("*").eq("id", params.id).maybeSingle();
     const fresh = reread ?? project;
@@ -397,6 +401,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
       fresh.bauzone ?? null,
       fresh.zone_confidence ?? null,
     );
+    // Ohne Zuweisung und ohne Normen sähe ein technischer Fehler aus wie «keine Normen hinterlegt»: lieber
+    // abbrechen als eine bezahlte Prüfung nur auf Fachwissen. Mit bestehenden Normen läuft sie auf dem letzten Stand.
+    if (normsSource === "fallback" && (assignError || pnError)) {
+      throw new Error("Die Normen des Projekts konnten nicht geladen werden. Bitte später erneut versuchen.");
+    }
     if (normsSource === "fallback") {
       console.warn(`Projekt ${params.id}: keine Normen in project_norms — Analyse läuft auf Fachwissen.`);
     }

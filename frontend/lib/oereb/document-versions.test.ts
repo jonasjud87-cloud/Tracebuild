@@ -190,7 +190,7 @@ test("Fusion: gleiche Titel in verschiedenen Auszügen verdrängen sich nicht", 
 
 test("Ältere Fassung bleibt abgelehnt, solange der Gewinner anderswo gilt; nach dessen Wegfall frei", () => {
   const doc = (over: Partial<VersionDocument>): VersionDocument => ({
-    id: "x", status: "imported", title: "Baureglement", title_key: "baureglement", url_normalized: "https://a.ch/x",
+    id: "x", status: "imported", title: "Baureglement", title_key: "baureglement", url_normalized: "https://a.ch/x", scope: "municipal",
     norm_id: "n", reject_reason: null, article_run: 30, article_hits: 30, text_sketch: textSketch(filler("a")), last_seen_at: new Date().toISOString(), ...over,
   });
   const winner = doc({ id: "w", url_normalized: "https://a.ch/w" });
@@ -204,7 +204,7 @@ test("Ältere Fassung bleibt abgelehnt, solange der Gewinner anderswo gilt; nach
 
 test("Im Zweifel beide: eigener Inhalt oder neuer Stand bei kürzerer Folge", () => {
   const doc = (id: string, over: Partial<VersionDocument>): VersionDocument => ({
-    id, status: "imported", title: "Baureglement", title_key: "baureglement", url_normalized: `https://a.ch/${id}`,
+    id, status: "imported", title: "Baureglement", title_key: "baureglement", url_normalized: `https://a.ch/${id}`, scope: "municipal",
     norm_id: `n${id}`, reject_reason: null, article_run: 30, article_hits: 30, text_sketch: textSketch(filler(id)), ...over,
   });
   const notes = (a: VersionDocument, b: VersionDocument) => planVersionActions([a, b], [a, b], R, Date.now());
@@ -226,7 +226,7 @@ test("Im Zweifel beide: eigener Inhalt oder neuer Stand bei kürzerer Folge", ()
 
 test("Gleiche Nummer, anderer Titel: Eine Beilage ohne Artikelfolge behält ihren eigenen Grund (AI)", () => {
   const sketch = textSketch(filler("x"));
-  const base = { status: "imported", url_normalized: "u", norm_id: "n", reject_reason: null, official_number: "126/26", text_sketch: sketch };
+  const base = { status: "imported", url_normalized: "u", norm_id: "n", reject_reason: null, official_number: "126/26", text_sketch: sketch, scope: "municipal" };
   const main = { ...base, id: "a", title: "Baureglement", title_key: "baureglement", article_run: 20, article_hits: 40 };
   const list = { ...base, id: "b", status: "rejected", reject_reason: "no_articles", content_reason: "no_articles", norm_id: null, title: "Liste Kulturobjekte", title_key: "liste kulturobjekte", article_run: 1, article_hits: 1 };
   assert.deepEqual(planVersionActions([main, list], [main, list], R, Date.now()), []);
@@ -239,7 +239,7 @@ test("Fussnote klebt an der Nummer: Überschriften am Zeilenanfang zählen trotz
 });
 
 test("Gewinner ist unabhängig von der Eingabereihenfolge", () => {
-  const doc = (id: string, run: number, stand: string | null) => ({ id, status: "imported", title: "B", title_key: "b", url_normalized: id, norm_id: id, reject_reason: null, article_run: run, stand_date: stand, text_sketch: { n: run, h: [] } });
+  const doc = (id: string, run: number, stand: string | null) => ({ id, scope: "municipal", status: "imported", title: "B", title_key: "b", url_normalized: id, norm_id: id, reject_reason: null, article_run: run, stand_date: stand, text_sketch: { n: run, h: [] } });
   const docs = [doc("a", 40, null), doc("b", 37, "2020-01-01"), doc("c", 10, "2024-01-01")];
   for (const p of permutations(docs)) assert.equal(pickWinner(p, R).id, "b");
 });
@@ -252,14 +252,14 @@ test("Inhalt: fortlaufende Folge statt Trefferzahl, Querverweise zählen nicht",
   assert.deepEqual(articleSequence("Art. 1 x Art. 2 y Art. 3", R.article_pattern), { run: 3, first: 1, hits: 3 });
   const verweise = `${body} Art. 38 PBG, Art. 94 VRP, Art. 1 Abs. 1, Art. 47 VRP, Art. 132 PBG, Art. 3 PBV, Art. 31 BauG`;
   assert.equal(decideContent(verweise, R)?.reason, "no_articles");
-  assert.equal(decideContent(`${body} Art. 1 Art. 2 Art. 3 Art. 4 Art. 5`, R), null);
+  assert.equal(decideContent(`${body} Art. 1 Art. 2 Art. 3 Art. 4 Art. 5`, R, "Baureglement"), null);
 });
 
 test("Inhalt: § und Paragrafen (AG, BL, BS), fr/it, OCR-Sperrung", () => {
-  assert.equal(decideContent(`${body} § 1 § 2 §3 § 4 § 5`, R), null);
-  assert.equal(decideContent(`${body} Paragraf 1 Paragraf 2 Paragraf 3 Paragraf 4 Paragraf 5`, R), null);
-  assert.equal(decideContent(`${body} Article 1 Article 2 art. 3 Article 4 Article 5`, R), null);
-  assert.equal(decideContent(`${body} Articolo 1 Art. 2 Articolo 3 Art. 4 Art. 5`, R), null);
+  assert.equal(decideContent(`${body} § 1 § 2 §3 § 4 § 5`, R, "Bauordnung"), null);
+  assert.equal(decideContent(`${body} Paragraf 1 Paragraf 2 Paragraf 3 Paragraf 4 Paragraf 5`, R, "Bauordnung"), null);
+  assert.equal(decideContent(`${body} Article 1 Article 2 art. 3 Article 4 Article 5`, R, "Règlement de construction"), null);
+  assert.equal(decideContent(`${body} Articolo 1 Art. 2 Articolo 3 Art. 4 Art. 5`, R, "Regolamento edilizio"), null);
   assert.equal(articleSequence("A r t .42 und A r t . 43", R.article_pattern).run, 2);
   assert.equal(collapseSpacedLetters("B a u r e g l e m e n t tritt"), "Baureglement tritt");
 });
@@ -276,7 +276,7 @@ test("Inhalt: Briefmerkmale de, fr, it; ein Merkmal allein genügt nicht", () =>
   assert.equal(decideContent(`Madame, Monsieur\nAffaire n° 12\n${body}`, R)?.reason, "decision_document");
   assert.equal(decideContent(`Egregi Signori\nPratica n. 4\n${body}`, R)?.reason, "decision_document");
   const erlass = `Sehr geehrte Mitbürger, ein Vorwort. ${body} Art. 1 Art. 2 Art. 3 Art. 4 Art. 5`;
-  assert.equal(decideContent(erlass, R), null);
+  assert.equal(decideContent(erlass, R, "Baureglement"), null);
 });
 
 test("Inhalt: Begleitbrief mit vollständigem Erlass bleibt und wird als Verdacht markiert", () => {
