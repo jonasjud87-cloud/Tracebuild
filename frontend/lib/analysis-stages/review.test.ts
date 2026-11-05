@@ -14,7 +14,7 @@ const stages = (h: ReturnType<typeof harness>) => h.store.result?.stages as Reco
 
 // ── 2 Absturz-Schleife ──────────────────────────────────────────────────────────
 
-test("Absturz: Kein direkter Anstoss, Backoff über die Datenbank, nach 3 Abstürzen Fehler mit Grund", async () => {
+test("Absturz: Kein direkter Anstoss, Backoff über die Datenbank, Grenze endet mit Fehler und Grund", async () => {
   const h = harness({ parts: 1 });
   // Abschluss scheitert immer, Lease-Freigabe geht: genau die Schleife aus dem Review.
   h.store.existingNormIds = async () => { throw new Error("DB-Fehler"); };
@@ -28,7 +28,8 @@ test("Absturz: Kein direkter Anstoss, Backoff über die Datenbank, nach 3 Abstü
   const started = h.clock.t;
   assert.equal(await h.stage(), "crashed");
   assert.equal(h.store.job?.crash_count, 2);
-  assert.equal(await h.stage(), "finished");
+  // Der Abschluss der gespeicherten Teile scheitert ebenfalls: Die harte Grenze beendet die Analyse.
+  assert.equal((await h.run()).at(-1), "finished");
   assert.equal(h.store.status, "error");
   assert.equal(h.store.result?.error, REASON_CRASHES);
   assert.equal(h.store.job, null);

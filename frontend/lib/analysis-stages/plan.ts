@@ -42,6 +42,16 @@ export function buildStageUnits(planned: NormPart[], labelOf: (p: NormPart) => s
   }));
 }
 
+/** Nur eigene oder plattformweite Normen. Eine verknüpfte fremde Privatnorm liest die Service-Role sonst mit. */
+export function normVisibleToOrg(norm: { org_id?: string | null }, orgId: string): boolean {
+  return (norm.org_id ?? null) === null || norm.org_id === orgId;
+}
+
+/** Abgelöste Fassung: Sie bleibt von Hand zugewiesen sichtbar, wird aber nicht mehr geprüft. */
+export function normIsCurrent(norm: { auto_scope?: string | null }): boolean {
+  return norm.auto_scope !== "superseded";
+}
+
 /**
  * Ohne Zuweisung und ohne Normen sähe ein technischer Fehler aus wie «keine Normen hinterlegt»: lieber
  * abbrechen als eine bezahlte Prüfung nur auf Fachwissen. Mit bestehenden Normen läuft sie auf dem letzten Stand.

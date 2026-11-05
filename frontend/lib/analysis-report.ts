@@ -78,6 +78,13 @@ export function autoNormLines(s: ReportMeta["snapshots"]): string[] {
     });
 }
 
+/** Text aus einem Scan: Er kann Lesefehler enthalten, der Leser des Berichts muss das wissen. */
+export function aiReadNormLines(s: ReportMeta["snapshots"]): string[] {
+  return (s?.norm_versions ?? [])
+    .filter((n) => n.text_read_by_ai)
+    .map((n) => `${n.title}: Text per KI aus einem Scan gelesen, Lesefehler möglich. Bitte am Original prüfen.`);
+}
+
 /** Warnung, wenn über dem Deckel Teile importierter Reglemente entfallen sind. Sonst leer. */
 export function autoPartsWarning(p: AnalysisAutoParts | null | undefined): string {
   if (!p || !(p.skipped > 0)) return "";
@@ -207,7 +214,7 @@ export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string
     <tbody>${rows || `<tr><td colspan="3">Keine Prüfpunkte.</td></tr>`}</tbody>
   </table>
 
-  ${[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots), ...autoNormLines(meta.snapshots)]
+  ${[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots), ...autoNormLines(meta.snapshots), ...aiReadNormLines(meta.snapshots)]
     .filter(Boolean)
     .map((line) => `<p class="foot" style="border:0;margin-top:6pt;padding:0">${esc(line)}</p>`)
     .join("")}
@@ -254,7 +261,7 @@ export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string 
     ...failedNormLines(meta.failedNorms).map((l) => `Ergebnis unvollständig;${csvCell(l)}`),
     ...(meta.consolidationFailed ? [`Hinweis;${csvCell(CONSOLIDATION_FAILED_TEXT)}`] : []),
     ...preflightLines(meta.preflight).map((l) => `Hinweis;${csvCell(l)}`),
-    ...[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots)].filter(Boolean).map((line) => csvCell(line)),
+    ...[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots), ...aiReadNormLines(meta.snapshots)].filter(Boolean).map((line) => csvCell(line)),
     "",
   ];
   // BOM, damit Excel die Umlaute korrekt liest; Semikolon = Excel-Standard im DACH-Raum.

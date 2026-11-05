@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
+import { ownedStoragePaths } from "@/lib/plan-files";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { isExpiredRun, progressFromJob, type JobProgressRow } from "@/lib/analysis-stages/progress";
 import type { AnalysisRunProgress, AnalysisStatusResponse } from "@/lib/analysis-stages/contract";
@@ -129,8 +130,10 @@ export async function DELETE(
       // decodeURIComponent könnte bei "%" im Dateinamen werfen — deshalb roh verwenden.
       paths.add(docRow!.file_url.slice(idx + marker.length));
     }
-    if (paths.size > 0) {
-      const { error: rmErr } = await admin.storage.from("documents").remove(Array.from(paths));
+    const owned = ownedStoragePaths(params.id, paths);
+    if (owned.length < paths.size) console.warn(`Dokument ${analysis.document_id}: ${paths.size - owned.length} fremde Storage-Pfade nicht gelöscht.`);
+    if (owned.length > 0) {
+      const { error: rmErr } = await admin.storage.from("documents").remove(owned);
       if (rmErr) console.warn(`Storage-Dateien von Dokument ${analysis.document_id} konnten nicht entfernt werden:`, rmErr.message);
     }
     const { error: docErr } = await admin.from("documents").delete().eq("id", analysis.document_id);

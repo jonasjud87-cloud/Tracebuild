@@ -18,6 +18,8 @@ export const DEFAULT_OVERLOAD_WAIT_MS = 30_000;
 export const MIN_OVERLOAD_CONCURRENCY = 2;
 export const RUN_MAX_AGE_MS = 24 * 60 * 60_000;
 export const MAX_CRASH_STAGES = 3;
+/** Stürzt auch der Abschluss der gespeicherten Teile ab, endet die Analyse als Fehler. */
+export const MAX_CRASH_STAGES_HARD = 5;
 export const SAVE_ATTEMPTS = 3;
 /** Reserve je laufendem Aufruf: Normtext, Cache-Lesen, Output. Schätzung, höchster Messwert geht vor. */
 export const RESERVE_CALL_USD = 0.15;

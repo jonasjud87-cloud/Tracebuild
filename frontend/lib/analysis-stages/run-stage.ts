@@ -13,6 +13,7 @@ import {
   LOST_ATTEMPT_USD,
   MAX_CONSOLIDATION_ATTEMPTS,
   MAX_CRASH_STAGES,
+  MAX_CRASH_STAGES_HARD,
   MAX_NO_PROGRESS_STAGES,
   MAX_OVERLOAD_WAIT_MS,
   MAX_PART_ATTEMPTS,
@@ -149,6 +150,7 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
   let overloaded = false;
 
   const finishedCount = () => parts.filter((p) => p.status === "done" || p.status === "failed").length;
+  const hasSavedItems = () => parts.some((p) => (p.items?.length ?? 0) > 0);
 
   const update = async (patch: JobPatch) => {
     const ok = await store.updateJob(analysisId, leaseId, patch);
@@ -248,9 +250,22 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
     }
 
     // Auch Funktionen, die ohne Freigabe gestorben sind, zählen (Claim in der Datenbank).
+    // Gespeicherte Teile sind bezahlt: Mit ihnen abschliessen statt alles zu verwerfen, ohne weitere Modellkosten.
     if (job.crash_count >= MAX_CRASH_STAGES) {
-      await closeWithError(deps, job, parts, REASON_CRASHES);
-      return "finished";
+      if (!hasSavedItems() || job.crash_count >= MAX_CRASH_STAGES_HARD) {
+        await closeWithError(deps, job, parts, REASON_CRASHES);
+        return "finished";
+      }
+      await failOpen(REASON_CRASHES);
+      if (job.phase !== "finalize") {
+        const raw = rawItems(parts);
+        await update({
+          final_items: raw,
+          consolidation: { applied: false, raw_count: raw.length, merged: 0, downgraded: 0, error: REASON_CRASHES, duration_ms: 0 },
+          phase: "finalize",
+          last_progress_at: new Date(clock.now()).toISOString(),
+        });
+      }
     }
 
     // Sicherheitsgrenzen: Eine Kette läuft nie endlos.
@@ -327,7 +342,8 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
     // Absturz neu, damit bezahlte Arbeit nicht verworfen wird, solange die Analyse vorankommt.
     try {
       const crashes = finishedCount() > finishedAtStart ? 1 : (job?.crash_count ?? 0) + 1;
-      if (job && crashes >= MAX_CRASH_STAGES) {
+      // Mit gespeicherten Teilen schliesst die nächste Etappe ab (Prüfung am Anfang von runStage).
+      if (job && crashes >= MAX_CRASH_STAGES && !hasSavedItems()) {
         await closeWithError(deps, job, parts, REASON_CRASHES);
         return "finished";
       }
@@ -484,6 +500,8 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
         parts_done: finishedCount(),
         overload_wait_ms: overloadWaitMs,
         ...(cold ? { cold_stages: job!.cold_stages + 1 } : {}),
+        // Fortschritt: Die Analyse kommt voran, frühere Abstürze zählen nicht mehr.
+        ...(r.ok && job!.crash_count > 0 ? { crash_count: 0 } : {}),
         ...(r.ok || part.status === "failed" ? { last_progress_at: new Date(clock.now()).toISOString() } : {}),
       }));
       // Nur Lebenszeichen und Zwischenstand: Das Ergebnis ist gespeichert, die Kosten stimmen beim nächsten Mal.

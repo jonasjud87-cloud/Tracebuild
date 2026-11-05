@@ -2,7 +2,6 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 import { assignNorms } from "@/lib/norm-assignment";
-import { normTextHash } from "@/lib/norm-hash";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { AnalysisSnapshots } from "@/lib/geoadmin/contract";
@@ -21,10 +20,11 @@ import {
   OEREB_BUDGET_MS,
   REFRESH_MIN_AGE_MS,
   geodataFacts,
+  buildNormVersions,
   loadOerebFacts,
+  loadProjectNorms,
   selectNorms,
   validatePlanFiles,
-  type ProjectNormRow,
 } from "@/lib/analysis-stages/prepare";
 import { createJob, startStage } from "@/lib/analysis-stages/runtime";
 
@@ -292,12 +292,8 @@ async function runInRequest(
     const fresh = reread ?? project;
 
     // 1. Normen laden
-    const normColumns = "id, title, category, text, layer, zone, jurisdiction_type";
-    const queryNorms = (columns: string) =>
-      admin.from("project_norms").select(`norms(${columns})`).eq("project_id", params.id);
-    let { data: pnRows, error: pnError } = await queryNorms(`${normColumns}, source_kind, auto_scope, source_checked_at`);
-    // Ohne Geoportal-Migration fehlen die neuen Spalten.
-    if (pnError && isMissingSchema(pnError.message)) ({ data: pnRows, error: pnError } = await queryNorms(normColumns));
+    // Ohne Geoportal- oder Import-Migration fehlen einzelne Spalten.
+    const { rows: pnRows, error: pnError } = await loadProjectNorms(admin, params.id);
 
     // Nicht stillschweigend auf die Ersatznorm zurückfallen, wenn die Abfrage
     // selbst kaputt ist — sonst sieht ein DB-Fehler aus wie "keine Normen".
@@ -306,9 +302,10 @@ async function runInRequest(
     }
 
     const { norms, source: normsSource } = selectNorms(
-      (pnRows ?? []) as unknown as ProjectNormRow[],
+      pnRows,
       fresh.bauzone ?? null,
       fresh.zone_confidence ?? null,
+      project.org_id,
     );
     // Ohne Zuweisung und ohne Normen sähe ein technischer Fehler aus wie «keine Normen hinterlegt»: lieber
     // abbrechen als eine bezahlte Prüfung nur auf Fachwissen. Mit bestehenden Normen läuft sie auf dem letzten Stand.
@@ -388,21 +385,10 @@ async function runInRequest(
     }
 
     // Nachweis, welcher Normstand galt: Normen können später automatisch überschrieben werden.
-    const normMeta = new Map(
-      ((pnRows ?? []) as unknown as ProjectNormRow[]).flatMap((r) => (r.norms ? [[r.norms.id, r.norms] as const] : [])),
-    );
     const snapshots: AnalysisSnapshots = {
       oereb_snapshot: oerebSnapshot,
       geodata_snapshot: { fetched_at: geo.fetched_at, status: geo.status, sources: geo.sources },
-      norm_versions: norms
-        .filter((n) => n.id)
-        .map((n) => ({
-          norm_id: n.id,
-          title: n.title,
-          text_sha256: normTextHash(n.text),
-          source_kind: normMeta.get(n.id)?.source_kind ?? null,
-          source_checked_at: normMeta.get(n.id)?.source_checked_at ?? null,
-        })),
+      norm_versions: buildNormVersions(norms, pnRows),
     };
 
     // 6. Analyse abschliessen. Kosten werden immer geschrieben. Der Status-Guard

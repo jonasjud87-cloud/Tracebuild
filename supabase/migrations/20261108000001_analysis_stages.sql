@@ -6,6 +6,9 @@
 -- nur, solange der Tab offen ist: analysis_background_available() meldet false, der Job bekommt keine
 -- dispatch_url, die Statusroute meldet background=false und needs_resume, der Browser trägt die Kette.
 
+-- Nicht auf Sperren warten: Die Policies betreffen Tabellen im laufenden Betrieb. Scheitert es, wiederholen.
+SET lock_timeout = '3s';
+
 ALTER TABLE public.analyses ADD COLUMN IF NOT EXISTS finished_at timestamptz;
 
 -- ── Job: existiert nur, solange die Analyse läuft ────────────────────────────
@@ -228,10 +231,12 @@ GRANT EXECUTE ON FUNCTION public.analysis_release_stage(uuid, uuid, double preci
 GRANT EXECUTE ON FUNCTION public.analysis_dispatch(uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.analysis_background_available() TO service_role;
 
--- ── Rechte: Status, Kosten und Ergebnis schreibt nur der Server ─────────────
--- Bisher FOR ALL (001_initial_schema.sql): Ein Mitglied konnte per Anon-Key cost_usd, status und
--- result_json setzen. Kein Client schreibt in diese Tabelle, alle Routen nutzen die Service-Role
--- (geprüft 5.11.2026). documents, document_files und analysis_items sind unverändert.
+-- ── Rechte: Diese Tabellen schreibt nur der Server ──────────────────────────
+-- Bisher FOR ALL. Ein Mitglied konnte per Anon-Key: cost_usd, status und result_json setzen; storage_path
+-- oder file_url auf fremde Pfade setzen, die das DELETE der Analyse dann mit Service-Role löschte;
+-- Prüfpunkte fälschen; per project_norms eine fremde Privatnorm verknüpfen, deren Text die Analyse mit
+-- Service-Role liest. Kein Client schreibt in diese Tabellen: Alle Routen und das Backend nutzen die
+-- Service-Role, der Browser lädt nur per signierter URL in den Storage (geprüft 5.11.2026).
 DROP POLICY IF EXISTS "analyses_via_document" ON public.analyses;
 CREATE POLICY "analyses_via_document" ON public.analyses
   FOR SELECT USING (
@@ -244,5 +249,54 @@ CREATE POLICY "analyses_via_document" ON public.analyses
     )
   );
 REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.analyses FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "documents_via_project" ON public.documents;
+CREATE POLICY "documents_via_project" ON public.documents
+  FOR SELECT USING (
+    project_id IN (
+      SELECT id FROM public.projects WHERE org_id IN (
+        SELECT org_id FROM public.users WHERE id = auth.uid()
+      )
+    )
+  );
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.documents FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "document_files_via_project" ON public.document_files;
+CREATE POLICY "document_files_via_project" ON public.document_files
+  FOR SELECT USING (
+    document_id IN (
+      SELECT d.id FROM public.documents d
+      WHERE d.project_id IN (
+        SELECT p.id FROM public.projects p
+        WHERE p.org_id IN (SELECT u.org_id FROM public.users u WHERE u.id = auth.uid())
+      )
+    )
+  );
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.document_files FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "analysis_items_via_analysis" ON public.analysis_items;
+CREATE POLICY "analysis_items_via_analysis" ON public.analysis_items
+  FOR SELECT USING (
+    analysis_id IN (
+      SELECT id FROM public.analyses WHERE document_id IN (
+        SELECT id FROM public.documents WHERE project_id IN (
+          SELECT id FROM public.projects WHERE org_id IN (
+            SELECT org_id FROM public.users WHERE id = auth.uid()
+          )
+        )
+      )
+    )
+  );
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.analysis_items FROM anon, authenticated;
+
+DROP POLICY IF EXISTS "project_norms_access" ON public.project_norms;
+CREATE POLICY "project_norms_access" ON public.project_norms
+  FOR SELECT USING (
+    project_id IN (
+      SELECT id FROM public.projects
+      WHERE org_id = (SELECT org_id FROM public.users WHERE id = auth.uid())
+    )
+  );
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON public.project_norms FROM anon, authenticated;
 
 -- Rückbau: Runbook in supabase/ops/analysis-stages-activate.sql. Vor dem DROP laufende Analysen schliessen.

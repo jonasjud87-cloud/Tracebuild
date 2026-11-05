@@ -31,7 +31,7 @@ import {
   type UploadedPlanFile,
 } from "@/lib/plan-files";
 import { MODEL_FILE_URL_TTL_S, maxStagedAutoParts } from "./budget";
-import { assertNormsUsable, buildStageUnits, stageNorm } from "./plan";
+import { assertNormsUsable, buildStageUnits, normIsCurrent, normVisibleToOrg, stageNorm } from "./plan";
 import type { JobFile, PrepareResult, RunSnapshot, StageJob } from "./ports";
 
 type Admin = SupabaseClient;
@@ -51,11 +51,46 @@ export interface ProjectNormRow {
     text: string | null;
     layer: number;
     zone: string | null;
+    org_id?: string | null;
     jurisdiction_type?: string | null;
     source_kind?: string | null;
     auto_scope?: string | null;
     source_checked_at?: string | null;
+    text_read_by_ai?: boolean | null;
   } | null;
+}
+
+/** Spalten je nach eingespielter Migration: vollständig, ohne Import-Extras, ohne Geoportal. */
+const NORM_COLUMN_SETS = [
+  "id, title, category, text, layer, zone, org_id, jurisdiction_type, source_kind, auto_scope, source_checked_at, text_read_by_ai",
+  "id, title, category, text, layer, zone, org_id, jurisdiction_type, source_kind, auto_scope, source_checked_at",
+  "id, title, category, text, layer, zone, org_id, jurisdiction_type",
+];
+
+export async function loadProjectNorms(admin: Admin, projectId: string): Promise<{ rows: ProjectNormRow[]; error: { message: string } | null }> {
+  let last: { message: string } | null = null;
+  for (const columns of NORM_COLUMN_SETS) {
+    const { data, error } = await admin.from("project_norms").select(`norms(${columns})`).eq("project_id", projectId);
+    if (!error) return { rows: (data ?? []) as unknown as ProjectNormRow[], error: null };
+    last = error;
+    if (!isMissingSchema(error.message)) break;
+  }
+  return { rows: [], error: last };
+}
+
+/** Herkunftsstempel: welcher Normstand galt. Normen können später automatisch überschrieben werden. */
+export function buildNormVersions(norms: NormInput[], rows: ProjectNormRow[]): AnalysisSnapshots["norm_versions"] {
+  const meta = new Map(rows.flatMap((r) => (r.norms ? [[r.norms.id, r.norms] as const] : [])));
+  return norms
+    .filter((n) => n.id)
+    .map((n) => ({
+      norm_id: n.id,
+      title: n.title,
+      text_sha256: normTextHash(n.text),
+      source_kind: meta.get(n.id)?.source_kind ?? null,
+      source_checked_at: meta.get(n.id)?.source_checked_at ?? null,
+      text_read_by_ai: meta.get(n.id)?.text_read_by_ai === true,
+    }));
 }
 
 /** Ohne hinterlegte Normen wird trotzdem geprüft — dann eben gegen das Fachwissen. */
@@ -75,10 +110,13 @@ export function selectNorms(
   pnRows: ProjectNormRow[],
   projectZone: string | null,
   zoneConfidence: string | null,
+  orgId: string,
 ): { norms: NormInput[]; source: "project_norms" | "fallback" } {
   const applicable = pnRows
     .map((r) => r.norms)
     .filter((n): n is NonNullable<ProjectNormRow["norms"]> => !!n)
+    .filter((n) => normVisibleToOrg(n, orgId))
+    .filter(normIsCurrent)
     .filter((n) => normAppliesToZone(n.zone, projectZone, zoneConfidence))
     .filter((n) => (n.text ?? "").trim().length > 0)
     .map<NormInput>((n) => ({
@@ -245,15 +283,10 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   const fresh = reread ?? project;
 
   // 1. Normen laden
-  const normColumns = "id, title, category, text, layer, zone, jurisdiction_type";
-  const queryNorms = (columns: string) =>
-    admin.from("project_norms").select(`norms(${columns})`).eq("project_id", job.project_id);
-  let { data: pnRows, error: pnError } = await queryNorms(`${normColumns}, source_kind, auto_scope, source_checked_at`);
-  if (pnError && isMissingSchema(pnError.message)) ({ data: pnRows, error: pnError } = await queryNorms(normColumns));
+  const { rows, error: pnError } = await loadProjectNorms(admin, job.project_id);
   if (pnError) console.error(`Projekt ${job.project_id}: project_norms konnte nicht gelesen werden:`, pnError);
 
-  const rows = (pnRows ?? []) as unknown as ProjectNormRow[];
-  const { norms: selected, source: normsSource } = selectNorms(rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null);
+  const { norms: selected, source: normsSource } = selectNorms(rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null, project.org_id);
   assertNormsUsable(normsSource, assignError, pnError);
   if (normsSource === "fallback") {
     console.warn(`Projekt ${job.project_id}: keine Normen in project_norms — Analyse läuft auf Fachwissen.`);
@@ -278,20 +311,10 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   const { units: planned, summary: autoParts } = planStagedParts(toNormParts(norms), maxStagedAutoParts());
   const units = buildStageUnits(planned, partLabel);
 
-  // Herkunftsstempel: welcher Normstand galt. Normen können später automatisch überschrieben werden.
-  const normMeta = new Map(rows.flatMap((r) => (r.norms ? [[r.norms.id, r.norms] as const] : [])));
   const snapshots: AnalysisSnapshots = {
     oereb_snapshot: oerebSnapshot,
     geodata_snapshot: { fetched_at: geo.fetched_at, status: geo.status, sources: geo.sources },
-    norm_versions: norms
-      .filter((n) => n.id)
-      .map((n) => ({
-        norm_id: n.id,
-        title: n.title,
-        text_sha256: normTextHash(n.text),
-        source_kind: normMeta.get(n.id)?.source_kind ?? null,
-        source_checked_at: normMeta.get(n.id)?.source_checked_at ?? null,
-      })),
+    norm_versions: buildNormVersions(norms, rows),
   };
 
   const snapshot: RunSnapshot = {

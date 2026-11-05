@@ -124,6 +124,8 @@ export interface AnalysisSnapshots {
     /** 'oereb_auto' oder null (manuell gepflegt). */
     source_kind: string | null;
     source_checked_at: string | null;
+    /** Der Text wurde per KI aus einem Scan gelesen. Fehlt bei älteren Analysen. */
+    text_read_by_ai?: boolean;
   }[];
 }
 

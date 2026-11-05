@@ -18,6 +18,8 @@
 
 -- ── SPIKE: waitUntil und Rekursionssperre (noch NICHT ausgeführt, löst Jonas aus) ───────────────────
 -- Prüft ohne Datenbank und ohne Modellkosten, was schon Etappe 1 braucht: waitUntil unter Next 14.2.30.
+-- Er misst NUR den Selbstaufruf der Funktion. Ob Anstösse aus pg_net die Sperre treffen, zeigt erst der
+-- Betrieb nach der Aktivierung (net._http_response); dafür gibt es den Rückfall auf den Browser.
 --   a. Vercel, Produktion: ANALYSIS_SPIKE_SECRET setzen (lang, zufällig), deployen. Ohne die Variable
 --      antwortet die Route immer 404.
 --   b. cd frontend
@@ -31,6 +33,7 @@
 --      - Sprung: analysis-spike.hop mit status 202, danach analysis-spike.done des Sprungs.
 --        508 oder 307 hier betrifft den Selbstaufruf, nicht pg_net: Hintergrundlauf nicht aktivieren.
 --   d. ANALYSIS_SPIKE_SECRET entfernen und deployen. Die Route ist danach wieder 404.
+--   e. Route, lib/analysis-stages/spike.ts, scripts/analysis-spike.mjs und die Middleware-Ausnahme löschen.
 --
 -- ZWEIG «Spike gescheitert» oder Erweiterungen abgelehnt
 --   Diese Datei nicht ausführen. analysis_background_available() bleibt false, Jobs bekommen keine
@@ -102,4 +105,4 @@ SELECT status, return_message, start_time FROM cron.job_run_details
 -- DROP FUNCTION public.analysis_claim_stage(uuid, text, uuid, integer);
 -- DROP FUNCTION public.analysis_background_available();
 -- DROP TABLE public.analysis_job_parts, public.analysis_jobs;
--- Die Policy analyses_via_document bleibt auf SELECT: Das alte Deployment schreibt mit der Service-Role.
+-- Die Policies bleiben auf SELECT: Das alte Deployment schreibt mit der Service-Role.

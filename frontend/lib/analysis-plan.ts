@@ -3,6 +3,8 @@
  * Rein. Importierte Teile kommen deshalb zuletzt und höchstens so viele, wie Plätze frei bleiben.
  */
 
+import { DEFAULT_IMPORT_FILTER, documentPriority } from "./oereb/import-filter";
+
 /** Live gemessen: Die Normphase hat rund 225 s, ein Aufruf dauert rund 72 s. */
 const CALL_ESTIMATE_MS = 72_000;
 export const MAX_AUTO_PARTS = 8;
@@ -23,6 +25,17 @@ export interface AutoPartsSummary {
   limit?: number;
 }
 
+/**
+ * Reihenfolge bei knapper Grenze: Gemeinde vor Objektvorschrift, Haupterlass vor Änderung, sonst stabil.
+ * Die Textlänge entscheidet hier nicht: Eine lange Änderung darf den Haupterlass nicht verdrängen.
+ */
+function rankAutoParts<T extends PlannedPart>(auto: T[]): T[] {
+  return auto
+    .map((u, i) => ({ u, i, rank: documentPriority(u.norm.title, DEFAULT_IMPORT_FILTER) }))
+    .sort((a, b) => Number(a.u.norm.auto_scope === "parcel") - Number(b.u.norm.auto_scope === "parcel") || a.rank - b.rank || a.i - b.i)
+    .map(({ u }) => u);
+}
+
 export function planAutoParts<T extends PlannedPart>(
   units: T[],
   phaseMs: number,
@@ -30,12 +43,7 @@ export function planAutoParts<T extends PlannedPart>(
 ): { units: T[]; summary: AutoPartsSummary } {
   const isAuto = (u: T) => u.norm.source_kind === "oereb_auto";
   const fixed = units.filter((u) => !isAuto(u));
-  // Sortierung stabil: Gemeinde-Reglement vor objektbezogenen Vorschriften.
-  const auto = units
-    .filter(isAuto)
-    .map((u, i) => ({ u, i }))
-    .sort((a, b) => Number(a.u.norm.auto_scope === "parcel") - Number(b.u.norm.auto_scope === "parcel") || a.i - b.i)
-    .map(({ u }) => u);
+  const auto = rankAutoParts(units.filter(isAuto));
 
   const slots = Math.max(1, Math.floor(phaseMs / CALL_ESTIMATE_MS)) * Math.max(1, concurrency);
   // Mindestens ein Teil: Das Reglement der Gemeinde fehlt sonst ganz, Bund und Kanton laufen vorher.
@@ -61,11 +69,7 @@ export function planStagedParts<T extends PlannedPart>(
 ): { units: T[]; summary: AutoPartsSummary } {
   const isAuto = (u: T) => u.norm.source_kind === "oereb_auto";
   const fixed = units.filter((u) => !isAuto(u));
-  const auto = units
-    .filter(isAuto)
-    .map((u, i) => ({ u, i }))
-    .sort((a, b) => Number(a.u.norm.auto_scope === "parcel") - Number(b.u.norm.auto_scope === "parcel") || a.i - b.i)
-    .map(({ u }) => u);
+  const auto = rankAutoParts(units.filter(isAuto));
   const run = auto.slice(0, limit);
   const skipped = auto.slice(limit);
   return {

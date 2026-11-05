@@ -6,7 +6,8 @@ export const maxDuration = 300;
 
 /**
  * Temporärer Spike, standardmässig aus (404 ohne ANALYSIS_SPIKE_SECRET). Antwortet sofort mit 202, arbeitet
- * in waitUntil und schreibt das Ergebnis ins Vercel-Log. Nach dem Spike samt Secret entfernen.
+ * in waitUntil und schreibt das Ergebnis ins Vercel-Log. Misst nur den Selbstaufruf, nicht pg_net.
+ * Nach dem Spike entfernen: Route, Secret, lib/analysis-stages/spike.ts, Skript, Middleware-Ausnahme.
  */
 export async function POST(request: Request) {
   const provided = request.headers.get("x-analysis-spike-secret");
