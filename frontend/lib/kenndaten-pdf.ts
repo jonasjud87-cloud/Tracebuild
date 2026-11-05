@@ -64,9 +64,35 @@ function lineText(items: LayoutItem[], isTable: boolean): string {
   return out.trimEnd();
 }
 
-export function layoutPageText(items: LayoutItem[]): string {
+/**
+ * Senkrechte Spaltenköpfe als eigene Zeile direkt über dem, was unter ihnen steht. `y` ist ihr unteres Ende,
+ * `width` ihre Länge. Ohne sie müsste das Modell die Spalten ohne Kopf zuordnen.
+ */
+function kopfZeilen(senkrecht: LayoutItem[]): LayoutItem[][] {
+  const sorted = senkrecht.filter((i) => i.str.trim()).sort((a, b) => a.y - b.y);
+  const gruppen: LayoutItem[][] = [];
+  let unten = -Infinity;
+  for (const item of sorted) {
+    if (gruppen.length > 0 && item.y - item.width <= unten) gruppen[gruppen.length - 1].push(item);
+    else gruppen.push([item]);
+    unten = Math.max(unten, item.y);
+  }
+  // Die Zelle ist senkrecht, ihre Länge sagt nichts über die Breite: Jeder Kopf bleibt in seiner Spalte.
+  return gruppen.map((g) => {
+    const y = Math.max(...g.map((i) => i.y));
+    return g.map((i) => ({ ...i, y, width: 0 }));
+  });
+}
+
+export function layoutPageText(items: LayoutItem[], senkrecht: LayoutItem[] = []): string {
   const lines = toLines(items);
-  const spalten = lines.map(hatSpalten);
+  const koepfe = new Set<LayoutItem[]>();
+  for (const kopf of kopfZeilen(senkrecht)) {
+    const at = lines.findIndex((l) => l[0].y >= kopf[0].y);
+    lines.splice(at < 0 ? lines.length : at, 0, kopf);
+    koepfe.add(kopf);
+  }
+  const spalten = lines.map((l) => koepfe.has(l) || hatSpalten(l));
   // Eine einzelne Zelle zwischen Tabellenzeilen («20 %») behält ihre Spalte.
   return lines.map((line, i) => lineText(line, spalten[i] || spalten[i - 1] === true || spalten[i + 1] === true)).join("\n");
 }
@@ -100,15 +126,19 @@ export async function pdfLayoutText(bytes: Uint8Array, opts: { timeoutMs?: numbe
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
       const items: LayoutItem[] = [];
+      const senkrecht: LayoutItem[] = [];
       for (const raw of content.items) {
         const item = raw as PdfTextItem;
         if (typeof item.str !== "string" || !item.transform) continue;
         const t = Util.transform(viewport.transform, item.transform) as number[];
-        // Senkrechte Randtexte gehören in keine Zeile.
-        if (Math.abs(t[1]) > Math.abs(t[0]) * 0.1) continue;
+        if (Math.abs(t[1]) > Math.abs(t[0]) * 0.1) {
+          // Von unten nach oben gelesen liegt der Anfang unten, sonst oben.
+          senkrecht.push({ str: item.str, x: t[4], y: t[1] < 0 ? t[5] : t[5] + item.width, width: item.width, height: Math.hypot(t[2], t[3]) });
+          continue;
+        }
         items.push({ str: item.str, x: t[4], y: t[5], width: item.width, height: Math.hypot(t[2], t[3]) });
       }
-      pages.push(layoutPageText(items));
+      pages.push(layoutPageText(items, senkrecht));
       page.cleanup();
     }
     const text = pages.join("\n\n");

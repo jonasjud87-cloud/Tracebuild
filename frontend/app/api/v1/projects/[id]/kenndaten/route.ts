@@ -5,6 +5,7 @@ import { normMatchesZone } from "@/lib/zone-match";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { loadOerebFacts, loadProjectNorms, selectNorms } from "@/lib/analysis-stages/prepare";
 import { loadImportFilter } from "@/lib/oereb/documents";
+import { withTimeout } from "@/lib/pdf-text";
 import { baueKenndatenBlatt } from "@/lib/kenndaten";
 import {
   KenndatenFehler,
@@ -21,6 +22,7 @@ export const maxDuration = 300;
 
 const BUDGET_MS = 295_000;
 const PDF_BUDGET_MS = 25_000;
+const UPLOAD_TIMEOUT_MS = 12_000;
 /** Mindestens so lange wie die Funktion lebt: Danach gilt die Sperre eines abgestürzten Laufs als frei. */
 const SPERRE_S = 310;
 const WARTE_MS = 180_000;
@@ -134,14 +136,16 @@ export async function POST(_request: Request, { params }: { params: { id: string
           .sort((a, b) => passageScore(b.text, zone) - passageScore(a.text, zone))
           .map((n): PdfQuelle => ({ id: n.id, title: n.title, pdf_url: quellen.get(n.id)?.pdf_url ?? null, source_url: quellen.get(n.id)?.source_url ?? null }));
         const rules = await loadImportFilter(admin, location.canton ?? "");
+        const pdfDeadline = Date.now() + PDF_BUDGET_MS;
         const pdfs = await ladeGemeindePdfs(gemeinde, {
           rules,
           canton: location.canton ?? "",
-          deadlineAt: Date.now() + PDF_BUDGET_MS,
+          deadlineAt: pdfDeadline,
           ladeUpload: async (url, maxBytes) => {
             const path = uploadPfad(url, process.env.NEXT_PUBLIC_SUPABASE_URL);
             if (!path) return null;
-            const { data, error } = await admin.storage.from("documents").download(path);
+            const limit = Math.max(1_000, Math.min(UPLOAD_TIMEOUT_MS, pdfDeadline - Date.now()));
+            const { data, error } = await withTimeout(admin.storage.from("documents").download(path), limit);
             if (error || !data) throw new Error(error?.message ?? "Upload nicht ladbar");
             if (data.size > maxBytes) throw new Error(`Upload grösser als ${maxBytes} Bytes`);
             const bytes = Buffer.from(await data.arrayBuffer());

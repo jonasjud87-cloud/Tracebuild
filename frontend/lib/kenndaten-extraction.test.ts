@@ -179,6 +179,16 @@ test("Ablauf: ein Aufruf, geprüfte Werte, Kosten erfasst", async () => {
   assert.ok(options.timeout >= 250_000 && options.timeout <= 270_000);
 });
 
+test("Ablauf: Ohne Antwort (Timeout) steht der Aufruf samt Norm-Anzahl im Log", async (t) => {
+  const log = t.mock.method(console, "error", () => undefined);
+  const client = { messages: { create: async () => { throw new Error("Request timed out."); } } } as never;
+  await assert.rejects(runKenndatenExtraction(normen, "W2", { client }), /timed out/);
+  assert.equal(log.mock.callCount(), 1);
+  const eintrag = log.mock.calls[0].arguments[1] as { normen: number; fehler: string };
+  assert.equal(eintrag.normen, 2);
+  assert.match(eintrag.fehler, /timed out/);
+});
+
 test("Ablauf: Abschneiden und Ablehnung geben eine verständliche Meldung", async () => {
   const gemeldet: number[] = [];
   const onKosten = (c: number) => gemeldet.push(c);

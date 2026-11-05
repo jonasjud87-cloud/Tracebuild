@@ -192,8 +192,13 @@ export function zoneMatches(projectZone: string, zoneImText: string): boolean {
   });
 }
 
-/** Zonenkürzel mit Ziffer, auch fremde. Kürzel ohne Ziffer sind vom Wortschatz nicht zu trennen. */
-const CODE_SOURCE = "(?<![\\p{L}\\p{N}])[A-ZÄÖÜ]{1,3}\\d{1,2}[A-Za-z]?(?:\\s?-\\s?[A-Z](?![\\p{L}\\p{N}]))?";
+/** Zonenkürzel mit Ziffer in jeder Schreibweise. Kürzel ohne Ziffer sind vom Wortschatz nicht zu trennen. */
+const CODE_SOURCE = "(?<![\\p{L}\\p{N}])\\p{L}{1,3}\\d{1,2}\\p{L}?(?![\\p{L}\\p{N}])(?:\\s?-\\s?\\p{L}(?![\\p{L}\\p{N}]))?";
+/** Flächen und Volumen wie «m2» sind keine Zonen. */
+const KEIN_CODE = /^(?:m|cm|mm|dm|km|ha|co|h)\d$/i;
+/** Langform: «Kernzone», «Wohnzone 3», «Zone 3», «Wohnzone W2 - B». «Zone» allein oder «Bauzone» nennt keine bestimmte Zone. */
+const LANGFORM_SOURCE =
+  "(?<![\\p{L}\\p{N}])(?:(?!bauzone)\\p{L}+zonen?(?![\\p{L}\\p{N}])(?:[\\s-]+(?:\\d{1,2}|\\p{L}{1,3}\\d{0,2}\\p{L}?)(?![\\p{L}\\p{N}]))?|zone\\s+\\d{1,2}(?![\\p{L}\\p{N}]))(?:\\s?-\\s?\\p{L}(?![\\p{L}\\p{N}]))?";
 
 interface Treffer {
   at: number;
@@ -205,7 +210,9 @@ function zonenTreffer(line: string, zone: string): { eigene: Treffer[]; fremde: 
   for (const re of zoneRegexes(zone)) {
     for (const m of Array.from(line.matchAll(re))) eigene.push({ at: m.index!, end: m.index! + m[0].length });
   }
-  const fremde = Array.from(line.matchAll(new RegExp(CODE_SOURCE, "gu")))
+  const codes = Array.from(line.matchAll(new RegExp(CODE_SOURCE, "gu"))).filter((m) => !KEIN_CODE.test(m[0]));
+  const langformen = Array.from(line.matchAll(new RegExp(LANGFORM_SOURCE, "giu")));
+  const fremde = [...codes, ...langformen]
     .map((m) => ({ at: m.index!, end: m.index! + m[0].length }))
     .filter((c) => !eigene.some((e) => c.at < e.end && e.at < c.end));
   return { eigene, fremde };
@@ -218,14 +225,16 @@ function zonenTreffer(line: string, zone: string): { eigene: Treffer[]; fremde: 
 function zahlGehoertZurZone(line: string, zone: string, von: number, bis: number, ziel: number): boolean {
   const { eigene, fremde } = zonenTreffer(line, zone);
   if (eigene.length === 0) return false;
+  // Die 2 in «Wohnzone 2» ist Teil des Namens, kein Wert.
+  const zahlen = Array.from(line.matchAll(numberRe())).filter((m) => ![...eigene, ...fremde].some((t) => m.index! >= t.at && m.index! < t.end));
   if (fremde.length === 0) {
-    return Array.from(line.matchAll(numberRe())).some((m) => m.index! >= von && m.index! < bis && canonicalNumber(m[0]) === ziel);
+    return zahlen.some((m) => m.index! >= von && m.index! < bis && canonicalNumber(m[0]) === ziel);
   }
   type Ereignis = { at: number; art: "eigen" | "fremd" } | { at: number; art: "zahl"; wert: number };
   const ereignisse: Ereignis[] = [
     ...eigene.map((t): Ereignis => ({ at: t.at, art: "eigen" })),
     ...fremde.map((t): Ereignis => ({ at: t.at, art: "fremd" })),
-    ...Array.from(line.matchAll(numberRe())).map((m): Ereignis => ({ at: m.index!, art: "zahl", wert: canonicalNumber(m[0]) })),
+    ...zahlen.map((m): Ereignis => ({ at: m.index!, art: "zahl", wert: canonicalNumber(m[0]) })),
   ].sort((a, b) => a.at - b.at);
 
   let gruppeEigen = false;
@@ -247,18 +256,43 @@ function zahlGehoertZurZone(line: string, zone: string, von: number, bis: number
 
 const HEADING_RE = /^(?:art(?:ikel|icle|icolo|\.)?|§)\s*\d/i;
 
-/** Die Überschrift, unter der eine Zeile steht: der Artikelkopf und eine kurze Zeile direkt darüber. */
+const MAX_KOPF = 60;
+
+/** Die Zeilen, die für eine allgemeine Bestimmung zählen: die kurze Vorzeile und der Artikelkopf. */
 function ueberschriften(lines: string[], zeile: number): string[] {
   const out: string[] = [];
   const davor = lines[zeile - 1];
-  if (davor && davor.length <= 60) out.push(davor);
-  for (let i = zeile; i >= 0 && i >= zeile - 60; i--) {
+  if (davor && davor.length <= MAX_KOPF) out.push(davor);
+  for (let i = zeile; i >= 0 && i >= zeile - MAX_KOPF; i--) {
     if (HEADING_RE.test(lines[i])) {
       out.push(lines[i]);
       break;
     }
   }
   return out;
+}
+
+/**
+ * Bindet eine Überschrift eine Zeile ohne eigene Zone an die Projektzone? Im Zweifel nein. Eine Vorzeile mit
+ * Zahlen ist eine Tabellenzeile und kein Kopf. Ein Kopf «W2 W3 W4» sagt nicht, welche Spalte gilt. Ein Label
+ * unter den Werten oder eine andere Zone zwischen Artikelkopf und Wert heisst: Der Wert gehört dorthin.
+ */
+function ueberschriftBindet(lines: string[], zeile: number, zone: string): boolean {
+  const danach = lines[zeile + 1];
+  if (danach && danach.length <= MAX_KOPF && numbersIn(danach).size === 0 && zonenTreffer(danach, zone).fremde.length > 0) return false;
+
+  const davor = lines[zeile - 1];
+  if (davor && davor.length <= MAX_KOPF && numbersIn(davor).size === 0) {
+    const t = zonenTreffer(davor, zone);
+    if (t.fremde.length > 0) return false;
+    if (t.eigene.length > 0) return true;
+  }
+  for (let i = zeile - 1; i >= 0 && i >= zeile - MAX_KOPF; i--) {
+    const t = zonenTreffer(lines[i], zone);
+    if (t.fremde.length > 0) return false;
+    if (HEADING_RE.test(lines[i])) return t.eigene.length > 0;
+  }
+  return false;
 }
 
 const AUSNAHME_RE = /\b(?:ausser|ausgenommen|ausnahme|excepté|sauf|eccetto|tranne)\b/i;
@@ -274,8 +308,7 @@ function giltAllgemein(zoneImText: string): boolean {
 function allgemeinOk(lines: string[], f: Fundstelle, zitat: string, zone: string): boolean {
   if (AUSNAHME_RE.test(zitat)) return false;
   return [lines[f.zeile], ...ueberschriften(lines, f.zeile)].every((t) => {
-    const { eigene, fremde } = zonenTreffer(t, zone);
-    return eigene.length > 0 || fremde.length === 0;
+    return zonenTreffer(t, zone).fremde.length === 0;
   });
 }
 
@@ -297,7 +330,7 @@ function zoneGebunden(lines: string[], f: Fundstelle, zitat: string, zone: strin
   const hier = f.von != null ? line : norm;
   const { eigene, fremde } = zonenTreffer(hier, zone);
   if (eigene.length > 0 || fremde.length > 0) return false;
-  return ueberschriften(lines, f.zeile).some((t) => zonenTreffer(t, zone).eigene.length > 0);
+  return ueberschriftBindet(lines, f.zeile, zone);
 }
 
 // ── Prüfung eines Kandidaten ─────────────────────────────────────────────────

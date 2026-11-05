@@ -18,7 +18,7 @@ import { layerRank, waehleWerte, type BelegNorm, type KenndatenKandidat, type Mo
 export const KENNDATEN_MODEL = ANALYSIS_MODEL;
 
 /** Erhöhen, wenn sich Prompt oder Prüfung ändern: Alte Einträge im Cache gelten dann nicht mehr. */
-const KENNDATEN_VERSION = "2";
+const KENNDATEN_VERSION = "3";
 
 const MAX_TOKENS = 12_000;
 /** Ein Versuch: Ein Retry nach Timeout bezahlt die Auswertung ein zweites Mal. */
@@ -279,7 +279,15 @@ export async function runKenndatenExtraction(norms: KenndatenNorm[], zone: strin
       output_config: { effort: "medium", format: KENNDATEN_OUTPUT_SCHEMA },
     },
     { timeout: Math.min(opts.timeoutMs ?? MAX_CALL_TIMEOUT_MS, MAX_CALL_TIMEOUT_MS), maxRetries: 0 },
-  )) as Anthropic.Message;
+  ).catch((e: unknown) => {
+    // Ohne Antwort keine Usage: Ein Timeout kann trotzdem kosten, also wenigstens im Log nachvollziehbar.
+    console.error("kenndaten: Modellaufruf ohne Antwort, Kosten nicht gebucht", {
+      normen: norms.length,
+      zeichen: norms.reduce((sum, n) => sum + n.text.length, 0),
+      fehler: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
+  })) as Anthropic.Message;
 
   const usage: UsageTotals = {
     input_tokens: message.usage.input_tokens ?? 0,

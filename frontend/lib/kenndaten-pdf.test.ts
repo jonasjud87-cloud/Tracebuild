@@ -45,6 +45,27 @@ test("Layout: Hochgestellte Fussnotenzeichen gehören in die Zeile, nahe Zeilen 
   assert.equal(out, "4)WG2\nnächste");
 });
 
+test("Layout: Senkrechte Spaltenköpfe bleiben als eigene Zeile über den Werten", () => {
+  const out = layoutPageText(
+    [
+      { str: "Art. 16 Regelbauweise", x: 60, y: 50, width: 90, height: 10 },
+      { str: "W2", x: 60, y: 200, width: 12, height: 10 },
+      { str: "7.5", x: 200, y: 200, width: 12, height: 10 },
+      { str: "11.0", x: 300, y: 200, width: 18, height: 10 },
+    ],
+    [
+      { str: "Firsthöhe", x: 300, y: 180, width: 60, height: 10 },
+      { str: "Gebäudehöhe", x: 200, y: 180, width: 80, height: 10 },
+    ],
+  );
+  const lines = out.split("\n");
+  assert.equal(lines.length, 3);
+  assert.equal(lines[0].trim(), "Art. 16 Regelbauweise");
+  assert.equal(lines[1].trim().replace(/\s+/g, " "), "Gebäudehöhe Firsthöhe");
+  assert.equal(lines[1].indexOf("Gebäudehöhe"), lines[2].indexOf("7.5"), "gleiche Spalte");
+  assert.equal(lines[1].indexOf("Firsthöhe"), lines[2].indexOf("11.0"), "gleiche Spalte");
+});
+
 test("Layout: Fliesstext bleibt ohne Spaltenabstand", () => {
   assert.equal(
     layoutPageText([

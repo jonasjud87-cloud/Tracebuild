@@ -201,6 +201,60 @@ test("Spaltenweise gespeicherter Text bindet keinen Wert an die Zone", () => {
   assert.deepEqual(pruefeKandidat(kandidat({ feld: "firsthoehe", zahl: 11, zitat: "11.0" }), n, "W2"), { ok: false, grund: "beleg" });
 });
 
+// ── Falsche Bindung über die Vorzeile oder die Überschrift, jeweils W2 mit 6.00 ──
+
+const abstand6 = (zitat: string) => kandidat({ zahl: 6, zitat });
+const nimmtNicht = (text: string, zitat: string, name: string) => {
+  const r = pruefeKandidat(abstand6(zitat), { title: "R", layer: 4, text }, "W2");
+  assert.deepEqual(r, { ok: false, grund: "beleg" }, name);
+};
+
+test("Vorzeile: Eine Tabellenzeile mit Zahlen ist kein Kopf, auch die Langform ist eine fremde Zone", () => {
+  nimmtNicht("Wohnzone 2  2  0.40  4.00\nWohnzone 3  3  0.60  6.00", "Wohnzone 3 3 0.60 6.00", "Langform W3");
+  nimmtNicht("Wohnzone 2  2  0.40  4.00\nWohnzone 3  3  0.60  6.00", "Wohnzone 2 2 0.40 4.00 Wohnzone 3 3 0.60 6.00", "über zwei Zeilen");
+  nimmtNicht("W2  2  0.40  4.00\nKernzone  3  0.60  6.00", "Kernzone 3 0.60 6.00", "Kernzone");
+  nimmtNicht("W2  2  0.40  4.00\nKernzone  3  0.60  6.00", "W2 2 0.40 4.00 Kernzone 3 0.60 6.00", "Kernzone über zwei Zeilen");
+  nimmtNicht("W2  2  0.40  4.00\n3  0.60  6.00", "3 0.60 6.00", "Folgezeile ohne Namen");
+});
+
+test("Kleinschrift: «w3» ist eine fremde Zone", () => {
+  nimmtNicht("W2  2  0.40  4.00\nw3  3  0.60  6.00", "w3 3 0.60 6.00", "eigene Zeile");
+  nimmtNicht("W2\nw3  6.00", "w3 6.00", "unter der Vorzeile");
+  nimmtNicht("w3  2  0.40  6.00  w2  4.00", "w3 2 0.40 6.00", "dieselbe Zeile");
+});
+
+test("Kopf: «W2 W3 W4» sagt nicht, welche Spalte gilt", () => {
+  nimmtNicht("W2  W3  W4\nGrenzabstand  4.00  6.00  8.00", "Grenzabstand 4.00 6.00 8.00", "Spaltenkopf");
+  const r = pruefeKandidat(kandidat({ zahl: 4, zitat: "Grenzabstand 4.00 6.00 8.00" }), { title: "R", layer: 4, text: "W2  W3  W4\nGrenzabstand  4.00  6.00  8.00" }, "W2");
+  assert.equal(r.ok, false, "auch nicht die erste Spalte");
+});
+
+test("Mehrzeilige Zelle: Ein Label «W3» unter den Werten gehört zu diesen Werten", () => {
+  nimmtNicht("W2\nGrenzabstand 6.00 m\nW3", "Grenzabstand 6.00 m", "Label darunter");
+});
+
+test("Artikelkopf: «W2 und W3» bindet nicht, eine andere Zone dazwischen auch nicht", () => {
+  nimmtNicht("Art. 7 Zonen W2 und W3\nDer Text folgt hier.\nGrenzabstand 6.00 m", "Grenzabstand 6.00 m", "Kopf mit zwei Zonen");
+  nimmtNicht("Art. 7 Wohnzone W2\nFür W3 gilt Folgendes:\nGrenzabstand 6.00 m", "Grenzabstand 6.00 m", "Vorzeile fremd");
+  nimmtNicht("Art. 7 Wohnzone W2\nIn der Kernzone gilt Folgendes.\nAbsatz zwei beginnt hier.\nGrenzabstand 6.00 m", "Grenzabstand 6.00 m", "weiter oben fremd");
+});
+
+test("Bindung bleibt, wo sie eindeutig ist", () => {
+  const n = (text: string): BelegNorm => ({ title: "R", layer: 4, text });
+  assert.ok(pruefeKandidat(abstand6("Grenzabstand 6.00 m"), n("Art. 7 Wohnzone W2\nGrenzabstand 6.00 m"), "W2").ok, "Artikelkopf");
+  assert.ok(pruefeKandidat(abstand6("Grenzabstand 6.00 m"), n("Zone W2\nGrenzabstand 6.00 m\nArt. 8 Wohnzone W3"), "W2").ok, "Vorzeile, Artikelkopf darunter");
+  assert.ok(pruefeKandidat(abstand6("Wohnzone 2 2 0.40 6.00"), n("Wohnzone 2  2  0.40  6.00\nWohnzone 3  3  0.60  7.00"), "W2").ok, "Langform in der Zeile");
+  assert.ok(pruefeKandidat(abstand6("Grenzabstand 6.00 m"), n("Art. 7 Wohnzone W2\nFläche mindestens 3000 m2\nGrenzabstand 6.00 m"), "W2").ok, "m2 ist keine Zone");
+  assert.ok(pruefeKandidat(abstand6("W2 Grenzabstand 6.00 m"), n("In allen Bauzonen gilt:\nW2 Grenzabstand 6.00 m"), "W2").ok, "Bauzonen sind keine bestimmte Zone");
+});
+
+test("Die Ziffer im Zonennamen ist kein Wert", () => {
+  const n: BelegNorm = { title: "R", layer: 4, text: "Wohnzone 2 Geschosse  0.40" };
+  assert.equal(pruefeKandidat(kandidat({ feld: "vollgeschosse", zahl: 3, einheit: "", zitat: "Wohnzone 2 Geschosse 0.40" }), n, "W2").ok, false);
+  const m: BelegNorm = { title: "R", layer: 4, text: "Wohnzone 2  0.40" };
+  assert.equal(pruefeKandidat(kandidat({ feld: "grenzabstand_klein", zahl: 2, zitat: "Wohnzone 2 0.40" }), m, "W2").ok, false);
+});
+
 const allgemein = (over: Partial<KenndatenKandidat> = {}) =>
   kandidat({ feld: "strassenabstand", zahl: 6, zitat: "Strassenabstand 6 m", zoneImText: "alle", giltFuerAlleZonen: true, artikel: "§ 3", ...over });
 
