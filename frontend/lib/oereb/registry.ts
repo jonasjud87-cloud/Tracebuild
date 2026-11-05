@@ -1,30 +1,29 @@
+import { OEREB_SUPPORTED_CANTONS } from "./cantons";
 import type { OerebAdapter } from "./types";
 import { ArOerebAdapter } from "./adapters/ar";
+import { RuleBasedOerebAdapter } from "./adapters/rule-based";
 import { SgOerebAdapter } from "./adapters/sg";
 
 /**
- * Kantonskürzel → Adapter-Fabrik. Nur Kantone mit registriertem Adapter werden über
- * ÖREB abgefragt; alle anderen behalten das bisherige Verhalten (kein Auszug).
- * Fabriken statt Instanzen, damit die Env-Variable zur Laufzeit gelesen wird.
+ * Kantonskürzel → Adapter. SG und AR haben eigene Klassen, alle übrigen Kantone laufen über
+ * den regelbasierten Adapter. Die Basis-URL löst lib/oereb/service.ts zur Laufzeit auf.
  */
-const ADAPTERS: Record<string, () => OerebAdapter> = {
-  AR: () => new ArOerebAdapter(),
-  SG: () => new SgOerebAdapter(),
-};
-
 function normalizeCanton(canton: string | null | undefined): string {
   return (canton ?? "").trim().toUpperCase();
 }
 
 export function isSupported(canton: string | null | undefined): boolean {
-  return normalizeCanton(canton) in ADAPTERS;
+  return OEREB_SUPPORTED_CANTONS.includes(normalizeCanton(canton));
 }
 
 export function getAdapter(canton: string | null | undefined): OerebAdapter | null {
-  const factory = ADAPTERS[normalizeCanton(canton)];
-  return factory ? factory() : null;
+  const code = normalizeCanton(canton);
+  if (!OEREB_SUPPORTED_CANTONS.includes(code)) return null;
+  if (code === "AR") return new ArOerebAdapter();
+  if (code === "SG") return new SgOerebAdapter();
+  return new RuleBasedOerebAdapter(code);
 }
 
 export function supportedCantons(): string[] {
-  return Object.keys(ADAPTERS);
+  return [...OEREB_SUPPORTED_CANTONS];
 }

@@ -14,8 +14,6 @@ interface FileEntry {
   category: string;
   source_url: string | null;
   zone: string | null;
-  text: string;
-  charCount: number;
   pdf_url: string | null;
   /** Plattformweit von TraceBuild hinterlegt — für die Organisation nur lesbar. */
   global: boolean;
@@ -23,6 +21,16 @@ interface FileEntry {
 
 function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: string[]) => void }) {
   const [expanded, setExpanded] = useState(false);
+  // Die Liste liefert keinen Volltext mehr, er wird beim ersten Aufklappen geladen.
+  const [text, setText] = useState<string | null>(null);
+  useEffect(() => {
+    if (!expanded || text !== null) return;
+    let active = true;
+    Promise.all(entry.ids.map((id) => api.get<{ text: string }>(`/standards/${id}`)))
+      .then((rows) => { if (active) setText(rows.map((r) => r.text).join("\n\n")); })
+      .catch(() => { if (active) setText("Text konnte nicht geladen werden. Bitte später erneut versuchen."); });
+    return () => { active = false; };
+  }, [expanded, text, entry.ids]);
   return (
     <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 group">
       <div className="flex items-center gap-3">
@@ -60,7 +68,7 @@ function FileCard({ entry, onDelete }: { entry: FileEntry; onDelete: (ids: strin
       {expanded && (
         <>
           <p className="mt-3 text-sm text-[#ABAEBB] leading-relaxed whitespace-pre-wrap border-t border-[rgba(60,63,68,0.4)] pt-3">
-            {entry.text}
+            {text ?? "Text wird geladen …"}
           </p>
           {entry.pdf_url && (
             <div className="mt-3 border-t border-[rgba(60,63,68,0.4)] pt-3">
@@ -100,12 +108,13 @@ interface Standard {
   jurisdiction_type: string;
   jurisdiction_name: string | null;
   category: string;
-  text: string;
   source_url: string | null;
   zone?: string | null;
   pdf_url?: string | null;
   org_id: string | null;
 }
+
+const STANDARDS_PAGE_SIZE = 200;
 
 const JURISDICTIONS = [
   { value: "national",  label: "Bund" },
@@ -150,8 +159,16 @@ export default function StandardsPage() {
         params.set("jurisdiction_type", "cantonal");
         params.set("jurisdiction_name", filterJurisdiction);
       }
-      const data = await api.get<Standard[]>(`/standards?${params}`);
-      setStandards(data ?? []);
+      // Seitenweise, damit keine Antwort das Limit von Vercel erreicht.
+      const all: Standard[] = [];
+      for (let offset = 0; ; offset += STANDARDS_PAGE_SIZE) {
+        params.set("limit", String(STANDARDS_PAGE_SIZE));
+        params.set("offset", String(offset));
+        const page = (await api.get<Standard[]>(`/standards?${params}`)) ?? [];
+        all.push(...page);
+        if (page.length < STANDARDS_PAGE_SIZE) break;
+      }
+      setStandards(all);
     } finally {
       setLoading(false);
     }
@@ -212,8 +229,6 @@ export default function StandardsPage() {
     if (seen.has(key)) {
       const entry = seen.get(key)!;
       entry.ids.push(s.id);
-      entry.text += "\n\n" + s.text;
-      entry.charCount += s.text.length;
       if (!entry.pdf_url && s.pdf_url) entry.pdf_url = s.pdf_url;
     } else {
       const entry: FileEntry = {
@@ -223,8 +238,6 @@ export default function StandardsPage() {
         category: s.category,
         source_url: s.source_url,
         zone: s.zone ?? null,
-        text: s.text,
-        charCount: s.text.length,
         pdf_url: s.pdf_url ?? null,
         global: s.org_id === null,
       };

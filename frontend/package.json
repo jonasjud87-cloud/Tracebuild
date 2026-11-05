@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --import ./scripts/ts-resolve-hook.mjs --test \"lib/**/*.test.ts\" \"components/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.109.0",

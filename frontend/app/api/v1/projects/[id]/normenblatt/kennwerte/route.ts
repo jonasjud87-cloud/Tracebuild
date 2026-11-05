@@ -1,15 +1,16 @@
-import { createHash } from "node:crypto";
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normMatchesZone } from "@/lib/zone-match";
+import { normAppliesToZone } from "@/lib/zone-match";
+import { hashNormEntries } from "@/lib/norm-hash";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { runKennwerteExtraction, type KennwertItem, type KennwertNormInput } from "@/lib/normenblatt-extraction";
 
 /**
  * Geltende Werte des Normenblatts: pro zugewiesener (zonengefilterter) Norm ein
  * extrahierter Kennwert-Satz. Teuerster Teil ist der LLM-Call — deshalb Cache in
  * `project_norm_summaries`, Schlüssel `norms_hash` (sha256 der sortierten, aktuell
- * zugewiesenen Norm-IDs). Ändert sich die Normenzuweisung nicht, trifft der Hash
- * und es wird kein Call ausgelöst (Hauptpfad). `?force=1` erzwingt eine
+ * zugewiesenen Norm-IDs, bei importierten Normen mit Text-Hash). Ändert sich weder die
+ * Zuweisung noch ein importierter Text, trifft der Hash und es wird kein Call ausgelöst. `?force=1` erzwingt eine
  * Neuberechnung unabhängig vom Hash — nur für eine explizite Nutzeraktion gedacht.
  */
 
@@ -19,36 +20,35 @@ interface NormRow {
   category: string | null;
   text: string | null;
   zone: string | null;
+  text_sha256?: string | null;
 }
 
 interface ProjectNormRow {
   norms: NormRow | null;
 }
 
-function hashNormIds(ids: string[]): string {
-  const sorted = ids.slice().sort();
-  return createHash("sha256").update(sorted.join(",")).digest("hex");
-}
-
 async function loadZoneFilteredNorms(
   admin: ReturnType<typeof createAdminClient>,
   projectId: string,
   bauzone: string | null,
-): Promise<KennwertNormInput[]> {
-  const { data, error } = await admin
-    .from("project_norms")
-    .select("norms(id, title, category, text, zone)")
-    .eq("project_id", projectId);
+  zoneConfidence: string | null,
+): Promise<(KennwertNormInput & { text_sha256: string | null })[]> {
+  const query = (columns: string) =>
+    admin.from("project_norms").select(`norms(${columns})`).eq("project_id", projectId);
+  let { data, error } = await query("id, title, category, text, zone, text_sha256");
+  // Ohne Geoportal-Migration fehlt die Spalte.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query("id, title, category, text, zone"));
   if (error) throw new Error(error.message);
 
   const rows = (data as unknown as ProjectNormRow[]) ?? [];
   return rows
-    .filter((r) => r.norms !== null && normMatchesZone(r.norms!.zone, bauzone))
+    .filter((r) => r.norms !== null && normAppliesToZone(r.norms!.zone, bauzone, zoneConfidence))
     .map((r) => ({
       id: r.norms!.id,
       title: r.norms!.title,
       category: r.norms!.category,
       text: r.norms!.text ?? "",
+      text_sha256: r.norms!.text_sha256 ?? null,
     }))
     .filter((n) => n.text.trim().length > 0);
 }
@@ -80,15 +80,15 @@ async function handle(request: Request, projectId: string) {
 
   const { data: project } = await admin
     .from("projects")
-    .select("id, bauzone")
+    .select("id, bauzone, zone_confidence")
     .eq("id", projectId)
     .eq("org_id", user.org_id)
     .single();
   if (!project) return err("Projekt nicht gefunden", 404);
 
   try {
-    const norms = await loadZoneFilteredNorms(admin, projectId, project.bauzone ?? null);
-    const normsHash = hashNormIds(norms.map((n) => n.id));
+    const norms = await loadZoneFilteredNorms(admin, projectId, project.bauzone ?? null, project.zone_confidence ?? null);
+    const normsHash = hashNormEntries(norms);
 
     if (norms.length === 0) {
       return ok({ items: [], model: null, cost_usd: null, cached: false });

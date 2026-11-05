@@ -24,6 +24,10 @@ const nextConfig = {
         "./node_modules/@napi-rs/canvas*/**",
         "./node_modules/pdfjs-dist/**",
       ],
+      "/api/v1/projects/[id]/oereb/documents/sync": [
+        "./node_modules/@napi-rs/canvas*/**",
+        "./node_modules/pdfjs-dist/**",
+      ],
     },
   },
   env: {

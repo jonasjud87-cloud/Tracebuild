@@ -1,8 +1,14 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assignNorms, planOerebAssignment } from "@/lib/norm-assignment";
-import { fetchAndPersistExtract, invalidateExtract, type FetchExtractResult } from "@/lib/oereb/fetch";
-import { isSupported } from "@/lib/oereb/registry";
+import { refreshProjectOereb } from "@/lib/oereb/refresh";
+import { oerebPdfUrl } from "@/lib/oereb/service-quirks";
+
+export const maxDuration = 60;
+
+const MIN_AGE_MS = 5 * 60_000;
+/** Auch mit force nicht öfter: Schutz der kantonalen Dienste vor wiederholtem Klicken. */
+const FORCE_MIN_AGE_MS = 30_000;
 
 interface ProjectRow {
   id: string;
@@ -13,14 +19,19 @@ interface ProjectRow {
   bauzone: string | null;
   zone_source: string | null;
   zone_confidence: string | null;
+  // Erst nach der Geoportal-Migration vorhanden.
+  egrid?: string | null;
+  lv95_e?: number | string | null;
+  lv95_n?: number | string | null;
+  bfs_number?: number | null;
 }
 
-/** Wirft, wenn die Projektspalten der ÖREB-Migration fehlen — sonst hiesse es fälschlich "nicht gefunden". */
+/** Wirft bei Lesefehlern — sonst hiesse es fälschlich "nicht gefunden". select("*"): auch ohne neue Spalten. */
 async function loadProject(id: string, orgId: string): Promise<ProjectRow | null> {
   const admin = createAdminClient();
   const { data, error } = await admin
     .from("projects")
-    .select("id, org_id, domain, location, parcel_number, bauzone, zone_source, zone_confidence")
+    .select("*")
     .eq("id", id)
     .eq("org_id", orgId)
     .maybeSingle();
@@ -39,7 +50,7 @@ async function buildView(project: ProjectRow): Promise<View> {
 
   const { data: extract, error: exErr } = await admin
     .from("oereb_extracts")
-    .select("id, status, status_detail, egrid, canton, parcel_number, fetched_at")
+    .select("*")
     .eq("project_id", project.id)
     .maybeSingle();
   if (exErr) return { error: `ÖREB-Auszug konnte nicht gelesen werden: ${exErr.message}` };
@@ -68,6 +79,8 @@ async function buildView(project: ProjectRow): Promise<View> {
             canton: extract.canton,
             parcel_number: extract.parcel_number,
             fetched_at: extract.fetched_at,
+            last_attempt_at: extract.last_attempt_at ?? null,
+            last_error: extract.last_error ?? null,
           }
         : null,
       themes,
@@ -77,6 +90,7 @@ async function buildView(project: ProjectRow): Promise<View> {
         zone_source: project.zone_source,
         zone_confidence: project.zone_confidence,
       },
+      oereb_pdf_url: oerebPdfUrl(project.location?.canton, extract?.egrid ?? project.egrid),
     },
   };
 }
@@ -99,18 +113,19 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 }
 
 /**
- * Holt den ÖREB-Auszug (einmalig — ein vorhandener 'ok'-Auszug wird nur mit
- * `{ force: true }` neu geladen; Entscheidung 4) und weist danach die Normen zu.
- * Antwort wie GET plus `fetched` und die Zuweisungszähler.
+ * Holt den ÖREB-Auszug neu, ausser `{ force: false }` und der letzte Versuch ist jünger als
+ * 5 Minuten. Scheitert der Abruf, bleibt der alte Auszug als Rückfall (`used_stale`).
+ * Danach werden die Normen zugewiesen. Antwort wie GET plus `fetched`, `documents_pending`,
+ * `used_stale`, `stale_fetched_at`, `candidates` und die Zuweisungszähler.
  */
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
   if (!user) return unauthorized();
 
-  let force = false;
+  let force = true;
   try {
     const body = await request.json();
-    force = body?.force === true;
+    force = body?.force !== false;
   } catch {
     // leerer Body ist erlaubt
   }
@@ -122,33 +137,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (!project) return err("Projekt nicht gefunden", 404);
     const loc = project.location ?? {};
 
-    const { data: existing, error: exErr } = await admin
-      .from("oereb_extracts")
-      .select("status, canton, parcel_number")
-      .eq("project_id", project.id)
-      .maybeSingle();
-    if (exErr) return err(`ÖREB-Auszug konnte nicht gelesen werden: ${exErr.message}`, 500);
-
-    // Auszug zu einer anderen Parzelle / einem anderen Kanton gilt nicht als gültig.
-    const stale =
-      !!existing &&
-      ((existing.parcel_number ?? null) !== (project.parcel_number ?? null) ||
-        (existing.canton ?? "").toUpperCase() !== (loc.canton ?? "").toUpperCase());
-
-    let fetched = false;
-    let fetchResult: FetchExtractResult | null = null;
-    // Kanton ohne Adapter: kein Abruf und kein Fehlerdatensatz — die UI zeigt "nicht angebunden".
-    if (isSupported(loc.canton) && (force || stale || !existing || existing.status !== "ok")) {
-      // Ein fremder Auszug darf nicht als Rückfallwert überleben (persistFailure schützt 'ok').
-      if (stale) await invalidateExtract(project.id);
-      fetchResult = await fetchAndPersistExtract(
-        project.id,
-        loc.canton ?? "",
-        loc.municipality ?? "",
-        project.parcel_number ?? ""
-      );
-      fetched = true;
-    }
+    // Kanton ohne Dienst: kein Abruf und kein Fehlerdatensatz (in refreshProjectOereb).
+    const refresh = await refreshProjectOereb(admin, project, { minAgeMs: force ? FORCE_MIN_AGE_MS : MIN_AGE_MS });
 
     const assignment = await assignNorms(
       project.id,
@@ -165,8 +155,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     return ok({
       ...view.data,
-      fetched,
-      fetch_result: fetchResult,
+      fetched: refresh.result !== null,
+      fetch_result: refresh.result,
+      candidates: refresh.result?.candidates,
+      documents_pending: refresh.documents_pending,
+      used_stale: refresh.usedStale,
+      stale_fetched_at: refresh.staleFetchedAt,
       assigned_norms_count: assignment.total,
       oereb_assigned: assignment.oerebAssigned,
       oereb_skipped: assignment.oerebSkipped,

@@ -1,7 +1,14 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normMatchesZone } from "@/lib/zone-match";
+import { normAppliesToZone } from "@/lib/zone-match";
 import { logAudit } from "@/lib/auditLog";
+import { assignNorms } from "@/lib/norm-assignment";
+import { normTextHash } from "@/lib/norm-hash";
+import { refreshProjectOereb } from "@/lib/oereb/refresh";
+import { refreshGeodata } from "@/lib/geoadmin/refresh";
+import type { GeodataFacts } from "@/lib/geoadmin/geodata";
+import type { AnalysisSnapshots, GeodataResponse } from "@/lib/geoadmin/contract";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import {
   runNormAnalysis,
   type AnalysisRunResult,
@@ -23,6 +30,11 @@ export const maxDuration = 300;
 /** Zeitdeckel für die Modell-Phase, gemessen ab Beginn der Route (Vercel killt bei 300 s). */
 const ROUTE_MODEL_BUDGET_MS = 265_000;
 
+/** Aktualisierung vor der Analyse: Sie darf die Analyse nie aufhalten oder scheitern lassen. */
+const REFRESH_MIN_AGE_MS = 5 * 60_000;
+const OEREB_BUDGET_MS = 25_000;
+const GEODATA_BUDGET_MS = 6_000;
+
 // ── Norm-Auswahl ──────────────────────────────────────────────────────────────
 
 interface ProjectNormRow {
@@ -34,6 +46,9 @@ interface ProjectNormRow {
     layer: number;
     zone: string | null;
     jurisdiction_type?: string | null;
+    source_kind?: string | null;
+    auto_scope?: string | null;
+    source_checked_at?: string | null;
   } | null;
 }
 
@@ -53,15 +68,17 @@ const FALLBACK_NORM: NormInput = {
 function selectNorms(
   pnRows: ProjectNormRow[],
   projectZone: string | null,
+  zoneConfidence: string | null,
 ): { norms: NormInput[]; source: "project_norms" | "fallback" } {
   const applicable = pnRows
     .map((r) => r.norms)
     .filter((n): n is NonNullable<ProjectNormRow["norms"]> => !!n)
-    .filter((n) => normMatchesZone(n.zone, projectZone))
+    .filter((n) => normAppliesToZone(n.zone, projectZone, zoneConfidence))
     .filter((n) => (n.text ?? "").trim().length > 0)
     .map<NormInput>((n) => ({
       id: n.id, title: n.title, category: n.category, text: n.text ?? "",
       layer: n.layer, jurisdiction_type: n.jurisdiction_type ?? null,
+      source_kind: n.source_kind ?? null, auto_scope: n.auto_scope ?? null,
     }));
 
   return applicable.length > 0
@@ -74,25 +91,38 @@ function selectNorms(
 /**
  * Was der Kataster über die Parzelle sagt — damit der Prüfer weiss, was amtlich gilt
  * (Zone, Lärm-ES) und was nachweislich nicht betroffen ist (Gewässer, Wald). Wirft nie;
- * ohne Auszug oder ohne Migration gibt es einfach keinen ÖREB-Block.
+ * ohne Auszug oder ohne Migration gibt es einfach keinen ÖREB-Block. Der alte Auszug bleibt nur
+ * Rückfall: `stale` meldet, dass die letzte Aktualisierung fehlgeschlagen ist.
  */
 async function loadOerebFacts(
   admin: ReturnType<typeof createAdminClient>,
   projectId: string,
-): Promise<OerebFacts | null> {
+): Promise<{ facts: OerebFacts | null; snapshot: AnalysisSnapshots["oereb_snapshot"] }> {
+  const none: AnalysisSnapshots["oereb_snapshot"] = { fetched_at: null, stale: false, stale_reason: null, status: null, egrid: null };
   try {
     const { data: extract, error } = await admin
       .from("oereb_extracts")
-      .select("id, status, raw")
+      .select("*")
       .eq("project_id", projectId)
       .maybeSingle();
-    if (error || !extract || extract.status !== "ok") return null;
+    if (error || !extract) return { facts: null, snapshot: none };
+
+    const stale = extract.status === "ok" && !!extract.last_error;
+    const staleReason: string | null = stale ? extract.last_error : null;
+    const snapshot: AnalysisSnapshots["oereb_snapshot"] = {
+      fetched_at: extract.status === "ok" ? (extract.fetched_at ?? null) : null,
+      stale,
+      stale_reason: staleReason,
+      status: extract.status ?? null,
+      egrid: extract.egrid ?? null,
+    };
+    if (extract.status !== "ok") return { facts: null, snapshot };
 
     const { data: themes, error: thErr } = await admin
       .from("oereb_themes")
       .select("theme_code, theme_name, concern, legend_text, type_code, area_m2, area_pct")
       .eq("extract_id", extract.id);
-    if (thErr || !themes) return null;
+    if (thErr || !themes) return { facts: null, snapshot };
 
     // Grundbuchfläche aus dem (geslimmten) Auszug — Basis für Ausnützungs-/Parkplatzrechnung.
     const raw = extract.raw as { RealEstate?: { LandRegistryArea?: unknown } } | null;
@@ -108,14 +138,31 @@ async function loadOerebFacts(
       }));
     const uniq = (xs: string[]) => Array.from(new Set(xs));
     return {
-      affects,
-      noData: uniq(themes.filter((t) => t.concern === "no_data").map((t) => t.theme_name)),
-      notAffected: uniq(themes.filter((t) => t.concern === "not_affects").map((t) => t.theme_name)),
-      parcelAreaM2,
+      facts: {
+        affects,
+        noData: uniq(themes.filter((t) => t.concern === "no_data").map((t) => t.theme_name)),
+        notAffected: uniq(themes.filter((t) => t.concern === "not_affects").map((t) => t.theme_name)),
+        parcelAreaM2,
+        fetchedAt: extract.fetched_at ?? null,
+        stale,
+        staleReason,
+      },
+      snapshot,
     };
   } catch {
-    return null;
+    return { facts: null, snapshot: none };
   }
+}
+
+/** Nur was der Prüfer brauchen kann. Ohne Standort oder Daten gibt es keinen Geodaten-Block. */
+function geodataFacts(geo: GeodataResponse): GeodataFacts | null {
+  if (geo.status !== "ok" && geo.status !== "partial") return null;
+  return {
+    status: geo.status,
+    fetchedAt: geo.fetched_at,
+    data: geo.data,
+    failedSources: geo.errors.map((e) => e.source),
+  };
 }
 
 // ── Plansatz ─────────────────────────────────────────────────────────────────
@@ -314,11 +361,30 @@ export async function POST(request: Request, { params }: { params: { id: string 
     await checkCancelled();
     if (cancel.signal.aborted) return await finishCancelled();
 
+    // 0. Aktuellen Stand holen. Beide wirken nur innerhalb ihres Budgets und werfen nie. Der Import
+    //    neuer Reglemente läuft nie hier, sondern vorher über …/oereb/documents/sync.
+    await refreshProjectOereb(admin, project, { budgetMs: OEREB_BUDGET_MS, minAgeMs: REFRESH_MIN_AGE_MS, signal: cancel.signal });
+    if (cancel.signal.aborted) return await finishCancelled();
+    const geo = await refreshGeodata(admin, project, { budgetMs: GEODATA_BUDGET_MS, minAgeMs: REFRESH_MIN_AGE_MS, signal: cancel.signal });
+    if (cancel.signal.aborted) return await finishCancelled();
+    await assignNorms(
+      params.id,
+      project.org_id,
+      project.location?.canton ?? "",
+      project.location?.municipality ?? "",
+      project.domain ?? "bau",
+    ).catch((e) => console.error(`Normzuweisung vor Analyse von Projekt ${params.id} fehlgeschlagen:`, e));
+    // Die Zone kann sich durch den Abruf geändert haben.
+    const { data: reread } = await admin.from("projects").select("*").eq("id", params.id).maybeSingle();
+    const fresh = reread ?? project;
+
     // 1. Normen laden
-    const { data: pnRows, error: pnError } = await admin
-      .from("project_norms")
-      .select("norms(id, title, category, text, layer, zone, jurisdiction_type)")
-      .eq("project_id", params.id);
+    const normColumns = "id, title, category, text, layer, zone, jurisdiction_type";
+    const queryNorms = (columns: string) =>
+      admin.from("project_norms").select(`norms(${columns})`).eq("project_id", params.id);
+    let { data: pnRows, error: pnError } = await queryNorms(`${normColumns}, source_kind, auto_scope, source_checked_at`);
+    // Ohne Geoportal-Migration fehlen die neuen Spalten.
+    if (pnError && isMissingSchema(pnError.message)) ({ data: pnRows, error: pnError } = await queryNorms(normColumns));
 
     // Nicht stillschweigend auf die Ersatznorm zurückfallen, wenn die Abfrage
     // selbst kaputt ist — sonst sieht ein DB-Fehler aus wie "keine Normen".
@@ -328,7 +394,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
     const { norms, source: normsSource } = selectNorms(
       (pnRows ?? []) as unknown as ProjectNormRow[],
-      project.bauzone ?? null,
+      fresh.bauzone ?? null,
+      fresh.zone_confidence ?? null,
     );
     if (normsSource === "fallback") {
       console.warn(`Projekt ${params.id}: keine Normen in project_norms — Analyse läuft auf Fachwissen.`);
@@ -346,18 +413,20 @@ export async function POST(request: Request, { params }: { params: { id: string 
     const files: PlanFile[] = planFiles.map((f, i) => toPlanFile(f, signed[i].signedUrl));
 
     // 3. Ein Call pro Norm, parallel, mit Cache-Grenze hinter PDF + Referenzrahmen.
-    const oereb = await loadOerebFacts(admin, params.id);
+    const { facts: oereb, snapshot: oerebSnapshot } = await loadOerebFacts(admin, params.id);
     const budgetMs = Math.max(45_000, ROUTE_MODEL_BUDGET_MS - (Date.now() - routeStart));
     run = await runNormAnalysis(
       norms,
       files,
       {
-        municipality: project.location?.municipality ?? "",
-        canton: project.location?.canton ?? "",
-        bauzone: project.bauzone ?? "",
-        parcel: project.parcel_number ?? null,
-        zoneSource: project.zone_source ?? null,
+        municipality: fresh.location?.municipality ?? "",
+        canton: fresh.location?.canton ?? "",
+        bauzone: fresh.bauzone ?? "",
+        parcel: fresh.parcel_number ?? null,
+        zoneSource: fresh.zone_source ?? null,
+        zoneConfidence: fresh.zone_confidence ?? null,
         oereb,
+        geodata: geodataFacts(geo),
       },
       budgetMs,
       cancel.signal,
@@ -400,6 +469,24 @@ export async function POST(request: Request, { params }: { params: { id: string 
       }
     }
 
+    // Nachweis, welcher Normstand galt: Normen können später automatisch überschrieben werden.
+    const normMeta = new Map(
+      ((pnRows ?? []) as unknown as ProjectNormRow[]).flatMap((r) => (r.norms ? [[r.norms.id, r.norms] as const] : [])),
+    );
+    const snapshots: AnalysisSnapshots = {
+      oereb_snapshot: oerebSnapshot,
+      geodata_snapshot: { fetched_at: geo.fetched_at, status: geo.status, sources: geo.sources },
+      norm_versions: norms
+        .filter((n) => n.id)
+        .map((n) => ({
+          norm_id: n.id,
+          title: n.title,
+          text_sha256: normTextHash(n.text),
+          source_kind: normMeta.get(n.id)?.source_kind ?? null,
+          source_checked_at: normMeta.get(n.id)?.source_checked_at ?? null,
+        })),
+    };
+
     // 6. Analyse abschliessen. Kosten werden immer geschrieben. Der Status-Guard
     //    verhindert, dass ein Abbruch, der während des Speicherns eintraf, von "done"
     //    überschrieben wird — dann räumen wir die Prüfpunkte wieder weg.
@@ -417,6 +504,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
           norm_count: norms.length,
           reference_norms: norms.filter((n) => n.layer === 4 || n.jurisdiction_type === "municipal").map((n) => n.title),
           oereb_context: !!oereb,
+          ...snapshots,
+          auto_parts: run.auto_parts,
           item_count: run.items.length,
           raw_item_count: run.consolidation?.raw_count ?? run.items.length,
           consolidation: run.consolidation,

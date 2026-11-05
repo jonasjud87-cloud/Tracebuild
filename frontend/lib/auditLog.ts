@@ -1,4 +1,4 @@
-import { createAdminClient } from "@/lib/supabase/admin";
+import type { createAdminClient } from "@/lib/supabase/admin";
 
 export type AuditAction =
   | "invite" | "reinvite" | "role_change" | "remove"
@@ -9,7 +9,8 @@ export type AuditAction =
   | "norm_upload" | "norm_remove" | "norm_custom_create"
   | "norm_refresh" | "project_norm_add" | "project_norm_remove"
   | "analysis_run" | "analysis_delete" | "chat_message"
-  | "profile_name_change";
+  | "profile_name_change"
+  | "norm_auto_import" | "norm_auto_update" | "norm_auto_update_rejected";
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

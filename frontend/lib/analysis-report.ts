@@ -1,5 +1,6 @@
-import { type AnalysisItem, type Category, type Confidence, CATEGORY_LABELS, CONFIDENCE_LABELS } from "@/lib/domains/bau";
-import { esc, csvCell } from "@/lib/report-utils";
+import { type AnalysisItem, type Category, type Confidence, CATEGORY_LABELS, CONFIDENCE_LABELS } from "./domains/bau";
+import { esc, csvCell } from "./report-utils";
+import type { AnalysisAutoParts, AnalysisSnapshots } from "./geoadmin/contract";
 
 /**
  * Export eines Analyse-Ergebnisses: druckfertiger Prüfbericht (→ PDF über den
@@ -15,6 +16,10 @@ export interface ReportMeta {
   planType: string;
   version: number;
   createdAt: string;
+  /** Aus result_json der Analyse. Fehlt bei älteren Analysen. */
+  snapshots?: Partial<AnalysisSnapshots> | null;
+  /** result_json.auto_parts: Teile importierter Reglemente, die der Deckel ausgelassen hat. */
+  autoParts?: AnalysisAutoParts | null;
 }
 
 const STATUS_LABEL: Record<string, string> = { fail: "Verstoss", warn: "Unklar", ok: "Konform" };
@@ -33,6 +38,44 @@ function confidenceLabel(c: string | null | undefined): string {
 
 function sorted(items: AnalysisItem[]): AnalysisItem[] {
   return items.slice().sort((a, b) => (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9));
+}
+
+function shortDate(iso: string | null | undefined): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
+/** «ÖREB-Stand: …», bei fehlgeschlagener Aktualisierung mit Hinweis. Leer ohne Auszug. */
+export function oerebStandLine(s: ReportMeta["snapshots"]): string {
+  const stand = shortDate(s?.oereb_snapshot?.fetched_at);
+  if (!stand) return "";
+  return s?.oereb_snapshot?.stale
+    ? `ÖREB-Stand: ${stand} (Aktualisierung fehlgeschlagen, älterer Stand)`
+    : `ÖREB-Stand: ${stand}`;
+}
+
+export function geodataSourceLine(s: ReportMeta["snapshots"]): string {
+  const g = s?.geodata_snapshot;
+  if (!g || !g.sources?.length || (g.status !== "ok" && g.status !== "partial")) return "";
+  const stand = shortDate(g.fetched_at);
+  return `Geodaten${stand ? ` (Stand ${stand})` : ""}: ${g.sources.join(", ")}. Ohne Rechtswirkung, ÖREB geht vor.`;
+}
+
+export function autoNormLines(s: ReportMeta["snapshots"]): string[] {
+  return (s?.norm_versions ?? [])
+    .filter((n) => n.source_kind === "oereb_auto")
+    .map((n) => {
+      const stand = shortDate(n.source_checked_at);
+      return `${n.title}: automatisch aus dem ÖREB-Kataster übernommen${stand ? `, Stand ${stand}` : ""}`;
+    });
+}
+
+/** Warnung, wenn über dem Deckel Teile importierter Reglemente entfallen sind. Sonst leer. */
+export function autoPartsWarning(p: AnalysisAutoParts | null | undefined): string {
+  if (!p || !(p.skipped > 0)) return "";
+  const titles = p.skipped_titles?.length ? ` Betroffen: ${p.skipped_titles.join(", ")}.` : "";
+  return `Vom Reglement wurden ${p.run} von ${p.total} Teilen geprüft, der Rest ist in dieser Analyse nicht berücksichtigt.${titles}`;
 }
 
 export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string {
@@ -114,10 +157,19 @@ export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string
     <div class="tile"><div class="n" style="color:${STATUS_COLOR.ok}">${counts.ok}</div><div class="l">Konforme Punkte</div></div>
   </div>
 
+  ${autoPartsWarning(meta.autoParts)
+    ? `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt;font-weight:600">Unvollständig geprüft: ${esc(autoPartsWarning(meta.autoParts))}</p>`
+    : ""}
+
   <table>
     <thead><tr><th>Status</th><th>Prüfpunkt</th><th>Details</th></tr></thead>
     <tbody>${rows || `<tr><td colspan="3">Keine Prüfpunkte.</td></tr>`}</tbody>
   </table>
+
+  ${[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots), ...autoNormLines(meta.snapshots)]
+    .filter(Boolean)
+    .map((line) => `<p class="foot" style="border:0;margin-top:6pt;padding:0">${esc(line)}</p>`)
+    .join("")}
 
   <p class="foot">Automatisch erstellte KI-Analyse (Tracebuild) · exportiert am ${esc(printed)} · ${items.length} Prüfpunkte.
   Die Ergebnisse ersetzen keine behördliche Prüfung.</p>
@@ -157,6 +209,8 @@ export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string 
     `Projekt;${csvCell(meta.projectName)}`,
     `Prüfung;${csvCell(meta.planType)};Version;${meta.version}`,
     `Analyse vom;${csvCell(new Date(meta.createdAt).toLocaleDateString("de-CH"))}`,
+    ...(autoPartsWarning(meta.autoParts) ? [`Unvollständig geprüft;${csvCell(autoPartsWarning(meta.autoParts))}`] : []),
+    ...[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots)].filter(Boolean).map((line) => csvCell(line)),
     "",
   ];
   // BOM, damit Excel die Umlaute korrekt liest; Semikolon = Excel-Standard im DACH-Raum.

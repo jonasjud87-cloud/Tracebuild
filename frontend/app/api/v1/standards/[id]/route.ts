@@ -2,6 +2,22 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 
+/** Volltext einer Norm, die die Organisation sehen darf: eigene oder plattformweite. */
+export async function GET(_req: Request, { params }: { params: { id: string } }) {
+  const user = await getAuthUser();
+  if (!user) return unauthorized();
+
+  const { data, error } = await createAdminClient()
+    .from("norms")
+    .select("id, text")
+    .eq("id", params.id)
+    .or(`org_id.eq.${user.org_id},org_id.is.null`)
+    .maybeSingle();
+  if (error) return err(error.message, 500);
+  if (!data) return err("Norm nicht gefunden", 404);
+  return ok(data);
+}
+
 export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
   const user = await getAuthUser();
   if (!user) return unauthorized();

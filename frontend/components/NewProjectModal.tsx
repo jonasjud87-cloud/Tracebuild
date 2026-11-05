@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { isOerebSupportedCanton } from "@/lib/oereb/cantons";
+import ParcelSearch, { type ParcelSelection } from "./ParcelSearch";
+import type { ParcelIdentityFields } from "./geoportal-logic";
 
 const CANTONS = [
   "AG","AI","AR","BE","BL","BS","FR","GE","GL","GR",
@@ -63,16 +64,38 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
   const [municipality, setMunicipality] = useState("");
   const [parcelNumber, setParcelNumber] = useState("");
   const [bauzone, setBauzone]           = useState("");
+  // Grundstück aus der Suche. Jede Handänderung an Kanton, Gemeinde oder Nummer verwirft es.
+  const [identity, setIdentity]         = useState<ParcelIdentityFields | null>(null);
+  const [pickedLabel, setPickedLabel]   = useState<string | null>(null);
+  const [identityDropped, setIdentityDropped] = useState(false);
   const [error, setError]               = useState<string | null>(null);
   const [loading, setLoading]           = useState(false);
 
-  // Bei angebundenen Kantonen kommt die Bauzone nach dem Anlegen aus dem ÖREB-Auszug;
-  // nur ohne Anbindung bleibt das manuelle Feld.
-  const oerebSupported = isOerebSupportedCanton(canton);
+  const hasEgrid = !!identity?.egrid;
+  // Mit EGRID ist das Grundstück auch ohne Nummer bestimmt (die Route verlangt eines von beiden).
+  const incomplete = !name.trim() || !municipality.trim() || (!parcelNumber.trim() && !hasEgrid);
+
+  function handleSelect(selection: ParcelSelection) {
+    const { fields } = selection;
+    if (fields.canton && CANTONS.includes(fields.canton)) setCanton(fields.canton);
+    setMunicipality(fields.municipality ?? "");
+    setParcelNumber(fields.parcelNumber ?? "");
+    setIdentity(fields.identity);
+    setPickedLabel(selection.label);
+    setIdentityDropped(false);
+  }
+
+  /** Von Hand korrigiert: Die EGRID gehört dann nicht mehr sicher zu den Angaben. */
+  function dropIdentity() {
+    if (!identity) return;
+    setIdentity(null);
+    setPickedLabel(null);
+    setIdentityDropped(true);
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim() || !municipality.trim() || !parcelNumber.trim()) return;
+    if (incomplete) return;
     setError(null);
     setLoading(true);
     try {
@@ -80,8 +103,10 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
         name: name.trim(),
         domain: "bau",
         location: { canton, municipality: municipality.trim(), country: "CH" },
-        parcel_number: parcelNumber.trim(),
-        bauzone: oerebSupported ? null : (bauzone.trim() || null),
+        parcel_number: parcelNumber.trim() || null,
+        // Die Route nimmt diese Zone nur, wenn der ÖREB-Auszug keine sichere liefert.
+        bauzone: bauzone.trim() || null,
+        ...(identity ?? {}),
       });
       onCreated();
       onClose();
@@ -104,6 +129,21 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
+          <ParcelSearch onSelect={handleSelect} hint="(füllt die Felder unten)" />
+
+          {pickedLabel && (
+            <p style={{ fontSize: 12, color: "#34D399", margin: "-8px 0 0", lineHeight: 1.4, overflowWrap: "anywhere" }}>
+              Übernommen: {pickedLabel}{identity?.egrid ? ` (${identity.egrid})` : ""}. Die Felder bleiben korrigierbar.
+            </p>
+          )}
+          {identityDropped && (
+            <p style={{ fontSize: 12, color: "#FBBF24", margin: "-8px 0 0", lineHeight: 1.4 }}>
+              Von Hand geändert: Das Grundstück aus der Suche gilt nicht mehr. TraceBuild sucht es anhand Ihrer Angaben.
+            </p>
+          )}
+
+          <div style={{ borderTop: "1px solid rgba(133,166,233,0.1)", margin: "2px 0" }} />
+
           <Field label="Projektname">
             <TextInput value={name} onChange={setName} required />
           </Field>
@@ -111,7 +151,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
             <Field label="Kanton">
               <select
-                value={canton} onChange={e => setCanton(e.target.value)}
+                value={canton} onChange={e => { setCanton(e.target.value); dropIdentity(); }}
                 style={{ ...inputStyle, appearance: "none" as const }}
                 onFocus={e => { e.currentTarget.style.borderColor = "#2862D7"; }}
                 onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(133,166,233,0.25)"; }}
@@ -120,7 +160,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
               </select>
             </Field>
             <Field label="Gemeinde">
-              <TextInput value={municipality} onChange={setMunicipality} required />
+              <TextInput value={municipality} onChange={v => { setMunicipality(v); dropIdentity(); }} required />
             </Field>
           </div>
 
@@ -130,31 +170,19 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           <Field label="Parzellennummer">
             <TextInput
               value={parcelNumber}
-              onChange={setParcelNumber}
+              onChange={v => { setParcelNumber(v); dropIdentity(); }}
               placeholder="z.B. 1234"
-              required
+              required={!hasEgrid}
             />
           </Field>
 
-          {oerebSupported ? (
-            <Field label="Bauzone">
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 10, border: "1px solid rgba(133,166,233,0.15)", background: "rgba(23,37,64,0.35)", borderRadius: 10, padding: "9px 13px" }}>
-                <svg style={{ width: 14, height: 14, color: "#85A6E9", marginTop: 2, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.45 }}>
-                  Wird nach dem Anlegen automatisch aus dem ÖREB-Kataster ermittelt (Kanton {canton}).
-                </p>
-              </div>
-            </Field>
-          ) : (
-            <Field label="Bauzone" hint="(optional)">
-              <TextInput value={bauzone} onChange={setBauzone} placeholder="z.B. W2" />
-              <p style={{ fontSize: 11, color: "#7B8299", margin: "5px 0 0", lineHeight: 1.4 }}>
-                Für Kanton {canton} ist noch keine automatische Zonenermittlung angebunden — Bauzone manuell eingeben oder leer lassen.
-              </p>
-            </Field>
-          )}
+          {/* Vor dem Anlegen steht keine sichere ÖREB-Zone fest, deshalb bleibt das Feld immer da. */}
+          <Field label="Bauzone" hint="(optional)">
+            <TextInput value={bauzone} onChange={setBauzone} placeholder="z.B. W2" />
+            <p style={{ fontSize: 11, color: "#7B8299", margin: "5px 0 0", lineHeight: 1.4 }}>
+              TraceBuild ermittelt die Zone nach dem Anlegen aus dem ÖREB-Kataster. Ihre Angabe gilt nur, wenn der Kataster keine sichere Zone liefert.
+            </p>
+          </Field>
 
           {error && (
             <div style={{ fontSize: 13, color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "10px 14px" }}>
@@ -170,19 +198,19 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
             >
               Abbrechen
             </button>
-            <button type="submit" disabled={loading || !name.trim() || !municipality.trim() || !parcelNumber.trim()}
+            <button type="submit" disabled={loading || incomplete}
               style={{
                 flex: 1, background: "linear-gradient(90deg,#4fd1ff,#38bdf8 55%,#2862D7)",
                 color: "#fff", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 600,
                 border: "none", fontFamily: "inherit",
-                cursor: (loading || !name.trim() || !municipality.trim() || !parcelNumber.trim()) ? "not-allowed" : "pointer",
-                opacity: (loading || !name.trim() || !municipality.trim() || !parcelNumber.trim()) ? 0.5 : 1,
+                cursor: (loading || incomplete) ? "not-allowed" : "pointer",
+                opacity: (loading || incomplete) ? 0.5 : 1,
                 boxShadow: "0 4px 16px rgba(40,98,215,0.35)", transition: "filter .15s, opacity .15s",
               }}
               onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "none"; }}
             >
-              {loading ? "Wird erstellt…" : "Projekt erstellen →"}
+              {loading ? "ÖREB-Auszug wird abgerufen…" : "Projekt erstellen →"}
             </button>
           </div>
         </form>
