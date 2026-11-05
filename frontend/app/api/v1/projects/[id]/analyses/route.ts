@@ -147,6 +147,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   );
   if (filesError) {
     await admin.from("documents").delete().eq("id", doc.id);
+    await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
     return err(filesError.message, 500);
   }
 
