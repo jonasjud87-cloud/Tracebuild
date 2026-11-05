@@ -153,7 +153,28 @@ export interface OerebDocumentItem {
   norm_id: string | null;
   last_checked_at: string | null;
   last_update_status: string | null;
+  /** Im Zweifel beide Fassungen übernommen: Hinweis zum Anzeigen, sonst null. */
+  version_note?: string | null;
 }
+
+/**
+ * Stand eines eigenen Uploads gegenüber dem amtlichen Text. Felder in GET /standards (eigene Normen)
+ * und Antwort von PUT /standards/{id}/authoritative.
+ * - `official_used`: «Neuere amtliche Fassung verwendet». Upload ist für die Zuweisung inaktiv.
+ * - `org_authoritative`: Die Org hat ihre Fassung als massgebend festgelegt.
+ * - `null`: Kein ähnlicher amtlicher Text bekannt, der Upload gilt normal.
+ */
+export type NormVersionHint = "official_used" | "org_authoritative" | null;
+export interface NormSupersession {
+  version_hint: NormVersionHint;
+  org_authoritative: boolean;
+  /** Anteil des Uploads im amtlichen Text, 0 bis 1. */
+  superseded_similarity: number | null;
+  superseded_at: string | null;
+  official: { id: string; title: string; source_url: string | null; source_checked_at: string | null } | null;
+}
+// PUT /standards/{id}/authoritative  Body { authoritative: boolean }. Antwort NormSupersession & { id }.
+// 404 fremde oder unbekannte Norm, 400 Body falsch, 409 keine eigene Gemeinde-Norm.
 
 // POST /projects/{id}/oereb/documents/sync  (leerer Body, ein Dokument pro Request)
 export interface DocumentSyncResponse {

@@ -39,6 +39,7 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
         norm_id: d.norm_id,
         last_checked_at: d.last_checked_at,
         last_update_status: d.last_update_status,
+        version_note: d.version_note ?? null,
       })),
     });
   } catch (e) {

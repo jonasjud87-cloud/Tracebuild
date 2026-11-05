@@ -2,6 +2,8 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractPdfText } from "@/lib/pdf-text";
 import { normTextTooLongMessage } from "@/lib/norm-text";
+import { loadImportFilter } from "@/lib/oereb/documents";
+import { linkUploadToOfficial } from "@/lib/oereb/upload-supersede";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
 
@@ -115,6 +117,11 @@ async function handleUpload(request: Request) {
     targetId: data.id,
     meta: { title, category, jurisdictionName },
   });
+
+  // Gleicht der Upload dem amtlichen Text, wird er gar nicht erst aktiv. Bleibt serverseitig.
+  await linkUploadToOfficial(admin, { id: data.id, text, jurisdiction_type: jurisdictionType, jurisdiction_name: jurisdictionName }, (canton) =>
+    loadImportFilter(admin, canton)
+  );
 
   // Attach the new norm to the org's existing projects it applies to — otherwise it
   // would only ever reach projects created after this upload.

@@ -8,6 +8,7 @@ import type { DocumentSyncResponse } from "../geoadmin/contract";
 import { logAudit, type AuditAction } from "../auditLog";
 import { normTextHash } from "../norm-hash";
 import { normTextTooLongMessage } from "../norm-text";
+import { isMissingSchema } from "../supabase/schema-errors";
 import { backoffUntil, decideIdentity, decideUpdate, nextRecheck, type ManualNormRef } from "./document-decisions";
 import { fetchDocument, type DocumentFetchResult } from "./document-fetch";
 import {
@@ -18,8 +19,10 @@ import {
   type OerebDocumentRow,
   type ProjectDocumentState,
 } from "./documents";
-import { decideContent, decidePreDownload, scopeOf, type ImportFilterRules } from "./import-filter";
+import { VERSION_COLUMNS, measureDocument } from "./document-versions";
+import { OLDER_VERSION_REASON, decideContent, decidePreDownload, scopeOf, type ImportFilterRules } from "./import-filter";
 import { titleKey } from "./title-key";
+import { linkSimilarUploads } from "./upload-supersede";
 
 const LOCK_SECONDS = 300;
 const PARSE_TIMEOUT_MS = 120_000;
@@ -134,10 +137,14 @@ async function loadNorm(admin: SupabaseClient, id: string): Promise<NormRow | nu
 // ── Schreiben ────────────────────────────────────────────────────────────────
 
 async function finish(admin: SupabaseClient, doc: OerebDocumentRow, patch: Record<string, unknown>): Promise<void> {
-  const { error } = await admin
-    .from("oereb_documents")
-    .update({ ...patch, lock_until: null })
-    .eq("id", doc.id);
+  const update = (p: Record<string, unknown>) => admin.from("oereb_documents").update({ ...p, lock_until: null }).eq("id", doc.id);
+  let { error } = await update(patch);
+  // Vor Migration 20261107000001 fehlen die Messspalten: Der Entscheid selbst muss trotzdem halten.
+  if (error && isMissingSchema(error.message)) {
+    const reduced = { ...patch };
+    for (const column of VERSION_COLUMNS) delete reduced[column];
+    ({ error } = await update(reduced));
+  }
   if (error) throw new Error(`ÖREB-Dokument konnte nicht gespeichert werden: ${error.message}`);
 }
 
@@ -154,6 +161,8 @@ interface ImportContext {
   projectId: string;
   now: number;
   nowIso: string;
+  /** Normen, deren Zuweisung am Ende neu zu berechnen ist. */
+  reassign: Set<string>;
 }
 
 async function audit(ctx: ImportContext, action: AuditAction, normId: string, doc: OerebDocumentRow, meta: Record<string, unknown>) {
@@ -232,6 +241,14 @@ async function insertNorm(
   throw new Error("Norm konnte wegen eines Titelkonflikts nicht angelegt werden");
 }
 
+/** Nur amtliche Gemeinde-Normen lösen Uploads ab. Zählt für die Neuzuweisung der Gemeinde. */
+async function relinkUploads(ctx: ImportContext, doc: OerebDocumentRow, normId: string, text: string): Promise<void> {
+  if ((doc.scope ?? scopeOf(doc.title, ctx.rules)) !== "municipal") return;
+  const { municipality, canton, bfs } = ctx.state;
+  const changed = await linkSimilarUploads(ctx.admin, { id: normId, text, municipality, canton, bfs }, ctx.rules, ctx.nowIso);
+  if (changed > 0) ctx.reassign.add(normId);
+}
+
 // ── Vorhandene Norm aktualisieren (5.6) ──────────────────────────────────────
 
 interface Downloaded {
@@ -256,6 +273,7 @@ async function updateNorm(
     return "rejected";
   }
   const textSha = normTextHash(text);
+  const measures = measureDocument(doc.title, text, rules);
   const common = {
     status: "imported",
     norm_id: normId,
@@ -298,11 +316,12 @@ async function updateNorm(
         newTextSha: textSha,
         newText: text,
         rules,
+        title: doc.title,
       });
 
   if (decision.action === "unchanged") {
     await supersede();
-    await finish(admin, doc, { ...common, chars: text.length, text_sha256: textSha, last_update_status: "unchanged", last_update_detail: null });
+    await finish(admin, doc, { ...common, ...measures, chars: text.length, text_sha256: textSha, last_update_status: "unchanged", last_update_detail: null });
     await touchNorm(admin, normId, nowIso);
     return "unchanged";
   }
@@ -361,7 +380,8 @@ async function updateNorm(
   }
 
   await supersede();
-  await finish(admin, doc, { ...common, chars: text.length, text_sha256: textSha, last_update_status: "updated", last_update_detail: null });
+  await finish(admin, doc, { ...common, ...measures, chars: text.length, text_sha256: textSha, last_update_status: "updated", last_update_detail: null });
+  await relinkUploads(ctx, doc, norm.id, text);
   await audit(ctx, "norm_auto_update", norm.id, doc, {
     old_sha: norm.text_sha256,
     new_sha: textSha,
@@ -384,8 +404,48 @@ async function rejectNew(ctx: ImportContext, doc: OerebDocumentRow, reason: stri
   });
 }
 
+/**
+ * Abgelehnte ältere Fassung nachprüfen: Hat sie sich geändert, zählen die neuen Messwerte beim
+ * nächsten Vergleich. Selbst bleibt sie abgelehnt, den Entscheid fällt nur der Vergleich.
+ */
+async function recheckOlderVersion(ctx: ImportContext, doc: OerebDocumentRow, deps: ImportDeps): Promise<{ outcome: Outcome }> {
+  const { admin, state, rules, now, nowIso } = ctx;
+  const later = {
+    attempts: 0,
+    last_checked_at: nowIso,
+    next_check_at: new Date(now + rules.older_version_recheck_hours * 3_600_000).toISOString(),
+  };
+  const res = await (deps.fetchDoc ?? fetchDocument)(doc.url_normalized, {
+    rules,
+    canton: state.canton,
+    etag: doc.etag,
+    lastModified: doc.last_modified,
+  });
+  if (res.kind !== "ok") {
+    await finish(admin, doc, later);
+    return { outcome: res.kind === "failed" ? "failed" : "unchanged" };
+  }
+  const pdfSha = createHash("sha256").update(res.bytes).digest("hex");
+  const file = { etag: res.etag, last_modified: res.lastModified, pdf_sha256: pdfSha, bytes: res.bytes.length };
+  if (doc.pdf_sha256 === pdfSha) {
+    await finish(admin, doc, { ...later, ...file });
+    return { outcome: "unchanged" };
+  }
+  try {
+    const text = cleanText(await (deps.extractText ?? defaultExtractText)(res.bytes));
+    await finish(admin, doc, { ...later, ...file, ...measureDocument(doc.title, text, rules), chars: text.length, text_sha256: normTextHash(text) });
+    return { outcome: "updated" };
+  } catch (e) {
+    console.error(`Ältere Fassung ${doc.id} nicht lesbar:`, e instanceof Error ? e.message : String(e));
+    await finish(admin, doc, later);
+    return { outcome: "unchanged" };
+  }
+}
+
 async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: ImportDeps): Promise<{ outcome: Outcome; newNormId?: string }> {
   const { admin, state, rules, now, nowIso } = ctx;
+
+  if (doc.status === "rejected" && doc.reject_reason === OLDER_VERSION_REASON) return recheckOlderVersion(ctx, doc, deps);
 
   const isExisting = !!doc.norm_id;
   const scope = doc.scope ?? scopeOf(doc.title, rules);
@@ -502,7 +562,16 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
   }
 
   const textSha = normTextHash(text);
-  const measured = { bytes: file.bytes, chars: text.length, pdf_sha256: pdfSha, text_sha256: textSha, scope };
+  const measured = {
+    bytes: file.bytes,
+    chars: text.length,
+    pdf_sha256: pdfSha,
+    text_sha256: textSha,
+    scope,
+    etag: res.etag,
+    last_modified: res.lastModified,
+    ...measureDocument(doc.title, text, rules),
+  };
 
   const decision = decideIdentity({ ...identity, textSha });
   if (decision.action === "duplicate_manual") {
@@ -518,7 +587,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
     return { outcome: "rejected" };
   }
 
-  const rejected = decideContent(text, rules);
+  const rejected = decideContent(text, rules, doc.title);
   if (rejected) {
     await rejectNew(ctx, doc, rejected.reason, rejected.detail, measured);
     return { outcome: "rejected" };
@@ -555,6 +624,7 @@ async function processDocument(ctx: ImportContext, doc: OerebDocumentRow, deps: 
     filter_snapshot: rules,
   });
   await audit(ctx, "norm_auto_import", inserted.id, doc, { new_sha: textSha, new_chars: text.length, scope });
+  await relinkUploads(ctx, doc, inserted.id, text);
   return { outcome: "imported", newNormId: inserted.id };
 }
 
@@ -585,6 +655,7 @@ export async function syncNextDocument(
     projectId,
     now,
     nowIso: new Date(now).toISOString(),
+    reassign: new Set(),
   };
 
   for (const candidate of due) {
@@ -606,11 +677,14 @@ export async function syncNextDocument(
       }).catch((err) => console.error(`ÖREB-Dokument ${doc.id} nicht entsperrt:`, err));
     }
 
-    if (newNormId && deps.assignNew) {
-      await deps.assignNew(newNormId).catch((e) => console.error(`Norm ${newNormId} nicht zugewiesen:`, e));
-    }
-
+    // Der Abgleich danach kann einen Verlierer zurücknehmen oder eine Fassung wieder freigeben.
     const after = await syncProjectDocuments(admin, projectId);
+    if (deps.assignNew) {
+      const toAssign = new Set([...(newNormId ? [newNormId] : []), ...Array.from(ctx.reassign), ...(after.changedNormIds ?? [])]);
+      for (const normId of Array.from(toAssign)) {
+        await deps.assignNew(normId).catch((e) => console.error(`Norm ${normId} nicht zugewiesen:`, e));
+      }
+    }
     return {
       available: true,
       processed: { id: doc.id, title: doc.title, outcome },

@@ -16,6 +16,8 @@ export interface OerebLawLink {
   kind?: string;
   /** Zuständige Stelle des Dokuments. */
   authority?: string;
+  /** Amtliche Nummer des Erlasses. Verbindet Fassungen desselben Erlasses mit abweichendem Titel. */
+  officialNumber?: string;
 }
 export interface OerebTheme {
   themeCode: string;            // z.B. "ch.Grundwasserschutzzonen"

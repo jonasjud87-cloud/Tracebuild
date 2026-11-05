@@ -150,8 +150,10 @@ export function decideUpdate(input: {
   newTextSha: string;
   newText: string;
   rules: ImportFilterRules;
+  /** Änderungserlasse haben eine tiefere Artikelgrenze. */
+  title?: string;
 }): UpdateDecision {
-  const { oldTextSha, oldChars, newTextSha, newText, rules } = input;
+  const { oldTextSha, oldChars, newTextSha, newText, rules, title } = input;
   if (oldTextSha && oldTextSha === newTextSha) return { action: "unchanged" };
   const chars = newText.trim().length;
   if (chars < rules.min_text_chars) {
@@ -160,7 +162,7 @@ export function decideUpdate(input: {
   if (chars < rules.shrink_min_ratio * oldChars) {
     return { action: "kept_old", detail: `Neuer Text schrumpft von ${oldChars} auf ${chars} Zeichen` };
   }
-  const rejected = decideContent(newText, rules);
+  const rejected = decideContent(newText, rules, title);
   if (rejected) return { action: "kept_old", detail: `${rejected.reason}: ${rejected.detail}` };
   return { action: "update" };
 }

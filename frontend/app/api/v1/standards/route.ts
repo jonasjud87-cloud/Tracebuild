@@ -1,12 +1,14 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { withSupersession, type SupersessionRow } from "@/lib/norm-supersession";
 
 const DEFAULT_LIMIT = 200;
 const MAX_LIMIT = 500;
 
 // Ohne Volltext: Globale Reglemente sprengten sonst das Antwortlimit von Vercel (4.5 MB).
 // Den Text liefert GET /standards/{id}.
+const SUPERSESSION_COLUMNS = "superseded_by_norm_id, superseded_similarity, superseded_at, org_authoritative";
 const LIST_COLUMNS =
   "id, title, domain, layer, jurisdiction_type, jurisdiction_name, org_id, category, source_url, source_doc, zone, pdf_url, created_at";
 
@@ -36,10 +38,10 @@ export async function GET(request: Request) {
   // Eigene Normen der Organisation plus die plattformweiten (org_id null), die
   // TraceBuild für alle Organisationen hinterlegt. Löschen bleibt auf eigene
   // beschränkt (standards/[id]).
-  const build = (hideImports: boolean) => {
+  const build = (hideImports: boolean, columns: string = `${LIST_COLUMNS}, ${SUPERSESSION_COLUMNS}`) => {
     let query = admin
       .from("norms")
-      .select(LIST_COLUMNS)
+      .select(columns)
       .eq("domain", domain)
       .or(`org_id.eq.${user.org_id},org_id.is.null`);
     if (jurisdictionType) query = query.eq("jurisdiction_type", jurisdictionType);
@@ -51,8 +53,10 @@ export async function GET(request: Request) {
   };
 
   let { data, error } = await build(true);
+  // Vor Migration 20261107000001 fehlen die Spalten der Ablösung.
+  if (error && isMissingSchema(error.message)) ({ data, error } = await build(true, LIST_COLUMNS));
   // Ohne Geoportal-Migration fehlen die Spalten, dann gibt es auch keine Importe.
-  if (error && isMissingSchema(error.message)) ({ data, error } = await build(false));
+  if (error && isMissingSchema(error.message)) ({ data, error } = await build(false, LIST_COLUMNS));
   if (error) return err(error.message, 500);
-  return ok(data);
+  return ok(await withSupersession(admin, (data ?? []) as unknown as SupersessionRow[]));
 }

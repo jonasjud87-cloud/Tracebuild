@@ -221,6 +221,7 @@ const REJECT_REASON_LABELS: Record<string, string> = {
   no_articles: "keine Artikel erkannt",
   too_long: "Text zu lang",
   superseded: "durch eine neue Fassung ersetzt",
+  older_version: "ältere Fassung, eine neuere steht im selben Auszug",
 };
 
 export function rejectReasonLabel(reason: string | null | undefined): string {

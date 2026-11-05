@@ -12,6 +12,8 @@ const DEFAULTS: Record<string, () => Row> = {
     status: "pending", attempts: 0, lock_until: null, norm_id: null, etag: null, last_modified: null,
     pdf_sha256: null, text_sha256: null, reject_reason: null, reject_detail: null, last_update_status: null,
     last_update_detail: null, last_checked_at: null, next_check_at: new Date(Date.now() - 1000).toISOString(),
+    official_number: null, article_run: null, article_first: null, article_hits: null, stand_date: null,
+    text_sketch: null, content_reason: null, version_winner_id: null, version_note: null,
   }),
 };
 
@@ -45,6 +47,11 @@ class Query implements PromiseLike<{ data: unknown; error: { message: string; co
   select(_cols?: string) { return this; }
   eq(col: string, v: unknown) { this.filters.push((r) => r[col] === v); return this; }
   is(col: string, v: unknown) { this.filters.push((r) => (r[col] ?? null) === v); return this; }
+  not(col: string, op: string, v: unknown) {
+    if (op !== "is") throw new Error(`not-Operator nicht unterstützt: ${op}`);
+    this.filters.push((r) => (r[col] ?? null) !== v);
+    return this;
+  }
   in(col: string, vs: unknown[]) { this.filters.push((r) => vs.includes(r[col])); return this; }
   lte(col: string, v: string) { this.filters.push((r) => String(r[col]) <= v); return this; }
   or(expr: string) { this.filters.push(parseOr(expr)); return this; }
