@@ -7,8 +7,11 @@ import type { ExtractStatus, ParcelCandidate, ProjectRefreshInfo } from "@/lib/g
 import ParcelSearch, { CandidateList } from "@/components/ParcelSearch";
 import ProjectGeoPanel from "@/components/ProjectGeoPanel";
 import OerebStatusNotice from "@/components/OerebStatusNotice";
+import ProjectBanner from "@/components/project/ProjectBanner";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { candidateLabel, candidateToFields, sortCandidates, zoneNeedsAttention, zoneOriginLabel, type ParcelFields } from "@/components/geoportal-logic";
+import p from "@/app/projects/project.module.css";
+import s from "./settings.module.css";
 
 interface Project {
   id: string;
@@ -25,10 +28,10 @@ interface Project {
 
 interface PendingParcel { fields: ParcelFields; label: string }
 
-function zoneBadgeClass(p: Project | null): string {
-  if (p?.zone_source === "manual") return "bg-[rgba(133,166,233,0.1)] text-[#ABAEBB]";
-  if (p?.zone_confidence === "low" || p?.zone_confidence === "coarse") return "bg-amber-500/10 text-amber-400";
-  return "bg-orange-500/10 text-orange-400";
+function zoneBadgeClass(pr: Project | null): string {
+  if (pr?.zone_source === "manual") return p.chip;
+  if (pr?.zone_confidence === "low" || pr?.zone_confidence === "coarse") return p.chipWarn;
+  return p.chipInfo;
 }
 
 const CANTONS = [
@@ -36,6 +39,28 @@ const CANTONS = [
   "JU","LU","NE","NW","OW","SG","SH","SO","SZ","TG",
   "TI","UR","VD","VS","ZG","ZH",
 ];
+
+const FORM_ID = "project-settings-form";
+
+function Icon({ children }: { children: React.ReactNode }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+
+function CardHead({ icon, title, text }: { icon: React.ReactNode; title: string; text?: string }) {
+  return (
+    <div className={s.cardHead}>
+      <span className={`${p.iconTile} ${s.tile}`}>{icon}</span>
+      <div>
+        <h2 className={s.cardTitle}>{title}</h2>
+        {text && <p className={s.cardText}>{text}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function SettingsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
@@ -65,18 +90,18 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
 
   const isAdmin = role === "org_admin" || role === "super_admin";
 
-  function applyProject(p: Project) {
-    setProject(p);
-    setName(p.name);
-    setCanton(p.location?.canton ?? "ZH");
-    setMunicipality(p.location?.municipality ?? "");
-    setParcelNumber(p.parcel_number ?? "");
-    setBauzone(p.bauzone ?? "");
+  function applyProject(pr: Project) {
+    setProject(pr);
+    setName(pr.name);
+    setCanton(pr.location?.canton ?? "ZH");
+    setMunicipality(pr.location?.municipality ?? "");
+    setParcelNumber(pr.parcel_number ?? "");
+    setBauzone(pr.bauzone ?? "");
   }
 
   useEffect(() => {
-    api.get<Project>(`/projects/${params.id}`).then((p) => {
-      applyProject(p);
+    api.get<Project>(`/projects/${params.id}`).then((pr) => {
+      applyProject(pr);
       setLoading(false);
     });
   }, [params.id]);
@@ -218,267 +243,310 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
     }
   }
 
-  const inputCls = "w-full rounded-lg px-3 py-2 text-sm text-white bg-[rgba(23,37,64,0.6)] border border-[rgba(133,166,233,0.25)] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors";
+  const subtitle = project
+    ? [project.name, [project.location?.municipality, project.location?.canton].filter(Boolean).join(" ")].filter(Boolean).join(" · ")
+    : undefined;
 
   if (loading || roleLoading) {
     return (
-      <div className="max-w-xl space-y-4 animate-pulse">
-        <div className="h-5 bg-[rgba(60,63,68,0.5)] rounded w-1/3" />
-        <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 space-y-4">
-          <div className="h-4 bg-[rgba(60,63,68,0.5)] rounded w-1/4" />
-          <div className="h-9 bg-[rgba(60,63,68,0.5)] rounded" />
+      <>
+        <ProjectBanner title="Einstellungen" />
+        <div className={s.stack} role="status" aria-label="Einstellungen werden geladen">
+          <div className={`${p.glassFlat} ${p.card} ${s.skelCard}`}>
+            <span className={p.skeleton} style={{ width: "30%", height: 20 }} />
+            <span className={p.skeleton} style={{ height: 44 }} />
+            <span className={p.skeleton} style={{ height: 44 }} />
+          </div>
+          <div className={`${p.glassFlat} ${p.card} ${s.skelCard}`}>
+            <span className={p.skeleton} style={{ width: "24%", height: 20 }} />
+            <span className={p.skeleton} style={{ height: 44 }} />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!isAdmin) {
     return (
-      <div className="max-w-xl">
-        <h2 className="text-base font-semibold text-white mb-6">Projekteinstellungen</h2>
+      <>
+        <ProjectBanner title="Einstellungen" subtitle={subtitle} />
 
-        <p className="text-xs text-[#7B8299] bg-[rgba(133,166,233,0.08)] border border-[rgba(133,166,233,0.25)] rounded-lg px-3 py-2 mb-4">
-          Nur Organisations-Admins können die Projekteinstellungen bearbeiten.
-        </p>
+        <div className={s.stack}>
+          <p className={s.notice}>
+            Nur Organisations-Admins können die Projekteinstellungen bearbeiten.
+          </p>
 
-        <ProjectGeoPanel key={panelKey} projectId={params.id} defaultOpen />
+          <ProjectGeoPanel key={panelKey} projectId={params.id} defaultOpen />
 
-        <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 space-y-4">
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Projektname</label>
-            <div className={inputCls}>{project?.name}</div>
-          </div>
+          <section className={`${p.glass} ${p.card}`}>
+            <CardHead
+              icon={<Icon><rect x="4.5" y="3.5" width="15" height="17" rx="3" /><path d="M8 9h8M8 13h8M8 17h4" /></Icon>}
+              title="Projektdaten"
+            />
+            <div className={s.fields}>
+              <div>
+                <span className={p.label}>Projektname</span>
+                <div className={s.value}>{project?.name}</div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Kanton</label>
-              <div className={inputCls}>{project?.location?.canton ?? "–"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Gemeinde</label>
-              <div className={inputCls}>{project?.location?.municipality ?? "–"}</div>
-            </div>
-          </div>
+              <div className={s.grid2}>
+                <div>
+                  <span className={p.label}>Kanton</span>
+                  <div className={s.value}>{project?.location?.canton ?? "–"}</div>
+                </div>
+                <div>
+                  <span className={p.label}>Gemeinde</span>
+                  <div className={s.value}>{project?.location?.municipality ?? "–"}</div>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Parzellennummer</label>
-              <div className={inputCls}>{project?.parcel_number ?? "–"}</div>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                Bauzone
-                {zoneOriginLabel(project) && (
-                  <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${zoneBadgeClass(project)}`}>
-                    {zoneOriginLabel(project)}
+              <div className={s.grid2}>
+                <div>
+                  <span className={p.label}>Parzellennummer</span>
+                  <div className={s.value}>{project?.parcel_number ?? "–"}</div>
+                </div>
+                <div>
+                  <span className={p.label}>
+                    Bauzone
+                    {zoneOriginLabel(project) && (
+                      <span className={`${zoneBadgeClass(project)} ${s.chipSm}`}>
+                        {zoneOriginLabel(project)}
+                      </span>
+                    )}
                   </span>
-                )}
-              </label>
-              <div className={inputCls}>{project?.bauzone || "–"}</div>
-            </div>
-          </div>
+                  <div className={s.value}>{project?.bauzone || "–"}</div>
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Domain</label>
-            <div className="border border-[rgba(60,63,68,0.5)] rounded-lg px-3 py-2 text-sm bg-[rgba(60,63,68,0.3)] text-[#7B8299]">
-              Bau / Architektur
+              <div>
+                <span className={p.label}>Domain</span>
+                <div className={`${s.value} ${s.valueMuted}`}>Bau / Architektur</div>
+              </div>
             </div>
-          </div>
+          </section>
         </div>
-      </div>
+      </>
     );
   }
 
+  const zoneAttention = zoneNeedsAttention(project);
+
   return (
-    <div className="max-w-xl">
-      <h2 className="text-base font-semibold text-white mb-6">Projekteinstellungen</h2>
+    <>
+      <ProjectBanner
+        title="Einstellungen"
+        subtitle={subtitle}
+        actions={
+          <button type="submit" form={FORM_ID} disabled={saving} className={p.btnSand}>
+            {saving ? "Wird gespeichert…" : "Speichern"}
+          </button>
+        }
+      />
 
-      <ProjectGeoPanel key={panelKey} projectId={params.id} showZoneEditor={false} defaultOpen onChanged={() => {
-        api.get<Project>(`/projects/${params.id}`).then((p) => { setProject(p); setBauzone(p.bauzone ?? ""); }).catch(() => {});
-      }} />
+      <div className={s.stack}>
+        <ProjectGeoPanel key={panelKey} projectId={params.id} showZoneEditor={false} defaultOpen onChanged={() => {
+          api.get<Project>(`/projects/${params.id}`).then((pr) => { setProject(pr); setBauzone(pr.bauzone ?? ""); }).catch(() => {});
+        }} />
 
-      <section id="parzelle" className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 mb-4 space-y-3" style={{ scrollMarginTop: 110 }}>
-        <div>
-          <h3 className="text-sm font-medium text-white mb-1">Parzelle wählen</h3>
-          <p className="text-xs text-[#7B8299] leading-snug">
-            {project?.egrid
+        <section id="parzelle" className={`${p.glass} ${p.card} ${s.anchor}`}>
+          <CardHead
+            icon={<Icon><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z" /><circle cx="12" cy="10" r="2.3" /></Icon>}
+            title="Parzelle wählen"
+            text={project?.egrid
               ? `Aktuell: Grundstück ${project.egrid}. Eine neue Wahl ersetzt Auszug und Zusatzdaten; eine manuell gesetzte Zone bleibt.`
               : "Dieses Projekt ist noch nicht eindeutig einem Grundstück zugeordnet. Mit der Suche holen Sie das nach."}
-          </p>
-        </div>
+          />
 
-        {candidatesLoading && <p role="status" className="text-xs text-[#7B8299]">Grundstücke werden abgefragt…</p>}
-        {extractStatus?.status === "ambiguous" && candidates && candidates.length > 0 && (
-          <div role="group" aria-label="Grundstück wählen">
-            <p className="text-xs font-medium text-amber-400 mb-2">Mehrere Grundstücke passen. Welches ist gemeint?</p>
-            <CandidateList
-              candidates={candidates}
-              disabled={savingParcel}
-              onPick={(c) => saveParcel({ fields: candidateToFields(c), label: candidateLabel(c) })}
-            />
+          <div className={s.fields}>
+            {candidatesLoading && <p role="status" className={s.status}>Grundstücke werden abgefragt…</p>}
+            {extractStatus?.status === "ambiguous" && candidates && candidates.length > 0 && (
+              <div role="group" aria-label="Grundstück wählen">
+                <p className={s.warnHead}>Mehrere Grundstücke passen. Welches ist gemeint?</p>
+                <CandidateList
+                  candidates={candidates}
+                  disabled={savingParcel}
+                  onPick={(c) => saveParcel({ fields: candidateToFields(c), label: candidateLabel(c) })}
+                />
+              </div>
+            )}
+            {extractStatus?.status === "ambiguous" && candidates && candidates.length === 0 && (
+              <div>
+                <p className={s.alertWarn}>Mehrere Grundstücke passen, die Auswahl ist gerade nicht abrufbar. Der letzte Abruf liegt vielleicht weniger als 30 Sekunden zurück. Bitte in einer halben Minute erneut abfragen oder die Suche verwenden.</p>
+                <button type="button" onClick={() => { setCandidates(null); setCandidatesAttempt((n) => n + 1); }} className={`${p.btnGhost} ${p.btnSm}`} style={{ marginTop: 10 }}>
+                  Auswahl erneut abfragen
+                </button>
+              </div>
+            )}
+            {extractStatus && extractStatus.status !== "ok" && extractStatus.status !== "ambiguous" && (
+              <OerebStatusNotice status={extractStatus.status} canton={project?.location?.canton} detail={extractStatus.detail} pdfUrl={extractStatus.pdf} projectId={params.id} isAdmin hideChoose />
+            )}
+
+            <ParcelSearch requireComplete onSelect={(selection) => { setParcelError(null); setPendingParcel({ fields: selection.fields, label: selection.label }); }} />
+
+            {pendingParcel && (
+              <div className={s.picked}>
+                <p className={s.pickedText}>
+                  Gewählt: <strong>{pendingParcel.label}</strong>
+                  {pendingParcel.fields.identity.egrid ? ` (${pendingParcel.fields.identity.egrid})` : ""}
+                </p>
+                <div className={s.actions}>
+                  <button
+                    type="button"
+                    disabled={savingParcel}
+                    onClick={() => saveParcel(pendingParcel)}
+                    className={`${p.btnNavy} ${p.btnSm}`}
+                  >
+                    {savingParcel ? "ÖREB-Auszug wird abgerufen…" : "Diese Parzelle übernehmen"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={savingParcel}
+                    onClick={() => setPendingParcel(null)}
+                    className={`${p.btnGhost} ${p.btnSm}`}
+                  >
+                    Verwerfen
+                  </button>
+                </div>
+              </div>
+            )}
+            {savingParcel && !pendingParcel && <p role="status" className={s.status}>ÖREB-Auszug wird abgerufen…</p>}
+            {parcelError && <p role="alert" className={s.alertErr}>{parcelError}</p>}
           </div>
-        )}
-        {extractStatus?.status === "ambiguous" && candidates && candidates.length === 0 && (
-          <div>
-            <p className="text-xs text-amber-400">Mehrere Grundstücke passen, die Auswahl ist gerade nicht abrufbar. Der letzte Abruf liegt vielleicht weniger als 30 Sekunden zurück. Bitte in einer halben Minute erneut abfragen oder die Suche verwenden.</p>
-            <button type="button" onClick={() => { setCandidates(null); setCandidatesAttempt((n) => n + 1); }} className="mt-1 text-xs font-medium text-[#85A6E9] hover:text-white transition-colors">
-              Auswahl erneut abfragen
-            </button>
-          </div>
-        )}
-        {extractStatus && extractStatus.status !== "ok" && extractStatus.status !== "ambiguous" && (
-          <OerebStatusNotice status={extractStatus.status} canton={project?.location?.canton} detail={extractStatus.detail} pdfUrl={extractStatus.pdf} projectId={params.id} isAdmin hideChoose />
-        )}
+        </section>
 
-        <ParcelSearch requireComplete onSelect={(selection) => { setParcelError(null); setPendingParcel({ fields: selection.fields, label: selection.label }); }} />
+        <form id={FORM_ID} onSubmit={handleSave} className={`${p.glass} ${p.card}`}>
+          <CardHead
+            icon={<Icon><rect x="4.5" y="3.5" width="15" height="17" rx="3" /><path d="M8 9h8M8 13h8M8 17h4" /></Icon>}
+            title="Projektdaten"
+          />
 
-        {pendingParcel && (
-          <div className="rounded-lg border border-[rgba(133,166,233,0.25)] px-3 py-2 space-y-2">
-            <p className="text-xs text-[#ABAEBB] break-words">
-              Gewählt: <span className="text-white font-medium">{pendingParcel.label}</span>
-              {pendingParcel.fields.identity.egrid ? ` (${pendingParcel.fields.identity.egrid})` : ""}
-            </p>
-            <div className="flex gap-2 flex-wrap">
+          <div className={s.fields}>
+            <div>
+              <label htmlFor="set-name" className={p.label}>Projektname</label>
+              <input
+                id="set-name"
+                type="text"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={p.input}
+              />
+            </div>
+
+            <div className={s.grid2}>
+              <div>
+                <label htmlFor="set-canton" className={p.label}>Kanton</label>
+                <select id="set-canton" value={canton} onChange={(e) => setCanton(e.target.value)} className={p.select}>
+                  {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label htmlFor="set-municipality" className={p.label}>Gemeinde</label>
+                <input
+                  id="set-municipality"
+                  type="text"
+                  required
+                  value={municipality}
+                  onChange={(e) => setMunicipality(e.target.value)}
+                  className={p.input}
+                />
+              </div>
+            </div>
+
+            <div className={s.grid2}>
+              <div>
+                <label htmlFor="set-parcel" className={p.label}>Parzellennummer</label>
+                <input
+                  id="set-parcel"
+                  type="text"
+                  value={parcelNumber}
+                  onChange={(e) => setParcelNumber(e.target.value)}
+                  className={p.input}
+                />
+                {project?.egrid && (parcelNumber.trim() !== (project.parcel_number ?? "") || municipality !== (project.location?.municipality ?? "") || canton !== (project.location?.canton ?? "")) && (
+                  <p className={s.helpWarn}>
+                    Beim Speichern gilt das Grundstück {project.egrid} nicht mehr. TraceBuild sucht es anhand Ihrer Angaben.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label htmlFor="set-zone" className={p.label}>
+                  Bauzone
+                  {zoneOriginLabel(project) && (
+                    <span className={`${zoneBadgeClass(project)} ${s.chipSm}`}>
+                      {zoneOriginLabel(project)}
+                    </span>
+                  )}
+                </label>
+                <input
+                  id="set-zone"
+                  type="text"
+                  value={bauzone}
+                  onChange={(e) => setBauzone(e.target.value)}
+                  placeholder="z.B. W2"
+                  className={`${p.input} ${zoneAttention ? s.zoneWarn : ""}`}
+                />
+                <p className={zoneAttention ? s.helpWarn : s.help}>
+                  {zoneAttention
+                    ? project?.bauzone
+                      ? "Der ÖREB-Auszug lässt keinen sicheren Schluss zu. Bitte bestätigen oder korrigieren."
+                      : "Keine sichere Zone aus dem ÖREB-Kataster. Bitte von Hand eintragen."
+                    : project?.zone_source === "oereb"
+                      ? "Automatisch aus dem ÖREB-Kataster. Eine Änderung hier gilt als manuelle Zone und überschreibt den Auszug."
+                      : "Eine hier gesetzte Zone gilt als manuell und hat Vorrang vor dem ÖREB-Auszug."}
+                </p>
+                {zoneAttention && project?.bauzone && bauzone.trim() === project.bauzone && (
+                  <button type="button" onClick={confirmZone} className={`${p.btnGhost} ${p.btnSm}`} style={{ marginTop: 10 }}>
+                    Vorschlag bestätigen
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <span className={p.label}>Domain</span>
+              <div className={`${s.value} ${s.valueMuted}`}>Bau / Architektur</div>
+            </div>
+
+            {error && (
+              <p className={s.alertErr} role="alert">{error}</p>
+            )}
+            {success && (
+              <p className={s.alertOk} role="status">
+                Einstellungen gespeichert.
+              </p>
+            )}
+
+            <div className={s.formFoot}>
               <button
-                type="button"
-                disabled={savingParcel}
-                onClick={() => saveParcel(pendingParcel)}
-                className="bg-[#2862D7] hover:bg-[#3470E8] text-white py-1.5 px-3 rounded-lg text-xs font-medium disabled:opacity-50 transition-colors"
+                type="submit"
+                disabled={saving}
+                className={`${p.btnNavy} ${s.btnFull}`}
               >
-                {savingParcel ? "ÖREB-Auszug wird abgerufen…" : "Diese Parzelle übernehmen"}
-              </button>
-              <button
-                type="button"
-                disabled={savingParcel}
-                onClick={() => setPendingParcel(null)}
-                className="text-[#ABAEBB] border border-[rgba(133,166,233,0.25)] py-1.5 px-3 rounded-lg text-xs font-medium disabled:opacity-50"
-              >
-                Verwerfen
+                {saving ? "Wird gespeichert…" : "Speichern"}
               </button>
             </div>
           </div>
-        )}
-        {savingParcel && !pendingParcel && <p role="status" className="text-xs text-[#7B8299]">ÖREB-Auszug wird abgerufen…</p>}
-        {parcelError && <p role="alert" className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{parcelError}</p>}
-      </section>
+        </form>
 
-      <form onSubmit={handleSave} className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-5 space-y-4">
-        <div>
-          <label className="block text-xs font-medium text-[#7B8299] mb-1">Projektname</label>
-          <input
-            type="text"
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputCls}
+        <section className={`${p.glassFlat} ${p.card} ${s.danger}`}>
+          <CardHead
+            icon={<Icon><path d="M12 3.5 2.8 19.5h18.4L12 3.5z" /><path d="M12 10v4.5M12 17.2h.01" /></Icon>}
+            title="Gefahrenzone"
           />
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Kanton</label>
-            <select value={canton} onChange={(e) => setCanton(e.target.value)} className={`${inputCls} appearance-none`}>
-              {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Gemeinde</label>
-            <input
-              type="text"
-              required
-              value={municipality}
-              onChange={(e) => setMunicipality(e.target.value)}
-              className={inputCls}
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">Parzellennummer</label>
-            <input
-              type="text"
-              value={parcelNumber}
-              onChange={(e) => setParcelNumber(e.target.value)}
-              className={inputCls}
-            />
-            {project?.egrid && (parcelNumber.trim() !== (project.parcel_number ?? "") || municipality !== (project.location?.municipality ?? "") || canton !== (project.location?.canton ?? "")) && (
-              <p className="text-[11px] text-amber-400 mt-1 leading-snug">
-                Beim Speichern gilt das Grundstück {project.egrid} nicht mehr. TraceBuild sucht es anhand Ihrer Angaben.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-[#7B8299] mb-1">
-              Bauzone
-              {zoneOriginLabel(project) && (
-                <span className={`ml-2 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${zoneBadgeClass(project)}`}>
-                  {zoneOriginLabel(project)}
-                </span>
-              )}
-            </label>
-            <input
-              type="text"
-              value={bauzone}
-              onChange={(e) => setBauzone(e.target.value)}
-              placeholder="z.B. W2"
-              className={`${inputCls} ${zoneNeedsAttention(project) ? "!border-amber-400/60" : ""}`}
-            />
-            <p className={`text-[11px] mt-1 leading-snug ${zoneNeedsAttention(project) ? "text-amber-400" : "text-[#7B8299]"}`}>
-              {zoneNeedsAttention(project)
-                ? project?.bauzone
-                  ? "Der ÖREB-Auszug lässt keinen sicheren Schluss zu. Bitte bestätigen oder korrigieren."
-                  : "Keine sichere Zone aus dem ÖREB-Kataster. Bitte von Hand eintragen."
-                : project?.zone_source === "oereb"
-                  ? "Automatisch aus dem ÖREB-Kataster. Eine Änderung hier gilt als manuelle Zone und überschreibt den Auszug."
-                  : "Eine hier gesetzte Zone gilt als manuell und hat Vorrang vor dem ÖREB-Auszug."}
-            </p>
-            {zoneNeedsAttention(project) && project?.bauzone && bauzone.trim() === project.bauzone && (
-              <button type="button" onClick={confirmZone} className="mt-1 text-xs font-medium text-[#85A6E9] hover:text-white transition-colors">
-                Vorschlag bestätigen
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-xs font-medium text-[#7B8299] mb-1">Domain</label>
-          <div className="border border-[rgba(60,63,68,0.5)] rounded-lg px-3 py-2 text-sm bg-[rgba(60,63,68,0.3)] text-[#7B8299]">
-            Bau / Architektur
-          </div>
-        </div>
-
-        {error && (
-          <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>
-        )}
-        {success && (
-          <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-            Einstellungen gespeichert.
+          <p className={s.dangerText}>
+            Das Löschen eines Projekts entfernt alle zugehörigen Dokumente und Analysen unwiderruflich.
           </p>
-        )}
-
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-[#2862D7] hover:bg-[#3470E8] text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
-        >
-          {saving ? "Wird gespeichert…" : "Speichern"}
-        </button>
-      </form>
-
-      <div className="bg-[#172540] border border-red-500/20 rounded-xl p-5 mt-4">
-        <h3 className="text-sm font-medium text-white mb-1">Gefahrenzone</h3>
-        <p className="text-xs text-[#7B8299] mb-4">
-          Das Löschen eines Projekts entfernt alle zugehörigen Dokumente und Analysen unwiderruflich.
-        </p>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 py-2 px-4 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
-        >
-          {deleting ? "Wird gelöscht…" : "Projekt löschen"}
-        </button>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={deleting}
+            className={p.btnDanger}
+          >
+            {deleting ? "Wird gelöscht…" : "Projekt löschen"}
+          </button>
+        </section>
       </div>
-    </div>
+    </>
   );
 }

@@ -8,6 +8,8 @@ import OerebStatusNotice from "./OerebStatusNotice";
 import ZoneEditor from "./ZoneEditor";
 import { useOerebSync } from "./useOerebDocumentSync";
 import { useOrgRole } from "./useOrgRole";
+import p from "@/app/projects/project.module.css";
+import g from "./project-geo.module.css";
 
 interface ProjectRow extends ZoneRef {
   location: { canton?: string; municipality?: string } | null;
@@ -21,14 +23,24 @@ interface OerebView {
   oereb_pdf_url?: string | null;
 }
 
-const LINK: React.CSSProperties = { fontSize: 12, color: "#85A6E9", textDecoration: "none" };
-
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", gap: 10, alignItems: "baseline", flexWrap: "wrap" }}>
-      <dt style={{ flex: "0 0 150px", fontSize: 12, color: "#7B8299" }}>{label}</dt>
-      <dd style={{ flex: "1 1 180px", minWidth: 0, margin: 0, fontSize: 13, color: "#ABAEBB", lineHeight: 1.45, overflowWrap: "anywhere" }}>{children}</dd>
+    <div className={g.dlRow}>
+      <dt className={g.dt}>{label}</dt>
+      <dd className={g.dd}>{children}</dd>
     </div>
+  );
+}
+
+function InfoLine({ warn = false, children }: { warn?: boolean; children: React.ReactNode }) {
+  return (
+    <p className={`${g.infoLine} ${warn ? g.infoLineWarn : ""}`}>
+      <svg aria-hidden="true" focusable="false" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 11v5M12 8h.01" />
+      </svg>
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -42,16 +54,10 @@ function buildingLine(b: GeodataResponse["data"]["buildings"][number]): string {
   ].filter(Boolean).join(" · ");
 }
 
-/**
- * Grundstück im Projekt: Bauzone, ÖREB-Status, Zusatzdaten, Links, Quellen und «Neu laden».
- * Die Geodaten haben keine Rechtswirkung; massgebend bleibt der ÖREB-Auszug.
- */
 export default function ProjectGeoPanel({ projectId, defaultOpen = false, showZoneEditor = true, onChanged }: {
   projectId: string;
   defaultOpen?: boolean;
-  /** In den Einstellungen gibt es dafür das eigene Feld. */
   showZoneEditor?: boolean;
-  /** Zone oder Auszug haben sich geändert. */
   onChanged?: () => void;
 }) {
   const { isAdmin } = useOrgRole();
@@ -67,16 +73,16 @@ export default function ProjectGeoPanel({ projectId, defaultOpen = false, showZo
   const [open, setOpen] = useState(defaultOpen);
 
   const load = useCallback(async () => {
-    const [p, o, g] = await Promise.allSettled([
+    const [pr, o, ge] = await Promise.allSettled([
       api.get<ProjectRow>(`/projects/${projectId}`),
       api.get<OerebView>(`/projects/${projectId}/oereb`),
       api.get<GeodataResponse>(`/projects/${projectId}/geodata`),
     ]);
-    if (p.status === "fulfilled") setProject(p.value);
+    if (pr.status === "fulfilled") setProject(pr.value);
     if (o.status === "fulfilled") { setOereb(o.value); setOerebError(null); }
     else setOerebError(o.reason instanceof Error ? o.reason.message : "Unbekannter Fehler");
-    if (g.status === "fulfilled") { setGeo(g.value); setGeoError(null); }
-    else setGeoError(g.reason instanceof Error ? g.reason.message : "Unbekannter Fehler");
+    if (ge.status === "fulfilled") { setGeo(ge.value); setGeoError(null); }
+    else setGeoError(ge.reason instanceof Error ? ge.reason.message : "Unbekannter Fehler");
     setLoading(false);
   }, [projectId]);
 
@@ -85,14 +91,14 @@ export default function ProjectGeoPanel({ projectId, defaultOpen = false, showZo
   async function handleReload() {
     setReloading(true);
     setReloadNote(null);
-    const [o, g] = await Promise.allSettled([
+    const [o, ge] = await Promise.allSettled([
       api.post<OerebView & OerebRefreshExtras & OerebReloadResponse>(`/projects/${projectId}/oereb`, { force: true }),
       api.post<GeodataResponse>(`/projects/${projectId}/geodata`, { force: true }),
     ]);
     const reason = (r: PromiseRejectedResult) => (r.reason instanceof Error && r.reason.message) || "Bitte in einer halben Minute erneut versuchen.";
     const notes: string[] = [];
     if (o.status === "rejected") notes.push(`ÖREB-Auszug nicht neu geladen: ${reason(o)}`);
-    if (g.status === "rejected") notes.push(`Zusatzdaten nicht neu geladen: ${reason(g)}`);
+    if (ge.status === "rejected") notes.push(`Zusatzdaten nicht neu geladen: ${reason(ge)}`);
     await load();
     setReloading(false);
     if (o.status === "fulfilled") {
@@ -105,7 +111,7 @@ export default function ProjectGeoPanel({ projectId, defaultOpen = false, showZo
   }
 
   function handleZoneSaved(zone: string) {
-    setProject((p) => (p ? { ...p, bauzone: zone, zone_source: "manual", zone_confidence: null } : p));
+    setProject((prev) => (prev ? { ...prev, bauzone: zone, zone_source: "manual", zone_confidence: null } : prev));
     onChanged?.();
   }
 
@@ -121,149 +127,148 @@ export default function ProjectGeoPanel({ projectId, defaultOpen = false, showZo
   const extractDate = formatDate(extract?.fetched_at);
   const staleError = status === "ok" ? extract?.last_error ?? null : null;
   const hasLinks = !!(geo?.links.geoportal || geo?.links.canton_portal || pdfUrl);
+  const zoneWarn = lowZone || zone?.zone_confidence === "coarse";
 
   return (
-    <section aria-label="Grundstück" style={{ marginBottom: 24, background: "rgba(23,37,64,0.55)", border: `1px solid ${attention ? "rgba(251,191,36,0.35)" : "rgba(133,166,233,0.18)"}`, borderRadius: 14, padding: "14px 16px" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: "#fff", margin: 0 }}>Grundstück</h3>
-          {project?.parcel_number && (
-            <span style={{ fontSize: 11, background: "rgba(133,166,233,0.1)", color: "#ABAEBB", padding: "2px 8px", borderRadius: 100 }}>
-              Parzelle {project.parcel_number}
-            </span>
-          )}
-          {egrid && (
-            <span title="Eidgenössischer Grundstücksidentifikator" style={{ fontSize: 11, background: "rgba(133,166,233,0.1)", color: "#7B8299", padding: "2px 8px", borderRadius: 100, fontFamily: "monospace" }}>
-              {egrid}
-            </span>
-          )}
-          {zone?.bauzone && (
-            <span style={{ fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 100, background: lowZone || zone.zone_confidence === "coarse" ? "rgba(251,191,36,0.12)" : "rgba(40,98,215,0.12)", color: lowZone || zone.zone_confidence === "coarse" ? "#FBBF24" : "#85A6E9" }}>
-              Zone {zone.bauzone}{origin ? ` · ${origin}` : ""}
-            </span>
-          )}
-        </div>
-        <button
-          type="button"
-          onClick={handleReload}
-          disabled={reloading || loading}
-          style={{ display: "inline-flex", alignItems: "center", gap: 6, minHeight: 32, padding: "5px 12px", borderRadius: 8, fontSize: 12, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", cursor: reloading ? "not-allowed" : "pointer", opacity: reloading ? 0.6 : 1, fontFamily: "inherit", whiteSpace: "nowrap" }}
-        >
-          <svg aria-hidden="true" className={reloading ? "animate-spin" : ""} style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    <section aria-label="Grundstück" className={`${p.glass} ${g.geoCard} ${attention ? g.geoCardAttention : ""}`}>
+      <div className={g.geoPlan} aria-hidden="true" />
+      <div className={g.geoLayout}>
+        <span className={`${p.iconTile} ${g.geoTile}`} aria-hidden="true">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" focusable="false">
+            <path d="m12 3.5 8.5 4.5-8.5 4.5L3.5 8z" />
+            <path d="m3.5 12 8.5 4.5 8.5-4.5" />
+            <path d="m3.5 16 8.5 4.5 8.5-4.5" />
           </svg>
-          {reloading ? "Wird geladen…" : "Neu laden"}
-        </button>
-      </div>
-
-      <p role="status" aria-live="polite" style={{ fontSize: 12, color: "#7B8299", margin: reloadNote ? "6px 0 0" : 0 }}>{reloadNote}</p>
-
-      {loading ? (
-        <p style={{ fontSize: 12, color: "#7B8299", margin: "8px 0 0" }}>Wird geladen…</p>
-      ) : (
-        <>
-          {/* ÖREB-Status: nie ein stilles Leerfeld */}
-          <div style={{ marginTop: 10 }}>
-            {oerebError ? (
-              <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0 }}>Der Stand des ÖREB-Auszugs konnte nicht geladen werden. Bitte «Neu laden» versuchen.</p>
-            ) : !status ? (
-              <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0 }}>
-                {project?.parcel_number || egrid
-                  ? "Noch kein ÖREB-Auszug. «Neu laden» ruft ihn ab."
-                  : "Ohne Parzelle gibt es keinen ÖREB-Auszug. Die Parzelle lässt sich in den Einstellungen wählen."}
-              </p>
-            ) : status !== "ok" ? (
-              <OerebStatusNotice status={status} canton={canton} detail={extract?.status_detail} pdfUrl={pdfUrl} attemptAt={extract?.last_attempt_at ?? extract?.fetched_at} projectId={projectId} isAdmin={isAdmin} hideChoose={!showZoneEditor} />
-            ) : (
-              <p style={{ fontSize: 12, color: staleError ? "#FBBF24" : "#ABAEBB", margin: 0, lineHeight: 1.45 }}>
-                {staleError
-                  ? `Die letzte Aktualisierung ist fehlgeschlagen. Es gilt der ÖREB-Auszug vom ${extractDate ?? "unbekannten Datum"}. Bitte später neu laden.`
-                  : `ÖREB-Auszug vom ${extractDate ?? "unbekannten Datum"}.`}
-              </p>
-            )}
+        </span>
+        <div className={g.geoMain}>
+          <div className={g.geoTop}>
+            <div className={g.geoTitleRow}>
+              <h2 className={g.geoTitle}>Grundstück</h2>
+              {project?.parcel_number && (
+                <span className={p.chip}>Parzelle {project.parcel_number}</span>
+              )}
+              {egrid && (
+                <span className={`${p.chip} ${g.mono}`} title="Eidgenössischer Grundstücksidentifikator">{egrid}</span>
+              )}
+              {zone?.bauzone && (
+                <span className={zoneWarn ? p.chipWarn : p.chip}>
+                  Zone {zone.bauzone}{origin ? ` · ${origin}` : ""}
+                </span>
+              )}
+            </div>
+            <button type="button" onClick={handleReload} disabled={reloading || loading} className={`${p.btnGhost} ${p.btnSm}`}>
+              <svg aria-hidden="true" focusable="false" className={reloading ? "animate-spin" : ""} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+              {reloading ? "Wird geladen…" : "Neu laden"}
+            </button>
           </div>
 
-          {/* Keine sichere Zone */}
-          {attention && (
-            <div style={{ marginTop: 10, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 10, padding: "10px 12px" }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>
-                {lowZone ? `Bauzone unsicher, bitte prüfen: ${zone?.bauzone} ist nur ein Vorschlag` : "Bauzone nicht bekannt"}
-              </p>
-              <p style={{ fontSize: 12, color: "#ABAEBB", margin: "2px 0 8px", lineHeight: 1.45 }}>
-                {lowZone
-                  ? "Der Auszug lässt keinen sicheren Schluss zu. Die Zone gilt nicht als gesichert, bis sie bestätigt oder korrigiert ist; sie bestimmt, welche Normen geladen werden."
-                  : "TraceBuild konnte keine sichere Zone ermitteln. Bitte von Hand eintragen; die Zone bestimmt, welche Normen geladen werden."}
-              </p>
-              {!showZoneEditor ? null : isAdmin ? (
-                <ZoneEditor projectId={projectId} initial={zone?.bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(251,191,36,0.3)" proposal={lowZone} />
-              ) : (
-                <p style={{ fontSize: 12, color: "#7B8299", margin: 0 }}>{lowZone ? "Bestätigen oder korrigieren kann die Zone ein Organisations-Admin, hier oder in den Einstellungen." : "Die Zone kann ein Organisations-Admin hier oder in den Einstellungen eintragen."}</p>
-              )}
-            </div>
-          )}
+          <p role="status" aria-live="polite" className={`${g.note} ${reloadNote ? g.noteGap : ""}`}>{reloadNote}</p>
 
-          <button
-            type="button"
-            aria-expanded={open}
-            onClick={() => setOpen((v) => !v)}
-            style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, minHeight: 28, background: "none", border: "none", padding: 0, cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: "#85A6E9" }}
-          >
-            <svg aria-hidden="true" style={{ width: 11, height: 11, transform: open ? "rotate(90deg)" : "none", transition: "transform .15s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-            </svg>
-            Zusatzdaten und Links
-          </button>
-
-          {open && (
-            <div style={{ marginTop: 8 }}>
-              {geoError && !geo ? (
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0 }}>Die Zusatzdaten sind zurzeit nicht verfügbar. Bitte später neu laden.</p>
-              ) : geo?.status === "no_location" ? (
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0 }}>Ohne Standort gibt es keine Zusatzdaten. Bitte die Parzelle in den Einstellungen über die Suche wählen.</p>
-              ) : geo?.status === "unavailable" && !geo.fetched_at ? (
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0 }}>Die Bundesdienste antworten zurzeit nicht. Bitte später neu laden.</p>
-              ) : geo ? (
-                <dl style={{ margin: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                  <Row label="Höhe">{geo.data.height_m !== null ? `${Math.round(geo.data.height_m).toLocaleString("de-CH")} m ü. M.` : "nicht ermittelt"}</Row>
-                  <Row label="ÖV-Güteklasse">{geo.data.oev_class ?? "keine Güteklasse am Referenzpunkt"}</Row>
-                  <Row label="ISOS">
-                    {geo.data.isos.length === 0 ? "kein ISOS-Perimeter am Referenzpunkt" : geo.data.isos.map((i) => (
-                      <span key={i.number} style={{ display: "block" }}>
-                        {i.url ? <a href={i.url} target="_blank" rel="noreferrer" style={LINK}>{i.name} ↗</a> : i.name}
-                        {i.category ? ` (${i.category})` : ""}
-                      </span>
-                    ))}
-                  </Row>
-                  <Row label="Gebäude (GWR)">
-                    {geo.data.buildings.length === 0 ? "kein Gebäude im GWR erfasst" : geo.data.buildings.map((b) => (
-                      <span key={b.egid} style={{ display: "block" }}>{buildingLine(b)}</span>
-                    ))}
-                  </Row>
-                </dl>
-              ) : null}
-
-              {geo && geo.errors.length > 0 && (
-                <p style={{ fontSize: 11, color: "#FBBF24", margin: "8px 0 0", lineHeight: 1.45, overflowWrap: "anywhere" }}>
-                  Unvollständig: {geo.errors.map((e) => `${e.source}: ${e.message}`).join(" · ")}. Bei diesen Daten gilt der letzte Stand, falls vorhanden.
-                </p>
-              )}
-
-              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 10 }}>
-                {geo?.links.geoportal && <a href={geo.links.geoportal} target="_blank" rel="noreferrer" style={LINK}>Geoportal des Bundes ↗</a>}
-                {geo?.links.canton_portal && <a href={geo.links.canton_portal} target="_blank" rel="noreferrer" style={LINK}>Kantonales Portal ↗</a>}
-                {pdfUrl && <a href={pdfUrl} target="_blank" rel="noreferrer" style={LINK}>Amtlicher ÖREB-Auszug (PDF) ↗</a>}
-                {!hasLinks && <span style={{ fontSize: 12, color: "#7B8299" }}>Links erscheinen, sobald das Grundstück bekannt ist.</span>}
+          {loading ? (
+            <p className={`${g.note} ${g.noteGap}`}>Wird geladen…</p>
+          ) : (
+            <>
+              <div>
+                {oerebError ? (
+                  <InfoLine>Der Stand des ÖREB-Auszugs konnte nicht geladen werden. Bitte «Neu laden» versuchen.</InfoLine>
+                ) : !status ? (
+                  <InfoLine>
+                    {project?.parcel_number || egrid
+                      ? "Noch kein ÖREB-Auszug. «Neu laden» ruft ihn ab."
+                      : "Ohne Parzelle gibt es keinen ÖREB-Auszug. Die Parzelle lässt sich in den Einstellungen wählen."}
+                  </InfoLine>
+                ) : status !== "ok" ? (
+                  <div className={g.block}>
+                    <OerebStatusNotice status={status} canton={canton} detail={extract?.status_detail} pdfUrl={pdfUrl} attemptAt={extract?.last_attempt_at ?? extract?.fetched_at} projectId={projectId} isAdmin={isAdmin} hideChoose={!showZoneEditor} />
+                  </div>
+                ) : (
+                  <InfoLine warn={!!staleError}>
+                    {staleError
+                      ? `Die letzte Aktualisierung ist fehlgeschlagen. Es gilt der ÖREB-Auszug vom ${extractDate ?? "unbekannten Datum"}. Bitte später neu laden.`
+                      : `ÖREB-Auszug vom ${extractDate ?? "unbekannten Datum"}.`}
+                  </InfoLine>
+                )}
               </div>
 
-              <p style={{ fontSize: 11, color: "#7B8299", margin: "10px 0 0", lineHeight: 1.45 }}>
-                {geo?.fetched_at ? `Stand ${formatDate(geo.fetched_at)}. ` : ""}
-                {geo?.sources.length ? `Quellen: ${geo.sources.join(", ")}. ` : ""}
-                Ohne Rechtswirkung, der ÖREB-Auszug geht vor.
-              </p>
-            </div>
+              {attention && (
+                <div className={g.attention}>
+                  <p className={g.attentionTitle}>
+                    {lowZone ? `Bauzone unsicher, bitte prüfen: ${zone?.bauzone} ist nur ein Vorschlag` : "Bauzone nicht bekannt"}
+                  </p>
+                  <p className={g.attentionText}>
+                    {lowZone
+                      ? "Der Auszug lässt keinen sicheren Schluss zu. Die Zone gilt nicht als gesichert, bis sie bestätigt oder korrigiert ist; sie bestimmt, welche Normen geladen werden."
+                      : "TraceBuild konnte keine sichere Zone ermitteln. Bitte von Hand eintragen; die Zone bestimmt, welche Normen geladen werden."}
+                  </p>
+                  {!showZoneEditor ? null : isAdmin ? (
+                    <ZoneEditor projectId={projectId} initial={zone?.bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(251,191,36,0.3)" proposal={lowZone} />
+                  ) : (
+                    <p className={g.note}>{lowZone ? "Bestätigen oder korrigieren kann die Zone ein Organisations-Admin, hier oder in den Einstellungen." : "Die Zone kann ein Organisations-Admin hier oder in den Einstellungen eintragen."}</p>
+                  )}
+                </div>
+              )}
+
+              <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className={g.expander}>
+                <svg aria-hidden="true" focusable="false" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? "rotate(90deg)" : "none" }}>
+                  <path d="M9 5l7 7-7 7" />
+                </svg>
+                Zusatzdaten und Links
+              </button>
+
+              {open && (
+                <div className={g.details}>
+                  {geoError && !geo ? (
+                    <p className={g.note}>Die Zusatzdaten sind zurzeit nicht verfügbar. Bitte später neu laden.</p>
+                  ) : geo?.status === "no_location" ? (
+                    <p className={g.note}>Ohne Standort gibt es keine Zusatzdaten. Bitte die Parzelle in den Einstellungen über die Suche wählen.</p>
+                  ) : geo?.status === "unavailable" && !geo.fetched_at ? (
+                    <p className={g.note}>Die Bundesdienste antworten zurzeit nicht. Bitte später neu laden.</p>
+                  ) : geo ? (
+                    <dl className={g.dl}>
+                      <Row label="Höhe">{geo.data.height_m !== null ? `${Math.round(geo.data.height_m).toLocaleString("de-CH")} m ü. M.` : "nicht ermittelt"}</Row>
+                      <Row label="ÖV-Güteklasse">{geo.data.oev_class ?? "keine Güteklasse am Referenzpunkt"}</Row>
+                      <Row label="ISOS">
+                        {geo.data.isos.length === 0 ? "kein ISOS-Perimeter am Referenzpunkt" : geo.data.isos.map((i) => (
+                          <span key={i.number} className={g.block1}>
+                            {i.url ? <a href={i.url} target="_blank" rel="noreferrer" className={g.link}>{i.name} ↗</a> : i.name}
+                            {i.category ? ` (${i.category})` : ""}
+                          </span>
+                        ))}
+                      </Row>
+                      <Row label="Gebäude (GWR)">
+                        {geo.data.buildings.length === 0 ? "kein Gebäude im GWR erfasst" : geo.data.buildings.map((b) => (
+                          <span key={b.egid} className={g.block1}>{buildingLine(b)}</span>
+                        ))}
+                      </Row>
+                    </dl>
+                  ) : null}
+
+                  {geo && geo.errors.length > 0 && (
+                    <p className={g.smallWarn}>
+                      Unvollständig: {geo.errors.map((e) => `${e.source}: ${e.message}`).join(" · ")}. Bei diesen Daten gilt der letzte Stand, falls vorhanden.
+                    </p>
+                  )}
+
+                  <div className={g.links}>
+                    {geo?.links.geoportal && <a href={geo.links.geoportal} target="_blank" rel="noreferrer" className={g.link}>Geoportal des Bundes ↗</a>}
+                    {geo?.links.canton_portal && <a href={geo.links.canton_portal} target="_blank" rel="noreferrer" className={g.link}>Kantonales Portal ↗</a>}
+                    {pdfUrl && <a href={pdfUrl} target="_blank" rel="noreferrer" className={g.link}>Amtlicher ÖREB-Auszug (PDF) ↗</a>}
+                    {!hasLinks && <span className={g.note}>Links erscheinen, sobald das Grundstück bekannt ist.</span>}
+                  </div>
+
+                  <p className={g.small}>
+                    {geo?.fetched_at ? `Stand ${formatDate(geo.fetched_at)}. ` : ""}
+                    {geo?.sources.length ? `Quellen: ${geo.sources.join(", ")}. ` : ""}
+                    Ohne Rechtswirkung, der ÖREB-Auszug geht vor.
+                  </p>
+                </div>
+              )}
+            </>
           )}
-        </>
-      )}
+        </div>
+      </div>
     </section>
   );
 }

@@ -1,0 +1,316 @@
+.section {
+  margin-bottom: 24px;
+}
+
+.sectionHeading {
+  margin: 0 0 12px;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.catCard {
+  padding: 18px clamp(16px, 2vw, 24px);
+}
+
+.catHead {
+  margin-bottom: 12px;
+}
+
+.kennRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.kennRow + .kennRow {
+  border-top: 1px solid var(--line);
+}
+
+.kennText {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.refLink {
+  flex-shrink: 0;
+  max-width: 40%;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: right;
+  color: var(--info-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.refPlain {
+  flex-shrink: 0;
+  max-width: 40%;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: right;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.msgCard {
+  padding: 18px clamp(16px, 2vw, 24px);
+}
+
+.msgText {
+  margin: 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.msgErr {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--err-text);
+}
+
+.errCard {
+  box-shadow:
+    inset 0 1px 0 rgba(252, 247, 238, 0.85),
+    inset 0 0 0 2px rgba(216, 121, 121, 0.45),
+    0 14px 30px -24px rgba(140, 42, 42, 0.3);
+}
+
+.skelCard {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 18px clamp(16px, 2vw, 24px);
+}
+
+.empty {
+  padding: 56px 24px;
+  text-align: center;
+}
+
+.emptyTitle {
+  margin: 14px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.emptySub {
+  margin: 4px 0 0;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.split {
+  display: grid;
+  grid-template-columns: minmax(320px, 1fr) minmax(0, 1.25fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.previewWrap {
+  position: sticky;
+  top: 20px;
+  min-width: 0;
+}
+
+.preview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: min(720px, calc(100dvh - 60px));
+  overflow: hidden;
+}
+
+.previewHead {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(240, 230, 214, 0.5);
+  color: var(--ink);
+}
+
+.previewTitle {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.frame {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fffaf1;
+}
+
+.previewEmpty {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.previewEmpty p {
+  margin: 0;
+  padding: 0 24px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  top: 49px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(243, 233, 218, 0.7);
+}
+
+.spinner {
+  width: 26px;
+  height: 26px;
+  border: 3px solid var(--navy);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.tableHead {
+  margin: 0 0 12px;
+}
+
+.titleCell {
+  font-weight: 700;
+  color: var(--ink);
+  min-width: 140px;
+}
+
+.tdLink {
+  color: var(--info-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  overflow-wrap: anywhere;
+}
+
+.relChip {
+  white-space: normal;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+@media (max-width: 1100px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+
+  .previewWrap {
+    position: static;
+  }
+
+  .preview {
+    height: min(560px, 80dvh);
+  }
+}
+
+@media (max-width: 720px) {
+  .kennRow {
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .refLink,
+  .refPlain {
+    max-width: 100%;
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
+.section {
+  margin-top: 12px;
+}
+
+.tableHead {
+  margin-top: 12px;
+}
+
+@media (max-width: 720px) {
+  .refLink {
+    display: inline-block;
+    padding: 8px 0;
+    overflow-wrap: anywhere;
+  }
+
+  .tdLink {
+    display: inline-block;
+    padding: 6px 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .srcTable,
+  .srcTable tbody,
+  .srcTable tr,
+  .srcTable td {
+    display: block;
+    width: 100%;
+  }
+
+  .srcTable thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+  }
+
+  .srcTable tr {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .srcTable tr:last-child {
+    border-bottom: 0;
+  }
+
+  .srcTable td {
+    padding: 2px 0;
+    border-bottom: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .srcTable .titleCell {
+    min-width: 0;
+    font-size: 16px;
+  }
+}

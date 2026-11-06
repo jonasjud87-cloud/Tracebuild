@@ -37,36 +37,33 @@ import {
   CONFIDENCE_LABELS,
 } from "@/lib/domains/bau";
 
-// ── Config ────────────────────────────────────────────────────────────────────
+import ProjectBanner from "@/components/project/ProjectBanner";
+import p from "@/app/projects/project.module.css";
+import g from "@/components/project-geo.module.css";
+import a from "./analysis.module.css";
 
 const S = {
-  ok:   { label: "Konform",  title: "Konforme Punkte", color: "#4ADE80", bg: "rgba(74,222,128,0.08)",  border: "rgba(74,222,128,0.2)"  },
-  fail: { label: "Verstoss", title: "Verstösse",        color: "#F87171", bg: "rgba(248,113,113,0.08)", border: "rgba(248,113,113,0.2)" },
-  warn: { label: "Unklar",   title: "Unklare Punkte",   color: "#FBBF24", bg: "rgba(251,191,36,0.08)",  border: "rgba(251,191,36,0.2)"  },
+  ok:   { label: "Konform",  title: "Konforme Punkte", chip: p.chipOk,   tone: a.toneOk,   text: "var(--ok-text)",  dot: "var(--ok)"  },
+  fail: { label: "Verstoss", title: "Verstösse",        chip: p.chipErr,  tone: a.toneFail, text: "var(--err-text)", dot: "var(--err)" },
+  warn: { label: "Unklar",   title: "Unklare Punkte",   chip: p.chipWarn, tone: a.toneWarn, text: "var(--warn-text)", dot: "var(--warn)" },
 } as const;
 
-const CARD = {
-  background: "rgba(23,37,64,0.55)",
-  border: "1px solid rgba(133,166,233,0.18)",
-  borderRadius: 14,
-};
+const shortDate = (iso: string) => new Date(iso).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" });
 
-const SECONDARY_BTN: React.CSSProperties = {
-  display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#ABAEBB",
-  background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
-  padding: "7px 12px", borderRadius: 8, cursor: "pointer", fontFamily: "inherit",
-  transition: "all .15s", whiteSpace: "nowrap",
-};
-const secondaryHoverIn = (e: React.MouseEvent<HTMLElement>) => {
-  e.currentTarget.style.background = "rgba(40,98,215,0.12)";
-  e.currentTarget.style.borderColor = "#2862D7";
-  e.currentTarget.style.color = "#85A6E9";
-};
-const secondaryHoverOut = (e: React.MouseEvent<HTMLElement>) => {
-  e.currentTarget.style.background = "rgba(133,166,233,0.08)";
-  e.currentTarget.style.borderColor = "rgba(133,166,233,0.18)";
-  e.currentTarget.style.color = "#ABAEBB";
-};
+function Icon({ size = 24, children }: { size?: number; children: React.ReactNode }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      {children}
+    </svg>
+  );
+}
+
+const PlanIcon = <Icon><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M12 4v16M4 12h16" /></Icon>;
+const FolderIcon = <Icon><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2.5h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></Icon>;
+const UploadIcon = <Icon size={28}><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></Icon>;
+const ChevronRight = <Icon size={20}><path d="M9 5l7 7-7 7" /></Icon>;
+const PlusIcon = <Icon size={18}><path d="M12 5v14M5 12h14" /></Icon>;
+
 
 // ── Interfaces ────────────────────────────────────────────────────────────────
 
@@ -109,9 +106,9 @@ function planKey(name: string): string {
 
 const RUN_LOCK_HINT = "Eine weitere Analyse können Sie starten, sobald diese abgeschlossen ist.";
 
-const STATUS_BADGE: Record<string, { label: string; color: string }> = {
-  running: { label: "Läuft",  color: "#85A6E9" },
-  error:   { label: "Fehler", color: "#F87171" },
+const STATUS_BADGE: Record<string, { label: string; color: string; chip: string }> = {
+  running: { label: "Läuft",  color: "var(--info-text)", chip: p.chipInfo },
+  error:   { label: "Fehler", color: "var(--err-text)",  chip: p.chipErr },
 };
 
 interface ProjectInfo {
@@ -165,63 +162,44 @@ function CheckCard({ item }: { item: AnalysisItem }) {
   const title = item.norm_title || CATEGORY_LABELS[item.category as Category] || item.category || "Prüfpunkt";
 
   return (
-    <div style={{
-      background: cfg.bg,
-      border: `1px solid ${cfg.border}`,
-      borderRadius: 12,
-      padding: "14px 16px",
-    }}>
-      <button
-        onClick={() => setExpanded((v) => !v)}
-        style={{
-          width: "100%", display: "flex", alignItems: "center", gap: 12,
-          background: "none", border: "none", padding: 0, margin: 0,
-          cursor: "pointer", fontFamily: "inherit", textAlign: "left",
-        }}
-      >
-        <span style={{
-          display: "inline-flex", alignItems: "center", gap: 6,
-          background: cfg.bg, border: `1px solid ${cfg.border}`,
-          color: cfg.color, fontSize: 11, fontWeight: 600,
-          padding: "3px 8px", borderRadius: 50, flexShrink: 0,
-        }}>
-          <span style={{ width: 6, height: 6, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+    <div className={`${a.check} ${cfg.tone}`}>
+      <button type="button" aria-expanded={expanded} onClick={() => setExpanded((v) => !v)} className={a.checkHead}>
+        <span className={`${cfg.chip} ${a.chipSm}`}>
+          <span className={a.dot} style={{ background: cfg.dot }} />
           {cfg.label}
         </span>
-        <p style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {title}
-        </p>
-        <svg style={{ width: 13, height: 13, color: "#7B8299", flexShrink: 0, transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        <span className={a.checkTitle}>{title}</span>
+        <svg className={a.checkChevron} style={{ transform: expanded ? "rotate(180deg)" : "none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+          <path d="M19 9l-7 7-7-7" />
         </svg>
       </button>
 
       {expanded && (
-        <div style={{ marginTop: 10, paddingLeft: 0 }}>
-          <p style={{ fontSize: 13.5, fontWeight: 500, color: cfg.color, lineHeight: 1.45 }}>{item.note}</p>
+        <div className={a.checkBody}>
+          <p className={a.checkNote} style={{ color: cfg.text }}>{item.note}</p>
 
           {item.suggestion && (
-            <div style={{ marginTop: 8, display: "flex", alignItems: "flex-start", gap: 6 }}>
-              <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0, marginTop: 1 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            <div className={a.suggestion}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
-              <p style={{ fontSize: 13, color: "#ABAEBB", lineHeight: 1.5 }}>{item.suggestion}</p>
+              <p>{item.suggestion}</p>
             </div>
           )}
 
-          <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+          <div className={a.checkMeta}>
             {item.category && (
-              <span style={{ fontSize: 11, background: "rgba(133,166,233,0.1)", color: "#85A6E9", padding: "2px 8px", borderRadius: 50, border: "1px solid rgba(133,166,233,0.2)" }}>
+              <span className={`${p.chipInfo} ${a.chipSm}`}>
                 {CATEGORY_LABELS[item.category as Category] ?? item.category}
               </span>
             )}
             {item.confidence && (
-              <span style={{ fontSize: 11, background: "rgba(23,37,64,0.8)", color: "#7B8299", padding: "2px 8px", borderRadius: 50, border: "1px solid rgba(133,166,233,0.12)" }}>
+              <span className={`${p.chip} ${a.chipSm}`}>
                 Konfidenz: {CONFIDENCE_LABELS[item.confidence as Confidence] ?? item.confidence}
               </span>
             )}
             {(item.source_file || item.page_reference != null) && (
-              <span style={{ fontSize: 11, color: "#7B8299", overflowWrap: "anywhere" }}>
+              <span className={a.source}>
                 {[item.source_file, item.page_reference != null ? `S. ${item.page_reference}` : null].filter(Boolean).join(" · ")}
               </span>
             )}
@@ -236,16 +214,7 @@ function CheckCard({ item }: { item: AnalysisItem }) {
 
 function FilterPill({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        padding: "5px 14px", borderRadius: 50, fontSize: 12, fontWeight: 500,
-        background: active ? "#2862D7" : "rgba(133,166,233,0.08)",
-        color: active ? "#fff" : "#7B8299",
-        border: `1px solid ${active ? "#2862D7" : "rgba(133,166,233,0.15)"}`,
-        cursor: "pointer", transition: "all .15s", fontFamily: "inherit",
-      }}
-    >
+    <button type="button" aria-pressed={active} onClick={onClick} className={`${p.pill} ${active ? p.pillActive : ""}`}>
       {children}
     </button>
   );
@@ -552,7 +521,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     <button
       type="button"
       onClick={(e) => { e.stopPropagation(); skipPreflightRef.current?.(); }}
-      style={{ fontSize: 13, fontWeight: 500, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", padding: "8px 18px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit" }}
+      className={`${p.btnGhost} ${p.btnSm}`}
     >
       Ohne Warten starten
     </button>
@@ -662,35 +631,18 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
     return (
       <div>
-        {/* Header row */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 24 }}>
-          <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: 0 }}>Plan-Analyse</h2>
-            <p style={{ fontSize: 13, color: "#7B8299", marginTop: 3 }}>
-              {allPlanTypes.length === 0
-                ? "Alle Pläne eines Projekts werden gemeinsam geprüft"
-                : `${allPlanTypes.length} Prüfung${allPlanTypes.length !== 1 ? "en" : ""}`}
-            </p>
-          </div>
-          <button
-            onClick={() => setShowNewTypeInput(true)}
-            style={{
-              display: "flex", alignItems: "center", gap: 8,
-              background: "linear-gradient(90deg,#4fd1ff,#38bdf8 55%,#2862D7)",
-              color: "#fff", padding: "9px 18px", borderRadius: 10,
-              fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
-              fontFamily: "inherit", boxShadow: "0 4px 16px rgba(40,98,215,0.35)",
-              transition: "filter .15s",
-            }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)"}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.filter = "none"}
-          >
-            <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Neue Prüfung
-          </button>
-        </div>
+        <ProjectBanner
+          title="Plan-Analyse"
+          subtitle={allPlanTypes.length === 0
+            ? "Alle Pläne eines Projekts werden gemeinsam geprüft"
+            : `${allPlanTypes.length} Prüfung${allPlanTypes.length !== 1 ? "en" : ""}`}
+          actions={
+            <button type="button" onClick={() => setShowNewTypeInput(true)} className={p.btnSand}>
+              {PlusIcon}
+              Neue Prüfung
+            </button>
+          }
+        />
 
         {lockingRun && !uploading && (
           <AnalysisRunProgress
@@ -707,12 +659,12 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
 
         <ProjectGeoPanel projectId={params.id} />
 
-        {/* New type input */}
         {showNewTypeInput && (
-          <div style={{ ...CARD, padding: "14px 16px", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+          <div className={`${p.glassFlat} ${a.newType}`}>
             <input
               type="text"
               autoFocus
+              aria-label="Name der Prüfung"
               value={newTypeName}
               onChange={(e) => setNewTypeName(e.target.value)}
               onKeyDown={(e) => {
@@ -720,50 +672,35 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 if (e.key === "Escape") { setShowNewTypeInput(false); setNewTypeName(""); }
               }}
               placeholder="z.B. Baugesuch, Vorabklärung, Projektänderung…"
-              style={{
-                flex: 1, background: "rgba(23,37,64,0.8)", border: "1px solid rgba(133,166,233,0.25)",
-                borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#fff",
-                outline: "none", fontFamily: "inherit",
-              }}
+              className={`${p.input} ${a.newTypeInput}`}
             />
-            <button
-              onClick={createPlanType}
-              disabled={!newTypeName.trim()}
-              style={{
-                background: "#2862D7", color: "#fff", padding: "8px 16px", borderRadius: 8,
-                fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
-                fontFamily: "inherit", opacity: !newTypeName.trim() ? 0.4 : 1,
-              }}
-            >
+            <button type="button" onClick={createPlanType} disabled={!newTypeName.trim()} className={p.btnNavy}>
               Erstellen
             </button>
             <button
+              type="button"
+              aria-label="Abbrechen"
               onClick={() => { setShowNewTypeInput(false); setNewTypeName(""); }}
-              style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1 }}
+              className={a.closeBtn}
             >
               ×
             </button>
           </div>
         )}
 
-        {/* Offene Punkte panel */}
         {typesWithAnalyses.length > 0 && (
-          <div style={{ ...CARD, marginBottom: 24, overflow: "hidden" }}>
-            <div style={{
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              padding: "12px 16px", borderBottom: "1px solid rgba(133,166,233,0.1)",
-            }}>
-              <button
-                onClick={() => setOverviewOpen((o) => !o)}
-                style={{ display: "flex", alignItems: "center", gap: 8, background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
-              >
-                <svg style={{ width: 12, height: 12, color: "#7B8299", transform: overviewOpen ? "rotate(0deg)" : "rotate(-90deg)", transition: "transform .2s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#7B8299", textTransform: "uppercase", letterSpacing: "0.1em" }}>Offene Punkte</span>
-              </button>
+          <section aria-label="Offene Punkte" className={`${p.glass} ${a.panel}`}>
+            <div className={`${p.sectionHead} ${overviewOpen ? "" : a.headClosed}`}>
+              <h2 className={a.headH2}>
+                <button type="button" aria-expanded={overviewOpen} onClick={() => setOverviewOpen((o) => !o)} className={a.collapse}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" style={{ transform: overviewOpen ? "none" : "rotate(-90deg)", transition: "transform .15s" }}>
+                    <path d="M19 9l-7 7-7-7" />
+                  </svg>
+                  <span className={p.sectionTitle}>Offene Punkte</span>
+                </button>
+              </h2>
               {overviewOpen && (
-                <div style={{ display: "flex", gap: 4 }}>
+                <div className={p.pillRow}>
                   {([
                     { key: "all" as const,  label: `Alle (${totalFail + totalWarn})` },
                     { key: "fail" as const, label: `Verstösse (${totalFail})` },
@@ -777,10 +714,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
               )}
             </div>
             {overviewOpen && (
-              <div style={{ overflowY: "auto", maxHeight: 360 }}>
+              <div className={a.listScroll}>
                 {typesWithAnalyses.map((type) => {
                   const latest = latestByType[planKey(type)];
-                  const count = analyses.filter((a) => planKey(a.planType) === planKey(type)).length;
+                  const count = analyses.filter((x) => planKey(x.planType) === planKey(type)).length;
                   const allItems = latest.items;
                   const visibleItems = allItems.filter(i =>
                     overviewFilter === "all" ? i.status !== "ok" : i.status === overviewFilter
@@ -788,58 +725,42 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   const fCount = allItems.filter(i => i.status === "fail").length;
                   const wCount = allItems.filter(i => i.status === "warn").length;
                   const overallStatus = fCount > 0 ? "kritisch" : wCount > 0 ? "warnung" : "konform";
-                  const badgeColor = { kritisch: "#F87171", warnung: "#FBBF24", konform: "#4ADE80" }[overallStatus];
+                  const badgeChip = { kritisch: p.chipErr, warnung: p.chipWarn, konform: p.chipOk }[overallStatus];
                   const badgeLabel = { kritisch: "Kritisch", warnung: "Warnung", konform: "Konform" }[overallStatus];
 
                   return (
-                    <div key={type} style={{ borderBottom: "1px solid rgba(133,166,233,0.08)" }}>
-                      <button
-                        onClick={() => openPlanType(type)}
-                        style={{
-                          width: "100%", display: "flex", alignItems: "center", gap: 12,
-                          padding: "10px 16px", background: "none", border: "none", cursor: "pointer",
-                          fontFamily: "inherit", textAlign: "left",
-                          transition: "background .15s",
-                        }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.05)"}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "none"}
-                      >
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{type}</span>
-                        <span style={{ fontSize: 11, color: "#7B8299" }}>V{count}</span>
-                        <span style={{ fontSize: 11, color: "#7B8299" }}>
-                          {new Date(latest.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" })}
+                    <div key={type} className={a.group}>
+                      <button type="button" onClick={() => openPlanType(type)} className={p.row}>
+                        <span className={p.iconTile} aria-hidden="true">{PlanIcon}</span>
+                        <span className={p.rowMain}>
+                          <span className={p.rowTitle}>{type}</span>
+                          {visibleItems.length === 0 && (
+                            <span className={p.rowSub}>
+                              {overviewFilter === "fail" ? "Keine Verstösse" : overviewFilter === "warn" ? "Keine Warnungen" : "Alle Prüfpunkte konform"}
+                            </span>
+                          )}
                         </span>
-                        <span style={{ fontSize: 11, fontWeight: 600, color: badgeColor, background: `${badgeColor}18`, border: `1px solid ${badgeColor}40`, padding: "2px 8px", borderRadius: 50, flexShrink: 0 }}>
-                          {badgeLabel}
+                        <span className={p.rowMeta}>
+                          <span>V{count}</span>
+                          <span>{shortDate(latest.created_at)}</span>
+                          <span className={badgeChip}>{badgeLabel}</span>
                         </span>
-                        <svg style={{ width: 12, height: 12, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        <span className={p.rowChevron} aria-hidden="true">{ChevronRight}</span>
                       </button>
-                      {visibleItems.length === 0 ? (
-                        <div style={{ padding: "0 16px 10px" }}>
-                          <p style={{ fontSize: 12, color: "#7B8299", fontStyle: "italic" }}>
-                            {overviewFilter === "fail" ? "Keine Verstösse" : overviewFilter === "warn" ? "Keine Warnungen" : "Alle Prüfpunkte konform"}
-                          </p>
-                        </div>
-                      ) : (
-                        <div style={{ padding: "0 16px 10px", display: "flex", flexDirection: "column", gap: 4 }}>
+                      {visibleItems.length > 0 && (
+                        <div className={a.subList}>
                           {visibleItems.map((item) => {
                             const cfg = S[item.status as keyof typeof S] ?? S.warn;
                             return (
-                              <div key={item.id} style={{ background: cfg.bg, border: `1px solid ${cfg.border}`, borderRadius: 8, padding: "6px 12px", display: "flex", alignItems: "center", gap: 8 }}>
-                                <span style={{ fontSize: 11, fontWeight: 600, color: cfg.color, background: cfg.bg, border: `1px solid ${cfg.border}`, padding: "1px 7px", borderRadius: 50, flexShrink: 0, display: "flex", alignItems: "center", gap: 4 }}>
-                                  <span style={{ width: 5, height: 5, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
+                              <div key={item.id} className={`${a.subItem} ${cfg.tone}`}>
+                                <span className={`${cfg.chip} ${a.chipSm}`}>
+                                  <span className={a.dot} style={{ background: cfg.dot }} />
                                   {cfg.label}
                                 </span>
-                                {item.norm_title && (
-                                  <span style={{ fontSize: 11, color: "#7B8299", flexShrink: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 120 }}>{item.norm_title}</span>
-                                )}
-                                <p style={{ fontSize: 12.5, fontWeight: 500, color: cfg.color, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>{item.note}</p>
-                                <button onClick={() => openPlanType(type)} style={{ background: "none", border: "none", cursor: "pointer", color: "#7B8299", flexShrink: 0 }}>
-                                  <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                  </svg>
+                                {item.norm_title && <span className={a.subNorm}>{item.norm_title}</span>}
+                                <p className={a.subNote} style={{ color: cfg.text }}>{item.note}</p>
+                                <button type="button" aria-label={`${type} öffnen`} onClick={() => openPlanType(type)} className={a.iconBtn}>
+                                  {ChevronRight}
                                 </button>
                               </div>
                             );
@@ -851,92 +772,70 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 })}
               </div>
             )}
-          </div>
+          </section>
         )}
 
-        {/* Plan type grid */}
         {allPlanTypes.length === 0 ? (
-          <div style={{ ...CARD, padding: "64px 16px", textAlign: "center" }}>
-            <div style={{ width: 56, height: 56, background: "rgba(133,166,233,0.1)", borderRadius: 16, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-              <svg style={{ width: 28, height: 28, color: "#7B8299" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-              </svg>
-            </div>
-            <p style={{ fontSize: 14, fontWeight: 600, color: "#ABAEBB", margin: "0 0 4px" }}>Noch keine Prüfung</p>
-            <p style={{ fontSize: 12.5, color: "#7B8299", margin: 0 }}>Laden Sie alle Pläne des Projekts zusammen hoch: Situation, Grundrisse, Schnitte, Fassaden.</p>
-            <button
-              onClick={startDefaultCheck}
-              style={{ marginTop: 16, fontSize: 13, color: "#85A6E9", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}
-            >
+          <div className={`${p.glass} ${a.empty}`}>
+            <span className={p.iconTile} aria-hidden="true">{FolderIcon}</span>
+            <p className={a.emptyTitle}>Noch keine Prüfung</p>
+            <p className={a.emptyText}>Laden Sie alle Pläne des Projekts zusammen hoch: Situation, Grundrisse, Schnitte, Fassaden.</p>
+            <button type="button" onClick={startDefaultCheck} className={`${p.btnNavy} ${p.btnSm}`}>
               + Pläne hochladen
             </button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 14 }}>
+          <div className={a.folderGrid}>
             {allPlanTypes.map((type) => {
               const latest = latestByType[planKey(type)];
               const newest = newestByType[planKey(type)];
               const newestBadge = newest && newest.status !== "done" ? STATUS_BADGE[newest.status] ?? STATUS_BADGE.error : null;
-              const count = analyses.filter((a) => planKey(a.planType) === planKey(type)).length;
+              const count = analyses.filter((x) => planKey(x.planType) === planKey(type)).length;
               const latestItems = latest?.items ?? [];
               const failCount = latestItems.filter((i) => i.status === "fail").length;
               const warnCount = latestItems.filter((i) => i.status === "warn").length;
               const okCount   = latestItems.filter((i) => i.status === "ok").length;
-              const borderColor = !latest
-                ? "rgba(133,166,233,0.18)"
-                : failCount > 0 ? "rgba(248,113,113,0.35)"
-                : warnCount > 0 ? "rgba(251,191,36,0.35)"
-                : "rgba(74,222,128,0.35)";
 
               return (
-                <button
-                  key={type}
-                  onClick={() => openPlanType(type)}
-                  style={{
-                    textAlign: "left", background: "rgba(23,37,64,0.55)", border: `1px solid ${borderColor}`,
-                    borderRadius: 14, padding: "18px", cursor: "pointer", transition: "all .2s",
-                    fontFamily: "inherit",
-                  }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(40,98,215,0.08)"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(23,37,64,0.55)"; (e.currentTarget as HTMLElement).style.transform = "none"; }}
-                >
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 8 }}>
-                    <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", margin: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>{type}</p>
-                    <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0, marginLeft: 8, marginTop: 2 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                  {newestBadge && (
-                    <p style={{ fontSize: 11, fontWeight: 600, color: newestBadge.color, margin: "0 0 8px" }}>
-                      Neueste Version: {newestBadge.label}
-                    </p>
-                  )}
-                  {latest ? (
-                    <>
-                      <p style={{ fontSize: 11.5, color: "#7B8299", marginBottom: 10 }}>
-                        {count} Version{count !== 1 ? "en" : ""} · {new Date(latest.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" })}
-                      </p>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                        {failCount > 0 && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#F87171" }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#F87171" }} />{failCount}
+                <button key={type} type="button" onClick={() => openPlanType(type)} className={`${p.glass} ${a.folderCard}`}>
+                  <span className={p.iconTile} aria-hidden="true">{FolderIcon}</span>
+                  <span className={p.rowMain}>
+                    <span className={p.rowTitle}>{type}</span>
+                    {newestBadge && (
+                      <span className={a.newest} style={{ color: newestBadge.color }}>
+                        Neueste Version: {newestBadge.label}
+                      </span>
+                    )}
+                    {latest ? (
+                      <>
+                        <span className={a.folderSub}>
+                          {count} Version{count !== 1 ? "en" : ""} · {shortDate(latest.created_at)}
+                        </span>
+                        {(failCount > 0 || warnCount > 0) && (
+                          <span className={a.counts}>
+                            {failCount > 0 && (
+                              <span className={a.count} style={{ color: "var(--err-text)" }}>
+                                <span className={a.dot} style={{ background: "var(--err)" }} />{failCount}<span className={p.srOnly}> Verstösse</span>
+                              </span>
+                            )}
+                            {warnCount > 0 && (
+                              <span className={a.count} style={{ color: "var(--warn-text)" }}>
+                                <span className={a.dot} style={{ background: "var(--warn)" }} />{warnCount}<span className={p.srOnly}> Warnungen</span>
+                              </span>
+                            )}
+                            {okCount > 0 && (
+                              <span className={a.count} style={{ color: "var(--ok-text)" }}>
+                                <span className={a.dot} style={{ background: "var(--ok)" }} />{okCount}<span className={p.srOnly}> konform</span>
+                              </span>
+                            )}
                           </span>
                         )}
-                        {warnCount > 0 && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#FBBF24" }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#FBBF24" }} />{warnCount}
-                          </span>
-                        )}
-                        {okCount > 0 && (
-                          <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, fontWeight: 600, color: "#4ADE80" }}>
-                            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ADE80" }} />{okCount}
-                          </span>
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p style={{ fontSize: 12, color: "#7B8299" }}>{newest ? "Noch kein abgeschlossenes Ergebnis" : "Noch keine Pläne hochgeladen"}</p>
-                  )}
+                      </>
+                    ) : (
+                      <span className={a.folderSub}>{newest ? "Noch kein abgeschlossenes Ergebnis" : "Noch keine Pläne hochgeladen"}</span>
+                    )}
+                  </span>
+                  <span className={p.rowChevron} aria-hidden="true">{ChevronRight}</span>
                 </button>
               );
             })}
@@ -960,517 +859,443 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     : items.filter((i) => i.status === detailFilter);
 
   return (
-    <div style={{ display: "flex", gap: 20, minHeight: 520 }}>
-      {/* Sidebar */}
-      <div style={{ width: 212, flexShrink: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-        <button
-          onClick={() => { setView("overview"); setSelectedAnalysis(null); }}
-          style={{
-            display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#7B8299",
-            background: "none", border: "none", cursor: "pointer", fontFamily: "inherit",
-            padding: "4px 0", transition: "color .15s",
-          }}
-          onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ABAEBB"}
-          onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
-        >
-          <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-          Prüfungen
-        </button>
+    <div>
+      <ProjectBanner
+        title={selectedPlanType}
+        subtitle={typeAnalyses.length > 0 ? `Plan-Analyse · ${typeAnalyses.length} Version${typeAnalyses.length !== 1 ? "en" : ""}` : "Plan-Analyse"}
+        actions={
+          <button type="button" onClick={() => { setView("overview"); setSelectedAnalysis(null); }} className={p.btnGhost}>
+            <Icon size={18}><path d="M15 19l-7-7 7-7" /></Icon>
+            Prüfungen
+          </button>
+        }
+      />
 
-        <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", padding: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {selectedPlanType}
-        </p>
-
-        {typeAnalyses.length > 0 && (
-          <>
-            <p style={{ fontSize: 10, fontWeight: 700, color: "#7B8299", textTransform: "uppercase", letterSpacing: "0.1em", padding: "0 0 2px" }}>
-              Versionen · {typeAnalyses.length}
-            </p>
-            {typeAnalyses.map((a, idx) => {
-              const isActive = selectedAnalysis?.id === a.id;
-              const aItems = a.items;
-              const f = aItems.filter((i) => i.status === "fail").length;
-              const w = aItems.filter((i) => i.status === "warn").length;
-              const o = aItems.filter((i) => i.status === "ok").length;
-              return (
-                <div key={a.id} style={{ position: "relative" }}>
-                  <button
-                    onClick={() => { setSelectedAnalysis(a); setDetailFilter("all"); }}
-                    style={{
-                      width: "100%", textAlign: "left", padding: "12px", borderRadius: 12,
-                      border: `1px solid ${isActive ? "#2862D7" : "rgba(133,166,233,0.18)"}`,
-                      background: isActive ? "rgba(40,98,215,0.12)" : "rgba(23,37,64,0.55)",
-                      cursor: "pointer", fontFamily: "inherit", transition: "all .15s",
-                    }}
-                    onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = "rgba(133,166,233,0.4)"; }}
-                    onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.borderColor = "rgba(133,166,233,0.18)"; }}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: isActive ? "#85A6E9" : "#7B8299", margin: 0 }}>
-                        V{typeAnalyses.length - idx}
-                      </p>
-                      <div
-                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === a.id ? null : a.id); }}
-                        style={{ width: 20, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 4, cursor: "pointer", color: "#7B8299" }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.1)"}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "none"}
-                      >
-                        <svg style={{ width: 13, height: 13 }} fill="currentColor" viewBox="0 0 24 24">
-                          <circle cx="12" cy="5" r="1.5" />
-                          <circle cx="12" cy="12" r="1.5" />
-                          <circle cx="12" cy="19" r="1.5" />
-                        </svg>
-                      </div>
-                    </div>
-                    <p style={{ fontSize: 12.5, fontWeight: 500, color: "#fff", margin: 0 }}>
-                      {new Date(a.created_at).toLocaleDateString("de-CH", { day: "2-digit", month: "2-digit", year: "2-digit" })}
-                    </p>
-                    {a.status !== "done" && (
-                      <span style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: (STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color, background: `${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}18`, border: `1px solid ${(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).color}40`, padding: "1px 7px", borderRadius: 50 }}>
-                        {(STATUS_BADGE[a.status] ?? STATUS_BADGE.error).label}
-                      </span>
-                    )}
-                    {a.status === "done" && (a.failedNorms.length > 0 || !!autoPartsWarning(a.autoParts)) && (
-                      <span title={[...a.failedNorms.map((f) => f.norm_title), autoPartsWarning(a.autoParts)].filter(Boolean).join(", ")} style={{ display: "inline-block", marginTop: 6, fontSize: 10, fontWeight: 700, color: "#FBBF24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.3)", padding: "1px 7px", borderRadius: 50 }}>
-                        unvollständig
-                      </span>
-                    )}
-                    {a.status === "done" && aItems.length > 0 && (
-                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                        {f > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#F87171" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#F87171" }} />{f}</span>}
-                        {w > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#FBBF24" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#FBBF24" }} />{w}</span>}
-                        {o > 0 && <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 600, color: "#4ADE80" }}><span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ADE80" }} />{o}</span>}
-                      </div>
-                    )}
-                  </button>
-                  {menuOpenId === a.id && (
-                    <div
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: "absolute", right: 0, top: 4, zIndex: 20,
-                        background: "#0E111B", border: "1px solid rgba(133,166,233,0.18)",
-                        borderRadius: 10, boxShadow: "0 8px 24px rgba(0,0,0,0.4)", padding: "4px 0", minWidth: 148,
-                      }}
-                    >
+      <div className={a.detail}>
+        <div className={a.side}>
+          {typeAnalyses.length > 0 && (
+            <>
+              <p className={a.eyebrow}>Versionen · {typeAnalyses.length}</p>
+              <div className={a.versionList}>
+                {typeAnalyses.map((v, idx) => {
+                  const isActive = selectedAnalysis?.id === v.id;
+                  const aItems = v.items;
+                  const f = aItems.filter((i) => i.status === "fail").length;
+                  const w = aItems.filter((i) => i.status === "warn").length;
+                  const o = aItems.filter((i) => i.status === "ok").length;
+                  const badge = STATUS_BADGE[v.status] ?? STATUS_BADGE.error;
+                  const vLabel = `V${typeAnalyses.length - idx}`;
+                  return (
+                    <div key={v.id} className={a.versionWrap}>
                       <button
-                        onClick={() => { setMenuOpenId(null); deleteAnalysis(a.id); }}
-                        style={{
-                          width: "100%", display: "flex", alignItems: "center", gap: 8, textAlign: "left",
-                          padding: "8px 12px", fontSize: 13, color: "#F87171", background: "none",
-                          border: "none", cursor: "pointer", fontFamily: "inherit", transition: "background .1s",
-                        }}
-                        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = "rgba(248,113,113,0.08)"}
-                        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = "none"}
+                        type="button"
+                        aria-current={isActive ? "true" : undefined}
+                        onClick={() => { setSelectedAnalysis(v); setDetailFilter("all"); }}
+                        className={`${a.versionBtn} ${isActive ? a.versionActive : ""}`}
                       >
-                        <svg style={{ width: 13, height: 13, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        Version löschen
+                        <span className={a.versionNr}>{vLabel}</span>
+                        <span className={a.versionDate}>{shortDate(v.created_at)}</span>
+                        {v.status !== "done" && (
+                          <span className={`${badge.chip} ${a.chipXs}`}>{badge.label}</span>
+                        )}
+                        {v.status === "done" && (v.failedNorms.length > 0 || !!autoPartsWarning(v.autoParts)) && (
+                          <span title={[...v.failedNorms.map((fn) => fn.norm_title), autoPartsWarning(v.autoParts)].filter(Boolean).join(", ")} className={`${p.chipWarn} ${a.chipXs}`}>
+                            unvollständig
+                          </span>
+                        )}
+                        {v.status === "done" && aItems.length > 0 && (
+                          <span className={a.counts}>
+                            {f > 0 && <span className={a.count} style={{ color: "var(--err-text)" }}><span className={a.dot} style={{ background: "var(--err)" }} />{f}<span className={p.srOnly}> Verstösse</span></span>}
+                            {w > 0 && <span className={a.count} style={{ color: "var(--warn-text)" }}><span className={a.dot} style={{ background: "var(--warn)" }} />{w}<span className={p.srOnly}> Warnungen</span></span>}
+                            {o > 0 && <span className={a.count} style={{ color: "var(--ok-text)" }}><span className={a.dot} style={{ background: "var(--ok)" }} />{o}<span className={p.srOnly}> konform</span></span>}
+                          </span>
+                        )}
                       </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      {/* Main area */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        {!selectedAnalysis ? (
-          <>
-            {lockingRun && !uploading ? (
-              <AnalysisRunProgress
-                variant="full"
-                view={runView}
-                title={planKey(lockingRun.planType) !== planKey(selectedPlanType) ? lockingRun.planType : null}
-                notes={[runNote, RUN_LOCK_HINT]}
-                cancelling={cancelling}
-                cancelError={cancelError}
-                onCancel={cancelActiveRun}
-              />
-            ) : (
-            <div
-              onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) handleFiles(e.dataTransfer.files); }}
-              onClick={() => !uploading && pendingFiles.length === 0 && fileRef.current?.click()}
-              style={{
-                width: "100%", border: `2px dashed ${dragOver ? "#2862D7" : "rgba(133,166,233,0.25)"}`,
-                borderRadius: 18, padding: pendingFiles.length > 0 && !uploading ? "28px 16px" : "64px 16px", textAlign: "center", cursor: uploading || pendingFiles.length > 0 ? "default" : "pointer",
-                background: dragOver ? "rgba(40,98,215,0.08)" : "rgba(23,37,64,0.3)",
-                transition: "all .2s", boxSizing: "border-box",
-              }}
-            >
-              <input ref={fileRef} type="file" multiple accept=".pdf,image/*" style={{ display: "none" }} onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
-              {uploading ? (
-                <div>
-                  <div style={{ width: 44, height: 44, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#fff", margin: "0 0 6px" }}>
-                    {uploadProgress ? `Pläne werden hochgeladen (${uploadProgress})…` : preflightLabel ?? "Analyse läuft – Pläne werden gegen die Normen geprüft…"}
-                  </p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: "0 0 18px" }}>Das kann einige Minuten dauern</p>
-                  {preflightNote && !preflight && (
-                    <p role="status" style={{ fontSize: 12.5, color: "#FBBF24", margin: "-8px auto 16px", maxWidth: 480 }}>{preflightNote}</p>
-                  )}
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                  {skipPreflightButton}
-                  <button
-                    type="button"
-                    onClick={(e) => { e.stopPropagation(); cancelAnalysis(); }}
-                    disabled={cancelling}
-                    style={{
-                      fontSize: 13, fontWeight: 600, color: "#F87171",
-                      background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)",
-                      padding: "8px 18px", borderRadius: 10, cursor: cancelling ? "wait" : "pointer",
-                      fontFamily: "inherit", opacity: cancelling ? 0.6 : 1, transition: "all .15s",
-                    }}
-                  >
-                    {cancelling ? "Wird abgebrochen…" : "Analyse abbrechen"}
-                  </button>
-                  </div>
-                </div>
-              ) : pendingFiles.length > 0 ? (
-                <div style={{ textAlign: "left", maxWidth: 560, margin: "0 auto" }}>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px", textAlign: "center" }}>
-                    {pendingFiles.length} Datei{pendingFiles.length !== 1 ? "en" : ""} · {selectedPlanType}
-                  </p>
-                  <p style={{ fontSize: 12.5, color: "#7B8299", margin: "0 0 14px", textAlign: "center" }}>
-                    Alle Dateien werden zusammen geprüft. Fehlt noch etwas, ziehen Sie es hierher.
-                  </p>
-                  <ul style={{ listStyle: "none", margin: "0 0 16px", padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-                    {pendingFiles.map((f, i) => (
-                      <li key={`${f.name}|${f.size}`} style={{ display: "flex", alignItems: "center", gap: 10, background: "rgba(23,37,64,0.6)", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 10, padding: "8px 12px" }}>
-                        <svg style={{ width: 15, height: 15, color: "#85A6E9", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 13, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</span>
-                        <span style={{ fontSize: 12, color: "#7B8299", flexShrink: 0 }}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
-                        <button
-                          type="button"
-                          aria-label={`${f.name} entfernen`}
-                          onClick={(e) => { e.stopPropagation(); removePendingFile(i); }}
-                          style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: "0 2px", flexShrink: 0 }}
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                  <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-                      style={{
-                        fontSize: 13, fontWeight: 500, color: "#ABAEBB",
-                        background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)",
-                        padding: "9px 16px", borderRadius: 10, cursor: "pointer", fontFamily: "inherit",
-                      }}
-                    >
-                      + Weitere Dateien
-                    </button>
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); runAnalysis(); }}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 8,
-                        background: "linear-gradient(90deg,#4fd1ff,#38bdf8 55%,#2862D7)",
-                        color: "#fff", padding: "9px 20px", borderRadius: 10,
-                        fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer",
-                        fontFamily: "inherit", boxShadow: "0 4px 16px rgba(40,98,215,0.35)",
-                      }}
-                    >
-                      <svg style={{ width: 14, height: 14 }} fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
-                      Analyse starten
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <div style={{ width: 60, height: 60, background: "rgba(40,98,215,0.12)", borderRadius: 18, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
-                    <svg style={{ width: 30, height: 30, color: "#85A6E9" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                    </svg>
-                  </div>
-                  <p style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Pläne hochladen</p>
-                  <p style={{ fontSize: 13, fontWeight: 500, color: "#85A6E9", margin: "0 0 4px" }}>{selectedPlanType}</p>
-                  <p style={{ fontSize: 13, color: "#7B8299", margin: 0 }}>
-                    Alle Dateien des Plansatzes zusammen · PDF oder Bild · Drag & Drop oder klicken
-                  </p>
-                </div>
-              )}
-            </div>
-            )}
-            {error && (
-              <div style={{ marginTop: 12, fontSize: 13, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "10px 16px", textAlign: "center" }}>
-                {error}
-              </div>
-            )}
-            {info && (
-              <div style={{ marginTop: 12, fontSize: 13, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", borderRadius: 12, padding: "10px 16px", textAlign: "center" }}>
-                {info}
-              </div>
-            )}
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-          </>
-        ) : (() => {
-          const vIdx = typeAnalyses.findIndex((a) => a.id === selectedAnalysis.id);
-          const vNr  = typeAnalyses.length - vIdx;
-          const isRunningVersion = selectedAnalysis.status === "running";
-          const persistedNote = selectedAnalysis.preflight ? preflightNoteText(selectedAnalysis.preflight) : null;
-          const sessionNote = !selectedAnalysis.preflight && !isRunningVersion && !lockingRun && !uploading ? preflightNote : null;
-          return (
-            <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-              {/* PDF Viewer */}
-              <div style={{ flex: "1 1 480px", minWidth: 320, position: "sticky", top: 20 }}>
-                <div style={{ ...CARD, height: 720, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ padding: "10px 16px", borderBottom: "1px solid rgba(133,166,233,0.1)", display: "flex", alignItems: "center", gap: 8 }}>
-                    <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB", flexShrink: 0 }}>Plan-Vorschau</span>
-                    {selectedAnalysis.files.length > 1 && (
-                      <select
-                        aria-label="Datei für die Vorschau"
-                        value={Math.min(previewIdx, selectedAnalysis.files.length - 1)}
-                        onChange={(e) => setPreviewIdx(Number(e.target.value))}
-                        style={{
-                          marginLeft: "auto", minWidth: 0, maxWidth: "70%", fontSize: 12, color: "#fff",
-                          background: "rgba(23,37,64,0.8)", border: "1px solid rgba(133,166,233,0.25)",
-                          borderRadius: 8, padding: "4px 8px", fontFamily: "inherit",
-                        }}
+                      <button
+                        type="button"
+                        aria-label={`Optionen für Version ${vLabel}`}
+                        aria-haspopup="menu"
+                        aria-expanded={menuOpenId === v.id}
+                        onClick={(e) => { e.stopPropagation(); setMenuOpenId(menuOpenId === v.id ? null : v.id); }}
+                        className={a.menuTrigger}
                       >
-                        {selectedAnalysis.files.map((f, i) => (
-                          <option key={f.url} value={i}>{i + 1}. {f.name}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                  {selectedAnalysis.files.length > 0 ? (
-                    <iframe
-                      key={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
-                      src={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
-                      title="Plan-Vorschau"
-                      style={{ flex: 1, width: "100%", border: "none", background: "#0E111B" }}
-                    />
-                  ) : (
-                    <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <p style={{ fontSize: 13, color: "#7B8299", textAlign: "center", padding: "0 24px" }}>
-                        Keine Vorschau verfügbar für diesen Plan.
-                      </p>
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                          <circle cx="12" cy="5" r="1.7" />
+                          <circle cx="12" cy="12" r="1.7" />
+                          <circle cx="12" cy="19" r="1.7" />
+                        </svg>
+                      </button>
+                      {menuOpenId === v.id && (
+                        <div role="menu" onClick={(e) => e.stopPropagation()} className={a.menu}>
+                          <button
+                            type="button"
+                            role="menuitem"
+                            onClick={() => { setMenuOpenId(null); deleteAnalysis(v.id); }}
+                            className={a.menuItem}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+                              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                            Version löschen
+                          </button>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
+            </>
+          )}
+        </div>
 
-              {/* Results */}
-              <div style={{ flex: "1 1 420px", minWidth: 320, display: "flex", flexDirection: "column", gap: 18 }}>
-              {uploading && (
-                <div style={{ display: "flex", alignItems: "center", gap: 12, background: "rgba(40,98,215,0.1)", border: "1px solid rgba(133,166,233,0.25)", borderRadius: 12, padding: "10px 14px" }}>
-                  <div style={{ width: 16, height: 16, border: "2px solid #2862D7", borderTopColor: "transparent", borderRadius: "50%", animation: "spin .7s linear infinite", flexShrink: 0 }} />
-                  <p style={{ flex: 1, fontSize: 12.5, color: "#ABAEBB", margin: 0 }}>{preflightLabel ?? "Eine neue Analyse läuft im Hintergrund…"}</p>
-                  {skipPreflightButton}
-                  <button
-                    type="button"
-                    onClick={cancelAnalysis}
-                    disabled={cancelling}
-                    style={{ fontSize: 12, fontWeight: 600, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.3)", padding: "5px 12px", borderRadius: 8, cursor: cancelling ? "wait" : "pointer", fontFamily: "inherit", opacity: cancelling ? 0.6 : 1 }}
-                  >
-                    {cancelling ? "Wird abgebrochen…" : "Abbrechen"}
-                  </button>
-                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-                </div>
-              )}
-              {activeRun && !uploading && (lockingRun || selectedAnalysis.id === activeRun.id) && (
+        <div className={a.mainCol}>
+          {!selectedAnalysis ? (
+            <>
+              {lockingRun && !uploading ? (
                 <AnalysisRunProgress
-                  variant="banner"
+                  variant="full"
                   view={runView}
-                  title={planKey(activeRun.planType) !== planKey(selectedPlanType) ? activeRun.planType : null}
-                  notes={[runNote, lockingRun ? RUN_LOCK_HINT : null]}
+                  title={planKey(lockingRun.planType) !== planKey(selectedPlanType) ? lockingRun.planType : null}
+                  notes={[runNote, RUN_LOCK_HINT]}
                   cancelling={cancelling}
                   cancelError={cancelError}
                   onCancel={cancelActiveRun}
                 />
-              )}
-              {error && (
-                <p role="alert" style={{ fontSize: 13, color: "#F87171", background: "rgba(248,113,113,0.08)", border: "1px solid rgba(248,113,113,0.25)", borderRadius: 12, padding: "10px 14px", margin: 0 }}>{error}</p>
-              )}
-              {info && (
-                <p role="status" style={{ fontSize: 13, color: "#ABAEBB", background: "rgba(133,166,233,0.08)", border: "1px solid rgba(133,166,233,0.18)", borderRadius: 12, padding: "10px 14px", margin: 0 }}>{info}</p>
-              )}
-              {/* Header */}
-              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
-                <div>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: "#7B8299", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 4 }}>
-                    {selectedPlanType} · V{vNr}
-                  </p>
-                  <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff", margin: 0 }}>
-                    {new Date(selectedAnalysis.created_at).toLocaleDateString("de-CH", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
-                  </h3>
-                </div>
-                <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
-                  {!isRunningVersion && (
-                  <>
-                  <button
-                    onClick={() => exportPdf(selectedAnalysis)}
-                    title="Prüfbericht als PDF (Druckansicht)"
-                    style={SECONDARY_BTN}
-                    onMouseEnter={secondaryHoverIn}
-                    onMouseLeave={secondaryHoverOut}
-                  >
-                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                    </svg>
-                    Bericht (PDF)
-                  </button>
-                  <button
-                    onClick={() => downloadReportCsv(reportMeta(selectedAnalysis), selectedAnalysis.items)}
-                    title="Mängelliste als CSV (Excel)"
-                    style={SECONDARY_BTN}
-                    onMouseEnter={secondaryHoverIn}
-                    onMouseLeave={secondaryHoverOut}
-                  >
-                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18M10 4v16M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" />
-                    </svg>
-                    CSV
-                  </button>
-                  </>
-                  )}
-                  <button
-                    onClick={() => setSelectedAnalysis(null)}
-                    disabled={!!lockingRun}
-                    title={lockingRun ? RUN_LOCK_HINT : undefined}
-                    style={lockingRun ? { ...SECONDARY_BTN, opacity: 0.5, cursor: "not-allowed" } : SECONDARY_BTN}
-                    onMouseEnter={lockingRun ? undefined : secondaryHoverIn}
-                    onMouseLeave={lockingRun ? undefined : secondaryHoverOut}
-                  >
-                    <svg style={{ width: 13, height: 13 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Neue Version
-                  </button>
-                </div>
-              </div>
-
-              {selectedAnalysis.status !== "done" && selectedAnalysis.id !== activeRun?.id && (
-                <div style={{ background: `${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}12`, border: `1px solid ${(STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color}40`, borderRadius: 12, padding: "12px 16px" }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: (STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error).color, margin: 0 }}>
-                    {selectedAnalysis.status === "running"
-                      ? "Diese Analyse läuft noch — die Liste aktualisiert sich automatisch."
-                      : "Diese Analyse ist fehlgeschlagen. Es liegen keine Prüfergebnisse vor."}
-                  </p>
-                  {selectedAnalysis.errorMessage && (
-                    <p style={{ fontSize: 12, color: "#ABAEBB", margin: "6px 0 0" }}>{selectedAnalysis.errorMessage}</p>
-                  )}
-                </div>
-              )}
-
-              {!isRunningVersion && (persistedNote || sessionNote) && (
-                <div role="status" style={{ display: "flex", alignItems: "flex-start", gap: 10, background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px" }}>
-                  <p style={{ flex: 1, fontSize: 12.5, color: "#FBBF24", margin: 0, lineHeight: 1.45 }}>{persistedNote || sessionNote}</p>
-                  {!persistedNote && (
-                    <button type="button" aria-label="Hinweis schliessen" onClick={() => setPreflightNote(null)} style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0 }}>×</button>
-                  )}
-                </div>
-              )}
-
-              {selectedAnalysis.snapshots?.oereb_snapshot?.fetched_at && (
-                <p style={{ fontSize: 12, color: selectedAnalysis.snapshots.oereb_snapshot.stale ? "#FBBF24" : "#7B8299", margin: 0, lineHeight: 1.45 }}>
-                  ÖREB-Stand: {formatDate(selectedAnalysis.snapshots.oereb_snapshot.fetched_at) ?? "unbekannt"}
-                  {selectedAnalysis.snapshots.oereb_snapshot.stale ? ". Die Aktualisierung war fehlgeschlagen, geprüft wurde dieser ältere Stand." : ""}
-                </p>
-              )}
-
-              {autoPartsWarning(selectedAnalysis.autoParts) && (
-                <div role="alert" style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "12px 16px" }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: "0 0 4px" }}>Ergebnis unvollständig</p>
-                  <p style={{ fontSize: 12, color: "#ABAEBB", margin: 0, lineHeight: 1.5 }}>{autoPartsWarning(selectedAnalysis.autoParts)} {safetyLimitHint(selectedAnalysis.autoParts)}</p>
-                </div>
-              )}
-
-              {selectedAnalysis.status === "done" && selectedAnalysis.failedNorms.length > 0 && (
-                <div style={{ background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "12px 16px" }}>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: "0 0 6px" }}>
-                    Ergebnis unvollständig — {selectedAnalysis.failedNorms.length === 1 ? "eine Norm konnte" : `${selectedAnalysis.failedNorms.length} Normen konnten`} nicht geprüft werden:
-                  </p>
-                  <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: "#ABAEBB", lineHeight: 1.6 }}>
-                    {selectedAnalysis.failedNorms.map((f, i) => (
-                      <li key={i}><span style={{ color: "#fff" }}>{f.norm_title}</span> — {f.error}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {selectedAnalysis.status === "done" && selectedAnalysis.consolidationFailed && (
-                <p role="status" style={{ fontSize: 12.5, color: "#FBBF24", background: "rgba(251,191,36,0.08)", border: "1px solid rgba(251,191,36,0.3)", borderRadius: 12, padding: "10px 14px", margin: 0, lineHeight: 1.45 }}>
-                  Doppelte Prüfpunkte konnten nicht zusammengeführt werden. Dieselbe Feststellung kann deshalb mehrfach erscheinen.
-                </p>
-              )}
-
-              {!isRunningVersion && (
-              <>
-              {/* Stat tiles */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12 }}>
-                {(["fail", "warn", "ok"] as const).map((s) => {
-                  const cfg = S[s];
-                  const isActive = detailFilter === s;
-                  return (
-                    <button
-                      key={s}
-                      onClick={() => setDetailFilter(detailFilter === s ? "all" : s)}
-                      style={{
-                        background: cfg.bg, border: `1px solid ${isActive ? cfg.color : cfg.border}`,
-                        borderRadius: 14, padding: "16px", textAlign: "left", cursor: "pointer",
-                        fontFamily: "inherit", transition: "all .15s",
-                        outline: isActive ? `2px solid ${cfg.color}40` : "none",
-                        outlineOffset: 2,
-                      }}
-                    >
-                      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
-                        <span style={{ width: 7, height: 7, borderRadius: "50%", background: cfg.color, flexShrink: 0 }} />
-                        <p style={{ fontSize: 10, fontWeight: 700, color: cfg.color, textTransform: "uppercase", letterSpacing: "0.1em", margin: 0 }}>{cfg.title}</p>
-                      </div>
-                      <p style={{ fontSize: 30, fontWeight: 800, color: cfg.color, margin: "0 0 2px" }}>{counts![s]}</p>
-                      <p style={{ fontSize: 11, color: cfg.color, opacity: 0.7, margin: 0 }}>{counts![s] === 1 ? "Prüfpunkt" : "Prüfpunkte"}</p>
-                    </button>
-                  );
-                })}
-              </div>
-
-              {/* Filter pills */}
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {([
-                  { key: "all" as const,  label: `Alle (${items.length})` },
-                  { key: "fail" as const, label: `Verstösse (${counts!.fail})` },
-                  { key: "warn" as const, label: `Warnungen (${counts!.warn})` },
-                  { key: "ok" as const,   label: `Konform (${counts!.ok})` },
-                ]).map(({ key, label }) => (
-                  <FilterPill key={key} active={detailFilter === key} onClick={() => setDetailFilter(key)}>
-                    {label}
-                  </FilterPill>
-                ))}
-              </div>
-
-              {/* Result list */}
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {filteredItems.length === 0 ? (
-                  <p style={{ fontSize: 13, color: "#7B8299", textAlign: "center", padding: "40px 0" }}>
-                    Keine Prüfpunkte in dieser Kategorie.
-                  </p>
+              ) : (
+              <div
+                onDragOver={(e) => { e.preventDefault(); if (!uploading) setDragOver(true); }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => { e.preventDefault(); setDragOver(false); if (!uploading) handleFiles(e.dataTransfer.files); }}
+                onClick={() => !uploading && pendingFiles.length === 0 && fileRef.current?.click()}
+                {...(!uploading && pendingFiles.length === 0 ? {
+                  role: "button",
+                  tabIndex: 0,
+                  "aria-label": "Pläne hochladen",
+                  onKeyDown: (e: React.KeyboardEvent<HTMLDivElement>) => {
+                    if (e.target === e.currentTarget && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fileRef.current?.click(); }
+                  },
+                } : {})}
+                className={`${a.dropzone} ${dragOver ? a.dropzoneOver : ""} ${pendingFiles.length > 0 && !uploading ? a.dropzoneCompact : ""} ${!uploading && pendingFiles.length === 0 ? a.dropzoneIdle : ""}`}
+              >
+                <input ref={fileRef} type="file" multiple accept=".pdf,image/*" hidden onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+                {uploading ? (
+                  <div>
+                    <div className={g.spinner} style={{ width: 44, height: 44, margin: "0 auto 16px" }} />
+                    <p className={a.dzTitle}>
+                      {uploadProgress ? `Pläne werden hochgeladen (${uploadProgress})…` : preflightLabel ?? "Analyse läuft – Pläne werden gegen die Normen geprüft…"}
+                    </p>
+                    <p className={a.dzText}>Das kann einige Minuten dauern</p>
+                    {preflightNote && !preflight && (
+                      <p role="status" className={`${g.alert} ${g.alertWarn} ${a.dzNote}`}>{preflightNote}</p>
+                    )}
+                    <div className={a.dzActions}>
+                      {skipPreflightButton}
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); cancelAnalysis(); }}
+                        disabled={cancelling}
+                        className={`${p.btnGhost} ${p.btnSm} ${g.cancelBtn}`}
+                      >
+                        {cancelling ? "Wird abgebrochen…" : "Analyse abbrechen"}
+                      </button>
+                    </div>
+                  </div>
+                ) : pendingFiles.length > 0 ? (
+                  <div className={a.pending}>
+                    <p className={a.dzTitle}>
+                      {pendingFiles.length} Datei{pendingFiles.length !== 1 ? "en" : ""} · {selectedPlanType}
+                    </p>
+                    <p className={a.dzText}>
+                      Alle Dateien werden zusammen geprüft. Fehlt noch etwas, ziehen Sie es hierher.
+                    </p>
+                    <ul className={a.fileList}>
+                      {pendingFiles.map((f, i) => (
+                        <li key={`${f.name}|${f.size}`} className={a.fileItem}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false" className={a.fileIcon}>
+                            <path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          </svg>
+                          <span className={a.fileName}>{f.name}</span>
+                          <span className={a.fileSize}>{(f.size / 1024 / 1024).toFixed(1)} MB</span>
+                          <button
+                            type="button"
+                            aria-label={`${f.name} entfernen`}
+                            onClick={(e) => { e.stopPropagation(); removePendingFile(i); }}
+                            className={a.closeBtn}
+                          >
+                            ×
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className={a.dzActions}>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+                        className={p.btnGhost}
+                      >
+                        + Weitere Dateien
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); runAnalysis(); }}
+                        className={p.btnNavy}
+                      >
+                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
+                        Analyse starten
+                      </button>
+                    </div>
+                  </div>
                 ) : (
-                  filteredItems.map((item) => <CheckCard key={item.id} item={item} />)
+                  <div>
+                    <span className={`${p.iconTile} ${a.bigTile}`} aria-hidden="true">{UploadIcon}</span>
+                    <p className={a.dzTitle}>Pläne hochladen</p>
+                    <p className={a.dzType}>{selectedPlanType}</p>
+                    <p className={a.dzText}>
+                      Alle Dateien des Plansatzes zusammen · PDF oder Bild · Drag & Drop oder klicken
+                    </p>
+                  </div>
                 )}
               </div>
-              </>
               )}
+              {error && (
+                <div role="alert" className={`${g.alert} ${g.alertErr} ${a.dzMsg}`}>
+                  {error}
+                </div>
+              )}
+              {info && (
+                <div role="status" className={`${g.alert} ${g.alertInfo} ${a.dzMsg}`}>
+                  {info}
+                </div>
+              )}
+            </>
+          ) : (() => {
+            const vIdx = typeAnalyses.findIndex((x) => x.id === selectedAnalysis.id);
+            const vNr  = typeAnalyses.length - vIdx;
+            const isRunningVersion = selectedAnalysis.status === "running";
+            const persistedNote = selectedAnalysis.preflight ? preflightNoteText(selectedAnalysis.preflight) : null;
+            const sessionNote = !selectedAnalysis.preflight && !isRunningVersion && !lockingRun && !uploading ? preflightNote : null;
+            const statusBadge = STATUS_BADGE[selectedAnalysis.status] ?? STATUS_BADGE.error;
+            return (
+              <div className={a.split}>
+                <div className={a.preview}>
+                  <div className={`${p.glassFlat} ${a.previewCard}`}>
+                    <div className={a.previewHead}>
+                      <Icon size={18}><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></Icon>
+                      <span className={a.previewLabel}>Plan-Vorschau</span>
+                      {selectedAnalysis.files.length > 1 && (
+                        <select
+                          aria-label="Datei für die Vorschau"
+                          value={Math.min(previewIdx, selectedAnalysis.files.length - 1)}
+                          onChange={(e) => setPreviewIdx(Number(e.target.value))}
+                          className={`${p.select} ${a.previewSelect}`}
+                        >
+                          {selectedAnalysis.files.map((f, i) => (
+                            <option key={f.url} value={i}>{i + 1}. {f.name}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                    {selectedAnalysis.files.length > 0 ? (
+                      <iframe
+                        key={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
+                        src={selectedAnalysis.files[Math.min(previewIdx, selectedAnalysis.files.length - 1)].url}
+                        title="Plan-Vorschau"
+                        className={a.iframe}
+                      />
+                    ) : (
+                      <div className={a.noPreview}>
+                        <p>Keine Vorschau verfügbar für diesen Plan.</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={a.results}>
+                  {uploading && (
+                    <div className={`${p.glassFlat} ${a.inlineRun}`}>
+                      <div className={g.spinner} style={{ width: 18, height: 18 }} />
+                      <p>{preflightLabel ?? "Eine neue Analyse läuft im Hintergrund…"}</p>
+                      {skipPreflightButton}
+                      <button
+                        type="button"
+                        onClick={cancelAnalysis}
+                        disabled={cancelling}
+                        className={`${p.btnGhost} ${p.btnSm} ${g.cancelBtn}`}
+                      >
+                        {cancelling ? "Wird abgebrochen…" : "Abbrechen"}
+                      </button>
+                    </div>
+                  )}
+                  {activeRun && !uploading && (lockingRun || selectedAnalysis.id === activeRun.id) && (
+                    <AnalysisRunProgress
+                      variant="banner"
+                      view={runView}
+                      title={planKey(activeRun.planType) !== planKey(selectedPlanType) ? activeRun.planType : null}
+                      notes={[runNote, lockingRun ? RUN_LOCK_HINT : null]}
+                      cancelling={cancelling}
+                      cancelError={cancelError}
+                      onCancel={cancelActiveRun}
+                    />
+                  )}
+                  {error && (
+                    <p role="alert" className={`${g.alert} ${g.alertErr}`}>{error}</p>
+                  )}
+                  {info && (
+                    <p role="status" className={`${g.alert} ${g.alertInfo}`}>{info}</p>
+                  )}
+                  <div className={a.resHead}>
+                    <div>
+                      <p className={a.eyebrow}>{selectedPlanType} · V{vNr}</p>
+                      <h2 className={a.resTitle}>
+                        {new Date(selectedAnalysis.created_at).toLocaleDateString("de-CH", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}
+                      </h2>
+                    </div>
+                    <div className={a.resActions}>
+                      {!isRunningVersion && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => exportPdf(selectedAnalysis)}
+                            title="Prüfbericht als PDF (Druckansicht)"
+                            className={`${p.btnGhost} ${p.btnSm}`}
+                          >
+                            <Icon size={16}><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></Icon>
+                            Bericht (PDF)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => downloadReportCsv(reportMeta(selectedAnalysis), selectedAnalysis.items)}
+                            title="Mängelliste als CSV (Excel)"
+                            className={`${p.btnGhost} ${p.btnSm}`}
+                          >
+                            <Icon size={16}><path d="M3 10h18M3 14h18M10 4v16M4 6a2 2 0 012-2h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6z" /></Icon>
+                            CSV
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAnalysis(null)}
+                        disabled={!!lockingRun}
+                        title={lockingRun ? RUN_LOCK_HINT : undefined}
+                        className={`${p.btnNavy} ${p.btnSm}`}
+                      >
+                        <Icon size={16}><path d="M12 5v14M5 12h14" /></Icon>
+                        Neue Version
+                      </button>
+                    </div>
+                  </div>
+
+                  {selectedAnalysis.status !== "done" && selectedAnalysis.id !== activeRun?.id && (
+                    <div className={`${g.alert} ${selectedAnalysis.status === "running" ? g.alertInfo : g.alertErr}`} style={{ color: statusBadge.color }}>
+                      <p className={a.alertTitle}>
+                        {selectedAnalysis.status === "running"
+                          ? "Diese Analyse läuft noch — die Liste aktualisiert sich automatisch."
+                          : "Diese Analyse ist fehlgeschlagen. Es liegen keine Prüfergebnisse vor."}
+                      </p>
+                      {selectedAnalysis.errorMessage && (
+                        <p className={a.alertBody}>{selectedAnalysis.errorMessage}</p>
+                      )}
+                    </div>
+                  )}
+
+                  {!isRunningVersion && (persistedNote || sessionNote) && (
+                    <div role="status" className={`${g.alert} ${g.alertWarn} ${a.alertRow}`}>
+                      <p>{persistedNote || sessionNote}</p>
+                      {!persistedNote && (
+                        <button type="button" aria-label="Hinweis schliessen" onClick={() => setPreflightNote(null)} className={a.closeBtn}>×</button>
+                      )}
+                    </div>
+                  )}
+
+                  {selectedAnalysis.snapshots?.oereb_snapshot?.fetched_at && (
+                    <p className={a.stand} style={selectedAnalysis.snapshots.oereb_snapshot.stale ? { color: "var(--warn-text)", fontWeight: 600 } : undefined}>
+                      ÖREB-Stand: {formatDate(selectedAnalysis.snapshots.oereb_snapshot.fetched_at) ?? "unbekannt"}
+                      {selectedAnalysis.snapshots.oereb_snapshot.stale ? ". Die Aktualisierung war fehlgeschlagen, geprüft wurde dieser ältere Stand." : ""}
+                    </p>
+                  )}
+
+                  {autoPartsWarning(selectedAnalysis.autoParts) && (
+                    <div role="alert" className={`${g.alert} ${g.alertWarn}`}>
+                      <p className={a.alertTitle}>Ergebnis unvollständig</p>
+                      <p className={a.alertBody}>{autoPartsWarning(selectedAnalysis.autoParts)} {safetyLimitHint(selectedAnalysis.autoParts)}</p>
+                    </div>
+                  )}
+
+                  {selectedAnalysis.status === "done" && selectedAnalysis.failedNorms.length > 0 && (
+                    <div className={`${g.alert} ${g.alertWarn}`}>
+                      <p className={a.alertTitle}>
+                        Ergebnis unvollständig — {selectedAnalysis.failedNorms.length === 1 ? "eine Norm konnte" : `${selectedAnalysis.failedNorms.length} Normen konnten`} nicht geprüft werden:
+                      </p>
+                      <ul className={a.alertList}>
+                        {selectedAnalysis.failedNorms.map((f, i) => (
+                          <li key={i}><strong className={a.ink}>{f.norm_title}</strong> — {f.error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {selectedAnalysis.status === "done" && selectedAnalysis.consolidationFailed && (
+                    <p role="status" className={`${g.alert} ${g.alertWarn}`}>
+                      Doppelte Prüfpunkte konnten nicht zusammengeführt werden. Dieselbe Feststellung kann deshalb mehrfach erscheinen.
+                    </p>
+                  )}
+
+                  {!isRunningVersion && (
+                    <>
+                      <div className={a.stats}>
+                        {(["fail", "warn", "ok"] as const).map((s) => {
+                          const cfg = S[s];
+                          const isActive = detailFilter === s;
+                          return (
+                            <button
+                              key={s}
+                              type="button"
+                              aria-pressed={isActive}
+                              onClick={() => setDetailFilter(detailFilter === s ? "all" : s)}
+                              className={`${a.stat} ${cfg.tone} ${isActive ? a.statActive : ""}`}
+                              style={{ color: cfg.text }}
+                            >
+                              <span className={a.statHead}>
+                                <span className={a.dot} style={{ background: cfg.dot }} />
+                                <span className={a.statTitle}>{cfg.title}</span>
+                              </span>
+                              <span className={a.statNr}>{counts![s]}</span>
+                              <span className={a.statSub}>{counts![s] === 1 ? "Prüfpunkt" : "Prüfpunkte"}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <div className={p.pillRow}>
+                        {([
+                          { key: "all" as const,  label: `Alle (${items.length})` },
+                          { key: "fail" as const, label: `Verstösse (${counts!.fail})` },
+                          { key: "warn" as const, label: `Warnungen (${counts!.warn})` },
+                          { key: "ok" as const,   label: `Konform (${counts!.ok})` },
+                        ]).map(({ key, label }) => (
+                          <FilterPill key={key} active={detailFilter === key} onClick={() => setDetailFilter(key)}>
+                            {label}
+                          </FilterPill>
+                        ))}
+                      </div>
+
+                      <div className={a.list}>
+                        {filteredItems.length === 0 ? (
+                          <p className={a.listEmpty}>
+                            Keine Prüfpunkte in dieser Kategorie.
+                          </p>
+                        ) : (
+                          filteredItems.map((item) => <CheckCard key={item.id} item={item} />)
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-        })()}
+            );
+          })()}
+        </div>
       </div>
     </div>
   );

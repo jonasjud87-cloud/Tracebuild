@@ -1,0 +1,217 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+
+.cardHead .tile {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.cardText {
+  margin: 4px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.grid2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.grid2 > div {
+  min-width: 0;
+}
+
+.help {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.helpWarn {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--warn-text);
+}
+
+input.zoneWarn {
+  box-shadow: inset 0 1px 2px rgba(110, 76, 34, 0.14), inset 0 0 0 2px var(--warn);
+}
+
+label > .chipSm {
+  margin-left: 8px;
+  padding: 2px 10px;
+  font-size: 12px;
+  vertical-align: 1px;
+}
+
+.value {
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 15px;
+  color: var(--ink);
+  background: rgba(240, 230, 214, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(176, 125, 62, 0.2);
+  overflow-wrap: anywhere;
+}
+
+.valueMuted {
+  color: var(--muted);
+}
+
+.notice,
+.alertOk,
+.alertErr,
+.alertWarn {
+  margin: 0;
+  padding: 11px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.notice {
+  color: var(--info-text);
+  background: rgba(131, 169, 208, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(131, 169, 208, 0.5);
+}
+
+.alertOk {
+  color: var(--ok-text);
+  background: rgba(101, 168, 138, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(101, 168, 138, 0.5);
+}
+
+.alertErr {
+  color: var(--err-text);
+  background: rgba(216, 121, 121, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.45);
+}
+
+.alertWarn {
+  color: var(--warn-text);
+  background: rgba(214, 164, 95, 0.2);
+  box-shadow: inset 0 0 0 1px rgba(214, 164, 95, 0.5);
+}
+
+.status {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.warnHead {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--warn-text);
+}
+
+.picked {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(250, 244, 234, 0.7);
+  box-shadow: inset 0 0 0 1px rgba(176, 125, 62, 0.3);
+}
+
+.pickedText {
+  margin: 0;
+  font-size: 15px;
+  color: var(--body);
+  overflow-wrap: anywhere;
+}
+
+.pickedText strong {
+  color: var(--ink);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.formFoot {
+  display: flex;
+  justify-content: flex-end;
+}
+
+section.danger {
+  background: linear-gradient(155deg, rgba(232, 168, 168, 0.3), rgba(240, 214, 205, 0.5));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 240, 0.8),
+    inset 0 0 0 2px rgba(216, 121, 121, 0.5),
+    0 14px 30px -24px rgba(140, 42, 42, 0.4);
+}
+
+.danger .cardTitle {
+  color: var(--err-text);
+}
+
+.danger .cardHead .tile {
+  color: var(--err-text);
+  background: linear-gradient(145deg, rgba(240, 175, 170, 0.8), rgba(216, 121, 121, 0.5));
+}
+
+.dangerText {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.skelCard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.anchor {
+  scroll-margin-top: 110px;
+}
+
+@media (max-width: 720px) {
+  .grid2 {
+    grid-template-columns: 1fr;
+  }
+
+  .formFoot .btnFull {
+    width: 100%;
+  }
+}

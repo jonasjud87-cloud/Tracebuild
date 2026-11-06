@@ -13,6 +13,10 @@ import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { useOrgRole } from "@/components/useOrgRole";
 import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
 import type { KenndatenBlatt } from "@/lib/kenndaten";
+import p from "@/app/projects/project.module.css";
+import ProjectBanner from "@/components/project/ProjectBanner";
+import n from "./norms.module.css";
+import { Ico, ICON } from "./ProjIcon";
 
 interface Project {
   id: string;
@@ -135,19 +139,19 @@ interface ThemeGroup {
 }
 
 const GROUPS = [
-  { label: "Bund",          layers: [1, 2], dot: "#38BDF8", badgeBg: "rgba(56,189,248,0.12)",  badgeText: "#38BDF8", header: "#38BDF8",  cardBorder: "rgba(56,189,248,0.2)"  },
-  { label: "Kanton",        layers: [3],    dot: "#A78BFA", badgeBg: "rgba(167,139,250,0.12)", badgeText: "#A78BFA", header: "#A78BFA",  cardBorder: "rgba(167,139,250,0.2)" },
-  { label: "Gemeinde",      layers: [4],    dot: "#34D399", badgeBg: "rgba(52,211,153,0.12)",  badgeText: "#34D399", header: "#34D399",  cardBorder: "rgba(52,211,153,0.2)"  },
-  { label: "Spezialnormen", layers: [5],    dot: "#B7926A", badgeBg: "rgba(183,146,106,0.12)", badgeText: "#B7926A", header: "#B7926A",  cardBorder: "rgba(183,146,106,0.2)" },
+  { label: "Bund",          layers: [1, 2], dot: "var(--navy)",   chip: p.chipNavy },
+  { label: "Kanton",        layers: [3],    dot: "var(--info)",   chip: p.chipInfo },
+  { label: "Gemeinde",      layers: [4],    dot: "var(--ok)",     chip: p.chipOk },
+  { label: "Spezialnormen", layers: [5],    dot: "var(--bronze)", chip: p.chipSand },
 ];
 
-const OEREB_STYLE = { dot: "#FB923C", header: "#FB923C", cardBorder: "rgba(251,146,60,0.22)", badgeBg: "rgba(251,146,60,0.12)", badgeText: "#FB923C" };
+const OEREB_STYLE = { dot: "var(--sand-2)", chip: p.chipSand };
 
-const LEGAL_STATUS: Record<LegalStatus, { label: string; bg: string; color: string }> = {
-  inForce:                { label: "rechtskräftig",             bg: "rgba(52,211,153,0.12)",  color: "#34D399" },
-  changeWithPreEffect:    { label: "Änderung mit Vorwirkung",   bg: "rgba(251,191,36,0.12)",  color: "#FBBF24" },
-  changeWithoutPreEffect: { label: "Änderung ohne Vorwirkung",  bg: "rgba(133,166,233,0.1)",  color: "#ABAEBB" },
-  unknown:                { label: "Status unbekannt",          bg: "rgba(133,166,233,0.1)",  color: "#7B8299" },
+const LEGAL_STATUS: Record<LegalStatus, { label: string; chip: string }> = {
+  inForce:                { label: "rechtskräftig",             chip: p.chipOk },
+  changeWithPreEffect:    { label: "Änderung mit Vorwirkung",   chip: p.chipWarn },
+  changeWithoutPreEffect: { label: "Änderung ohne Vorwirkung",  chip: p.chipInfo },
+  unknown:                { label: "Status unbekannt",          chip: p.chip },
 };
 
 function getGroup(layer: number) {
@@ -179,13 +183,10 @@ function triggerLabel(trigger: string | null | undefined): string {
   return "Über den ÖREB-Auszug zugewiesen";
 }
 
-// ── Karten ───────────────────────────────────────────────────────────────────
-
 function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [fullText, setFullText] = useState<string | null>(null);
   const norm = pn.norms;
-  // Die Liste liefert nur den Anfang langer Texte.
   useEffect(() => {
     if (!expanded || !norm?.text_truncated || fullText !== null) return;
     api.get<{ text: string }>(`/standards/${norm.id}`).then((res) => setFullText(res.text)).catch(() => {});
@@ -194,84 +195,61 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
   const grp = getGroup(norm.layer);
 
   return (
-    <div style={{ background: "rgba(23,37,64,0.55)", border: `1px solid ${grp.cardBorder}`, borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <span style={{ marginTop: 6, width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: grp.dot }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", marginBottom: 6 }}>
-            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: grp.badgeBg, color: grp.badgeText }}>
-              {norm.jurisdiction_name ?? grp.label}
-            </span>
-            <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: "rgba(133,166,233,0.1)", color: "#7B8299" }}>
-              {norm.category}
-            </span>
-            {norm.zone && (
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}>
-                Zone {norm.zone}
-              </span>
-            )}
-            {norm.org_id === null && (
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: "rgba(56,189,248,0.12)", color: "#38BDF8" }}>
-                Plattformweit
-              </span>
-            )}
+    <div className={n.norm}>
+      <div className={n.normHead}>
+        <span className={n.dot} style={{ background: grp.dot }} aria-hidden="true" />
+        <div className={n.normMain}>
+          <div className={n.chips}>
+            <span className={grp.chip}>{norm.jurisdiction_name ?? grp.label}</span>
+            <span className={p.chip}>{norm.category}</span>
+            {norm.zone && <span className={p.chipWarn}>Zone {norm.zone}</span>}
+            {norm.org_id === null && <span className={p.chipInfo}>Plattformweit</span>}
             {pn.added_by === "oereb" && (
-              <span title={triggerLabel(pn.trigger)} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 600, background: OEREB_STYLE.badgeBg, color: OEREB_STYLE.badgeText }}>
-                📍 ÖREB
-              </span>
+              <span title={triggerLabel(pn.trigger)} className={OEREB_STYLE.chip}>ÖREB</span>
             )}
             {norm.source_kind === "oereb_auto" && (
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: OEREB_STYLE.badgeBg, color: OEREB_STYLE.badgeText }}>
+              <span className={OEREB_STYLE.chip}>
                 automatisch aus ÖREB{norm.source_checked_at ? `, Stand ${formatDate(norm.source_checked_at)}` : ""}
               </span>
             )}
-            {pn.added_by === "user" && (
-              <span style={{ fontSize: 11, color: "#7B8299", fontStyle: "italic" }}>manuell</span>
-            )}
+            {pn.added_by === "user" && <span className={n.note}>manuell</span>}
           </div>
-          <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", lineHeight: 1.4, margin: 0 }}>{norm.title}</p>
+          <p className={n.normTitle}>{norm.title}</p>
           {expanded && (
             <>
-              <p style={{ marginTop: 8, fontSize: 13, color: "#ABAEBB", lineHeight: 1.6, whiteSpace: "pre-line", margin: "8px 0 0" }}>
-                {fullText ?? norm.text}
-              </p>
+              <p className={n.normText}>{fullText ?? norm.text}</p>
               {(norm.source_url || norm.source_doc) && (
-                <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 12 }}>
+                <div className={n.normSource}>
                   {norm.source_url && (
-                    <a href={norm.source_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none" }}>
+                    <a href={norm.source_url} target="_blank" rel="noreferrer" className={n.link}>
                       Quelle ansehen →
                     </a>
                   )}
-                  {norm.source_doc && (
-                    <span style={{ fontSize: 12, color: "#7B8299" }}>{norm.source_doc}</span>
-                  )}
+                  {norm.source_doc && <span>{norm.source_doc}</span>}
                 </div>
               )}
             </>
           )}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 2, flexShrink: 0, marginLeft: 4 }}>
+        <div className={n.normActions}>
           <button
+            type="button"
             onClick={() => setExpanded((v) => !v)}
             title={expanded ? "Einklappen" : "Volltext anzeigen"}
-            style={{ padding: 6, borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#7B8299", transition: "color .15s", lineHeight: 0 }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ABAEBB"}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
+            aria-label={expanded ? "Einklappen" : "Volltext anzeigen"}
+            aria-expanded={expanded}
+            className={n.iconBtn}
           >
-            <svg style={{ width: 14, height: 14, transform: expanded ? "rotate(180deg)" : "none", transition: "transform .2s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
+            <Ico d={ICON.chevDown} size={16} className={`${n.chev} ${expanded ? n.chevOpen : ""}`} strokeWidth={2.2} />
           </button>
           <button
+            type="button"
             onClick={() => onRemove(norm.id)}
             title="Norm entfernen"
-            style={{ padding: 6, borderRadius: 8, background: "none", border: "none", cursor: "pointer", color: "#7B8299", transition: "color .15s", lineHeight: 0 }}
-            onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#F87171"}
-            onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
+            aria-label="Norm entfernen"
+            className={`${n.iconBtn} ${n.iconBtnDanger}`}
           >
-            <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-            </svg>
+            <Ico d={ICON.x} size={16} strokeWidth={2.2} />
           </button>
         </div>
       </div>
@@ -302,60 +280,34 @@ function AddCustomNormModal({ projectId, onClose, onAdded }: { projectId: string
     }
   }
 
-  const inputStyle: React.CSSProperties = {
-    width: "100%",
-    border: "1px solid rgba(133,166,233,0.2)",
-    borderRadius: 8,
-    padding: "8px 12px",
-    fontSize: 13,
-    color: "#fff",
-    background: "rgba(10,14,23,0.6)",
-    outline: "none",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-    transition: "border-color .15s",
-  };
-
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-      <div style={{ background: "#0E111B", border: "1px solid rgba(133,166,233,0.18)", borderRadius: 16, boxShadow: "0 24px 48px rgba(0,0,0,0.6)", width: "100%", maxWidth: 480, padding: 24 }}>
-        <h3 style={{ fontSize: 15, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Spezialnorm hinzufügen</h3>
-        <p style={{ fontSize: 12, color: "#7B8299", margin: "0 0 20px" }}>
+    <div className={n.overlay}>
+      <div className={n.dialog} role="dialog" aria-modal="true" aria-labelledby="add-norm-title">
+        <h2 id="add-norm-title" className={n.dialogTitle}>Spezialnorm hinzufügen</h2>
+        <p className={n.dialogText}>
           Wird als organisationsspezifische Norm gespeichert und diesem Projekt zugewiesen.
         </p>
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Titel</label>
-            <input type="text" required value={title} onChange={(e) => setTitle(e.target.value)} style={inputStyle} placeholder="z.B. Interne Brandschutzanforderung" />
+          <div className={n.field}>
+            <label htmlFor="norm-title" className={p.label}>Titel</label>
+            <input id="norm-title" type="text" required autoFocus value={title} onChange={(e) => setTitle(e.target.value)} className={p.input} placeholder="z.B. Interne Brandschutzanforderung" />
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Kategorie</label>
-            <input type="text" required value={category} onChange={(e) => setCategory(e.target.value)} style={inputStyle} placeholder="z.B. Brandschutz" />
+          <div className={n.field}>
+            <label htmlFor="norm-category" className={p.label}>Kategorie</label>
+            <input id="norm-category" type="text" required value={category} onChange={(e) => setCategory(e.target.value)} className={p.input} placeholder="z.B. Brandschutz" />
           </div>
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Zone (optional)</label>
-            <input type="text" value={zone} onChange={(e) => setZone(e.target.value)} style={inputStyle} placeholder="z.B. W2 — leer = gilt für alle Zonen" />
+          <div className={n.field}>
+            <label htmlFor="norm-zone" className={p.label}>Zone (optional)</label>
+            <input id="norm-zone" type="text" value={zone} onChange={(e) => setZone(e.target.value)} className={p.input} placeholder="z.B. W2 — leer = gilt für alle Zonen" />
           </div>
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>Inhalt</label>
-            <textarea required rows={5} value={text} onChange={(e) => setText(e.target.value)} style={{ ...inputStyle, resize: "none" }} placeholder="Vollständiger Normtext..." />
+          <div className={n.field}>
+            <label htmlFor="norm-text" className={p.label}>Inhalt</label>
+            <textarea id="norm-text" required rows={5} value={text} onChange={(e) => setText(e.target.value)} className={p.textarea} placeholder="Vollständiger Normtext..." />
           </div>
-          {error && (
-            <div style={{ marginBottom: 16, background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)", borderRadius: 8, padding: "8px 12px", fontSize: 13, color: "#F87171" }}>
-              {error}
-            </div>
-          )}
-          <div style={{ display: "flex", gap: 12 }}>
-            <button type="button" onClick={onClose} style={{ flex: 1, border: "1px solid rgba(133,166,233,0.2)", color: "#7B8299", padding: "9px 0", borderRadius: 8, fontSize: 13, fontWeight: 500, background: "none", cursor: "pointer", fontFamily: "inherit" }}>
-              Abbrechen
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              style={{ flex: 1, background: "#2862D7", color: "#fff", padding: "9px 0", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1, fontFamily: "inherit", transition: "background .15s" }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.background = "#3470E8"; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#2862D7"; }}
-            >
+          {error && <div role="alert" className={n.errorBox}>{error}</div>}
+          <div className={n.dialogActions}>
+            <button type="button" onClick={onClose} className={p.btnGhost}>Abbrechen</button>
+            <button type="submit" disabled={loading} className={p.btnNavy}>
               {loading ? "Wird gespeichert..." : "Speichern"}
             </button>
           </div>
@@ -367,65 +319,53 @@ function AddCustomNormModal({ projectId, onClose, onAdded }: { projectId: string
 
 function LegalStatusBadge({ status }: { status: LegalStatus }) {
   const s = LEGAL_STATUS[status] ?? LEGAL_STATUS.unknown;
-  return (
-    <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, fontWeight: 500, background: s.bg, color: s.color, whiteSpace: "nowrap" }}>
-      {s.label}
-    </span>
-  );
+  return <span className={s.chip}>{s.label}</span>;
 }
 
-/** Ein betroffenes ÖREB-Thema mit seinen Einschränkungen und den zugewiesenen Normen. */
 function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: boolean; onRemove: (normId: string) => void }) {
   const federal = isFederalTheme(theme.themeCode);
-  // Lücke = vom Server so gemeldet (Mapping vorhanden, aber keine Norm mit passender Kategorie).
   const showGapCard = isGap;
 
   return (
-    <div style={{ background: "rgba(23,37,64,0.35)", border: `1px solid ${OEREB_STYLE.cardBorder}`, borderRadius: 12, padding: 16 }}>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-        <span style={{ marginTop: 6, width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: OEREB_STYLE.dot }} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", margin: 0 }}>{theme.themeName}</p>
-            <span style={{ fontSize: 11, color: "#7B8299", fontFamily: "monospace" }}>{theme.themeCode}</span>
-            {!federal && (
-              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, background: "rgba(167,139,250,0.12)", color: "#A78BFA" }}>kantonales Thema</span>
-            )}
+    <div className={n.theme}>
+      <div className={n.normHead}>
+        <span className={n.dot} style={{ background: OEREB_STYLE.dot }} aria-hidden="true" />
+        <div className={n.normMain}>
+          <div className={n.themeHead}>
+            <h3 className={n.themeName}>{theme.themeName}</h3>
+            <span className={`${n.themeCode} ${n.mono}`}>{theme.themeCode}</span>
+            {!federal && <span className={p.chipInfo}>kantonales Thema</span>}
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 10 }}>
+          <div className={n.themeRows}>
             {theme.rows.map((r, i) => {
               const area = formatArea(r.areaPct, r.areaM2);
               const links = (r.lawLinks ?? []).filter((l) => l && (l.title || l.url));
               return (
-                <div key={i} style={{ borderLeft: "2px solid rgba(251,146,60,0.25)", paddingLeft: 12 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                    {(r.legendText || r.subTheme) && (
-                      <span style={{ fontSize: 13, color: "#ABAEBB" }}>{r.legendText ?? r.subTheme}</span>
-                    )}
+                <div key={i} className={n.themeRow}>
+                  <div className={n.themeLine}>
+                    {(r.legendText || r.subTheme) && <span className={n.themeLegend}>{r.legendText ?? r.subTheme}</span>}
                     <LegalStatusBadge status={r.legalStatus} />
-                    {area && (
-                      <span style={{ fontSize: 12, color: "#7B8299", whiteSpace: "nowrap" }}>{area}</span>
-                    )}
+                    {area && <span className={n.themeMeta}>{area}</span>}
                   </div>
                   {(links.length > 0 || r.authority?.name) && (
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
+                    <div className={n.themeLinks}>
                       {links.map((l, j) =>
                         l.url ? (
-                          <a key={j} href={l.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none" }}>
+                          <a key={j} href={l.url} target="_blank" rel="noreferrer" className={n.link}>
                             {l.title || "Rechtsvorschrift"} ↗
                           </a>
                         ) : (
-                          <span key={j} style={{ fontSize: 12, color: "#7B8299" }}>{l.title}</span>
+                          <span key={j} className={p.muted}>{l.title}</span>
                         )
                       )}
                       {r.authority?.name && (
                         r.authority.url ? (
-                          <a href={r.authority.url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#7B8299", textDecoration: "none" }}>
+                          <a href={r.authority.url} target="_blank" rel="noreferrer" className={n.plainLink}>
                             Zuständig: {r.authority.name} ↗
                           </a>
                         ) : (
-                          <span style={{ fontSize: 12, color: "#7B8299" }}>Zuständig: {r.authority.name}</span>
+                          <span className={p.muted}>Zuständig: {r.authority.name}</span>
                         )
                       )}
                     </div>
@@ -436,7 +376,7 @@ function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: bool
           </div>
 
           {theme.norms.length > 0 && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 12 }}>
+            <div className={n.nestedList}>
               {theme.norms.map((pn) => (
                 <NormCard key={pn.id} pn={pn} onRemove={onRemove} />
               ))}
@@ -444,18 +384,16 @@ function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: bool
           )}
 
           {showGapCard && (
-            <div style={{ marginTop: 12, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.25)", borderRadius: 10, padding: "10px 14px", display: "flex", gap: 10, alignItems: "flex-start" }}>
-              <svg style={{ width: 14, height: 14, color: "#FBBF24", marginTop: 2, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <div className={`${n.inlineNotice} ${n.toneWarn}`}>
+              <Ico d={ICON.warn} size={18} className={n.noticeIcon} />
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>Keine Norm in der Bibliothek für dieses Thema.</p>
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: "2px 0 0" }}>Norm hochladen oder Mapping im Admin ergänzen.</p>
+                <p className={n.noticeTitle}>Keine Norm in der Bibliothek für dieses Thema.</p>
+                <p className={n.noticeText}>Norm hochladen oder Mapping im Admin ergänzen.</p>
               </div>
             </div>
           )}
           {!showGapCard && theme.norms.length === 0 && (
-            <p style={{ fontSize: 12, color: "#7B8299", margin: "10px 0 0", fontStyle: "italic" }}>
+            <p className={`${n.note} ${n.noticeText}`}>
               {federal
                 ? "Passende Normen hängen bereits über Bund/Kanton/Gemeinde am Projekt (siehe oben) oder sind unter einem anderen Thema aufgeführt."
                 : "Keine Norm zugeordnet — kantonale Themen werden nur über ein eigenes Mapping der Organisation verknüpft."}
@@ -467,7 +405,19 @@ function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: bool
   );
 }
 
-// ── Seite ────────────────────────────────────────────────────────────────────
+function GroupHead({ color, title, count, extra }: { color: string; title: string; count: number; extra?: React.ReactNode }) {
+  return (
+    <div className={p.sectionHead}>
+      <h2 className={n.sectionHeadTitle}>
+        <span className={n.dot} style={{ background: color, marginTop: 0 }} aria-hidden="true" />
+        <span className={p.sectionTitle}>{title}</span>
+        <span className={p.chip}>{count}</span>
+        {extra}
+      </h2>
+    </div>
+  );
+}
+
 
 export default function NormenPage({ params }: { params: { id: string } }) {
   const [project, setProject] = useState<Project | null>(null);
@@ -663,139 +613,118 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
   const hasAnyContent = grouped.length > 0 || otherZoneNorms.length > 0 || affectsThemes.length > 0;
 
-  const smallBtn: React.CSSProperties = { display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" };
-
   const fetchButton = (
     <button
+      type="button"
       onClick={handleFetchOereb}
       disabled={fetchingOereb}
-      style={{ ...smallBtn, background: "#2862D7", color: "#fff", opacity: fetchingOereb ? 0.6 : 1, cursor: fetchingOereb ? "not-allowed" : "pointer" }}
-      onMouseEnter={e => { if (!fetchingOereb) (e.currentTarget as HTMLElement).style.background = "#3470E8"; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#2862D7"; }}
+      className={`${p.btnNavy} ${p.btnSm}`}
     >
       {fetchingOereb ? "Wird abgerufen…" : "ÖREB abrufen"}
     </button>
   );
 
+  const assignedCount = projectNorms.filter((pn) => pn.norms !== null).length;
+  const bannerSubtitle = loading ? undefined : `${assignedCount} ${assignedCount === 1 ? "Norm" : "Normen"} zugewiesen`;
+
+  const bannerActions = (
+    <>
+      <button type="button" onClick={handleKenndatenblatt} disabled={kenndatenBusy} aria-busy={kenndatenBusy} className={p.btnGhost}>
+        <Ico d={kenndatenBusy ? ICON.refresh : ICON.download} size={16} className={kenndatenBusy ? "motion-safe:animate-spin" : undefined} />
+        {kenndatenBusy ? "Wird erstellt…" : "Kenndatenblatt erstellen"}
+      </button>
+      <button type="button" onClick={handleRefresh} disabled={refreshing} className={p.btnGhost}>
+        <Ico d={ICON.refresh} size={16} className={refreshing ? "motion-safe:animate-spin" : undefined} />
+        Normen neu laden
+      </button>
+      <button type="button" onClick={() => setShowAddModal(true)} className={p.btnSand}>
+        <Ico d={ICON.plus} size={16} strokeWidth={2.2} />
+        Spezialnorm hinzufügen
+      </button>
+    </>
+  );
+
   return (
-    <div>
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 20, gap: 16, flexWrap: "wrap" }}>
-        <div>
-          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#fff", margin: "0 0 4px" }}>Normen</h2>
-          {project && (
-            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-              <span style={{ fontSize: 13, color: "#ABAEBB" }}>
-                {project.location.municipality}, Kanton {project.location.canton}
-              </span>
-              {project.parcel_number && (
-                <span style={{ fontSize: 11, background: "rgba(133,166,233,0.1)", color: "#7B8299", padding: "2px 8px", borderRadius: 100 }}>
-                  Parzelle {project.parcel_number}
-                </span>
-              )}
-              {extract?.egrid && (
-                <span title="Eidgenössischer Grundstücksidentifikator" style={{ fontSize: 11, background: "rgba(133,166,233,0.1)", color: "#7B8299", padding: "2px 8px", borderRadius: 100, fontFamily: "monospace" }}>
-                  {extract.egrid}
-                </span>
-              )}
-              {editingZone ? (
-                <ZoneEditor projectId={project.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} onCancel={() => setEditingZone(false)} autoFocus proposal={zoneUnsure} />
-              ) : bauzone ? (
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
-                  <span style={{ fontSize: 11, background: zoneConfidence === "coarse" || zoneUnsure ? "rgba(251,191,36,0.12)" : "rgba(40,98,215,0.12)", color: zoneConfidence === "coarse" || zoneUnsure ? "#FBBF24" : "#85A6E9", padding: "2px 8px", borderRadius: 100, fontWeight: 600 }}>
-                    Zone {bauzone}{zoneOriginLabel ? ` · ${zoneOriginLabel}` : ""}
-                  </span>
-                  {isAdmin && (
-                    <button
-                      onClick={() => setEditingZone(true)}
-                      title="Bauzone bearbeiten"
-                      aria-label="Bauzone bearbeiten"
-                      style={{ padding: 4, borderRadius: 6, background: "none", border: "none", cursor: "pointer", color: "#7B8299", lineHeight: 0 }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.color = "#ABAEBB"}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.color = "#7B8299"}
-                    >
-                      <svg style={{ width: 12, height: 12 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                  )}
-                </span>
-              ) : null}
-            </div>
-          )}
-        </div>
+    <div className={n.page}>
+      <ProjectBanner title="Normen" subtitle={bannerSubtitle} actions={bannerActions} />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {refreshMsg && (
-            <span role="status" style={{ fontSize: 12, color: "#7B8299", maxWidth: 320 }}>{refreshMsg}</span>
-          )}
-          <button
-            onClick={handleKenndatenblatt}
-            disabled={kenndatenBusy}
-            aria-busy={kenndatenBusy}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", cursor: kenndatenBusy ? "not-allowed" : "pointer", opacity: kenndatenBusy ? 0.5 : 1, fontFamily: "inherit", transition: "background .15s", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-          >
-            <svg className={kenndatenBusy ? "animate-spin" : ""} style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              {kenndatenBusy
-                ? <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                : <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />}
-            </svg>
-            {kenndatenBusy ? "Wird erstellt…" : "Kenndatenblatt erstellen"}
-          </button>
-          <button
-            onClick={handleRefresh}
-            disabled={refreshing}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#ABAEBB", border: "1px solid rgba(133,166,233,0.2)", background: "none", cursor: refreshing ? "not-allowed" : "pointer", opacity: refreshing ? 0.5 : 1, fontFamily: "inherit", transition: "background .15s", whiteSpace: "nowrap" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
-          >
-            <svg className={refreshing ? "animate-spin" : ""} style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            Normen neu laden
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "6px 14px", borderRadius: 8, fontSize: 13, color: "#fff", background: "#2862D7", border: "none", cursor: "pointer", fontFamily: "inherit", fontWeight: 600, whiteSpace: "nowrap" }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "#3470E8"; }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "#2862D7"; }}
-          >
-            <svg style={{ width: 14, height: 14 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Spezialnorm hinzufügen
-          </button>
-          {kenndatenError && (
-            <span role="alert" style={{ flexBasis: "100%", fontSize: 12, color: "#F87171", maxWidth: 480 }}>{kenndatenError}</span>
-          )}
-        </div>
+      <div role="status">
+        {refreshMsg && <p className={n.flash}>{refreshMsg}</p>}
       </div>
+      {kenndatenError && <p role="alert" className={`${n.flash} ${n.flashErr}`}>{kenndatenError}</p>}
 
-      {/* ÖREB-Status-Banner */}
+      {loading && !project && (
+        <section className={`${p.glass} ${p.card}`} aria-hidden="true">
+          <div className={n.cardRow}>
+            <span className={`${p.iconTile} ${p.skeleton}`} />
+            <div className={n.cardBody}>
+              <span className={`${p.skeleton} motion-safe:animate-pulse`} style={{ width: "40%", height: 22, marginBottom: 12 }} />
+              <span className={`${p.skeleton} motion-safe:animate-pulse`} style={{ width: "62%" }} />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {project && (
+        <section className={`${p.glassFlat} ${p.card}`} aria-label="Grundstück">
+          <div className={n.cardRow}>
+            <span className={p.iconTile}><Ico d={ICON.layers} size={24} strokeWidth={1.7} /></span>
+            <div className={n.cardBody}>
+              <h2 className={n.cardTitle}>{project.location.municipality}, Kanton {project.location.canton}</h2>
+              <div className={n.chips}>
+                {project.parcel_number && <span className={p.chip}>Parzelle {project.parcel_number}</span>}
+                {extract?.egrid && (
+                  <span title="Eidgenössischer Grundstücksidentifikator" className={`${p.chip} ${n.mono}`}>{extract.egrid}</span>
+                )}
+                {editingZone ? (
+                  <ZoneEditor projectId={project.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} onCancel={() => setEditingZone(false)} autoFocus proposal={zoneUnsure} />
+                ) : bauzone ? (
+                  <>
+                    <span className={zoneConfidence === "coarse" || zoneUnsure ? p.chipWarn : p.chipSand}>
+                      Zone {bauzone}{zoneOriginLabel ? ` · ${zoneOriginLabel}` : ""}
+                    </span>
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => setEditingZone(true)}
+                        title="Bauzone bearbeiten"
+                        aria-label="Bauzone bearbeiten"
+                        className={`${n.iconBtn} ${n.iconBtnSm}`}
+                      >
+                        <Ico d={ICON.pencil} size={15} />
+                      </button>
+                    )}
+                  </>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
       {!loading && project && (
         !oerebSupported ? (
-          <div style={{ marginBottom: 20, background: "rgba(133,166,233,0.05)", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10 }}>
-            <svg style={{ width: 14, height: 14, color: "#7B8299", flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span style={{ fontSize: 12, color: "#7B8299" }}>Kein gültiger Kanton hinterlegt ({canton || "leer"}), deshalb kein ÖREB-Abruf. Bitte den Kanton in den Einstellungen korrigieren.</span>
+          <div className={`${n.notice} ${n.toneInfo}`}>
+            <div className={n.noticeBody}>
+              <Ico d={ICON.info} size={18} className={n.noticeIcon} />
+              <p className={n.noticeText} style={{ margin: 0 }}>Kein gültiger Kanton hinterlegt ({canton || "leer"}), deshalb kein ÖREB-Abruf. Bitte den Kanton in den Einstellungen korrigieren.</p>
+            </div>
           </div>
         ) : oerebError && !extract ? (
-          <div style={{ marginBottom: 20, background: "rgba(133,166,233,0.05)", border: "1px solid rgba(133,166,233,0.15)", borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ fontSize: 12, color: "#7B8299" }}>ÖREB-Daten nicht verfügbar: {oerebError}</span>
+          <div className={`${n.notice} ${n.toneInfo}`}>
+            <div className={n.noticeBody}>
+              <Ico d={ICON.info} size={18} className={n.noticeIcon} />
+              <p className={n.noticeText} style={{ margin: 0 }}>ÖREB-Daten nicht verfügbar: {oerebError}</p>
+            </div>
             {fetchButton}
           </div>
         ) : !extract || !extract.status ? (
-          <div style={{ marginBottom: 20, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-              <svg style={{ width: 16, height: 16, color: "#FBBF24", marginTop: 1, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              </svg>
+          <div className={`${n.notice} ${n.toneWarn}`}>
+            <div className={n.noticeBody}>
+              <Ico d={ICON.warn} size={20} className={n.noticeIcon} />
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>Noch kein ÖREB-Auszug für diese Parzelle</p>
-                <p style={{ fontSize: 12, color: "#ABAEBB", margin: "2px 0 0" }}>
+                <p className={n.noticeTitle}>Noch kein ÖREB-Auszug für diese Parzelle</p>
+                <p className={n.noticeText}>
                   Der Auszug liefert Bauzone und parzellenspezifische Einschränkungen aus dem ÖREB-Kataster {canton}.
                 </p>
               </div>
@@ -803,55 +732,52 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             {fetchButton}
           </div>
         ) : extract.status !== "ok" ? (
-          <div style={{ marginBottom: 20 }}>
-            <OerebStatusNotice
-              status={extract.status}
-              canton={canton}
-              detail={extract.status_detail}
-              pdfUrl={oereb?.oereb_pdf_url}
-              attemptAt={extract.last_attempt_at ?? extract.fetched_at}
-              projectId={params.id}
-              isAdmin={isAdmin}
-            >
-              {fetchButton}
-            </OerebStatusNotice>
-          </div>
+          <OerebStatusNotice
+            status={extract.status}
+            canton={canton}
+            detail={extract.status_detail}
+            pdfUrl={oereb?.oereb_pdf_url}
+            attemptAt={extract.last_attempt_at ?? extract.fetched_at}
+            projectId={params.id}
+            isAdmin={isAdmin}
+          >
+            {fetchButton}
+          </OerebStatusNotice>
         ) : (
-          <div style={{ marginBottom: 20, background: "rgba(251,146,60,0.05)", border: `1px solid ${OEREB_STYLE.cardBorder}`, borderRadius: 12, padding: "10px 16px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span style={{ width: 8, height: 8, borderRadius: "50%", background: OEREB_STYLE.dot, flexShrink: 0 }} />
-            <span style={{ fontSize: 13, color: "#ABAEBB" }}>
-              ÖREB-Auszug vom <strong style={{ color: "#fff", fontWeight: 600 }}>{formatDate(extract.fetched_at)}</strong>
-              {" · "}{themeCount} Themen
-              {" · "}<strong style={{ color: OEREB_STYLE.badgeText, fontWeight: 600 }}>{affectsCount}</strong> betreffen die Parzelle
-              {" · "}{noDataCount} ohne Daten
-              {gapCount > 0 && <>{" · "}<span style={{ color: "#FBBF24" }}>{gapCount} ohne Norm</span></>}
-            </span>
+          <div className={`${n.notice} ${n.toneSand}`}>
+            <div className={n.noticeBody}>
+              <span className={n.dot} style={{ background: OEREB_STYLE.dot, boxShadow: "0 0 0 2px var(--bronze)" }} aria-hidden="true" />
+              <p className={n.noticeText} style={{ margin: 0 }}>
+                ÖREB-Auszug vom <strong>{formatDate(extract.fetched_at)}</strong>
+                {" · "}{themeCount} Themen
+                {" · "}<strong>{affectsCount}</strong> betreffen die Parzelle
+                {" · "}{noDataCount} ohne Daten
+                {gapCount > 0 && <>{" · "}<strong style={{ color: "var(--warn-text)" }}>{gapCount} ohne Norm</strong></>}
+                {staleError && (
+                  <span className={n.noticeDetail} style={{ marginTop: 4, color: "var(--warn-text)", fontWeight: 600 }}>
+                    Die letzte Aktualisierung ist fehlgeschlagen. Es gilt dieser ältere Stand. Bitte später neu laden.
+                  </span>
+                )}
+              </p>
+            </div>
             {oereb?.oereb_pdf_url && (
-              <a href={oereb.oereb_pdf_url} target="_blank" rel="noreferrer" style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none" }}>
+              <a href={oereb.oereb_pdf_url} target="_blank" rel="noreferrer" className={n.link}>
                 Amtlicher PDF-Auszug ↗
               </a>
-            )}
-            {staleError && (
-              <span style={{ flexBasis: "100%", fontSize: 12, color: "#FBBF24" }}>
-                Die letzte Aktualisierung ist fehlgeschlagen. Es gilt dieser ältere Stand. Bitte später neu laden.
-              </span>
             )}
           </div>
         )
       )}
 
-      {/* Keine sichere Bauzone */}
       {!loading && (bauzoneUnknown || zoneUnsure) && !editingZone && (
-        <div style={{ marginBottom: 20, background: "rgba(251,191,36,0.06)", border: "1px solid rgba(251,191,36,0.2)", borderRadius: 12, padding: "12px 16px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
-            <svg style={{ width: 16, height: 16, color: "#FBBF24", marginTop: 2, flexShrink: 0 }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-            </svg>
+        <div className={`${n.notice} ${n.toneWarn}`}>
+          <div className={n.noticeBody}>
+            <Ico d={ICON.warn} size={20} className={n.noticeIcon} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: "#FBBF24", margin: 0 }}>
+              <p className={n.noticeTitle}>
                 {zoneUnsure ? `Bauzone unsicher, bitte prüfen: ${bauzone} ist nur ein Vorschlag` : "Bauzone nicht bekannt"}
               </p>
-              <p style={{ fontSize: 12, color: "#ABAEBB", margin: "3px 0 0" }}>
+              <p className={n.noticeText}>
                 {zoneUnsure
                   ? "Der ÖREB-Auszug lässt keinen sicheren Schluss zu. Die Zone gilt nicht als gesichert, bis sie bestätigt oder korrigiert ist; sie bestimmt, welche zonenspezifischen Normen geladen werden."
                   : extractOk
@@ -860,9 +786,9 @@ export default function NormenPage({ params }: { params: { id: string } }) {
               </p>
               <div style={{ marginTop: 12 }}>
                 {isAdmin ? (
-                  <ZoneEditor projectId={params.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(251,191,36,0.3)" proposal={zoneUnsure} />
+                  <ZoneEditor projectId={params.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(176,125,62,0.55)" proposal={zoneUnsure} />
                 ) : (
-                  <p style={{ fontSize: 12, color: "#7B8299", margin: 0 }}>Die Zone kann ein Organisations-Admin eintragen.</p>
+                  <p className={`${n.noticeText} ${p.muted}`} style={{ margin: 0 }}>Die Zone kann ein Organisations-Admin eintragen.</p>
                 )}
               </div>
             </div>
@@ -872,145 +798,113 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
       {!loading && project && <OerebDocumentsPanel />}
 
-      {/* Content */}
       {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="animate-pulse" style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 12, padding: 16 }}>
-              <div style={{ height: 10, background: "rgba(133,166,233,0.1)", borderRadius: 4, width: "28%", marginBottom: 8 }} />
-              <div style={{ height: 10, background: "rgba(133,166,233,0.07)", borderRadius: 4, width: "72%" }} />
+        <section className={p.glass} aria-hidden="true">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className={n.skelRow}>
+              <span className={`${p.skeleton} motion-safe:animate-pulse`} style={{ width: "28%" }} />
+              <span className={`${p.skeleton} motion-safe:animate-pulse`} style={{ width: "72%" }} />
             </div>
           ))}
-        </div>
+        </section>
       ) : !hasAnyContent ? (
-        <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 16, padding: "64px 24px", textAlign: "center" }}>
-          <div style={{ width: 40, height: 40, background: "rgba(40,98,215,0.12)", borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 12px" }}>
-            <svg style={{ width: 20, height: 20, color: "#85A6E9" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-          </div>
-          <p style={{ fontSize: 14, fontWeight: 600, color: "#ABAEBB", margin: 0 }}>Noch keine Normen zugewiesen</p>
-          <p style={{ fontSize: 12, color: "#7B8299", margin: "4px 0 0" }}>
+        <section className={`${p.glass} ${n.empty}`}>
+          <span className={`${p.iconTile} ${n.emptyTile}`}><Ico d={ICON.doc} size={24} strokeWidth={1.6} /></span>
+          <p className={n.emptyTitle}>Noch keine Normen zugewiesen</p>
+          <p className={n.emptyText}>
             Klicke auf «Normen neu laden» oder füge eine Spezialnorm manuell hinzu.
           </p>
-        </div>
+        </section>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 32 }}>
+        <div className={n.stack}>
           {grouped.length === 0 && affectsThemes.length === 0 && (
-            <div style={{ background: "rgba(23,37,64,0.55)", border: "1px solid rgba(133,166,233,0.1)", borderRadius: 16, padding: "32px 24px", textAlign: "center" }}>
-              <p style={{ fontSize: 13, color: "#ABAEBB", margin: 0 }}>
+            <section className={`${p.glass} ${n.empty}`}>
+              <p className={n.emptyText} style={{ margin: 0 }}>
                 Keine Normen für die aktuelle Bauzone{bauzone ? ` (${bauzone})` : ""}.
               </p>
-            </div>
+            </section>
           )}
 
-          {/* Bund / Kanton / Gemeinde */}
           {grouped.filter((g) => g.label !== "Spezialnormen").map((grp) => (
-            <div key={grp.label}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: grp.dot }} />
-                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: grp.header, margin: 0 }}>
-                  {grp.label}
-                </h3>
-                <span style={{ fontSize: 12, color: "#7B8299" }}>{grp.norms.length}</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {grp.norms.map((pn) => (
-                  <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
-                ))}
-              </div>
-            </div>
+            <section key={grp.label} className={p.glass}>
+              <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
+              {grp.norms.map((pn) => (
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
+              ))}
+            </section>
           ))}
 
-          {/* Parzellenspezifisch (ÖREB) */}
           {affectsThemes.length > 0 && (
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: OEREB_STYLE.dot }} />
-                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: OEREB_STYLE.header, margin: 0 }}>
-                  Parzellenspezifisch (ÖREB)
-                </h3>
-                <span style={{ fontSize: 12, color: "#7B8299" }}>{affectsThemes.length}</span>
-                {gapCount > 0 && (
-                  <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 100, background: "rgba(251,191,36,0.12)", color: "#FBBF24" }}>
-                    {gapCount} Lücke{gapCount !== 1 ? "n" : ""}
-                  </span>
-                )}
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {affectsThemes.map((t) => (
-                  <ThemeBlock key={t.themeCode} theme={t} isGap={gapCodes.has(t.themeCode)} onRemove={handleRemove} />
-                ))}
-              </div>
+            <section className={p.glass}>
+              <GroupHead
+                color={OEREB_STYLE.dot}
+                title="Parzellenspezifisch (ÖREB)"
+                count={affectsThemes.length}
+                extra={gapCount > 0 ? <span className={p.chipWarn}>{gapCount} Lücke{gapCount !== 1 ? "n" : ""}</span> : undefined}
+              />
+              {affectsThemes.map((t) => (
+                <ThemeBlock key={t.themeCode} theme={t} isGap={gapCodes.has(t.themeCode)} onRemove={handleRemove} />
+              ))}
 
               {noDataThemes.length > 0 && (
-                <div style={{ marginTop: 16 }}>
-                  <button
-                    onClick={() => setShowNoData((v) => !v)}
-                    style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
-                  >
-                    <svg style={{ width: 12, height: 12, color: "#7B8299", transform: showNoData ? "rotate(90deg)" : "none", transition: "transform .15s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    <h4 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7B8299", margin: 0 }}>
-                      Ohne Daten ({noDataThemes.length})
-                    </h4>
-                    <span style={{ fontSize: 11, color: "#7B8299" }}>— Themen, für die der Kataster keine Daten publiziert</span>
-                  </button>
+                <div className={n.footBar}>
+                  <h3 className={n.toggleHead}>
+                    <button
+                      type="button"
+                      onClick={() => setShowNoData((v) => !v)}
+                      aria-expanded={showNoData}
+                      className={n.toggle}
+                    >
+                      <Ico d={ICON.chevRight} size={14} strokeWidth={2.4} className={`${n.chev} ${showNoData ? n.chevRight : ""}`} />
+                      <span className={p.sectionTitle}>Ohne Daten ({noDataThemes.length})</span>
+                      <span className={n.toggleHint}>Themen, für die der Kataster keine Daten publiziert</span>
+                    </button>
+                  </h3>
                   {showNoData && (
-                    <ul style={{ margin: 0, padding: "0 0 0 20px", display: "flex", flexDirection: "column", gap: 4 }}>
+                    <ul className={n.noDataList}>
                       {noDataThemes.map((t) => (
-                        <li key={t.themeCode} style={{ fontSize: 12, color: "#7B8299" }}>
-                          {t.themeName} <span style={{ fontFamily: "monospace", fontSize: 11, opacity: 0.7 }}>{t.themeCode}</span>
+                        <li key={t.themeCode}>
+                          {t.themeName} <span className={`${n.mono} ${p.muted}`} style={{ fontSize: 13 }}>{t.themeCode}</span>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Spezialnormen */}
           {grouped.filter((g) => g.label === "Spezialnormen").map((grp) => (
-            <div key={grp.label}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: grp.dot }} />
-                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: grp.header, margin: 0 }}>
-                  {grp.label}
-                </h3>
-                <span style={{ fontSize: 12, color: "#7B8299" }}>{grp.norms.length}</span>
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {grp.norms.map((pn) => (
-                  <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
-                ))}
-              </div>
-            </div>
+            <section key={grp.label} className={p.glass}>
+              <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
+              {grp.norms.map((pn) => (
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
+              ))}
+            </section>
           ))}
 
           {otherZoneNorms.length > 0 && (
-            <div>
-              <button
-                onClick={() => setShowOtherZones((v) => !v)}
-                style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}
-              >
-                <svg style={{ width: 12, height: 12, color: "#7B8299", transform: showOtherZones ? "rotate(90deg)" : "none", transition: "transform .15s" }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-                <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em", color: "#7B8299", margin: 0 }}>
-                  Andere Zonen — nicht zutreffend{bauzone ? ` für ${bauzone}` : ""}
-                </h3>
-                <span style={{ fontSize: 12, color: "#7B8299" }}>{otherZoneNorms.length}</span>
-              </button>
+            <section className={p.glass}>
+              <h2 className={n.toggleHead}>
+                <button
+                  type="button"
+                  onClick={() => setShowOtherZones((v) => !v)}
+                  aria-expanded={showOtherZones}
+                  className={`${n.toggle} ${showOtherZones ? n.toggleOpen : ""}`}
+                >
+                  <Ico d={ICON.chevRight} size={14} strokeWidth={2.4} className={`${n.chev} ${showOtherZones ? n.chevRight : ""}`} />
+                  <span className={p.sectionTitle}>Andere Zonen — nicht zutreffend{bauzone ? ` für ${bauzone}` : ""}</span>
+                  <span className={p.chip}>{otherZoneNorms.length}</span>
+                </button>
+              </h2>
               {showOtherZones && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, opacity: 0.6 }}>
+                <div className={n.dimmed}>
                   {otherZoneNorms.map((pn) => (
                     <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           )}
         </div>
       )}
@@ -1022,8 +916,6 @@ export default function NormenPage({ params }: { params: { id: string } }) {
           onAdded={handleCustomAdded}
         />
       )}
-
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
