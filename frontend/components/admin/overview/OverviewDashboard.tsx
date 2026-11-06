@@ -5,6 +5,7 @@ import type { OverviewData } from "@/lib/admin-overview/types";
 import AnalysesChart from "./AnalysesChart";
 import BudgetDonut from "./BudgetDonut";
 import { Card, CardError, CardSkeleton, focusRing, type Resource } from "./CardFrame";
+import PageHeader from "../shell/PageHeader";
 import KpiTile from "./KpiTile";
 import LatestAnalysesTable from "./LatestAnalysesTable";
 import SystemStatusCard, { type SystemStatusData } from "./SystemStatusCard";
@@ -53,7 +54,7 @@ function isOverview(d: unknown): d is OverviewData {
 
 function Icon({ children }: { children: ReactNode }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {children}
     </svg>
   );
@@ -135,7 +136,7 @@ const loadOverview = async () => {
 const loadStatus = () => fetchEnvelope<SystemStatusData>(STATUS_URL, "Systemstatus konnte nicht geladen werden.");
 
 function NoData() {
-  return <p className="py-8 text-center text-sm text-[#ABAEBB]">Keine Daten verfügbar.</p>;
+  return <p className="py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Keine Daten verfügbar.</p>;
 }
 
 function PlaceholderCard({ title, state, retry, skeleton }: { title: string; state: Resource<unknown>; retry?: () => void; skeleton: ReactNode }) {
@@ -170,44 +171,39 @@ export default function OverviewDashboard() {
   const noLatest = lacks("latest");
 
   return (
-    <div className="space-y-6">
-      <header className="relative overflow-hidden rounded-2xl border border-[rgba(60,63,68,0.5)] bg-[#172540] px-5 py-6 sm:px-6">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[linear-gradient(120deg,rgba(40,98,215,0.28)_0%,rgba(133,166,233,0.10)_45%,rgba(23,37,64,0)_80%)]"
-        />
-        <div className="relative flex flex-wrap items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h1 className="text-2xl font-bold text-white sm:text-3xl">Admin Dashboard</h1>
-            <p className="mt-1 text-sm text-[#ABAEBB]">Systemübersicht, Nutzung und Verwaltung</p>
-          </div>
+    <div className="space-y-4">
+      <PageHeader
+        title="Admin Dashboard"
+        subtitle="Systemübersicht, Nutzung und Verwaltung"
+        actions={
           <button
             type="button"
             onClick={refresh}
             aria-busy={loading}
-            className={`inline-flex items-center gap-2 rounded-lg border border-[rgba(133,166,233,0.4)] px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-white/10 ${loading ? "cursor-progress opacity-70" : ""} ${focusRing}`}
+            className={`tba-pill-btn ${loading ? "cursor-progress opacity-70" : ""} ${focusRing}`}
           >
-            <svg width="14" height="14" viewBox="0 0 12 12" fill="none" aria-hidden="true" className={loading ? "motion-safe:animate-spin" : ""}>
-              <path d="M10.5 6A4.5 4.5 0 1 1 9.16 2.84M10.5 1.5v3h-3" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={loading ? "motion-safe:animate-spin" : ""}>
+              <path d="M20 12a8 8 0 1 1-2.6-5.9" />
+              <path d="M20 4v5h-5" />
             </svg>
             Aktualisieren
           </button>
-        </div>
-      </header>
+        }
+      />
 
       <p className="sr-only" role="status" aria-live="polite">
         {loading ? "Daten werden geladen" : ""}
       </p>
 
       {data && (missing.size > 0 || data.truncated) && (
-        <div className="space-y-1 rounded-xl border border-[rgba(60,63,68,0.5)] bg-[#172540] px-4 py-3 text-sm text-[#ABAEBB]">
+        <div className="tba-glass tba-glass--flat space-y-1 rounded-[20px] px-5 py-3 text-sm text-[var(--tba-text-2,#A7AFBA)]">
           {missing.size > 0 && <p>Einige Kennzahlen konnten nicht geladen werden.</p>}
           {data.truncated && <p>Sehr viele Analysen: ältere Werte können ungenau sein.</p>}
         </div>
       )}
 
       {data ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 min-[701px]:grid-cols-2 min-[1101px]:grid-cols-4">
           <KpiTile label="Analysen (30 Tage)" value={noAnalyses ? "–" : formatInt(data.kpis.analyses30d.value)} icon={icons.analyses} changePct={data.kpis.analyses30d.changePct} hideTrend={noAnalyses} />
           <KpiTile label="Aktive Organisationen" value={noOrgs ? "–" : formatInt(data.kpis.activeOrgs.value)} icon={icons.orgs} changePct={data.kpis.activeOrgs.changePct} hideTrend={noOrgs} />
           <KpiTile label="Aktive Nutzer" value={noUsers ? "–" : formatInt(data.kpis.activeUsers.value)} icon={icons.user} hideTrend />
@@ -223,15 +219,15 @@ export default function OverviewDashboard() {
       ) : overview.status === "error" ? (
         <CardError message={overview.message} onRetry={reloadOverview} />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-hidden="true">
+        <div className="grid grid-cols-1 gap-4 min-[701px]:grid-cols-2 min-[1101px]:grid-cols-4" aria-hidden="true">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="h-[106px] animate-pulse rounded-2xl border border-[rgba(60,63,68,0.5)] bg-[#172540] motion-reduce:animate-none" />
+            <div key={i} className="tba-skel h-[96px] animate-pulse rounded-[20px] motion-reduce:animate-none" />
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="min-w-0 xl:col-span-2">
+      <div className="grid grid-cols-1 items-start gap-4 min-[1101px]:grid-cols-3">
+        <div className="min-w-0 min-[1101px]:col-span-2">
           {data && noSeries ? (
             <Card title="Analysen im Zeitverlauf"><NoData /></Card>
           ) : data ? (
@@ -251,8 +247,8 @@ export default function OverviewDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <div className="min-w-0 xl:col-span-2">
+      <div className="grid grid-cols-1 gap-4 min-[1101px]:grid-cols-3">
+        <div className="min-w-0 min-[1101px]:col-span-2">
           {data && noLatest ? (
             <Card title="Letzte Analysen"><NoData /></Card>
           ) : data ? (

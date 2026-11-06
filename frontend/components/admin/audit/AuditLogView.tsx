@@ -11,7 +11,7 @@ interface PageResponse {
   error: string | null;
 }
 
-const CARD = "bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl";
+const CARD = "tba-glass rounded-2xl";
 
 export default function AuditLogView() {
   const [filters, setFilters] = useState<AuditFilterState>(EMPTY_FILTERS);
@@ -120,7 +120,7 @@ export default function AuditLogView() {
       />
 
       {notice && (
-        <div role="status" className="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-sm rounded-xl px-4 py-3">
+        <div role="status" className="bg-[#D6A45F]/10 border border-[#D6A45F]/30 text-[#D6A45F] text-sm rounded-xl px-4 py-3">
           {notice}
         </div>
       )}
@@ -129,22 +129,22 @@ export default function AuditLogView() {
         <div className={`${CARD} h-64 animate-pulse`} aria-busy="true" />
       ) : error && items.length === 0 ? (
         <div className={`${CARD} p-12 text-center`} role="alert">
-          <svg className="mx-auto mb-3 text-red-400" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <svg className="mx-auto mb-3 text-[#EBA1A1]" width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
             <path d="M12 7.5V13M12 16.2V16.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          <p className="text-[#ABAEBB] text-sm font-medium">{error}</p>
-          <button onClick={() => load(applied, null)} className="mt-3 text-sm text-[#85A6E9] hover:underline">
+          <p className="text-[#A7AFBA] text-sm font-medium">{error}</p>
+          <button onClick={() => load(applied, null)} className="mt-3 text-sm text-[#F0C99A] hover:underline">
             Erneut versuchen
           </button>
         </div>
       ) : items.length === 0 ? (
         <div className={`${CARD} p-12 text-center`}>
-          <p className="text-[#ABAEBB] text-sm font-medium">
+          <p className="text-[#A7AFBA] text-sm font-medium">
             {filtered ? "Keine Einträge für diese Filter gefunden" : "Noch keine Einträge protokolliert"}
           </p>
           {filtered && (
-            <button onClick={() => setFilters(EMPTY_FILTERS)} className="mt-2 text-sm text-[#85A6E9] hover:underline">
+            <button onClick={() => setFilters(EMPTY_FILTERS)} className="mt-2 text-sm text-[#F0C99A] hover:underline">
               Filter zurücksetzen
             </button>
           )}
@@ -153,15 +153,15 @@ export default function AuditLogView() {
         <>
           <AuditTable items={items} />
           {error && (
-            <p role="alert" className="text-sm text-red-400 text-center">{error}</p>
+            <p role="alert" className="text-sm text-[#EBA1A1] text-center">{error}</p>
           )}
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-[#7B8299]">{items.length} Einträge geladen</p>
+            <p className="text-xs text-[#8E98A6]">{items.length} Einträge geladen</p>
             {nextCursor && (
               <button
                 onClick={() => load(applied, nextCursor)}
                 disabled={loadingMore}
-                className="text-sm font-semibold text-[#85A6E9] hover:text-white bg-[#2862D7]/10 hover:bg-[#2862D7] px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
+                className="text-sm font-semibold text-[#F0C99A] hover:text-white bg-[#F0C99A]/10 hover:bg-[#7A5F3D] px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
               >
                 {loadingMore ? "Lade..." : "Mehr laden"}
               </button>

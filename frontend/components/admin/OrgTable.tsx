@@ -19,20 +19,20 @@ interface Props {
 type KnownPlan = PlanTier | "free" | "pro";
 
 const planMeta: Record<KnownPlan, { label: string; cls: string }> = {
-  starter:    { label: "Starter",    cls: "bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]"  },
-  free:       { label: "Starter",    cls: "bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]"  },
-  business:   { label: "Business",   cls: "bg-sky-500/15 text-sky-400"               },
-  pro:        { label: "Business",   cls: "bg-sky-500/15 text-sky-400"               },
-  enterprise: { label: "Enterprise", cls: "bg-[#2862D7]/10 text-[#85A6E9]"          },
+  starter:    { label: "Starter",    cls: "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]"  },
+  free:       { label: "Starter",    cls: "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]"  },
+  business:   { label: "Business",   cls: "bg-[#83A9D0]/15 text-[#83A9D0]"               },
+  pro:        { label: "Business",   cls: "bg-[#83A9D0]/15 text-[#83A9D0]"               },
+  enterprise: { label: "Enterprise", cls: "bg-[#F0C99A]/10 text-[#F0C99A]"          },
 };
 
 type StatusCfg = { dot: string; label: string; textCls: string };
 const statusMeta: Record<string, StatusCfg> = {
-  active:   { dot: "bg-emerald-500", label: "Aktiv",       textCls: "text-emerald-400" },
-  paused:   { dot: "bg-amber-400",   label: "Pausiert",    textCls: "text-amber-400"   },
-  closed:   { dot: "bg-[#4B5563]",   label: "Geschlossen", textCls: "text-[#ABAEBB]"   },
-  archived: { dot: "bg-[#374151]",   label: "Archiviert",  textCls: "text-[#7B8299]"   },
-  inactive: { dot: "bg-[#4B5563]",   label: "Inaktiv",     textCls: "text-[#ABAEBB]"   },
+  active:   { dot: "bg-[#65A88A]", label: "Aktiv",       textCls: "text-[#65A88A]" },
+  paused:   { dot: "bg-[#D6A45F]",   label: "Pausiert",    textCls: "text-[#D6A45F]"   },
+  closed:   { dot: "bg-[#737F8E]",   label: "Geschlossen", textCls: "text-[#A7AFBA]"   },
+  archived: { dot: "bg-[#4A5668]",   label: "Archiviert",  textCls: "text-[#8E98A6]"   },
+  inactive: { dot: "bg-[#737F8E]",   label: "Inaktiv",     textCls: "text-[#A7AFBA]"   },
 };
 
 function getPlanMeta(tier: string): { label: string; cls: string } {
@@ -77,12 +77,12 @@ function OrgMenu({
     <div
       ref={ref}
       style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 9999 }}
-      className="bg-[#0E111B] border border-[rgba(60,63,68,0.5)] rounded-xl shadow-2xl py-1.5 min-w-[172px]"
+      className="bg-[#0B1220] border border-[rgba(255,255,255,0.08)] rounded-xl shadow-2xl py-1.5 min-w-[172px]"
       onClick={e => e.stopPropagation()}
     >
       <button
         onClick={() => { closeMenu(); onOpen(org); }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-white hover:bg-[#1E2D4A] transition-colors text-left"
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-white hover:bg-[#223247] transition-colors text-left"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
           <path d="M2 6.5H11M7.5 3L11 6.5L7.5 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
@@ -90,11 +90,11 @@ function OrgMenu({
         Öffnen
       </button>
 
-      <div className="my-1 h-px bg-[rgba(60,63,68,0.4)]" />
+      <div className="my-1 h-px bg-[rgba(255,255,255,0.08)]" />
 
       <button
         onClick={() => { closeMenu(); onEdit(org); }}
-        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-white hover:bg-[#1E2D4A] transition-colors text-left"
+        className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-white hover:bg-[#223247] transition-colors text-left"
       >
         <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
           <path d="M9 1.5L11.5 4L4.5 11H2V8.5L9 1.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" strokeLinecap="round" />
@@ -105,7 +105,7 @@ function OrgMenu({
       {status === "active" && (
         <button
           onClick={() => { closeMenu(); onPause(org); }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-amber-400 hover:bg-amber-500/10 transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#D6A45F] hover:bg-[#D6A45F]/10 transition-colors text-left"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <rect x="2.5" y="2.5" width="3" height="8" rx="0.5" stroke="currentColor" strokeWidth="1.2" />
@@ -118,7 +118,7 @@ function OrgMenu({
       {status === "paused" && (
         <button
           onClick={() => { closeMenu(); onPause(org); }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-emerald-400 hover:bg-emerald-500/10 transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#65A88A] hover:bg-[#65A88A]/10 transition-colors text-left"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <path d="M3 2.5L10.5 6.5L3 10.5V2.5Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
@@ -130,7 +130,7 @@ function OrgMenu({
       {status !== "closed" && status !== "archived" && (
         <button
           onClick={() => { closeMenu(); onCloseOrg(org); }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-amber-400 hover:bg-amber-500/10 transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#D6A45F] hover:bg-[#D6A45F]/10 transition-colors text-left"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <circle cx="6.5" cy="6.5" r="5" stroke="currentColor" strokeWidth="1.2" />
@@ -143,7 +143,7 @@ function OrgMenu({
       {status !== "archived" && (
         <button
           onClick={() => { closeMenu(); onArchive(org); }}
-          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#ABAEBB] hover:bg-[#1E2D4A] transition-colors text-left"
+          className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#A7AFBA] hover:bg-[#223247] transition-colors text-left"
         >
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
             <path d="M2 4.5H11M2 4.5V10.5H11V4.5M2 4.5V3A.5.5 0 0 1 2.5 2.5H10.5A.5.5 0 0 1 11 3V4.5M5.5 7H7.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -154,10 +154,10 @@ function OrgMenu({
 
       {!org.isDefault && (
         <>
-          <div className="my-1 h-px bg-[rgba(60,63,68,0.4)]" />
+          <div className="my-1 h-px bg-[rgba(255,255,255,0.08)]" />
           <button
             onClick={() => { closeMenu(); onDelete(org); }}
-            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-red-400 hover:bg-red-500/10 transition-colors text-left"
+            className="w-full flex items-center gap-2.5 px-3.5 py-2 text-sm text-[#EBA1A1] hover:bg-[#D87979]/10 transition-colors text-left"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
               <path d="M2 3.5H11M4.5 3.5V2.5H8.5V3.5M4 3.5L4.5 11H8.5L9 3.5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" />
@@ -189,19 +189,19 @@ export default function OrgTable({
   ];
 
   return (
-    <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-hidden">
+    <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
       {openMenuId && (
         <div className="fixed inset-0 z-[9998]" onClick={() => setOpenMenuId(null)} />
       )}
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto tba-scroll-x">
         <table className="w-full text-sm min-w-[860px]">
           <thead>
-            <tr className="border-b border-[rgba(60,63,68,0.4)] bg-[rgba(23,37,64,0.5)]">
+            <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
               {headers.map((h, i) => (
                 <th
                   key={i}
-                  className={`py-3.5 text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider whitespace-nowrap
+                  className={`py-3.5 text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider whitespace-nowrap
                     ${i === 0 ? "px-5 text-left" : i === headers.length - 1 ? "px-5 w-10" : "px-3 text-right"}`}
                 >
                   {h}
@@ -222,7 +222,7 @@ export default function OrgTable({
               return (
                 <tr
                   key={org.id}
-                  className={`hover:bg-[#1E2D4A]/60 transition-colors ${idx < orgs.length - 1 ? "border-b border-[rgba(60,63,68,0.3)]" : ""} ${isArchived ? "opacity-50" : ""}`}
+                  className={`hover:bg-[#223247]/60 transition-colors ${idx < orgs.length - 1 ? "border-b border-[rgba(255,255,255,0.08)]" : ""} ${isArchived ? "opacity-50" : ""}`}
                 >
                   <td className="px-5 py-4">
                     <button
@@ -230,22 +230,22 @@ export default function OrgTable({
                       onClick={() => onDetail?.(org)}
                       className="flex items-center gap-3 text-left w-full group"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-[#2862D7]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#2862D7]/20 transition-colors">
-                        <span className="text-xs font-bold text-[#85A6E9]">{initials}</span>
+                      <div className="w-8 h-8 rounded-lg bg-[#F0C99A]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#F0C99A]/20 transition-colors">
+                        <span className="text-xs font-bold text-[#F0C99A]">{initials}</span>
                       </div>
                       <div>
                         <div className="flex items-center gap-1.5">
-                          <span className={`font-semibold text-white group-hover:text-[#85A6E9] transition-colors ${isArchived ? "line-through" : ""}`}>
+                          <span className={`font-semibold text-white group-hover:text-[#F0C99A] transition-colors ${isArchived ? "line-through" : ""}`}>
                             {org.name}
                           </span>
                           {org.isDefault && (
-                            <span className="text-[9px] font-bold text-[#85A6E9] bg-[#2862D7]/10 px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
+                            <span className="text-[11px] font-bold text-[#F0C99A] bg-[#F0C99A]/10 px-1.5 py-0.5 rounded uppercase tracking-wider flex-shrink-0">
                               Default
                             </span>
                           )}
                         </div>
                         {org.description && (
-                          <p className="text-[10px] text-[#7B8299] mt-0.5 truncate max-w-[180px]">
+                          <p className="text-[11px] text-[#A7AFBA] mt-0.5 truncate max-w-[180px]">
                             {org.description}
                           </p>
                         )}
@@ -261,36 +261,36 @@ export default function OrgTable({
                   </td>
 
                   <td className="px-3 py-4 text-right">
-                    <span className={`inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${planCls}`}>
+                    <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${planCls}`}>
                       {planLabel}
                     </span>
                   </td>
 
-                  <td className="px-3 py-4 text-[#ABAEBB] text-right tabular-nums">
-                    {org.projectCount ?? <span className="text-[rgba(133,166,233,0.3)]">—</span>}
+                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                    {org.projectCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#ABAEBB] text-right tabular-nums">
-                    {org.userCount ?? <span className="text-[rgba(133,166,233,0.3)]">—</span>}
+                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                    {org.userCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#ABAEBB] text-right tabular-nums">
-                    {org.analyseCount ?? <span className="text-[rgba(133,166,233,0.3)]">—</span>}
+                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                    {org.analyseCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#ABAEBB] text-right tabular-nums whitespace-nowrap">
-                    {org.storageGB !== undefined ? formatGB(org.storageGB) : <span className="text-[rgba(133,166,233,0.3)]">—</span>}
+                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums whitespace-nowrap">
+                    {org.storageGB !== undefined ? formatGB(org.storageGB) : <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
                   <td className="px-3 py-4 text-right tabular-nums">
                     {costMap?.[org.id] !== undefined
                       ? <span className="font-medium text-white">CHF {(costMap[org.id] as number).toFixed(2)}</span>
-                      : <span className="text-[rgba(133,166,233,0.3)]">—</span>}
+                      : <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#7B8299] tabular-nums whitespace-nowrap">{created}</td>
+                  <td className="px-3 py-4 text-[#8E98A6] tabular-nums whitespace-nowrap">{created}</td>
 
-                  <td className="px-3 py-4 text-[#7B8299] whitespace-nowrap">
+                  <td className="px-3 py-4 text-[#8E98A6] whitespace-nowrap">
                     {lastAct ?? created}
                   </td>
 
@@ -301,7 +301,7 @@ export default function OrgTable({
                         if (openMenuId === org.id) { setOpenMenuId(null); }
                         else { openMenu(org.id, e.currentTarget as HTMLButtonElement); }
                       }}
-                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[#7B8299] hover:text-white hover:bg-[#1E2D4A] transition-colors"
+                      className="w-7 h-7 flex items-center justify-center rounded-lg text-[#8E98A6] hover:text-white hover:bg-[#223247] transition-colors"
                       title="Aktionen"
                     >
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

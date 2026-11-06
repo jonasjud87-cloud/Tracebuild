@@ -45,7 +45,7 @@ function Glyph({ tone }: { tone: StatusTone }) {
 export default function StatusBadge({ status, orphaned }: { status: string; orphaned: boolean }) {
   const meta = statusMeta(status, orphaned);
   return (
-    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-semibold ${meta.badge}`}>
+    <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${meta.badge}`}>
       <Glyph tone={meta.tone} />
       {meta.label}
     </span>

@@ -31,13 +31,13 @@ select {
   color-scheme: dark;
 }
 select option {
-  background-color: #172540;
+  background-color: #111B2B;
   color: #ffffff;
 }
 select option:checked,
 select option:hover,
 select option:focus {
-  background-color: #2862d7;
+  background-color: #7A5F3D;
   color: #ffffff;
 }
 

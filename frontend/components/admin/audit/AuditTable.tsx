@@ -11,15 +11,15 @@ function fmtTime(iso: string): string {
   });
 }
 
-const TH = "py-3.5 px-4 text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider text-left whitespace-nowrap";
+const TH = "py-3.5 px-4 text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider text-left whitespace-nowrap";
 
 export default function AuditTable({ items }: { items: AuditItem[] }) {
   return (
-    <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
+      <div className="overflow-x-auto tba-scroll-x">
         <table className="w-full text-sm min-w-[860px]">
           <thead>
-            <tr className="border-b border-[rgba(60,63,68,0.4)] bg-[rgba(23,37,64,0.5)]">
+            <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
               <th className={TH}>Zeit</th>
               <th className={TH}>Akteur</th>
               <th className={TH}>Aktion</th>
@@ -29,16 +29,16 @@ export default function AuditTable({ items }: { items: AuditItem[] }) {
           </thead>
           <tbody>
             {items.map(it => (
-              <tr key={it.id} className="hover:bg-[#1E2D4A]/60 transition-colors border-b border-[rgba(60,63,68,0.3)] last:border-0">
-                <td className="px-4 py-3 text-[#ABAEBB] whitespace-nowrap tabular-nums">{fmtTime(it.createdAt)}</td>
+              <tr key={it.id} className="hover:bg-[#223247]/60 transition-colors border-b border-[rgba(255,255,255,0.08)] last:border-0">
+                <td className="px-4 py-3 text-[#A7AFBA] whitespace-nowrap tabular-nums">{fmtTime(it.createdAt)}</td>
                 <td className="px-4 py-3 text-white break-all">{it.actorEmail}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  <span className="inline-block text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#2862D7]/10 text-[#85A6E9]" title={it.action}>
+                  <span className="inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#F0C99A]/10 text-[#F0C99A]" title={it.action}>
                     {actionLabel(it.action, it.meta)}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-[#ABAEBB] break-all">{it.targetEmail ?? "—"}</td>
-                <td className="px-4 py-3 text-[#ABAEBB]">{it.orgId ? it.orgName ?? "Unbekannt" : "Plattform"}</td>
+                <td className="px-4 py-3 text-[#A7AFBA] break-all">{it.targetEmail ?? "—"}</td>
+                <td className="px-4 py-3 text-[#A7AFBA]">{it.orgId ? it.orgName ?? "Unbekannt" : "Plattform"}</td>
               </tr>
             ))}
           </tbody>

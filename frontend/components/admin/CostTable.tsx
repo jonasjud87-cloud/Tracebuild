@@ -4,8 +4,8 @@ import type { OrgCost } from "./types";
 import { fmtMonth } from "./mockCosts";
 
 const statusCfg = {
-  laufend: { label: "Laufend", dot: "bg-amber-400",   text: "text-amber-400"   },
-  final:   { label: "Final",   dot: "bg-emerald-500", text: "text-emerald-400" },
+  laufend: { label: "Laufend", dot: "bg-[#D6A45F]",   text: "text-[#D6A45F]"   },
+  final:   { label: "Final",   dot: "bg-[#65A88A]", text: "text-[#65A88A]" },
 } as const;
 
 function chf(n: number): string { return `CHF ${n.toFixed(2)}`; }
@@ -15,8 +15,8 @@ interface Props { costs: OrgCost[] }
 export default function CostTable({ costs }: Props) {
   if (costs.length === 0) {
     return (
-      <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl p-10 text-center">
-        <p className="text-[#ABAEBB] text-sm">Keine Kostendaten für diesen Zeitraum</p>
+      <div className="tba-glass rounded-2xl p-10 text-center">
+        <p className="text-[#A7AFBA] text-sm">Keine Kostendaten für diesen Zeitraum</p>
       </div>
     );
   }
@@ -30,19 +30,19 @@ export default function CostTable({ costs }: Props) {
   };
 
   return (
-    <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
+      <div className="overflow-x-auto tba-scroll-x">
         <table className="w-full text-sm min-w-[780px]">
           <thead>
-            <tr className="border-b border-[rgba(60,63,68,0.4)] bg-[rgba(23,37,64,0.5)]">
-              <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Organisation</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Analysen</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Analyse-Kosten</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Chat-Kosten</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Normen-Kosten</th>
-              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Gesamtkosten</th>
-              <th className="px-4 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Monat</th>
-              <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#7B8299] uppercase tracking-wider">Status</th>
+            <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
+              <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Organisation</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Analysen</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Analyse-Kosten</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Chat-Kosten</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Normen-Kosten</th>
+              <th className="px-4 py-3.5 text-right text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Gesamtkosten</th>
+              <th className="px-4 py-3.5 text-left  text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Monat</th>
+              <th className="px-5 py-3.5 text-left  text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider">Status</th>
             </tr>
           </thead>
           <tbody>
@@ -52,24 +52,24 @@ export default function CostTable({ costs }: Props) {
               return (
                 <tr
                   key={`${c.orgId}-${c.month}`}
-                  className={`hover:bg-[#1E2D4A]/60 transition-colors ${idx < costs.length - 1 ? "border-b border-[rgba(60,63,68,0.3)]" : ""}`}
+                  className={`hover:bg-[#223247]/60 transition-colors ${idx < costs.length - 1 ? "border-b border-[rgba(255,255,255,0.08)]" : ""}`}
                 >
                   <td className="px-5 py-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-[#2862D7]/10 flex items-center justify-center flex-shrink-0">
-                        <span className="text-[10px] font-bold text-[#85A6E9]">{initials}</span>
+                      <div className="w-7 h-7 rounded-lg bg-[#F0C99A]/10 flex items-center justify-center flex-shrink-0">
+                        <span className="text-[11px] font-bold text-[#F0C99A]">{initials}</span>
                       </div>
                       <span className="font-medium text-white">{c.orgName}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{c.analyseCount}</td>
-                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.analyseCost)}</td>
-                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.chatCost)}</td>
-                  <td className="px-4 py-4 text-[#ABAEBB] text-right tabular-nums">{chf(c.normCost)}</td>
+                  <td className="px-4 py-4 text-[#A7AFBA] text-right tabular-nums">{c.analyseCount}</td>
+                  <td className="px-4 py-4 text-[#A7AFBA] text-right tabular-nums">{chf(c.analyseCost)}</td>
+                  <td className="px-4 py-4 text-[#A7AFBA] text-right tabular-nums">{chf(c.chatCost)}</td>
+                  <td className="px-4 py-4 text-[#A7AFBA] text-right tabular-nums">{chf(c.normCost)}</td>
                   <td className="px-4 py-4 text-right tabular-nums">
                     <span className="font-semibold text-white">{chf(c.totalCost)}</span>
                   </td>
-                  <td className="px-4 py-4 text-[#7B8299] tabular-nums">{fmtMonth(c.month)}</td>
+                  <td className="px-4 py-4 text-[#8E98A6] tabular-nums">{fmtMonth(c.month)}</td>
                   <td className="px-5 py-4">
                     <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${text}`}>
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dot}`} />
@@ -83,8 +83,8 @@ export default function CostTable({ costs }: Props) {
 
           {costs.length > 1 && (
             <tfoot>
-              <tr className="border-t-2 border-[rgba(60,63,68,0.5)] bg-[rgba(23,37,64,0.5)]">
-                <td className="px-5 py-3.5 text-xs font-bold text-[#7B8299] uppercase tracking-wider">Total</td>
+              <tr className="border-t-2 border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
+                <td className="px-5 py-3.5 text-xs font-bold text-[#8E98A6] uppercase tracking-wider">Total</td>
                 <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{totals.analyseCount}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.analyseCost)}</td>
                 <td className="px-4 py-3.5 text-right tabular-nums font-semibold text-white">{chf(totals.chatCost)}</td>

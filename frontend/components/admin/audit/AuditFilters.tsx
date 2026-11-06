@@ -4,12 +4,12 @@ import { ACTION_LABELS, EMPTY_FILTERS } from "./types";
 import type { AuditFilterState, OrgOption } from "./types";
 
 const FIELD =
-  "w-full border border-[rgba(133,166,233,0.25)] rounded-xl px-3 py-2.5 text-sm text-white bg-[rgba(23,37,64,0.6)] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors placeholder:text-[#7B8299]";
+  "w-full border border-[rgba(240,201,154,0.25)] rounded-xl px-3 py-2.5 text-sm text-white bg-[rgba(17,27,43,0.6)] focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors placeholder:text-[#8E98A6]";
 
 function Label({ text, children }: { text: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="block text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest mb-1.5">{text}</span>
+      <span className="block text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest mb-1.5">{text}</span>
       {children}
     </label>
   );
@@ -29,12 +29,12 @@ export default function AuditFilters({ value, orgs, exporting, canExport, onChan
   const dirty = JSON.stringify(value) !== JSON.stringify(EMPTY_FILTERS);
 
   return (
-    <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl p-4 space-y-4">
+    <div className="tba-glass rounded-2xl p-4 space-y-4">
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         <Label text="Suche">
           <div className="relative">
             <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7B8299] pointer-events-none"
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E98A6] pointer-events-none"
               width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true"
             >
               <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
@@ -91,7 +91,7 @@ export default function AuditFilters({ value, orgs, exporting, canExport, onChan
             <button
               type="button"
               onClick={() => onChange(EMPTY_FILTERS)}
-              className="text-sm font-medium text-[#ABAEBB] hover:text-white px-3 py-2.5 transition-colors"
+              className="text-sm font-medium text-[#A7AFBA] hover:text-white px-3 py-2.5 transition-colors"
             >
               Zurücksetzen
             </button>
@@ -100,7 +100,7 @@ export default function AuditFilters({ value, orgs, exporting, canExport, onChan
             type="button"
             onClick={onExport}
             disabled={exporting || !canExport}
-            className="flex items-center gap-2 bg-[#2862D7] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#3470E8] active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-all shadow-sm shadow-[#2862D7]/25 whitespace-nowrap"
+            className="flex items-center gap-2 bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] text-[#07142B] text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#C79B63] active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none transition-all shadow-sm shadow-[#F0C99A]/25 whitespace-nowrap"
           >
             <svg width="14" height="14" viewBox="0 0 18 18" fill="none" aria-hidden="true">
               <path d="M9 11V3M6 8L9 11L12 8M3 13V15H15V13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

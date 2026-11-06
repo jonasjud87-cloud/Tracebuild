@@ -31,8 +31,8 @@ interface Props {
   onClose: () => void;
 }
 
-const FIELD = "w-full rounded-xl border border-[rgba(60,63,68,0.5)] bg-[#0A0E17] px-3 py-2.5 text-sm text-white placeholder:text-[#7B8299] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9] disabled:opacity-60";
-const LABEL = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#7B8299]";
+const FIELD = "w-full rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#080D16] px-3 py-2.5 text-sm text-white placeholder:text-[#8E98A6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A] disabled:opacity-60";
+const LABEL = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#8E98A6]";
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, saving, serverError, onSubmit, onClose }: Props) {
@@ -133,7 +133,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 px-4 py-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto tba-scrim px-4 py-6"
       onClick={e => { if (e.target === e.currentTarget && !saving) onClose(); }}
     >
       <div
@@ -141,7 +141,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
         role="dialog"
         aria-modal="true"
         aria-labelledby="ann-form-title"
-        className="max-h-full w-full max-w-xl overflow-y-auto rounded-2xl border border-[rgba(60,63,68,0.5)] bg-[#0E111B] p-6 shadow-2xl"
+        className="max-h-full w-full max-w-xl overflow-y-auto tba-glass tba-glass--modal rounded-2xl p-6 "
       >
         <h2 id="ann-form-title" className="mb-5 text-lg font-bold text-white">
           {existing ? "Ankündigung bearbeiten" : "Neue Ankündigung"}
@@ -162,8 +162,8 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               className={FIELD}
             />
             <div id="ann-title-help" className="mt-1 flex justify-between text-xs">
-              <span className="text-red-400">{showErr("title")}</span>
-              <span className={title.length > TITLE_MAX ? "text-red-400" : "text-[#7B8299]"}>{title.length}/{TITLE_MAX}</span>
+              <span className="text-[#EBA1A1]">{showErr("title")}</span>
+              <span className={title.length > TITLE_MAX ? "text-[#EBA1A1]" : "text-[#8E98A6]"}>{title.length}/{TITLE_MAX}</span>
             </div>
           </div>
 
@@ -180,8 +180,8 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               className={`${FIELD} resize-y`}
             />
             <div id="ann-message-help" className="mt-1 flex justify-between text-xs">
-              <span className="text-red-400">{showErr("message")}</span>
-              <span className={message.length > MESSAGE_MAX ? "text-red-400" : "text-[#7B8299]"}>{message.length}/{MESSAGE_MAX}</span>
+              <span className="text-[#EBA1A1]">{showErr("message")}</span>
+              <span className={message.length > MESSAGE_MAX ? "text-[#EBA1A1]" : "text-[#8E98A6]"}>{message.length}/{MESSAGE_MAX}</span>
             </div>
           </div>
 
@@ -201,7 +201,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 )}
                 {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
-              {orgsLoading && <p className="mt-1 text-xs text-[#7B8299]">Organisationen werden geladen …</p>}
+              {orgsLoading && <p className="mt-1 text-xs text-[#8E98A6]">Organisationen werden geladen …</p>}
             </div>
           </div>
 
@@ -218,7 +218,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 className={FIELD}
               />
               {!existing && (
-                <label className="mt-2 flex items-center gap-2 text-sm text-[#ABAEBB]">
+                <label className="mt-2 flex items-center gap-2 text-sm text-[#A7AFBA]">
                   <input
                     type="checkbox"
                     checked={startNow}
@@ -227,12 +227,12 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                       setStartNow(e.target.checked);
                       if (!e.target.checked && !startsAt) setStartsAt(isoToLocalInput(new Date().toISOString()));
                     }}
-                    className="h-4 w-4 accent-[#2862D7]"
+                    className="h-4 w-4 accent-[#F0C99A]"
                   />
                   Sofort
                 </label>
               )}
-              {showErr("startsAt") && <p className="mt-1 text-xs text-red-400">{showErr("startsAt")}</p>}
+              {showErr("startsAt") && <p className="mt-1 text-xs text-[#EBA1A1]">{showErr("startsAt")}</p>}
             </div>
             <div>
               <label htmlFor="ann-end" className={LABEL}>Ende (optional, Zürich)</label>
@@ -245,17 +245,17 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 aria-invalid={!!showErr("endsAt")}
                 className={FIELD}
               />
-              {showErr("endsAt") && <p className="mt-1 text-xs text-red-400">{showErr("endsAt")}</p>}
+              {showErr("endsAt") && <p className="mt-1 text-xs text-[#EBA1A1]">{showErr("endsAt")}</p>}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <label className="flex items-center gap-2 text-sm text-[#ABAEBB]">
-              <input type="checkbox" checked={dismissible} disabled={saving} onChange={e => setDismissible(e.target.checked)} className="h-4 w-4 accent-[#2862D7]" />
+            <label className="flex items-center gap-2 text-sm text-[#A7AFBA]">
+              <input type="checkbox" checked={dismissible} disabled={saving} onChange={e => setDismissible(e.target.checked)} className="h-4 w-4 accent-[#F0C99A]" />
               Nutzer dürfen ausblenden
             </label>
-            <label className="flex items-center gap-2 text-sm text-[#ABAEBB]">
-              <input type="checkbox" checked={active} disabled={saving} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#2862D7]" />
+            <label className="flex items-center gap-2 text-sm text-[#A7AFBA]">
+              <input type="checkbox" checked={active} disabled={saving} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#F0C99A]" />
               Aktiv
             </label>
           </div>
@@ -268,7 +268,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
           </div>
 
           {serverError && (
-            <p role="alert" className="rounded-xl border border-red-500/30 bg-red-900/30 px-3 py-2.5 text-sm text-red-300">{serverError}</p>
+            <p role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/30 px-3 py-2.5 text-sm text-[#EBA1A1]">{serverError}</p>
           )}
 
           <div className="flex gap-3 pt-1">
@@ -276,14 +276,14 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="flex-1 rounded-xl border border-[rgba(60,63,68,0.4)] py-2.5 text-sm font-medium text-[#ABAEBB] hover:bg-[#1E2D4A] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]"
+              className="flex-1 rounded-xl border border-[rgba(255,255,255,0.08)] py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
             >
               Abbrechen
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-xl bg-[#2862D7] py-2.5 text-sm font-semibold text-white hover:bg-[#3470E8] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]"
+              className="flex-1 rounded-xl bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] py-2.5 text-sm font-semibold text-[#07142B] hover:bg-[#C79B63] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
             >
               {saving ? "Speichern …" : existing ? "Änderungen speichern" : "Ankündigung erstellen"}
             </button>
