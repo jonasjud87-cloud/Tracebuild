@@ -1,11 +1,5 @@
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { jakarta as font } from "@/lib/fonts";
 import styles from "./auth.module.css";
-
-const font = Plus_Jakarta_Sans({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-});
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

@@ -42,19 +42,7 @@ function StatusChip({ done }: { done: boolean }) {
 }
 
 function Plan() {
-  return (
-    <div className={s.plan} aria-hidden="true">
-      <svg viewBox="0 0 400 200" preserveAspectRatio="xMaxYMin slice" fill="none" stroke="#07142b" strokeWidth="1.1">
-        <path d="M60 170 L200 40 L380 70 L240 190 Z" />
-        <path d="M110 150 L205 62 L330 82 L232 168 Z" />
-        <path d="M150 118 L210 66 M180 140 L272 78 M205 156 L300 94" />
-        <path d="M200 40 L200 4 M60 170 L20 190 M380 70 L398 40" strokeDasharray="5 4" />
-        <circle cx="262" cy="118" r="18" />
-        <path d="M244 118h36M262 100v36" strokeWidth="0.7" />
-        <path d="M96 176h120M300 150l60-50" strokeWidth="0.7" strokeDasharray="3 3" />
-      </svg>
-    </div>
-  );
+  return <div className={s.plan} aria-hidden="true" />;
 }
 
 export default function ProjectCard({ project, view = "grid" }: Props) {

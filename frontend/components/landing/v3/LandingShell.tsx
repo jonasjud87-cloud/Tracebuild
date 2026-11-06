@@ -1,14 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Plus_Jakarta_Sans } from "next/font/google";
-
-const font = Plus_Jakarta_Sans({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-  variable: "--font-jakarta",
-});
+import { jakarta as font } from "@/lib/fonts";
 
 const REVEAL_SELECTOR =
   'section[data-screen-label]:not([data-screen-label^="01"]) > *, footer > * > *';
