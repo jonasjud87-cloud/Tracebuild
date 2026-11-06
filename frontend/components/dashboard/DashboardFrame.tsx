@@ -3,20 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { jakarta as font } from "@/lib/fonts";
 import { roleLabel } from "@/lib/roles";
 import type { OrgInfo } from "@/lib/dashboardContext";
 import AnnouncementBanner from "@/components/announcements/AnnouncementBanner";
 import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import { BookIcon, CloseIcon, HomeIcon, LayersIcon, LogoutIcon, MenuIcon, UsersIcon } from "@/components/dashboard/icons";
 import s from "@/app/dashboard/dashboard.module.css";
-
-const font = Plus_Jakarta_Sans({
-  subsets: ["latin", "latin-ext"],
-  weight: ["400", "500", "600", "700", "800"],
-  display: "swap",
-  variable: "--font-jakarta",
-});
 
 export interface DashboardFrameProps {
   pathname: string;

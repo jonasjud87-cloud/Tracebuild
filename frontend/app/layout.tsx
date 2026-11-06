@@ -1,19 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, Archivo } from "next/font/google";
+import { inter, archivo } from "@/lib/fonts";
 import "./globals.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const archivo = Archivo({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-display",
-  display: "swap",
-});
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://www.tracebuild.ch";
 const TITLE = "TraceBuild - Zeichnungen prüfen, Normen einhalten";

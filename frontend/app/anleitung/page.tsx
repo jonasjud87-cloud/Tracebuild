@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image, { type StaticImageData } from "next/image";
-import { IBM_Plex_Mono, IBM_Plex_Sans, Instrument_Sans } from "next/font/google";
+import { plexMono as mono, plexSans as body, instrument as display } from "@/lib/fonts";
 import ChapterNav from "./ChapterNav";
 import { CHAPTERS, sectionTitle, type HandbookChapter } from "./chapters";
 import s from "./anleitung.module.css";
@@ -23,9 +23,6 @@ import imgPlanAnalyse from "./img/plan-analyse.jpg";
 // Suchmaschinen gesperrt. Schwerpunkt ist die Planprüfung (Kapitel 1); die
 // Einrichtungsthemen stehen danach unter „Weitere Themen“.
 
-const body = IBM_Plex_Sans({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--hb-body", display: "swap" });
-const mono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["500"], variable: "--hb-mono", display: "swap" });
-const display = Instrument_Sans({ subsets: ["latin"], weight: ["500", "600", "700"], variable: "--hb-display", display: "swap" });
 
 const FEEDBACK_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSesqu-mx6u9mfcJkjfO7VD0_a0ucoCYEd0RpPK2LCsh81yDJQ/viewform";
