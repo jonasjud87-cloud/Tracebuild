@@ -11,6 +11,9 @@ import {
   sortCandidates,
   type ParcelFields,
 } from "./geoportal-logic";
+import css from "./ParcelSearch.module.css";
+
+export type ParcelSearchTone = "light" | "dark";
 
 const DEBOUNCE_MS = 350;
 const MIN_CHARS = 3;
@@ -33,25 +36,26 @@ async function getJson<T>(path: string, signal: AbortSignal): Promise<T> {
 
 const isAbort = (e: unknown) => e instanceof DOMException && e.name === "AbortError";
 
-export function CandidateList({ candidates, onPick, disabled, firstRef }: {
+export function CandidateList({ candidates, onPick, disabled, firstRef, tone = "light" }: {
   candidates: ParcelCandidate[];
   onPick: (candidate: ParcelCandidate) => void;
   disabled?: boolean;
   firstRef?: React.Ref<HTMLButtonElement>;
+  tone?: ParcelSearchTone;
 }) {
   return (
-    <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 6 }}>
+    <ul className={`${css.candidates} ${tone === "dark" ? css.candDark : ""}`}>
       {candidates.map((c, i) => (
-        <li key={c.egrid}>
+        <li key={c.egrid} className={css.candItem}>
           <button
             type="button"
             ref={i === 0 ? firstRef : undefined}
             disabled={disabled}
             onClick={() => onPick(c)}
-            style={{ width: "100%", minHeight: 44, textAlign: "left", background: "rgba(23,37,64,0.6)", border: "1px solid rgba(133,166,233,0.25)", borderRadius: 10, padding: "8px 12px", cursor: disabled ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: disabled ? 0.6 : 1 }}
+            className={css.cand}
           >
-            <span style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#fff" }}>{candidateLabel(c)}</span>
-            <span style={{ display: "block", fontSize: 11, color: "#7B8299", marginTop: 2, overflowWrap: "anywhere" }}>
+            <span className={css.candTitle}>{candidateLabel(c)}</span>
+            <span className={css.candSub}>
               {[c.type, c.egrid].filter(Boolean).join(" · ")}
             </span>
           </button>
@@ -65,13 +69,14 @@ export function CandidateList({ candidates, onPick, disabled, firstRef }: {
  * Suche nach Adresse oder Parzelle (Combobox-Muster). Die Liste steht im normalen Fluss und
  * nicht absolut, weil Dialog und Handy-Ansicht ein schwebendes Element abschneiden würden.
  */
-export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle suchen", placeholder = "z.B. Bahnhofstrasse 1 Herisau oder Herisau 859", hint, requireComplete = false }: {
+export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle suchen", placeholder = "z.B. Bahnhofstrasse 1 Herisau oder Herisau 859", hint, requireComplete = false, tone = "light" }: {
   onSelect: (selection: ParcelSelection) => void;
   /** Ohne verbindliche Parzellenabfrage nichts liefern, weil es keine Felder zum Ergänzen gibt. */
   requireComplete?: boolean;
   label?: string;
   placeholder?: string;
   hint?: string;
+  tone?: ParcelSearchTone;
 }) {
   const baseId = useId();
   const inputId = `${baseId}-input`;
@@ -84,7 +89,6 @@ export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle 
   const [resolving, setResolving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<{ list: ParcelCandidate[]; hit: GeoSearchHit } | null>(null);
-  const [focused, setFocused] = useState(false);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchAbortRef = useRef<AbortController | null>(null);
@@ -238,10 +242,10 @@ export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle 
         ?? (candidates ? `${candidates.list.length} Grundstücke an dieser Stelle. Bitte eines wählen.` : open ? `${results.length} Treffer` : "");
 
   return (
-    <div>
-      <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 5, flexWrap: "wrap" }}>
-        <label htmlFor={inputId} style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB" }}>{label}</label>
-        {hint && <span style={{ fontSize: 11, color: "#7B8299" }}>{hint}</span>}
+    <div className={`${css.root} ${tone === "dark" ? css.dark : ""}`}>
+      <div className={css.labelRow}>
+        <label htmlFor={inputId} className={css.label}>{label}</label>
+        {hint && <span className={css.hint}>{hint}</span>}
       </div>
       <input
         id={inputId}
@@ -257,26 +261,17 @@ export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle 
         placeholder={placeholder}
         onChange={(e) => handleChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        onFocus={() => { setFocused(true); if (results.length > 0 && !candidates && !resolving) setOpen(true); }}
-        onBlur={() => { setFocused(false); setOpen(false); }}
-        style={{
-          width: "100%", border: `1px solid ${focused ? "#2862D7" : "rgba(133,166,233,0.25)"}`,
-          background: "rgba(23,37,64,0.6)", borderRadius: 10, padding: "9px 13px", fontSize: 14,
-          color: "#fff", outline: "none", fontFamily: "inherit", boxSizing: "border-box",
-          boxShadow: focused ? "0 0 0 3px rgba(40,98,215,0.2)" : "none",
-          transition: "box-shadow .15s, border-color .15s",
-        }}
+        onFocus={() => { if (results.length > 0 && !candidates && !resolving) setOpen(true); }}
+        onBlur={() => { setOpen(false); }}
+        className={css.input}
       />
 
       <ul
         id={listId}
         role="listbox"
         aria-label="Suchtreffer"
-        style={{
-          display: open ? "block" : "none", listStyle: "none", margin: "6px 0 0", padding: 4,
-          maxHeight: 264, overflowY: "auto", background: "#0E111B",
-          border: "1px solid rgba(133,166,233,0.25)", borderRadius: 10,
-        }}
+        className={css.list}
+        style={{ display: open ? "block" : "none" }}
       >
         {results.map((hit, i) => (
           <li
@@ -284,20 +279,15 @@ export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle 
             id={`${listId}-${i}`}
             role="option"
             aria-selected={i === active}
-            // mousedown statt click: Das Eingabefeld darf vorher den Fokus nicht verlieren.
             onMouseDown={(e) => { e.preventDefault(); pickHit(hit); }}
             onMouseEnter={() => setActive(i)}
             ref={(el) => { if (el && i === active) el.scrollIntoView({ block: "nearest" }); }}
-            style={{
-              display: "flex", alignItems: "center", gap: 8, minHeight: 40, padding: "6px 8px",
-              borderRadius: 8, cursor: "pointer",
-              background: i === active ? "rgba(40,98,215,0.2)" : "none",
-            }}
+            className={css.option}
           >
-            <span style={{ flexShrink: 0, fontSize: 10, fontWeight: 600, padding: "2px 7px", borderRadius: 100, background: hit.kind === "parcel" ? "rgba(52,211,153,0.12)" : "rgba(133,166,233,0.1)", color: hit.kind === "parcel" ? "#34D399" : "#85A6E9" }}>
+            <span className={`${css.kind} ${hit.kind === "parcel" ? css.kindParcel : css.kindAddress}`}>
               {hit.kind === "parcel" ? "Parzelle" : "Adresse"}
             </span>
-            <span style={{ fontSize: 13, color: "#fff", minWidth: 0, overflowWrap: "anywhere" }}>{hit.label}</span>
+            <span className={css.optionText}>{hit.label}</span>
           </li>
         ))}
       </ul>
@@ -307,15 +297,16 @@ export default function ParcelSearch({ onSelect, label = "Adresse oder Parzelle 
           <CandidateList
             candidates={candidates.list}
             firstRef={firstCandidateRef}
+            tone={tone}
             onPick={(c) => pickCandidate(c, candidates.hit)}
           />
         </div>
       )}
 
-      <p role="status" aria-live="polite" style={{ fontSize: 11, color: message ? "#FBBF24" : "#7B8299", margin: "5px 0 0", lineHeight: 1.4, minHeight: 15 }}>
+      <p role="status" aria-live="polite" className={`${css.status} ${message ? css.statusWarn : ""}`}>
         {statusText}
       </p>
-      <p style={{ fontSize: 11, color: "#7B8299", margin: "2px 0 0" }}>Quelle: swisstopo (geo.admin.ch)</p>
+      <p className={css.source}>Quelle: swisstopo (geo.admin.ch)</p>
     </div>
   );
 }

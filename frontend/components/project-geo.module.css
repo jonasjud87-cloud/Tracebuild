@@ -1,0 +1,533 @@
+.geoCard {
+  margin-bottom: 20px;
+  padding: clamp(16px, 2vw, 24px) clamp(16px, 2.2vw, 28px);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.geoCardAttention {
+  box-shadow:
+    inset 0 1px 0 rgba(252, 247, 238, 0.85),
+    inset 0 0 0 1.5px rgba(214, 164, 95, 0.75),
+    0 20px 40px -28px rgba(110, 76, 34, 0.32);
+}
+
+.geoPlan {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: -1;
+  width: 70%;
+  pointer-events: none;
+  background-image: url("/landing/project-plan.jpg");
+  background-size: cover;
+  background-position: right center;
+  background-repeat: no-repeat;
+  filter: sepia(0.5) saturate(0.7) contrast(0.85);
+  opacity: 0.3;
+  mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(to left, #000 15%, transparent 95%);
+  mask-image: linear-gradient(to left, #000 15%, transparent 95%);
+}
+
+.geoLayout {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+}
+
+.geoMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.geoTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+}
+
+.geoTitleRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  min-width: 0;
+}
+
+.geoTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.note {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.noteGap {
+  margin-top: 6px;
+}
+
+.infoLine {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.infoLine svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--muted);
+}
+
+.infoLineWarn {
+  color: var(--warn-text);
+  font-weight: 600;
+}
+
+.infoLineWarn svg {
+  color: var(--warn-text);
+}
+
+.block {
+  margin-top: 12px;
+}
+
+.attention {
+  margin-top: 12px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(214, 164, 95, 0.55);
+  background: rgba(214, 164, 95, 0.16);
+}
+
+.attentionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--warn-text);
+}
+
+.attentionText {
+  margin: 4px 0 10px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.expander {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  margin-top: 12px;
+  padding: 4px 6px 4px 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.expander svg {
+  transition: transform 0.15s;
+}
+
+.details {
+  margin-top: 8px;
+}
+
+.dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.dlRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.dt {
+  flex: 0 0 150px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.dd {
+  flex: 1 1 200px;
+  min-width: 0;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--body);
+  overflow-wrap: anywhere;
+}
+
+.block1 {
+  display: block;
+}
+
+.link {
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: rgba(125, 85, 31, 0.55);
+  text-underline-offset: 3px;
+}
+
+.link:hover {
+  color: var(--bronze-deep);
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.small {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+.smallWarn {
+  margin: 10px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--warn-text);
+  overflow-wrap: anywhere;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+}
+
+.noticeErr {
+  background: rgba(216, 121, 121, 0.16);
+  border-color: rgba(216, 121, 121, 0.5);
+}
+
+.noticeWarn {
+  background: rgba(214, 164, 95, 0.18);
+  border-color: rgba(214, 164, 95, 0.55);
+}
+
+.noticeInfo {
+  background: rgba(131, 169, 208, 0.18);
+  border-color: rgba(131, 169, 208, 0.55);
+}
+
+.noticeMain {
+  flex: 1 1 260px;
+  min-width: 0;
+}
+
+.noticeTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.noticeTitleErr {
+  color: var(--err-text);
+}
+
+.noticeTitleWarn {
+  color: var(--warn-text);
+}
+
+.noticeTitleInfo {
+  color: var(--info-text);
+}
+
+.noticeText {
+  margin: 3px 0 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.noticeDetail {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.noticeLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 8px;
+  font-size: 14px;
+}
+
+.zone {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.zoneRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.zoneHint {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--warn-text);
+}
+
+.zoneError {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--err-text);
+}
+
+.run {
+  padding: 14px 18px;
+  text-align: left;
+}
+
+.runFull {
+  padding: clamp(28px, 5vw, 44px) clamp(16px, 3vw, 28px);
+  text-align: center;
+}
+
+.runGap {
+  margin-bottom: 16px;
+}
+
+.runEyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.runLabel {
+  margin: 0 0 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.runLabelFull {
+  font-size: 17px;
+}
+
+.track {
+  position: relative;
+  height: 8px;
+  margin: 0 0 12px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(176, 125, 62, 0.26);
+}
+
+.trackFull {
+  max-width: 480px;
+  margin: 0 auto 16px;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #07142b, #1b2a41 70%, #b07d3e);
+  transition: width 0.6s ease;
+}
+
+.barIndeterminate {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 35%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #1b2a41, #07142b);
+  animation: runSlide 1.4s ease-in-out infinite;
+}
+
+@keyframes runSlide {
+  from {
+    left: -35%;
+  }
+  to {
+    left: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .barIndeterminate {
+    animation: none;
+    left: 0;
+    width: 100%;
+    opacity: 0.4;
+  }
+}
+
+.runHint {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--body);
+}
+
+.runNote {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--warn-text);
+}
+
+.runError {
+  margin: 0 0 6px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-weight: 600;
+  color: var(--err-text);
+}
+
+.runActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.runActionsFull {
+  justify-content: center;
+  margin-top: 18px;
+}
+
+button.cancelBtn {
+  color: var(--err-text);
+  background: rgba(216, 121, 121, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.55);
+}
+
+button.cancelBtn:hover:not(:disabled) {
+  background: rgba(216, 121, 121, 0.26);
+}
+
+.alert {
+  padding: 12px 16px;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  font-size: 14px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.alertErr {
+  color: var(--err-text);
+  font-weight: 600;
+  background: rgba(216, 121, 121, 0.16);
+  border-color: rgba(216, 121, 121, 0.5);
+}
+
+.alertWarn {
+  color: var(--warn-text);
+  background: rgba(214, 164, 95, 0.18);
+  border-color: rgba(214, 164, 95, 0.55);
+}
+
+.alertInfo {
+  color: var(--body);
+  background: rgba(131, 169, 208, 0.16);
+  border-color: rgba(131, 169, 208, 0.5);
+}
+
+.spinner {
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--navy);
+  border-top-color: transparent;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2s;
+  }
+}
+
+@media (max-width: 520px) {
+  .geoLayout {
+    gap: 12px;
+  }
+
+  .geoLayout .geoTile {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+  }
+
+  .geoPlan {
+    width: 100%;
+    opacity: 0.2;
+  }
+
+  .dt {
+    flex-basis: 100%;
+  }
+}
+
+@media (max-width: 720px) {
+  .expander {
+    min-height: 40px;
+  }
+
+  .link {
+    display: inline-block;
+    padding: 8px 0;
+  }
+}

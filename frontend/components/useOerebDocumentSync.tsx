@@ -12,6 +12,7 @@ import {
   type SyncProgress,
   type SyncRunResult,
 } from "./geoportal-logic";
+import n from "@/app/projects/[id]/norms/norms.module.css";
 
 export interface OerebSyncState {
   running: boolean;
@@ -149,35 +150,36 @@ export function OerebSyncStatus({ projectId }: { projectId: string }) {
     <div
       role="status"
       aria-live="polite"
-      style={{ marginBottom: 16, background: trouble ? "rgba(251,191,36,0.06)" : "rgba(133,166,233,0.05)", border: `1px solid ${trouble ? "rgba(251,191,36,0.2)" : "rgba(133,166,233,0.15)"}`, borderRadius: 12, padding: "10px 14px" }}
+      className={`${n.notice} ${trouble ? n.toneWarn : n.toneSand}`}
+      style={{ marginBottom: 16, display: "block" }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
-        <p style={{ flex: "1 1 240px", minWidth: 0, fontSize: 12.5, color: "#ABAEBB", margin: 0, lineHeight: 1.45, overflowWrap: "anywhere" }}>
+        <p className={n.noticeText} style={{ flex: "1 1 240px", minWidth: 0, margin: 0 }}>
           {running ? (
             <>
-              <strong style={{ color: "#fff", fontWeight: 600 }}>Reglemente aus dem ÖREB-Kataster</strong>
+              <strong style={{ color: "var(--ink)" }}>Reglemente aus dem ÖREB-Kataster</strong>
               {total > 0 ? ` werden übernommen (${done}/${total})` : " werden geprüft"}
               {progress?.waiting ? ", warten auf einen anderen Abruf…" : "…"}
             </>
           ) : (
             <>
-              <strong style={{ color: trouble ? "#FBBF24" : "#fff", fontWeight: 600 }}>Reglemente aus dem ÖREB-Kataster</strong>
+              <strong style={{ color: trouble ? "var(--warn-text)" : "var(--ink)" }}>Reglemente aus dem ÖREB-Kataster</strong>
               {summary ? `: ${summary}` : lastEnd === "done" ? ": geprüft." : "."}
               {END_TEXT[lastEnd!] && <span style={{ display: "block", marginTop: 2 }}>{END_TEXT[lastEnd!]}</span>}
-              {lastError && <span style={{ display: "block", marginTop: 2, color: "#7B8299" }}>Meldung: {lastError}</span>}
+              {lastError && <span className={n.noticeDetail} style={{ marginTop: 2 }}>Meldung: {lastError}</span>}
             </>
           )}
         </p>
         {!running && (
           <span style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-            <Link href={`/projects/${projectId}/norms#reglemente`} style={{ fontSize: 12, color: "#85A6E9", textDecoration: "none" }}>
+            <Link href={`/projects/${projectId}/norms#reglemente`} className={n.link}>
               Details
             </Link>
             <button
               type="button"
               aria-label="Meldung schliessen"
               onClick={() => setDismissedVersion(state.version)}
-              style={{ color: "#7B8299", background: "none", border: "none", cursor: "pointer", fontSize: 18, lineHeight: 1, padding: 0, fontFamily: "inherit" }}
+              className={n.dismiss}
             >
               ×
             </button>
@@ -191,9 +193,9 @@ export function OerebSyncStatus({ projectId }: { projectId: string }) {
           aria-valuemin={0}
           aria-valuemax={total}
           aria-valuenow={done}
-          style={{ marginTop: 8, height: 4, borderRadius: 2, background: "rgba(133,166,233,0.15)", overflow: "hidden" }}
+          className={n.progress}
         >
-          <div style={{ height: "100%", width: `${Math.round((done / total) * 100)}%`, background: "#2862D7", transition: "width .3s" }} />
+          <div className={n.progressFill} style={{ width: `${Math.round((done / total) * 100)}%` }} />
         </div>
       )}
     </div>
