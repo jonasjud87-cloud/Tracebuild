@@ -1,0 +1,70 @@
+:global(.tbl) .section {
+  background: var(--cream);
+  color: var(--ink);
+  padding: 80px clamp(20px, 6vw, 96px);
+}
+:global(.tbl) .inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+:global(.tbl) .head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+:global(.tbl) .pill {
+  display: inline-block;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 26px;
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+:global(.tbl) .title {
+  margin-top: 28px;
+  font-size: var(--fs-h2);
+  line-height: 1.1;
+  font-weight: var(--fw-title);
+  letter-spacing: -0.02em;
+}
+:global(.tbl) .image {
+  width: min(100%, 520px);
+  height: auto;
+  border-radius: 16px;
+  display: block;
+}
+:global(.tbl) .steps {
+  margin-top: 56px;
+}
+:global(.tbl) .step {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 32px;
+  align-items: center;
+  padding: 36px 0;
+  border-top: 1px solid rgba(7, 20, 43, 0.12);
+}
+:global(.tbl) .step:hover {
+  padding-left: 12px;
+}
+:global(.tbl) .stepHead {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: center;
+}
+:global(.tbl) .num {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--body);
+}
+:global(.tbl) .stepTitle {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-title);
+  letter-spacing: -0.02em;
+}
+:global(.tbl) .stepText {
+  color: var(--body);
+  max-width: 420px;
+}

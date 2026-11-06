@@ -1,0 +1,35 @@
+:global(.tbl) .section {
+  background: var(--navy);
+  padding: 80px clamp(20px, 6vw, 96px);
+  text-align: center;
+}
+:global(.tbl) .pill {
+  display: inline-block;
+  border: 1px solid var(--bronze);
+  color: var(--sand);
+  border-radius: 999px;
+  padding: 8px 28px;
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+:global(.tbl) .title {
+  margin: 22px auto 0;
+  max-width: 1000px;
+  font-size: var(--fs-h2);
+  line-height: 1.1;
+  font-weight: var(--fw-title);
+  letter-spacing: -0.02em;
+}
+:global(.tbl) .lead {
+  margin: 18px auto 0;
+  max-width: 780px;
+  font-size: var(--fs-sub);
+  color: var(--sand);
+}
+:global(.tbl) .image {
+  display: block;
+  margin: 56px auto 0;
+  width: 100%;
+  max-width: 970px;
+  height: auto;
+}

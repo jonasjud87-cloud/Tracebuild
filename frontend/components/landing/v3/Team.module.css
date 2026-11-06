@@ -1,0 +1,136 @@
+:global(.tbl) .section {
+  background: var(--cream);
+  color: var(--ink);
+  padding: 80px clamp(20px, 6vw, 96px);
+}
+:global(.tbl) .inner {
+  max-width: 1100px;
+  margin: 0 auto;
+}
+:global(.tbl) .pill {
+  display: inline-block;
+  border: 1.5px solid var(--ink);
+  border-radius: 999px;
+  padding: 8px 26px;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+:global(.tbl) .title {
+  margin-top: 28px;
+  font-size: var(--fs-h2);
+  line-height: 1.1;
+  font-weight: var(--fw-title);
+  letter-spacing: -0.02em;
+}
+:global(.tbl) .lead {
+  margin-top: 18px;
+  max-width: 720px;
+  color: var(--body);
+}
+:global(.tbl) .list {
+  margin-top: 56px;
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+:global(.tbl) .person {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 32px 56px;
+  align-items: center;
+  flex-direction: row;
+}
+:global(.tbl) .reverse {
+  flex-direction: row-reverse;
+}
+:global(.tbl) .avatar {
+  flex: none;
+  width: 200px;
+  height: 190px;
+  border: 1.5px solid var(--bronze);
+  border-radius: 22px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+:global(.tbl) .monogram {
+  width: 112px;
+  height: 112px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bronze);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 800;
+  color: var(--bronze);
+  margin-top: -20px;
+  box-shadow: 0 0 0 12px var(--cream), 0 0 0 13px var(--bronze);
+}
+:global(.tbl) .circle {
+  position: absolute;
+  bottom: -34px;
+  left: 50%;
+  margin-left: -32px;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1.5px solid var(--bronze);
+}
+:global(.tbl) .info {
+  flex: 1 1 320px;
+  max-width: 560px;
+  min-width: 0;
+}
+:global(.tbl) .name {
+  font-size: var(--fs-h3);
+  font-weight: var(--fw-title);
+  letter-spacing: -0.02em;
+}
+:global(.tbl) .role {
+  font-size: var(--fs-label);
+  color: var(--body);
+}
+:global(.tbl) .text {
+  margin-top: 12px;
+  color: var(--body);
+}
+:global(.tbl) .contact {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+:global(.tbl) .mail {
+  color: var(--ink);
+  text-decoration: underline;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+:global(.tbl) .mail:hover {
+  color: var(--bronze-ink);
+}
+:global(.tbl) .soon {
+  border: 1px solid var(--body);
+  border-radius: 999px;
+  padding: 3px 14px;
+  font-size: 14px;
+}
+:global(.tbl) .general {
+  margin-top: 56px;
+  color: var(--body);
+}
+:global(.tbl) .generalMail,
+:global(.tbl) .generalMail:hover {
+  color: var(--ink);
+  text-decoration: underline;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+:global(.tbl) .generalMail:hover {
+  color: var(--bronze-ink);
+}

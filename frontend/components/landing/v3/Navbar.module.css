@@ -1,0 +1,65 @@
+:global(.tbl) .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition: background 0.35s, border-color 0.35s, backdrop-filter 0.35s;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 32px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px clamp(20px, 6vw, 96px);
+}
+:global(.tbl) .brand,
+:global(.tbl) .brand:hover {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+:global(.tbl) .mark {
+  height: 34px;
+  width: auto;
+  display: block;
+}
+:global(.tbl) .nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 28px;
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+:global(.tbl) .link {
+  color: #fff;
+}
+:global(.tbl) .link:hover {
+  color: #f0c99a;
+}
+:global(.tbl) .login {
+  border: 1.5px solid var(--sand);
+  color: var(--sand);
+  border-radius: 10px;
+  padding: 7px 20px;
+  font-weight: var(--fw-btn);
+  margin-left: 8px;
+}
+:global(.tbl) .login:hover {
+  background: #f0c99a;
+  color: #07142b;
+}
+:global(.tbl) .progress {
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  height: 2px;
+  width: 0;
+  background: linear-gradient(90deg, #b07d3e, #f0c99a);
+}
