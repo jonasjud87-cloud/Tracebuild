@@ -79,7 +79,7 @@ export function AnnouncementBannerView({
           <div
             key={item.id}
             role={item.type === "critical" ? "alert" : "status"}
-            className={`flex items-start gap-3 rounded-xl border border-l-4 border-[#B07D3E]/25 bg-[#FFFBF5]/90 px-4 py-3 shadow-[0_10px_28px_-16px_rgba(7,20,43,0.45)] backdrop-blur-md ${s.box}`}
+            className={`flex items-start gap-3 rounded-xl border border-l-4 border-[#B07D3E]/25 bg-[#F4EBDD]/90 px-4 py-3 shadow-[0_10px_28px_-16px_rgba(7,20,43,0.45)] backdrop-blur-md ${s.box}`}
           >
             <span className={`mt-0.5 flex-shrink-0 ${s.icon}`}>
               <TypeIcon type={item.type} />
@@ -89,7 +89,7 @@ export function AnnouncementBannerView({
                 <span className="sr-only">{s.label}: </span>
                 {item.title}
               </p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#3A4556]" style={{ overflowWrap: "anywhere" }}>
+              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#2E3847]" style={{ overflowWrap: "anywhere" }}>
                 {item.message}
               </p>
             </div>
@@ -109,7 +109,7 @@ export function AnnouncementBannerView({
         );
       })}
       {rest > 0 && (
-        <p className="inline-block rounded-md bg-[#FFFBF5]/90 px-2 py-0.5 text-xs font-medium text-[#6B5F52]">
+        <p className="inline-block rounded-md bg-[#F4EBDD]/90 px-2 py-0.5 text-xs font-medium text-[#54493D]">
           und {rest} weitere {rest === 1 ? "Hinweis" : "Hinweise"}
         </p>
       )}

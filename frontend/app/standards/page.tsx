@@ -1,31 +1,32 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { api, ApiError } from "@/lib/api";
 import LogoutButton from "@/components/LogoutButton";
 import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
+import { jakarta } from "@/lib/fonts";
 import { authoritativeErrorText, formatDate, safeExternalUrl, similarityPercent } from "@/components/geoportal-logic";
 import type { NormSupersession } from "@/lib/geoadmin/contract";
+import { CalendarIcon, ChevronDownIcon, GridIcon, LayersIcon, PinIcon, SearchIcon } from "@/components/dashboard/icons";
+import { EyeIcon, EyeOffIcon, FileIcon, GlobeIcon, PlusIcon, TrashIcon, UploadIcon } from "./icons";
+import s from "./standards.module.css";
 
 interface FileEntry {
   ids: string[];
   title?: string;
   jurisdiction_name: string | null;
+  jurisdiction_type: string;
   category: string;
   source_url: string | null;
   zone: string | null;
   pdf_url: string | null;
-  /** Plattformweit von TraceBuild hinterlegt — für die Organisation nur lesbar. */
   global: boolean;
-  /** Stand gegenüber dem amtlichen Text, falls ein Teil der Datei einen Hinweis trägt. */
+  createdAt: string | null;
   supersession: NormSupersession | null;
 }
 
-const SECONDARY_BTN = "text-xs font-medium rounded-lg px-3 py-1.5 border border-[rgba(133,166,233,0.3)] text-[#85A6E9] hover:text-white hover:bg-[#2862D7]/15 disabled:opacity-50 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]";
-
-/** Hinweis am eigenen Upload: Die amtliche Fassung gilt, oder die Organisation hat ihre festgelegt. */
 function VersionHint({ info, onChange }: {
   info: NormSupersession;
   onChange: (authoritative: boolean) => Promise<void>;
@@ -52,31 +53,31 @@ function VersionHint({ info, onChange }: {
   const since = formatDate(info.superseded_at);
 
   return (
-    <div className={`mt-3 rounded-lg border px-3 py-2 ${authoritative ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-400/30 bg-amber-400/5"}`}>
-      <p className={`text-xs font-semibold ${authoritative ? "text-emerald-400" : "text-amber-300"}`}>
+    <div className={`${s.hint} ${authoritative ? s.hintOk : s.hintInfo}`}>
+      <p className={s.hintTitle}>
         {authoritative ? "Ihre Fassung ist massgebend" : "Neuere amtliche Fassung verwendet"}
       </p>
-      <p className="mt-1 text-xs leading-relaxed text-[#ABAEBB]">
+      <p className={s.hintText}>
         {authoritative
           ? "Die Projekte Ihrer Organisation verwenden diesen Upload, auch wenn ein ähnlicher amtlicher Text vorliegt."
           : `Die Projekte verwenden den amtlichen Text. Ihr Upload bleibt gespeichert, zählt aber nicht mehr in der Analyse.${percent !== null ? ` ${percent} % davon stehen im amtlichen Text.` : ""}${since ? ` Stand ${since}.` : ""}`}
       </p>
       {info.official && (
-        <p className="mt-1 text-xs text-[#ABAEBB]">
+        <p className={s.hintText}>
           Amtlich:{" "}
           {officialUrl ? (
-            <a href={officialUrl} target="_blank" rel="noreferrer" className="text-[#85A6E9] hover:text-white underline underline-offset-2 break-words">
+            <a href={officialUrl} target="_blank" rel="noreferrer" className={s.hintLink}>
               {info.official.title} <span aria-hidden="true">↗</span>
             </a>
           ) : info.official.title}
         </p>
       )}
-      <div className="mt-2">
-        <button type="button" disabled={busy} onClick={() => run(!authoritative)} className={SECONDARY_BTN}>
+      <div className={s.hintAction}>
+        <button type="button" disabled={busy} onClick={() => run(!authoritative)} className={s.btnGhost}>
           {busy ? "Wird gespeichert…" : authoritative ? "Festlegung zurücknehmen" : "Meine Fassung als massgebend festlegen"}
         </button>
       </div>
-      {problem && <p role="alert" className="mt-2 text-xs text-red-400">{problem}</p>}
+      {problem && <p role="alert" className={`${s.notice} ${s.noticeErr}`} style={{ marginTop: 8 }}>{problem}</p>}
     </div>
   );
 }
@@ -87,8 +88,8 @@ function FileCard({ entry, onDelete, onAuthoritative }: {
   onAuthoritative: (ids: string[], authoritative: boolean) => Promise<void>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  // Die Liste liefert keinen Volltext mehr, er wird beim ersten Aufklappen geladen.
   const [text, setText] = useState<string | null>(null);
+  const detailId = useId();
   useEffect(() => {
     if (!expanded || text !== null) return;
     let active = true;
@@ -97,69 +98,75 @@ function FileCard({ entry, onDelete, onAuthoritative }: {
       .catch(() => { if (active) setText("Text konnte nicht geladen werden. Bitte später erneut versuchen."); });
     return () => { active = false; };
   }, [expanded, text, entry.ids]);
+  const label = entry.source_url || entry.category;
+  const date = formatDate(entry.createdAt);
   return (
-    <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 group">
-      <div className="flex items-center gap-3">
-        <div className="min-w-0 flex-1 flex items-center gap-2 flex-wrap">
+    <li className={s.row}>
+      <div className={s.rowMain}>
+        <span className={s.fileIcon} aria-hidden="true"><FileIcon size={22} /></span>
+        <div className={s.chips}>
           {entry.global && (
-            <span
-              className="text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2 py-0.5 rounded-full font-medium"
-              title="Von TraceBuild für alle Organisationen hinterlegt"
-            >
+            <span className={`${s.chip} ${s.chipGlobal}`} title="Von TraceBuild für alle Organisationen hinterlegt">
               Global
             </span>
           )}
-          <span className="text-xs bg-[#2862D7]/10 text-[#85A6E9] px-2 py-0.5 rounded-full font-medium">
-            {entry.jurisdiction_name ?? "—"}
-          </span>
-          <span className="text-xs bg-[rgba(60,63,68,0.5)] text-[#ABAEBB] px-2 py-0.5 rounded-full">{entry.category}</span>
-          <span className="text-sm text-white font-medium truncate">📄 {entry.source_url || "—"}</span>
+          <span className={`${s.chip} ${s.chipLevel}`}>{entry.jurisdiction_name ?? "—"}</span>
+          <span className={`${s.chip} ${s.chipCat}`}>{entry.category}</span>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <span className={s.name}>{entry.source_url || "—"}</span>
+        <span className={s.date}>
+          <CalendarIcon size={18} />
+          <span className={s.sr}>Hochgeladen am </span>
+          <span>{date ?? "–"}</span>
+        </span>
+        <div className={s.actions}>
           <button
+            type="button"
             onClick={() => setExpanded((e) => !e)}
-            className="text-xs text-[#85A6E9] hover:text-white whitespace-nowrap transition-colors"
+            className={s.iconBtn}
+            aria-expanded={expanded}
+            aria-controls={detailId}
+            aria-label={`${expanded ? "Inhalt verbergen" : "Inhalt anzeigen"}: ${label}`}
+            title={expanded ? "Inhalt verbergen" : "Inhalt anzeigen"}
           >
-            {expanded ? "Inhalt verbergen ▲" : "Inhalt anzeigen ▼"}
+            {expanded ? <EyeOffIcon /> : <EyeIcon />}
           </button>
           {!entry.global && (
             <button
+              type="button"
               onClick={() => onDelete(entry.ids)}
-              className="text-[#7B8299] hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100 text-lg leading-none"
+              className={`${s.iconBtn} ${s.dangerBtn}`}
+              aria-label={`Löschen: ${label}`}
               title="Löschen"
-            >×</button>
+            >
+              <TrashIcon />
+            </button>
           )}
         </div>
       </div>
       {entry.supersession && (
         <VersionHint info={entry.supersession} onChange={(value) => onAuthoritative(entry.ids, value)} />
       )}
-      {expanded && (
-        <>
-          <p className="mt-3 text-sm text-[#ABAEBB] leading-relaxed whitespace-pre-wrap border-t border-[rgba(60,63,68,0.4)] pt-3">
-            {text ?? "Text wird geladen …"}
-          </p>
-          {entry.pdf_url && (
-            <div className="mt-3 border-t border-[rgba(60,63,68,0.4)] pt-3">
-              <iframe
-                src={entry.pdf_url}
-                className="w-full rounded-lg border border-[rgba(133,166,233,0.18)]"
-                style={{ height: 560 }}
-                title={`PDF-Vorschau ${entry.source_url ?? entry.category}`}
-              />
-              <a
-                href={entry.pdf_url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 inline-block text-xs text-[#85A6E9] hover:text-white transition-colors"
-              >
-                Original-PDF öffnen ↗
-              </a>
-            </div>
-          )}
-        </>
-      )}
-    </div>
+      <div id={detailId} hidden={!expanded}>
+        {expanded && (
+          <div className={s.detail}>
+            <p className={s.detailText}>{text ?? "Text wird geladen …"}</p>
+            {entry.pdf_url && (
+              <div>
+                <iframe
+                  src={entry.pdf_url}
+                  className={s.pdfFrame}
+                  title={`PDF-Vorschau ${entry.source_url ?? entry.category}`}
+                />
+                <a href={entry.pdf_url} target="_blank" rel="noreferrer" className={s.pdfLink}>
+                  Original-PDF öffnen ↗
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
 
@@ -181,19 +188,19 @@ interface Standard extends Partial<NormSupersession> {
   zone?: string | null;
   pdf_url?: string | null;
   org_id: string | null;
+  created_at?: string | null;
 }
 
 const STANDARDS_PAGE_SIZE = 200;
 
-/** Nur eigene Uploads tragen einen Hinweis. `null`: Der Upload gilt normal. */
-function supersessionFrom(s: Standard): NormSupersession | null {
-  if (!s.org_id || !s.version_hint) return null;
+function supersessionFrom(st: Standard): NormSupersession | null {
+  if (!st.org_id || !st.version_hint) return null;
   return {
-    version_hint: s.version_hint,
-    org_authoritative: s.org_authoritative === true,
-    superseded_similarity: s.superseded_similarity ?? null,
-    superseded_at: s.superseded_at ?? null,
-    official: s.official ?? null,
+    version_hint: st.version_hint,
+    org_authoritative: st.org_authoritative === true,
+    superseded_similarity: st.superseded_similarity ?? null,
+    superseded_at: st.superseded_at ?? null,
+    official: st.official ?? null,
   };
 }
 
@@ -223,7 +230,9 @@ export default function StandardsPage() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [filterJurisdiction, setFilterJurisdiction] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
+  const [query, setQuery] = useState("");
   const [uploadOpen, setUploadOpen] = useState(false);
+  const uid = useId();
 
   useEffect(() => {
     createClient().auth.getUser().then(({ data }) => {
@@ -240,7 +249,6 @@ export default function StandardsPage() {
         params.set("jurisdiction_type", "cantonal");
         params.set("jurisdiction_name", filterJurisdiction);
       }
-      // Seitenweise, damit keine Antwort das Limit von Vercel erreicht.
       const all: Standard[] = [];
       for (let offset = 0; ; offset += STANDARDS_PAGE_SIZE) {
         params.set("limit", String(STANDARDS_PAGE_SIZE));
@@ -297,228 +305,293 @@ export default function StandardsPage() {
   async function handleDelete(ids: string[]) {
     if (!confirm("Diese Norm-Datei löschen?")) return;
     await Promise.all(ids.map((id) => api.delete(`/standards/${id}`)));
-    setStandards((prev) => prev.filter((s) => !ids.includes(s.id)));
+    setStandards((prev) => prev.filter((st) => !ids.includes(st.id)));
   }
 
   async function handleAuthoritative(ids: string[], authoritative: boolean) {
-    // Der Reihe nach: Jeder Aufruf weist die Normen der Projekte neu zu.
     for (const id of ids) {
       try {
         const info = await api.put<NormSupersession & { id: string }>(`/standards/${id}/authoritative`, { authoritative });
-        setStandards((prev) => prev.map((s) => (s.id === id ? { ...s, ...info } : s)));
+        setStandards((prev) => prev.map((st) => (st.id === id ? { ...st, ...info } : st)));
       } catch (e) {
-        // Die Norm ist weg: Die Liste zeigt sonst weiter einen Knopf, der nie mehr geht.
         if (e instanceof ApiError && e.status === 404) void loadStandards();
         throw e;
       }
     }
   }
 
-  const categories = Array.from(new Set(standards.map((s) => s.category))).sort();
+  const categories = Array.from(new Set(standards.map((st) => st.category))).sort();
 
-  const fileEntries: FileEntry[] = [];
-  const seen = new Map<string, FileEntry>();
-  for (const s of standards) {
-    if (filterCategory && s.category !== filterCategory) continue;
-    const key = `${s.org_id ?? "global"}||${s.source_url ?? s.id}||${s.jurisdiction_name ?? ""}||${s.category}`;
-    if (seen.has(key)) {
-      const entry = seen.get(key)!;
-      entry.ids.push(s.id);
-      if (!entry.pdf_url && s.pdf_url) entry.pdf_url = s.pdf_url;
-      if (!entry.supersession) entry.supersession = supersessionFrom(s);
-    } else {
-      const entry: FileEntry = {
-        ids: [s.id],
-        title: s.title,
-        jurisdiction_name: s.jurisdiction_name ?? (s.jurisdiction_type === "national" ? "Bund" : null),
-        category: s.category,
-        source_url: s.source_url,
-        zone: s.zone ?? null,
-        pdf_url: s.pdf_url ?? null,
-        global: s.org_id === null,
-        supersession: supersessionFrom(s),
-      };
-      seen.set(key, entry);
-      fileEntries.push(entry);
+  const allEntries = useMemo(() => {
+    const entries: FileEntry[] = [];
+    const seen = new Map<string, FileEntry>();
+    for (const st of standards) {
+      const key = `${st.org_id ?? "global"}||${st.source_url ?? st.id}||${st.jurisdiction_name ?? ""}||${st.category}`;
+      if (seen.has(key)) {
+        const entry = seen.get(key)!;
+        entry.ids.push(st.id);
+        if (!entry.pdf_url && st.pdf_url) entry.pdf_url = st.pdf_url;
+        if (!entry.supersession) entry.supersession = supersessionFrom(st);
+      } else {
+        const entry: FileEntry = {
+          ids: [st.id],
+          title: st.title,
+          jurisdiction_name: st.jurisdiction_name ?? (st.jurisdiction_type === "national" ? "Bund" : null),
+          jurisdiction_type: st.jurisdiction_type,
+          category: st.category,
+          source_url: st.source_url,
+          zone: st.zone ?? null,
+          pdf_url: st.pdf_url ?? null,
+          global: st.org_id === null,
+          createdAt: st.created_at ?? null,
+          supersession: supersessionFrom(st),
+        };
+        seen.set(key, entry);
+        entries.push(entry);
+      }
     }
-  }
+    return entries;
+  }, [standards]);
 
-  const inputCls = "w-full rounded-lg px-3 py-2 text-sm text-white bg-[rgba(23,37,64,0.6)] border border-[rgba(133,166,233,0.25)] placeholder:text-[#7B8299] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors";
+  const needle = query.trim().toLowerCase();
+  const fileEntries = allEntries.filter((en) => {
+    if (filterCategory && en.category !== filterCategory) return false;
+    if (!needle) return true;
+    return [en.title, en.source_url, en.category, en.jurisdiction_name].some((v) => v?.toLowerCase().includes(needle));
+  });
+
+  const levelCount = new Set(allEntries.map((en) => en.jurisdiction_type).filter((t) => JURISDICTIONS.some((j) => j.value === t))).size;
+  const ownCount = allEntries.filter((en) => !en.global).length;
+  const kpis = [
+    { icon: <LayersIcon size={26} />, value: allEntries.length, label: "Norm-Dateien" },
+    { icon: <GridIcon size={26} />, value: new Set(allEntries.map((en) => en.category)).size, label: "Kategorien" },
+    { icon: <GlobeIcon size={26} />, value: levelCount, label: "Ebenen (Bund, Kanton, Gemeinde)" },
+    { icon: <FileIcon size={26} />, value: ownCount, label: "Eigene Uploads" },
+  ];
+
+  const emptyFor = needle ? `„${query.trim()}“` : filterCategory || filterJurisdiction || "diese Auswahl";
 
   return (
-    <div style={{ minHeight: "100vh", background: "radial-gradient(120% 90% at 50% -10%,#182541 0%,#0A0E17 55%)" }}>
-      <header style={{ background: "rgba(10,14,23,0.85)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderBottom: "1px solid rgba(133,166,233,0.12)", position: "sticky", top: 0, zIndex: 40 }}>
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/dashboard" className="text-sm text-[#7B8299] hover:text-white transition-colors">
-              ← Dashboard
-            </Link>
-            <h1 className="text-xl font-bold text-white">Normen-Datenbank</h1>
-          </div>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-[#7B8299]">{email}</span>
-            <LogoutButton />
-          </div>
+    <div className={`${jakarta.variable} ${jakarta.className} ${s.shell}`}>
+      <div className={s.backdrop} aria-hidden="true">
+        <div className={s.glowA} />
+        <div className={s.glowB} />
+        <div className={s.plan}>
+          <div className={s.planImg} style={{ backgroundImage: "url(/landing/project-plan.jpg)" }} />
         </div>
-      </header>
+      </div>
 
-      <main className="max-w-7xl mx-auto px-6 py-8 flex gap-8 items-start">
-        {/* Upload-Panel — collapsed to a compact button by default */}
-        {!uploadOpen ? (
-          <button
-            onClick={() => setUploadOpen(true)}
-            className="shrink-0 flex items-center gap-2 px-4 py-3 bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl hover:border-[#2862D7]/40 hover:bg-[#2862D7]/8 transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" className="text-[#85A6E9]" aria-hidden="true">
-              <path d="M7 1V13M1 7H13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-            <span className="text-sm font-medium text-[#ABAEBB] whitespace-nowrap">Norm hochladen</span>
-          </button>
-        ) : (
-        <div className="w-72 shrink-0">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-white">Norm hochladen</h2>
-            <button
-              onClick={() => setUploadOpen(false)}
-              className="text-[#7B8299] hover:text-white transition-colors text-lg leading-none"
-              title="Einklappen"
-            >×</button>
+      <div className={s.page}>
+        <header className={s.topbar}>
+          <Link href="/dashboard" className={s.back}>
+            <span aria-hidden="true">←</span> Dashboard
+          </Link>
+          <div className={s.userArea}>
+            {email && (
+              <div className={s.userPill}>
+                <span className={s.avatar} aria-hidden="true">{email.slice(0, 1).toUpperCase()}</span>
+                <span className={s.email}>{email}</span>
+              </div>
+            )}
+            <LogoutButton className={s.logout} />
           </div>
-          <form onSubmit={handleUpload} className="space-y-3">
-            <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-              onDragLeave={() => setDragOver(false)}
-              onDrop={handleDrop}
-              onClick={() => fileRef.current?.click()}
-              className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-                dragOver ? "border-[#2862D7] bg-[#2862D7]/10" : "border-[rgba(133,166,233,0.2)] hover:border-[#2862D7]/50"
-              }`}
-            >
-              <input ref={fileRef} type="file" accept=".pdf,.txt" className="hidden"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              {file ? (
-                <p className="text-sm text-[#85A6E9] font-medium truncate">{file.name}</p>
-              ) : (
-                <div>
-                  <p className="text-sm text-[#ABAEBB]">PDF / TXT</p>
-                  <p className="text-xs text-[#7B8299]">Drag & Drop oder klicken</p>
+        </header>
+
+        <main>
+          <h1 className={s.title}>Normen-Datenbank</h1>
+          <p className={s.lead}>Zentrale Sammlung aller relevanten Normen, Gesetze und Regelwerke.</p>
+
+          <ul className={s.kpis} aria-label="Kennzahlen">
+            {kpis.map((k) => (
+              <li key={k.label} className={`${s.kpi} ${s.glass}`}>
+                <span className={s.iconBox} aria-hidden="true">{k.icon}</span>
+                <div className={s.kpiText}>
+                  <p className={s.kpiValue}>{loading ? "–" : k.value}</p>
+                  <p className={s.kpiLabel}>{k.label}</p>
                 </div>
-              )}
-            </div>
+              </li>
+            ))}
+          </ul>
 
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Ebene</label>
-              <select value={jurisdictionType} onChange={(e) => setJurisdictionType(e.target.value as "national" | "cantonal" | "municipal")}
-                className={`${inputCls} appearance-none`}>
-                {JURISDICTIONS.map((j) => <option key={j.value} value={j.value}>{j.label}</option>)}
-              </select>
-            </div>
-
-            {jurisdictionType === "cantonal" && (
-              <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">Kanton</label>
-                <select value={canton} onChange={(e) => setCanton(e.target.value)}
-                  className={`${inputCls} appearance-none`}>
-                  {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              </div>
-            )}
-
-            {jurisdictionType === "municipal" && (
-              <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                  Gemeinde <span className="text-red-400">*</span>
-                </label>
-                <input type="text" required value={municipality} onChange={(e) => setMunicipality(e.target.value)}
-                  placeholder="z.B. Mels"
-                  className={inputCls} />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                Kategorie <span className="text-red-400">*</span>
-              </label>
-              <input type="text" required value={category} onChange={(e) => setCategory(e.target.value)}
-                placeholder="z.B. Grenzabstand, Gebäudehöhe"
-                className={inputCls} />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Zone (optional)</label>
-              <input type="text" value={zone} onChange={(e) => setZone(e.target.value)}
-                placeholder="z.B. W2 — leer = gilt für alle Zonen"
-                className={inputCls} />
-            </div>
-
-            <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">Quelle (optional)</label>
-              <input type="text" value={sourceName} onChange={(e) => setSourceName(e.target.value)}
-                placeholder="z.B. PBG ZH § 270"
-                className={inputCls} />
-            </div>
-
-            {error && <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{error}</p>}
-            {success && <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">{success}</p>}
-
-            <button type="submit" disabled={uploading || !file}
-              className="w-full bg-[#2862D7] text-white py-2 rounded-lg text-sm font-medium hover:bg-[#3470E8] disabled:opacity-50 transition-colors">
-              {uploading ? "Wird verarbeitet…" : "Hochladen & speichern"}
+          <div className={s.toolbar}>
+            <button
+              type="button"
+              onClick={() => setUploadOpen((o) => !o)}
+              className={s.btnDark}
+              aria-expanded={uploadOpen}
+              aria-controls={`${uid}-upload`}
+            >
+              <PlusIcon size={20} />
+              Norm hochladen
             </button>
-          </form>
-        </div>
-        )}
 
-        {/* Liste */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-sm font-semibold text-white">
-              Hochgeladene Norm-Dateien
-              {fileEntries.length > 0 && (
-                <span className="ml-2 text-[#7B8299] font-normal">
-                  ({fileEntries.length} {fileEntries.length === 1 ? "Datei" : "Dateien"})
-                </span>
-              )}
-            </h2>
-            <div className="flex gap-2">
-              <select value={filterJurisdiction} onChange={(e) => setFilterJurisdiction(e.target.value)}
-                className={`${inputCls} w-auto py-1.5 appearance-none`}>
+            <div className={`${s.field} ${s.searchField}`}>
+              <label htmlFor={`${uid}-search`} className={s.sr}>Normen, Gesetze oder Dokumente suchen</label>
+              <SearchIcon size={20} />
+              <input
+                id={`${uid}-search`}
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Normen, Gesetze oder Dokumente suchen…"
+                autoComplete="off"
+                className={s.bare}
+              />
+            </div>
+
+            <div className={`${s.field} ${s.selectField}`}>
+              <label htmlFor={`${uid}-canton`} className={s.sr}>Kanton filtern</label>
+              <PinIcon size={20} />
+              <select id={`${uid}-canton`} value={filterJurisdiction} onChange={(e) => setFilterJurisdiction(e.target.value)} className={s.bare}>
                 <option value="">Alle Kantone</option>
                 {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
-              {categories.length > 0 && (
-                <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
-                  className={`${inputCls} w-auto py-1.5 appearance-none`}>
-                  <option value="">Alle Kategorien</option>
-                  {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                </select>
-              )}
+              <span className={s.chev} aria-hidden="true"><ChevronDownIcon size={18} /></span>
+            </div>
+
+            <div className={`${s.field} ${s.selectField}`}>
+              <label htmlFor={`${uid}-cat`} className={s.sr}>Kategorie filtern</label>
+              <LayersIcon size={20} />
+              <select id={`${uid}-cat`} value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)} className={s.bare} disabled={categories.length === 0}>
+                <option value="">Alle Kategorien</option>
+                {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+              <span className={s.chev} aria-hidden="true"><ChevronDownIcon size={18} /></span>
             </div>
           </div>
 
-          {loading ? (
-            <div className="space-y-2">
-              {[...Array(5)].map((_, i) => (
-                <div key={i} className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 animate-pulse">
-                  <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-1/4 mb-2" />
-                  <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-3/4" />
+          {uploadOpen && (
+            <section id={`${uid}-upload`} className={`${s.upload} ${s.glass}`} aria-labelledby={`${uid}-upload-title`}>
+              <div className={s.uploadHead}>
+                <h2 id={`${uid}-upload-title`} className={s.uploadTitle}>Norm hochladen</h2>
+                <button type="button" onClick={() => setUploadOpen(false)} className={s.iconBtn} aria-label="Einklappen" title="Einklappen">
+                  <span style={{ display: "flex", transform: "rotate(180deg)" }}><ChevronDownIcon size={20} /></span>
+                </button>
+              </div>
+              <form onSubmit={handleUpload}>
+                <div className={s.uploadGrid}>
+                  <div>
+                    <input ref={fileRef} type="file" accept=".pdf,.txt" className={s.sr} tabIndex={-1} aria-hidden="true"
+                      onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+                    <button
+                      type="button"
+                      onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                      onDragLeave={() => setDragOver(false)}
+                      onDrop={handleDrop}
+                      onClick={() => fileRef.current?.click()}
+                      className={`${s.drop} ${dragOver ? s.dropOver : ""}`}
+                      style={{ width: "100%", height: "100%" }}
+                    >
+                      <span className={s.dropIcon}><UploadIcon size={30} /></span>
+                      {file ? (
+                        <span className={s.dropFile}>{file.name}</span>
+                      ) : (
+                        <>
+                          <span className={s.dropMain}>PDF / TXT</span>
+                          <span className={s.dropSub}>Drag & Drop oder klicken</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <div className={s.fields}>
+                    <div>
+                      <label htmlFor={`${uid}-level`} className={s.label}>Ebene</label>
+                      <select id={`${uid}-level`} value={jurisdictionType} onChange={(e) => setJurisdictionType(e.target.value as "national" | "cantonal" | "municipal")} className={s.input}>
+                        {JURISDICTIONS.map((j) => <option key={j.value} value={j.value}>{j.label}</option>)}
+                      </select>
+                    </div>
+
+                    {jurisdictionType === "cantonal" && (
+                      <div>
+                        <label htmlFor={`${uid}-up-canton`} className={s.label}>Kanton</label>
+                        <select id={`${uid}-up-canton`} value={canton} onChange={(e) => setCanton(e.target.value)} className={s.input}>
+                          {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                    )}
+
+                    {jurisdictionType === "municipal" && (
+                      <div>
+                        <label htmlFor={`${uid}-muni`} className={s.label}>
+                          Gemeinde <span className={s.req} aria-hidden="true">*</span>
+                        </label>
+                        <input id={`${uid}-muni`} type="text" required value={municipality} onChange={(e) => setMunicipality(e.target.value)}
+                          placeholder="z.B. Mels" className={s.input} />
+                      </div>
+                    )}
+
+                    <div className={jurisdictionType === "national" ? undefined : s.fieldFull}>
+                      <label htmlFor={`${uid}-category`} className={s.label}>
+                        Kategorie <span className={s.req} aria-hidden="true">*</span>
+                      </label>
+                      <input id={`${uid}-category`} type="text" required value={category} onChange={(e) => setCategory(e.target.value)}
+                        placeholder="z.B. Grenzabstand, Gebäudehöhe" className={s.input} />
+                    </div>
+
+                    <div>
+                      <label htmlFor={`${uid}-zone`} className={s.label}>Zone (optional)</label>
+                      <input id={`${uid}-zone`} type="text" value={zone} onChange={(e) => setZone(e.target.value)}
+                        placeholder="z.B. W2 — leer = gilt für alle Zonen" className={s.input} />
+                    </div>
+
+                    <div>
+                      <label htmlFor={`${uid}-source`} className={s.label}>Quelle (optional)</label>
+                      <input id={`${uid}-source`} type="text" value={sourceName} onChange={(e) => setSourceName(e.target.value)}
+                        placeholder="z.B. PBG ZH § 270" className={s.input} />
+                    </div>
+
+                    {error && <p role="alert" className={`${s.notice} ${s.noticeErr} ${s.fieldFull}`}>{error}</p>}
+                    {success && <p role="status" className={`${s.notice} ${s.noticeOk} ${s.fieldFull}`}>{success}</p>}
+
+                    <div className={s.fieldFull}>
+                      <button type="submit" disabled={uploading || !file} className={s.btnSand}>
+                        {uploading ? "Wird verarbeitet…" : "Hochladen & speichern"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              </form>
+            </section>
+          )}
+
+          <h2 className={s.listHead}>
+            <span className={s.listTitle}>Hochgeladene Norm-Dateien</span>
+            {fileEntries.length > 0 && (
+              <span className={s.count}>
+                ({fileEntries.length} {fileEntries.length === 1 ? "Datei" : "Dateien"})
+              </span>
+            )}
+          </h2>
+
+          {loading ? (
+            <ul className={s.list} aria-busy="true" aria-label="Normen werden geladen">
+              {[...Array(5)].map((_, i) => (
+                <li key={i} className={s.skel}>
+                  <span className={s.skelBar} style={{ width: "28%" }} />
+                  <span className={s.skelBar} style={{ width: "62%" }} />
+                </li>
               ))}
+            </ul>
+          ) : allEntries.length === 0 ? (
+            <div className={`${s.empty} ${s.glass}`}>
+              <p className={s.emptyMain}>Noch keine Normen vorhanden.</p>
+              <p className={s.emptySub}>Lade eine PDF- oder Textdatei hoch.</p>
             </div>
           ) : fileEntries.length === 0 ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-16 text-center">
-              <p className="text-[#7B8299] text-sm">Noch keine Normen vorhanden.</p>
-              <p className="text-[#7B8299]/70 text-xs mt-1">Lade eine PDF- oder Textdatei hoch.</p>
+            <div className={`${s.empty} ${s.glass}`} role="status">
+              <p className={s.emptyMain}>Keine Normen für {emptyFor}.</p>
+              <p className={s.emptySub}>Suche oder Filter anpassen.</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <ul className={s.list}>
               {fileEntries.map((entry) => (
                 <FileCard key={entry.ids[0]} entry={entry} onDelete={handleDelete} onAuthoritative={handleAuthoritative} />
               ))}
-            </div>
+            </ul>
           )}
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
