@@ -12,7 +12,7 @@ import {
   type CheckItem,
   type PlanFile,
 } from "@/lib/analysis-engine";
-import type { UploadedPlanFile } from "@/lib/plan-files";
+import { removeUnreferencedPlanFiles, type UploadedPlanFile } from "@/lib/plan-files";
 import { parsePreflight, toPlanFile } from "@/lib/analysis-stages/plan";
 import { publicResultJson } from "@/lib/analysis-stages/progress";
 import {
@@ -125,9 +125,8 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if ("error" in checked) {
     // Hochgeladene, aber nie geprüfte Dateien nicht im Speicher liegen lassen.
     const stray = (Array.isArray(body.files) ? body.files : [])
-      .map((f: { path?: unknown }) => (typeof f?.path === "string" ? f.path : ""))
-      .filter((p: string) => p.startsWith(`${params.id}/`) && !p.includes(".."));
-    if (stray.length) await admin.storage.from("documents").remove(stray);
+      .map((f: { path?: unknown }) => (typeof f?.path === "string" ? f.path : ""));
+    await removeUnreferencedPlanFiles(admin, params.id, stray, publicFileUrl);
     return err(checked.error);
   }
   const planFiles = checked.files;
@@ -148,6 +147,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   );
   if (filesError) {
     await admin.from("documents").delete().eq("id", doc.id);
+    await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
     return err(filesError.message, 500);
   }
 
@@ -181,7 +181,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   if (mode === "conflict") {
     await admin.from("analyses").delete().eq("id", analysis.id);
     await admin.from("documents").delete().eq("id", doc.id);
-    await admin.storage.from("documents").remove(planFiles.map((f) => f.path));
+    await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
     return err("Für dieses Projekt läuft bereits eine Analyse. Bitte warten Sie, bis sie abgeschlossen ist.", 409);
   }
 

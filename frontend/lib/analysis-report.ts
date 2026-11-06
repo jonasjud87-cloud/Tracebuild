@@ -23,6 +23,8 @@ export interface ReportMeta {
   autoParts?: AnalysisAutoParts | null;
   /** result_json.failed_norms: Normen ohne sauberes Ergebnis. Fehlt bei älteren Analysen. */
   failedNorms?: { norm_title: string; error: string }[] | null;
+  /** result_json.empty_parts: Normteile ohne Prüfpunkte. Fehlt bei älteren Analysen. */
+  emptyParts?: string[] | null;
   /** result_json.preflight: Stand der Vorprüfung beim Start. */
   preflight?: AnalysisPreflight | null;
   /** result_json.consolidation.applied === false: Dubletten wurden nicht zusammengeführt. */
@@ -97,6 +99,8 @@ export function autoPartsWarning(p: AnalysisAutoParts | null | undefined): strin
 export function failedNormLines(failed: ReportMeta["failedNorms"]): string[] {
   return (failed ?? []).map((f) => `${f.norm_title}: ${f.error}`);
 }
+
+export const EMPTY_PARTS_TEXT = "Keine Prüfpunkte aus diesen Normteilen. Das kann zutreffen, bitte bei Bedarf am Original kontrollieren:";
 
 /** Einschränkungen der Vorprüfung. Nur aus den festen Werten, nie freier Text. */
 export function preflightLines(p: ReportMeta["preflight"]): string[] {
@@ -205,6 +209,9 @@ export function buildReportHtml(meta: ReportMeta, items: AnalysisItem[]): string
   ${failedNormLines(meta.failedNorms).length
     ? `<div style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt"><b>Ergebnis unvollständig, nicht vollständig geprüft:</b><ul style="margin:4pt 0 0;padding-left:14pt">${failedNormLines(meta.failedNorms).map((l) => `<li>${esc(l)}</li>`).join("")}</ul></div>`
     : ""}
+  ${meta.emptyParts?.length
+    ? `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt">${esc(EMPTY_PARTS_TEXT)} ${esc(meta.emptyParts.join(", "))}</p>`
+    : ""}
   ${meta.consolidationFailed
     ? `<p style="border:1pt solid ${STATUS_COLOR.warn};color:${STATUS_COLOR.warn};padding:6pt 8pt;margin:0 0 10pt">${esc(CONSOLIDATION_FAILED_TEXT)}</p>`
     : ""}
@@ -259,6 +266,7 @@ export function buildReportCsv(meta: ReportMeta, items: AnalysisItem[]): string 
     `Analyse vom;${csvCell(new Date(meta.createdAt).toLocaleDateString("de-CH"))}`,
     ...(autoPartsWarning(meta.autoParts) ? [`Unvollständig geprüft;${csvCell(autoPartsWarning(meta.autoParts))}`] : []),
     ...failedNormLines(meta.failedNorms).map((l) => `Ergebnis unvollständig;${csvCell(l)}`),
+    ...(meta.emptyParts?.length ? [`Hinweis;${csvCell(`${EMPTY_PARTS_TEXT} ${meta.emptyParts.join(", ")}`)}`] : []),
     ...(meta.consolidationFailed ? [`Hinweis;${csvCell(CONSOLIDATION_FAILED_TEXT)}`] : []),
     ...preflightLines(meta.preflight).map((l) => `Hinweis;${csvCell(l)}`),
     ...[oerebStandLine(meta.snapshots), geodataSourceLine(meta.snapshots), ...aiReadNormLines(meta.snapshots)].filter(Boolean).map((line) => csvCell(line)),

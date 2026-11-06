@@ -76,8 +76,8 @@ const EFFORT: "low" | "medium" | "high" = "medium";
  */
 const RUN_BUDGET_MS = Number(process.env.ANALYSIS_BUDGET_MS ?? 235_000);
 
-/** Deckel für einen einzelnen Norm-Call, damit ein Ausreisser Zeit für den Rettungsversuch lässt. */
-const PER_CALL_BUDGET_MS = 150_000;
+/** Deckel für einen einzelnen Norm-Call. Die Etappe begrenzt zusätzlich, ein Abbruch kostet einen bezahlten Versuch. */
+const PER_CALL_BUDGET_MS = 240_000;
 
 /** Ab so viel Restzeit lohnt sich ein zweiter Versuch für eine gescheiterte Norm. */
 const RETRY_MIN_REMAINING_MS = 60_000;

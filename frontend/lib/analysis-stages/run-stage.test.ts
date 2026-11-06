@@ -205,7 +205,7 @@ test("11 Timeout: Wiederholung mit low, besserer Versuch gewinnt, Tokens beider 
   const h = harness({
     parts: 1,
     script: (_req, nth) => nth === 1
-      ? { durationMs: 200_000, tokens: { output_tokens: 111 } }
+      ? { durationMs: 300_000, tokens: { output_tokens: 111 } }
       : { durationMs: 10_000, tokens: { output_tokens: 222 }, items: [item("n0", "a"), item("n0", "b")] },
   });
   await h.run();

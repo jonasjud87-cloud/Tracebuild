@@ -10,30 +10,16 @@
 --            Die Oberfläche sagt in dem Fall nichts vom Schliessen der Seite (background=false).
 --
 -- VORAUSSETZUNG
---   1. Der Spike unten ist bestanden. Er läuft VOR dem Einspielen der Migration.
+--   1. Spike bestanden am 5.11.2026 (Details unten). Vor der Aktivierung die Function Region prüfen.
 --   2. supabase/migrations/20261108000001_analysis_stages.sql ist eingespielt, Deployment ist live.
 --
 -- AUSFÜHREN  Im Supabase-SQL-Editor Block für Block, jeweils Ergebnis prüfen.
 -- GILT FÜR   Nur neue Analysen. Laufende Jobs ohne dispatch_url bleiben beim Browser.
 
--- ── SPIKE: waitUntil und Rekursionssperre (noch NICHT ausgeführt, löst Jonas aus) ───────────────────
--- Prüft ohne Datenbank und ohne Modellkosten, was schon Etappe 1 braucht: waitUntil unter Next 14.2.30.
--- Er misst NUR den Selbstaufruf der Funktion. Ob Anstösse aus pg_net die Sperre treffen, zeigt erst der
--- Betrieb nach der Aktivierung (net._http_response); dafür gibt es den Rückfall auf den Browser.
---   a. Vercel, Produktion: ANALYSIS_SPIKE_SECRET setzen (lang, zufällig), deployen. Ohne die Variable
---      antwortet die Route immer 404.
---   b. cd frontend
---      SPIKE_ORIGIN=https://www.tracebuild.ch SPIKE_SECRET=... node scripts/analysis-spike.mjs
---      Das Skript ruft die Route 10-mal nacheinander auf, je 280 s Arbeit in waitUntil, danach einen
---      Sprung (Aufruf aus der Funktion über www). Dauer rund 50 Minuten.
---   c. BESTANDEN, nur wenn alles zutrifft:
---      - 10 von 10 Aufrufen antworten sofort (unter 5 s) mit 202.
---      - Vercel-Log: 10-mal analysis-spike.done mit elapsed_ms um 280000. Fehlt eine Zeile, trägt
---        waitUntil nicht, und auch Etappe 1 wäre unzuverlässig: Migration NICHT einspielen.
---      - Sprung: analysis-spike.hop mit status 202, danach analysis-spike.done des Sprungs.
---        508 oder 307 hier betrifft den Selbstaufruf, nicht pg_net: Hintergrundlauf nicht aktivieren.
---   d. ANALYSIS_SPIKE_SECRET entfernen und deployen. Die Route ist danach wieder 404.
---   e. Route, lib/analysis-stages/spike.ts, scripts/analysis-spike.mjs und die Middleware-Ausnahme löschen.
+-- ── SPIKE: bestanden am 5.11.2026, Code danach entfernt ─────────────────────────────────────────────
+-- waitUntil trug 10 von 10 Läufen über 280 s, ein Selbstaufruf über www antwortete 202. Gemessen wurde nur
+-- der Selbstaufruf. Ob Anstösse aus pg_net die Rekursionssperre treffen, zeigt net._http_response nach der
+-- Aktivierung; dafür gibt es den Rückfall auf den Browser. Offen: Der Sprung lief in iad1, nicht in fra1.
 --
 -- ZWEIG «Spike gescheitert» oder Erweiterungen abgelehnt
 --   Diese Datei nicht ausführen. analysis_background_available() bleibt false, Jobs bekommen keine

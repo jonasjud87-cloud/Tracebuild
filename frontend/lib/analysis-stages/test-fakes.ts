@@ -305,7 +305,7 @@ export function harness(opts: {
         const total = s.durationMs ?? 72_000;
         await clock.sleep(Math.min(5_000, total), req.signal);
         req.onPrefillDone?.();
-        const budget = Math.min(req.deadlineAt, started + 150_000);
+        const budget = Math.min(req.deadlineAt, started + 240_000);
         const end = Math.min(started + total, budget);
         if (clock.now() < end) await clock.sleep(end - clock.now(), req.signal);
         const tokens = { input_tokens: 1000, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 5000, ...s.tokens };

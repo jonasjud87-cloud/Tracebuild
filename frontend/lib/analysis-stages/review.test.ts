@@ -1,4 +1,4 @@
-// Korrekturrunde: Absturz-Schleife, Überlast, bezahlte Ergebnisse, Kostengrenze, Beobachtbarkeit, Spike.
+// Korrekturrunde: Absturz-Schleife, Überlast, bezahlte Ergebnisse, Kostengrenze, Beobachtbarkeit.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
@@ -6,7 +6,6 @@ import { RESERVE_CALL_USD, crashBackoffMs } from "./budget";
 import { assertNormsUsable } from "./plan";
 import { progressFromJob, publicResultJson, type JobProgressRow } from "./progress";
 import { REASON_COST, REASON_CRASHES, REASON_OVERLOAD } from "./run-stage";
-import { SPIKE_MAX_HOPS, SPIKE_MAX_WORK_MS, parseSpikeRequest, spikeAuthorized, spikeHopUrl } from "./spike";
 import { harness, item } from "./test-fakes";
 
 const failedNorms = (h: ReturnType<typeof harness>) => (h.store.result?.failed_norms ?? []) as { error: string }[];
@@ -222,7 +221,7 @@ test("Kostengrenze: Abgebrochene und verlorene Versuche zählen pauschal", async
   const h = harness({
     parts: 6,
     maxRunCostUsd: 0.8,
-    script: () => ({ durationMs: 200_000, tokens: { output_tokens: 1 } }), // jede Runde Timeout, kaum gemessene Kosten
+    script: () => ({ durationMs: 300_000, tokens: { output_tokens: 1 } }), // jede Runde Timeout, kaum gemessene Kosten
   });
   await h.run();
   assert.ok(h.store.cost < 0.1, `gemessen ${h.store.cost}`);
@@ -285,24 +284,3 @@ test("Betriebsdaten gehen nicht an den Browser, fachliche Schlüssel schon", () 
   assert.equal(publicResultJson(null), null);
 });
 
-// ── 5 Spike ─────────────────────────────────────────────────────────────────────
-
-test("Spike ist standardmässig aus, nur mit richtigem Secret offen", () => {
-  assert.equal(spikeAuthorized("x", {}), false);
-  assert.equal(spikeAuthorized("x", { ANALYSIS_SPIKE_SECRET: "" }), false);
-  assert.equal(spikeAuthorized(null, { ANALYSIS_SPIKE_SECRET: "s" }), false);
-  assert.equal(spikeAuthorized("falsch", { ANALYSIS_SPIKE_SECRET: "s" }), false);
-  assert.equal(spikeAuthorized("s", { ANALYSIS_SPIKE_SECRET: "s" }), true);
-});
-
-test("Spike: Standard 280 s, Arbeit und Sprünge gedeckelt", () => {
-  assert.deepEqual(parseSpikeRequest(null), { workMs: 280_000, hops: 0 });
-  assert.deepEqual(parseSpikeRequest({ work_ms: 1_000, hops: 1 }), { workMs: 1_000, hops: 1 });
-  assert.deepEqual(parseSpikeRequest({ work_ms: 9_999_999, hops: 999 }), { workMs: SPIKE_MAX_WORK_MS, hops: SPIKE_MAX_HOPS });
-  assert.deepEqual(parseSpikeRequest({ work_ms: "x", hops: -3 }), { workMs: 280_000, hops: 0 });
-});
-
-test("Spike: Sprung fest über www, nie aus der Anfrage", () => {
-  assert.equal(spikeHopUrl({}), "https://www.tracebuild.ch/api/v1/internal/analysis-spike");
-  assert.equal(spikeHopUrl({ VERCEL_URL: "x.vercel.app" }), "https://www.tracebuild.ch/api/v1/internal/analysis-spike");
-});

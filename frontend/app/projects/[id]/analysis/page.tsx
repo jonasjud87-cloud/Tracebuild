@@ -82,6 +82,8 @@ interface AnalysisWithDoc {
   errorMessage: string | null;
   /** Normen/Teile, die nicht geprüft werden konnten — das Ergebnis ist dann unvollständig. */
   failedNorms: { norm_title: string; error: string }[];
+  /** Normteile ohne Prüfpunkte. Fehlt bei älteren Analysen. */
+  emptyParts: string[];
   /** Stand von ÖREB, Geodaten und Normen dieser Analyse. Fehlt bei älteren Analysen. */
   snapshots: Partial<AnalysisSnapshots> | null;
   /** Vom Deckel oder der Sicherheitsgrenze ausgelassene Teile importierter Reglemente. */
@@ -127,7 +129,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
+  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; empty_parts?: string[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -141,6 +143,7 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     items: sortAnalysisItems(a.items ?? a.analysis_items ?? [], a.result_json?.norm_versions),
     errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
     failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
+    emptyParts: a.result_json?.empty_parts ?? [],
     snapshots: a.result_json
       ? {
           oereb_snapshot: a.result_json.oereb_snapshot,
@@ -638,6 +641,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       snapshots: a.snapshots,
       autoParts: a.autoParts,
       failedNorms: a.failedNorms,
+      emptyParts: a.emptyParts,
       preflight: a.preflight,
       consolidationFailed: a.consolidationFailed,
     };
