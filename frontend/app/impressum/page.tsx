@@ -1,7 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import AmbientField from "@/components/landing/redesign/AmbientField";
-import Footer from "@/components/landing/redesign/Footer";
+import "@/components/landing/v3/landing.css";
+import LandingShell from "@/components/landing/v3/LandingShell";
+import Navbar from "@/components/landing/v3/Navbar";
+import Footer from "@/components/landing/v3/Footer";
 
 export const metadata: Metadata = {
   title: "Impressum - TraceBuild",
@@ -10,43 +12,47 @@ export const metadata: Metadata = {
 
 const section: React.CSSProperties = { marginTop: 32 };
 const h2: React.CSSProperties = {
-  fontFamily: "var(--font-display, sans-serif)",
+  fontFamily: "var(--font)",
   fontWeight: 600,
   fontSize: 15,
   letterSpacing: "0.12em",
   textTransform: "uppercase",
-  color: "var(--tb-text-tertiary)",
+  color: "var(--sand)",
   margin: "0 0 10px",
 };
 const body: React.CSSProperties = {
   margin: 0,
   fontSize: 15,
   lineHeight: 1.7,
-  color: "var(--tb-text-bright)",
+  color: "rgba(255,255,255,0.85)",
 };
 
 export default function ImpressumPage() {
   return (
-    <div className="tb-landing" style={{ minHeight: "100vh" }}>
-      <AmbientField />
-      <div
+    <LandingShell>
+      <a href="#tb-main" className="tbl-skip">
+        Zum Inhalt springen
+      </a>
+      <Navbar offsite />
+      <main
+        id="tb-main"
         style={{
-          position: "relative",
-          zIndex: 1,
-          padding: "clamp(64px, 12vh, 140px) var(--tb-gutter)",
+          background: "var(--navy)",
+          minHeight: "100vh",
+          padding: "clamp(110px, 16vh, 170px) clamp(20px, 6vw, 96px) clamp(64px, 10vh, 120px)",
         }}
       >
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         <Link
           href="/"
-          style={{ fontSize: 13, color: "var(--tb-accent)", textDecoration: "none" }}
+          style={{ fontSize: 13, color: "var(--sand)", textDecoration: "none" }}
         >
           ← Zurück zur Startseite
         </Link>
 
         <h1
           style={{
-            fontFamily: "var(--font-display, sans-serif)",
+            fontFamily: "var(--font)",
             fontWeight: 600,
             fontSize: "clamp(30px, 5vw, 46px)",
             letterSpacing: "-0.025em",
@@ -159,9 +165,8 @@ export default function ImpressumPage() {
           </p>
         </div>
       </div>
-      </div>
-
-      <Footer />
-    </div>
+      </main>
+      <Footer offsite />
+    </LandingShell>
   );
 }
