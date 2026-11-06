@@ -24,7 +24,7 @@ interface CreateProjectResponse {
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", border: "1px solid rgba(133,166,233,0.25)",
+  width: "100%", border: "1px solid rgba(240,201,154,0.25)",
   background: "rgba(23,37,64,0.6)", borderRadius: 10, padding: "9px 13px",
   fontSize: 14, color: "#fff", outline: "none", fontFamily: "inherit",
   transition: "box-shadow .15s, border-color .15s", boxSizing: "border-box",
@@ -35,7 +35,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <div>
       <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 5 }}>
         <label style={{ fontSize: 12, fontWeight: 600, color: "#ABAEBB" }}>{label}</label>
-        {hint && <span style={{ fontSize: 11, color: "#7B8299", fontWeight: 400 }}>{hint}</span>}
+        {hint && <span style={{ fontSize: 11, color: "#A7AFBA", fontWeight: 400 }}>{hint}</span>}
       </div>
       {children}
     </div>
@@ -51,8 +51,8 @@ function TextInput({ value, onChange, placeholder, required }: {
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       style={inputStyle}
-      onFocus={e => { e.currentTarget.style.borderColor = "#2862D7"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(40,98,215,0.2)"; }}
-      onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(133,166,233,0.25)"; e.currentTarget.style.boxShadow = "none"; }}
+      onFocus={e => { e.currentTarget.style.borderColor = "#F0C99A"; e.currentTarget.style.boxShadow = "0 0 0 3px rgba(240,201,154,0.28)"; }}
+      onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(240,201,154,0.25)"; e.currentTarget.style.boxShadow = "none"; }}
     />
   );
 }
@@ -123,8 +123,8 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
       style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 16 }}
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div style={{ background: "#0E111B", borderRadius: 18, boxShadow: "0 30px 70px rgba(0,0,0,0.5)", border: "1px solid rgba(133,166,233,0.18)", width: "100%", maxWidth: 440, padding: 28, maxHeight: "90vh", overflowY: "auto" }}>
-        <p style={{ fontSize: 10, fontWeight: 700, color: "#85A6E9", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 6px" }}>Neues Analyseprojekt</p>
+      <div style={{ background: "#0E111B", borderRadius: 18, boxShadow: "0 30px 70px rgba(0,0,0,0.5)", border: "1px solid rgba(240,201,154,0.2)", width: "100%", maxWidth: 440, padding: 28, maxHeight: "90vh", overflowY: "auto" }}>
+        <p style={{ fontSize: 10, fontWeight: 700, color: "#F0C99A", textTransform: "uppercase", letterSpacing: "0.12em", margin: "0 0 6px" }}>Neues Analyseprojekt</p>
         <h2 style={{ fontSize: 19, fontWeight: 800, color: "#fff", margin: "0 0 22px" }}>Projekt erstellen</h2>
 
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
@@ -142,7 +142,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
             </p>
           )}
 
-          <div style={{ borderTop: "1px solid rgba(133,166,233,0.1)", margin: "2px 0" }} />
+          <div style={{ borderTop: "1px solid rgba(240,201,154,0.12)", margin: "2px 0" }} />
 
           <Field label="Projektname">
             <TextInput value={name} onChange={setName} required />
@@ -153,8 +153,8 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
               <select
                 value={canton} onChange={e => { setCanton(e.target.value); dropIdentity(); }}
                 style={{ ...inputStyle, appearance: "none" as const }}
-                onFocus={e => { e.currentTarget.style.borderColor = "#2862D7"; }}
-                onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(133,166,233,0.25)"; }}
+                onFocus={e => { e.currentTarget.style.borderColor = "#F0C99A"; }}
+                onBlur={e =>  { e.currentTarget.style.borderColor = "rgba(240,201,154,0.25)"; }}
               >
                 {CANTONS.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -165,7 +165,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           </div>
 
           {/* Divider */}
-          <div style={{ borderTop: "1px solid rgba(133,166,233,0.1)", margin: "2px 0" }} />
+          <div style={{ borderTop: "1px solid rgba(240,201,154,0.12)", margin: "2px 0" }} />
 
           <Field label="Parzellennummer">
             <TextInput
@@ -179,7 +179,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
           {/* Vor dem Anlegen steht keine sichere ÖREB-Zone fest, deshalb bleibt das Feld immer da. */}
           <Field label="Bauzone" hint="(optional)">
             <TextInput value={bauzone} onChange={setBauzone} placeholder="z.B. W2" />
-            <p style={{ fontSize: 11, color: "#7B8299", margin: "5px 0 0", lineHeight: 1.4 }}>
+            <p style={{ fontSize: 11, color: "#A7AFBA", margin: "5px 0 0", lineHeight: 1.4 }}>
               TraceBuild ermittelt die Zone nach dem Anlegen aus dem ÖREB-Kataster. Ihre Angabe gilt nur, wenn der Kataster keine sichere Zone liefert.
             </p>
           </Field>
@@ -192,20 +192,20 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
 
           <div style={{ display: "flex", gap: 12, paddingTop: 4 }}>
             <button type="button" onClick={onClose}
-              style={{ flex: 1, border: "1px solid rgba(133,166,233,0.25)", color: "#ABAEBB", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", cursor: "pointer", fontFamily: "inherit", transition: "background .15s" }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(133,166,233,0.08)"; }}
+              style={{ flex: 1, border: "1px solid rgba(240,201,154,0.25)", color: "#ABAEBB", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 500, background: "none", cursor: "pointer", fontFamily: "inherit", transition: "background .15s" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(240,201,154,0.1)"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "none"; }}
             >
               Abbrechen
             </button>
             <button type="submit" disabled={loading || incomplete}
               style={{
-                flex: 1, background: "linear-gradient(90deg,#4fd1ff,#38bdf8 55%,#2862D7)",
-                color: "#fff", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 600,
+                flex: 1, background: "linear-gradient(135deg,#F0C99A,#B07D3E)",
+                color: "#07142B", padding: 10, borderRadius: 10, fontSize: 14, fontWeight: 600,
                 border: "none", fontFamily: "inherit",
                 cursor: (loading || incomplete) ? "not-allowed" : "pointer",
                 opacity: (loading || incomplete) ? 0.5 : 1,
-                boxShadow: "0 4px 16px rgba(40,98,215,0.35)", transition: "filter .15s, opacity .15s",
+                boxShadow: "0 4px 16px rgba(176,125,62,0.4)", transition: "filter .15s, opacity .15s",
               }}
               onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.filter = "brightness(1.1)"; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.filter = "none"; }}

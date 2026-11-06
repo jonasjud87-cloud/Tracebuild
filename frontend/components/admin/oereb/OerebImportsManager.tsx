@@ -109,19 +109,19 @@ function ownRulesText(own: CantonOverview["own_rules"]): string {
 function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[]; selected: string; onSelect: (canton: string) => void }) {
   return (
     <section aria-label="Kantone" className={`${PANEL} overflow-x-auto tba-scroll-x`}>
-      <table className="w-full min-w-[720px] text-xs text-[#A7AFBA]">
+      <table className="w-full text-xs text-[#A7AFBA]">
         <thead className="text-[#8E98A6]">
           <tr className="border-b border-[rgba(255,255,255,0.08)]">
             <th scope="col" className={`${TH} text-left`}>Kanton</th>
             <th scope="col" className={`${TH} text-left`}>Freigabe</th>
-            <th scope="col" className={`${TH} text-left`}>Eigene Regeln</th>
+            <th scope="col" className={`${TH} text-left hidden xl:table-cell`}>Eigene Regeln</th>
             <th scope="col" className={TH}>Dokumente</th>
             <th scope="col" className={TH}>Importiert</th>
-            <th scope="col" className={TH}>Abgelehnt</th>
-            <th scope="col" className={TH}>Scans</th>
+            <th scope="col" className={`${TH} hidden 2xl:table-cell`}>Abgelehnt</th>
+            <th scope="col" className={`${TH} hidden 2xl:table-cell`}>Scans</th>
             <th scope="col" className={TH}>Fehler</th>
             <th scope="col" className={TH}>Offen</th>
-            <th scope="col" className={TH}>Zur Prüfung</th>
+            <th scope="col" className={`${TH} hidden xl:table-cell`}>Zur Prüfung</th>
           </tr>
         </thead>
         <tbody>
@@ -138,14 +138,14 @@ function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[
                 </button>
               </th>
               <td className={`px-3 py-2 ${c.release.released ? "text-[#65A88A]" : "text-[#D6A45F]"}`}>{releaseText(c.release)}</td>
-              <td className="px-3 py-2">{ownRulesText(c.own_rules)}</td>
+              <td className="hidden xl:table-cell px-3 py-2">{ownRulesText(c.own_rules)}</td>
               <td className={TD}>{c.total}</td>
               <td className={TD}>{c.imported}</td>
-              <td className={TD}>{c.rejected}</td>
-              <td className={TD}>{c.scans}</td>
+              <td className={`${TD} hidden 2xl:table-cell`}>{c.rejected}</td>
+              <td className={`${TD} hidden 2xl:table-cell`}>{c.scans}</td>
               <td className={TD}>{c.failed}</td>
               <td className={TD}>{c.pending}</td>
-              <td className={TD}>{c.review}</td>
+              <td className={`${TD} hidden xl:table-cell`}>{c.review}</td>
             </tr>
           ))}
         </tbody>
@@ -360,7 +360,7 @@ export default function OerebImportsManager() {
   const selected = overview?.cantons.find((c) => c.canton === canton);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">
+    <div className="mx-auto max-w-[1680px] space-y-5 px-4 py-6 sm:px-6">
       <div>
         <h1 className="text-2xl font-bold text-white">ÖREB-Importe</h1>
         <p className="mt-1 text-sm text-[#A7AFBA]">Reglemente aus den ÖREB-Auszügen je Kanton und Gemeinde. Entscheide bleiben auch bei späteren Abrufen bestehen.</p>

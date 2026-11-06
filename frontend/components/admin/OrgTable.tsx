@@ -187,6 +187,7 @@ export default function OrgTable({
     "Organisation", "Status", "Tarif", "Projekte", "Benutzer",
     "Analysen", "Speicher", "Kosten / Mo.", "Erstellt", "Akt. Aktivität", "",
   ];
+  const hideCls = ["", "", "hidden lg:table-cell", "", "", "hidden 2xl:table-cell", "hidden 2xl:table-cell", "", "hidden 2xl:table-cell", "hidden xl:table-cell", ""];
 
   return (
     <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
@@ -195,14 +196,14 @@ export default function OrgTable({
       )}
 
       <div className="overflow-x-auto tba-scroll-x">
-        <table className="w-full text-sm min-w-[860px]">
+        <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
               {headers.map((h, i) => (
                 <th
                   key={i}
                   className={`py-3.5 text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-wider whitespace-nowrap
-                    ${i === 0 ? "px-5 text-left" : i === headers.length - 1 ? "px-5 w-10" : "px-3 text-right"}`}
+                    ${hideCls[i]} ${i === 0 ? "px-4 text-left" : i === headers.length - 1 ? "px-4 w-10" : "px-2.5 text-right"}`}
                 >
                   {h}
                 </th>
@@ -224,7 +225,7 @@ export default function OrgTable({
                   key={org.id}
                   className={`hover:bg-[#223247]/60 transition-colors ${idx < orgs.length - 1 ? "border-b border-[rgba(255,255,255,0.08)]" : ""} ${isArchived ? "opacity-50" : ""}`}
                 >
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3 max-w-0 w-[34%]">
                     <button
                       type="button"
                       onClick={() => onDetail?.(org)}
@@ -233,9 +234,9 @@ export default function OrgTable({
                       <div className="w-8 h-8 rounded-lg bg-[#F0C99A]/10 flex items-center justify-center flex-shrink-0 group-hover:bg-[#F0C99A]/20 transition-colors">
                         <span className="text-xs font-bold text-[#F0C99A]">{initials}</span>
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`font-semibold text-white group-hover:text-[#F0C99A] transition-colors ${isArchived ? "line-through" : ""}`}>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <span title={org.name} className={`truncate font-semibold text-white group-hover:text-[#F0C99A] transition-colors ${isArchived ? "line-through" : ""}`}>
                             {org.name}
                           </span>
                           {org.isDefault && (
@@ -245,7 +246,7 @@ export default function OrgTable({
                           )}
                         </div>
                         {org.description && (
-                          <p className="text-[11px] text-[#A7AFBA] mt-0.5 truncate max-w-[180px]">
+                          <p className="text-[11px] text-[#A7AFBA] mt-0.5 truncate">
                             {org.description}
                           </p>
                         )}
@@ -253,48 +254,48 @@ export default function OrgTable({
                     </button>
                   </td>
 
-                  <td className="px-3 py-4">
+                  <td className="px-2.5 py-3">
                     <span className={`inline-flex items-center gap-1.5 text-xs font-medium whitespace-nowrap ${sMeta.textCls}`}>
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${sMeta.dot}`} />
                       {sMeta.label}
                     </span>
                   </td>
 
-                  <td className="px-3 py-4 text-right">
+                  <td className="hidden lg:table-cell px-2.5 py-3 text-right">
                     <span className={`inline-block text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${planCls}`}>
                       {planLabel}
                     </span>
                   </td>
 
-                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                  <td className="px-2.5 py-3 text-[#A7AFBA] text-right tabular-nums">
                     {org.projectCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                  <td className="px-2.5 py-3 text-[#A7AFBA] text-right tabular-nums">
                     {org.userCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums">
+                  <td className="hidden 2xl:table-cell px-2.5 py-3 text-[#A7AFBA] text-right tabular-nums">
                     {org.analyseCount ?? <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#A7AFBA] text-right tabular-nums whitespace-nowrap">
+                  <td className="hidden 2xl:table-cell px-2.5 py-3 text-[#A7AFBA] text-right tabular-nums whitespace-nowrap">
                     {org.storageGB !== undefined ? formatGB(org.storageGB) : <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-right tabular-nums">
+                  <td className="px-2.5 py-3 text-right tabular-nums">
                     {costMap?.[org.id] !== undefined
                       ? <span className="font-medium text-white">CHF {(costMap[org.id] as number).toFixed(2)}</span>
                       : <span className="text-[rgba(240,201,154,0.3)]">—</span>}
                   </td>
 
-                  <td className="px-3 py-4 text-[#8E98A6] tabular-nums whitespace-nowrap">{created}</td>
+                  <td className="hidden 2xl:table-cell px-2.5 py-3 text-[#A7AFBA] tabular-nums whitespace-nowrap">{created}</td>
 
-                  <td className="px-3 py-4 text-[#8E98A6] whitespace-nowrap">
+                  <td className="hidden xl:table-cell px-2.5 py-3 text-[#A7AFBA] whitespace-nowrap">
                     {lastAct ?? created}
                   </td>
 
-                  <td className="px-5 py-4">
+                  <td className="px-4 py-3">
                     <button
                       onClick={(e) => {
                         e.stopPropagation();

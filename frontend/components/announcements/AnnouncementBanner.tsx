@@ -19,10 +19,10 @@ const MIN_GAP_MS = 60 * 1000;
 const STORAGE_PREFIX = "tb-announcement-dismissed:";
 
 const STYLES: Record<BannerType, { box: string; icon: string; title: string; label: string }> = {
-  info: { box: "border-[#83A9D0]/30 bg-[#83A9D0]/10", icon: "text-[#83A9D0]", title: "text-[#83A9D0]", label: "Information" },
-  warning: { box: "border-[#D6A45F]/30 bg-[#D6A45F]/10", icon: "text-[#D6A45F]", title: "text-[#D6A45F]", label: "Warnung" },
-  maintenance: { box: "border-[#83A9D0]/35 bg-[#83A9D0]/10", icon: "text-[#83A9D0]", title: "text-[#83A9D0]", label: "Wartung" },
-  critical: { box: "border-[#D87979]/40 bg-[#D87979]/10", icon: "text-[#EBA1A1]", title: "text-[#EBA1A1]", label: "Kritisch" },
+  info: { box: "border-l-[#83A9D0]", icon: "text-[#2C5F8F]", title: "text-[#1E4A73]", label: "Information" },
+  warning: { box: "border-l-[#D6A45F]", icon: "text-[#8A5F26]", title: "text-[#6E4A14]", label: "Warnung" },
+  maintenance: { box: "border-l-[#83A9D0]", icon: "text-[#2C5F8F]", title: "text-[#1E4A73]", label: "Wartung" },
+  critical: { box: "border-l-[#D87979]", icon: "text-[#A83A3A]", title: "text-[#8C2A2A]", label: "Kritisch" },
 };
 
 function TypeIcon({ type }: { type: BannerType }) {
@@ -72,14 +72,14 @@ export function AnnouncementBannerView({
   const rest = items.length - visible.length;
 
   return (
-    <div className={`space-y-2 ${className ?? ""}`}>
+    <div className={`space-y-2 [font-family:inherit] ${className ?? ""}`}>
       {visible.map(item => {
         const s = STYLES[item.type];
         return (
           <div
             key={item.id}
             role={item.type === "critical" ? "alert" : "status"}
-            className={`flex items-start gap-3 rounded-xl border px-4 py-3 backdrop-blur-sm ${s.box}`}
+            className={`flex items-start gap-3 rounded-xl border border-l-4 border-[#B07D3E]/25 bg-[#FFFBF5]/90 px-4 py-3 shadow-[0_10px_28px_-16px_rgba(7,20,43,0.45)] backdrop-blur-md ${s.box}`}
           >
             <span className={`mt-0.5 flex-shrink-0 ${s.icon}`}>
               <TypeIcon type={item.type} />
@@ -89,7 +89,7 @@ export function AnnouncementBannerView({
                 <span className="sr-only">{s.label}: </span>
                 {item.title}
               </p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#A7AFBA]" style={{ overflowWrap: "anywhere" }}>
+              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#3A4556]" style={{ overflowWrap: "anywhere" }}>
                 {item.message}
               </p>
             </div>
@@ -98,7 +98,7 @@ export function AnnouncementBannerView({
                 type="button"
                 onClick={() => onDismiss(item)}
                 aria-label="Schliessen"
-                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A] ${s.icon}`}
+                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#07142B] ${s.icon}`}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -109,7 +109,7 @@ export function AnnouncementBannerView({
         );
       })}
       {rest > 0 && (
-        <p className="px-1 text-xs text-[#8E98A6]">
+        <p className="inline-block rounded-md bg-[#FFFBF5]/90 px-2 py-0.5 text-xs font-medium text-[#6B5F52]">
           und {rest} weitere {rest === 1 ? "Hinweis" : "Hinweise"}
         </p>
       )}

@@ -430,15 +430,15 @@ export default function AllUsersView({
             </div>
           )}
           <div ref={regionRef} role="region" aria-label="Alle Nutzer" tabIndex={0} className={`overflow-x-auto tba-scroll-x ${focusRing}`}>
-            <table className="w-full min-w-[860px] text-sm">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
-                  <th scope="col" className={`${TH} px-5`}>Nutzer</th>
+                  <th scope="col" className={`${TH} px-4`}>Nutzer</th>
                   <th scope="col" className={TH}>Organisation</th>
                   <th scope="col" className={TH}>Rolle</th>
                   <th scope="col" className={TH}>Status</th>
-                  <th scope="col" className={TH}>Letzte Aktivität</th>
-                  <th scope="col" className="w-14 px-5 py-3.5"><span className="sr-only">Aktionen</span></th>
+                  <th scope="col" className={`${TH} hidden xl:table-cell`}>Letzte Aktivität</th>
+                  <th scope="col" className="w-14 px-4 py-3.5"><span className="sr-only">Aktionen</span></th>
                 </tr>
               </thead>
               <tbody>
@@ -449,14 +449,14 @@ export default function AllUsersView({
                   const resendKey = `${u.orgId}:${u.email}`;
                   return (
                     <tr key={`${u.orgId}:${u.id}`} aria-busy={rowBusy} className={`border-b border-[rgba(255,255,255,0.08)] transition-colors last:border-0 hover:bg-[#223247]/60 ${rowBusy ? "opacity-60" : ""}`}>
-                      <th scope="row" className="max-w-[260px] px-5 py-3 text-left font-normal">
+                      <th scope="row" className="max-w-[240px] px-4 py-3 text-left font-normal">
                         <div className="truncate font-medium text-white" title={u.name ?? undefined}>
                           {u.name ?? "—"}
                           {isSelf && <span className="ml-2 rounded-full bg-[#F0C99A]/15 px-1.5 py-0.5 text-[11px] font-semibold text-[#F0C99A]">Du</span>}
                         </div>
                         <div className="truncate text-xs text-[#A7AFBA]" title={u.email}>{u.email}</div>
                       </th>
-                      <td className="max-w-[180px] truncate px-3 py-3 text-[#A7AFBA]" title={u.orgName}>{u.orgName}</td>
+                      <td className="max-w-[160px] truncate px-3 py-3 text-[#A7AFBA]" title={u.orgName}>{u.orgName}</td>
                       <td className="px-3 py-3">
                         <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                           u.role === "org_admin" || u.role === "super_admin" ? "bg-[#F0C99A]/10 text-[#F0C99A]" : "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]"
@@ -470,12 +470,12 @@ export default function AllUsersView({
                           {s.label}
                         </span>
                       </td>
-                      <td className="whitespace-nowrap px-3 py-3 text-[#A7AFBA]">
+                      <td className="hidden xl:table-cell whitespace-nowrap px-3 py-3 text-[#A7AFBA]">
                         <time dateTime={u.lastActivityAt ?? undefined} title={formatFull(u.lastActivityAt)}>
                           {formatRelative(u.lastActivityAt)}
                         </time>
                       </td>
-                      <td className="px-5 py-3 text-right">
+                      <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           {u.rowStatus === "pending" && (
                             <button

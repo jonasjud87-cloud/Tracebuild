@@ -515,7 +515,7 @@ export default function OrgAdminPage() {
 
       {/* Header */}
       <header className="bg-[#0B1220] border-b border-[rgba(255,255,255,0.08)] sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="max-w-[1680px] mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => router.push("/dashboard")}
@@ -536,7 +536,7 @@ export default function OrgAdminPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-8">
+      <main className="max-w-[1680px] mx-auto px-6 py-8">
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-[rgba(17,27,43,0.6)] rounded-xl p-1 w-fit">
           {(["projects", "members"] as const).map(t => (
@@ -574,24 +574,25 @@ export default function OrgAdminPage() {
             ) : (
               <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto tba-scroll-x">
-                <table className="w-full text-sm min-w-[720px]">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3">Projekt</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3 hidden sm:table-cell">Ort</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3 hidden md:table-cell">Pläne</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3 hidden md:table-cell">Mitglieder</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3 hidden lg:table-cell">Erstellt</th>
-                      <th className="px-5 py-3" />
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3">Projekt</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3 hidden sm:table-cell">Ort</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3 hidden md:table-cell">Pläne</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3 hidden md:table-cell">Mitglieder</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3 hidden lg:table-cell">Erstellt</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {projects.map((p, i) => (
                       <tr key={p.id} className={`hover:bg-[#223247]/60 transition-colors ${i < projects.length - 1 ? "border-b border-[rgba(255,255,255,0.08)]" : ""}`}>
-                        <td className="px-5 py-3.5">
+                        <td className="px-4 py-3 max-w-[280px]">
                           <button
                             onClick={() => router.push(`/projects/${p.id}/norms`)}
-                            className="font-semibold text-white hover:text-[#F0C99A] transition-colors text-left"
+                            title={p.name}
+                            className="block max-w-full truncate font-semibold text-white hover:text-[#F0C99A] transition-colors text-left"
                           >
                             {p.name}
                           </button>
@@ -599,13 +600,13 @@ export default function OrgAdminPage() {
                             <p className="text-[11px] text-[#A7AFBA] mt-0.5">{p.bauzone}</p>
                           )}
                         </td>
-                        <td className="px-5 py-3.5 text-[#A7AFBA] hidden sm:table-cell">
+                        <td className="px-4 py-3 text-[#A7AFBA] hidden sm:table-cell">
                           {p.location?.municipality ? `${p.location.municipality}, ${p.location.canton ?? ""}` : "—"}
                         </td>
-                        <td className="px-5 py-3.5 text-[#A7AFBA] hidden md:table-cell">
+                        <td className="px-4 py-3 text-[#A7AFBA] hidden md:table-cell">
                           {p.documents?.[0]?.count ?? 0}
                         </td>
-                        <td className="px-5 py-3.5 hidden md:table-cell">
+                        <td className="px-4 py-3 hidden md:table-cell">
                           <button
                             onClick={() => setMembersProject(p)}
                             className="text-[#A7AFBA] hover:text-[#F0C99A] transition-colors flex items-center gap-1.5"
@@ -616,10 +617,10 @@ export default function OrgAdminPage() {
                             </svg>
                           </button>
                         </td>
-                        <td className="px-5 py-3.5 text-[#8E98A6] text-xs hidden lg:table-cell">
+                        <td className="px-4 py-3 text-[#8E98A6] text-xs hidden lg:table-cell">
                           {fmtDate(p.created_at)}
                         </td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-4 py-3">
                           <div className="flex items-center gap-2 justify-end">
                             <button
                               onClick={() => setMembersProject(p)}
@@ -677,22 +678,22 @@ export default function OrgAdminPage() {
             ) : (
               <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
                 <div className="overflow-x-auto tba-scroll-x">
-                <table className="w-full text-sm min-w-[640px]">
+                <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3">Name</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3">E-Mail</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3">Rolle</th>
-                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-5 py-3 hidden sm:table-cell">Beigetreten</th>
-                      <th className="px-5 py-3" />
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3">Name</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3">E-Mail</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3">Rolle</th>
+                      <th className="text-left text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-4 py-3 hidden sm:table-cell">Beigetreten</th>
+                      <th className="px-4 py-3" />
                     </tr>
                   </thead>
                   <tbody>
                     {users.map((u, i) => (
                       <tr key={u.id} className={`hover:bg-[#223247]/60 transition-colors ${i < users.length - 1 ? "border-b border-[rgba(255,255,255,0.08)]" : ""}`}>
-                        <td className="px-5 py-3.5 font-medium text-white">{u.name ?? "—"}</td>
-                        <td className="px-5 py-3.5 text-[#A7AFBA]">{u.email}</td>
-                        <td className="px-5 py-3.5">
+                        <td className="px-4 py-3 font-medium text-white max-w-[200px] truncate" title={u.name ?? undefined}>{u.name ?? "—"}</td>
+                        <td className="px-4 py-3 text-[#A7AFBA] max-w-[260px] truncate" title={u.email}>{u.email}</td>
+                        <td className="px-4 py-3">
                           <select
                             value={u.role}
                             onChange={e => handleRoleChange(u.id, e.target.value as UserRole)}
@@ -703,10 +704,10 @@ export default function OrgAdminPage() {
                             ))}
                           </select>
                         </td>
-                        <td className="px-5 py-3.5 text-[#8E98A6] text-xs hidden sm:table-cell">
+                        <td className="px-4 py-3 text-[#8E98A6] text-xs hidden sm:table-cell">
                           {fmtDate(u.created_at)}
                         </td>
-                        <td className="px-5 py-3.5 text-right">
+                        <td className="px-4 py-3 text-right">
                           <button
                             onClick={() => setDeleteUser(u)}
                             className="text-[#8E98A6] hover:text-[#EBA1A1] transition-colors p-1.5 rounded-lg hover:bg-[#D87979]/10"

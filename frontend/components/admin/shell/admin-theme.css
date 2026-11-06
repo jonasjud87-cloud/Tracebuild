@@ -139,11 +139,49 @@
   overflow-x: auto;
 }
 
-@media (max-width: 767px) {
-  .tba-scroll-x {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
-    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+html:has(.tba) {
+  color-scheme: dark;
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  html:has(.tba),
+  .tba,
+  .tba * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(168, 134, 91, .55) transparent;
   }
+}
+
+html:has(.tba)::-webkit-scrollbar,
+.tba ::-webkit-scrollbar,
+.tba::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+html:has(.tba)::-webkit-scrollbar-track,
+.tba ::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, .04);
+  border-radius: 999px;
+}
+
+html:has(.tba)::-webkit-scrollbar-thumb,
+.tba ::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgba(240, 201, 154, .55), rgba(168, 134, 91, .55));
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+
+html:has(.tba)::-webkit-scrollbar-thumb:hover,
+.tba ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgba(240, 201, 154, .85), rgba(168, 134, 91, .85));
+  background-clip: padding-box;
+}
+
+html:has(.tba)::-webkit-scrollbar-corner,
+.tba ::-webkit-scrollbar-corner {
+  background: transparent;
 }
 
 :where(.tba-glass) {

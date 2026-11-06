@@ -200,9 +200,9 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
           id="admin-main"
           ref={mainRef}
           tabIndex={-1}
-          className="tba-panel min-h-[calc(100vh-3.5rem)] rounded-t-[20px] px-4 py-6 focus:outline-none sm:px-6 lg:rounded-tl-[28px] lg:rounded-tr-none lg:py-6"
+          className="tba-panel min-h-[calc(100vh-3.5rem)] rounded-t-[20px] px-[clamp(16px,3vw,40px)] py-6 focus:outline-none lg:rounded-tl-[28px] lg:rounded-tr-none lg:py-6"
         >
-          <div className="mx-auto w-full max-w-[1100px]">{children}</div>
+          <div className="mx-auto w-full max-w-[1680px]">{children}</div>
         </main>
       </div>
     </div>

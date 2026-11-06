@@ -256,7 +256,7 @@ export default function InvoicesSection({ onToast }: Props) {
                                 {inv.id}
                               </button>
                             </td>
-                            <td className="px-4 py-3 text-[#A7AFBA]">{inv.orgName}</td>
+                            <td className="px-4 py-3 text-[#A7AFBA] max-w-[240px] truncate" title={inv.orgName}>{inv.orgName}</td>
                             <td className="px-4 py-3 text-right tabular-nums text-[#A7AFBA]">{inv.analyseCount}</td>
                             <td className="px-4 py-3 text-right tabular-nums font-semibold text-white whitespace-nowrap">{chf(inv.amountChf)}</td>
                             <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
