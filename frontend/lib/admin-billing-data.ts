@@ -8,6 +8,7 @@ import {
   type OrgCostRow,
   type UnassignedCosts,
 } from "@/lib/admin-billing";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
@@ -53,7 +54,7 @@ export interface BillingData {
 }
 
 export async function loadBilling(admin: Admin, range?: { from: string; to: string }): Promise<BillingData> {
-  const projectCosts = (table: "chat_messages" | "project_norm_summaries", tiebreak: "id" | "project_id") =>
+  const projectCosts = (table: "chat_messages" | "project_norm_summaries" | "project_kenndaten_kosten", tiebreak: "id" | "project_id") =>
     fetchAll<RawProjectCost>((from, to) => {
       let q = admin.from(table).select("created_at, cost_usd, project_id").gt("cost_usd", 0);
       if (range) q = q.gte("created_at", range.from).lt("created_at", range.to);
@@ -63,7 +64,7 @@ export async function loadBilling(admin: Admin, range?: { from: string; to: stri
         .range(from, to);
     });
 
-  const [orgs, projects, chatRaw, normRaw, raw] = await Promise.all([
+  const [orgs, projects, chatRaw, normRaw, kenndatenRaw, raw] = await Promise.all([
     fetchAll<{ id: string; name: string }>((from, to) =>
       admin.from("organizations").select("id, name").is("deleted_at", null).order("id").range(from, to),
     ),
@@ -72,6 +73,11 @@ export async function loadBilling(admin: Admin, range?: { from: string; to: stri
     ),
     projectCosts("chat_messages", "id"),
     projectCosts("project_norm_summaries", "project_id"),
+    // Ohne Migration 20261110000001 gibt es die Tabelle noch nicht.
+    projectCosts("project_kenndaten_kosten", "id").catch((e: Error) => {
+      if (isMissingSchema(e.message)) return [] as RawProjectCost[];
+      throw e;
+    }),
     fetchAll<RawAnalysis>((from, to) => {
       let q = admin
         .from("analyses")
@@ -105,7 +111,7 @@ export async function loadBilling(admin: Admin, range?: { from: string; to: stri
   }
   const orgByProject = new Map(projects.map((p) => [p.id, p.org_id]));
   for (const r of chatRaw) add("chat", Number(r.cost_usd), r.created_at, r.project_id ? orgByProject.get(r.project_id) : null);
-  for (const r of normRaw) add("norm", Number(r.cost_usd), r.created_at, r.project_id ? orgByProject.get(r.project_id) : null);
+  for (const r of normRaw.concat(kenndatenRaw)) add("norm", Number(r.cost_usd), r.created_at, r.project_id ? orgByProject.get(r.project_id) : null);
 
   const { usdToChf, source } = getUsdChf();
   const orgNames = new Map(orgs.map((o) => [o.id, o.name]));

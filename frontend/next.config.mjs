@@ -9,7 +9,7 @@ const nextConfig = {
   // On Next 14 this key lives under `experimental` — the top-level
   // `serverExternalPackages` only exists from Next 15 and is silently ignored here.
   experimental: {
-    serverComponentsExternalPackages: ["pdf-parse"],
+    serverComponentsExternalPackages: ["pdf-parse", "pdfjs-dist"],
     // pdf-parse → pdfjs-dist v5 eagerly loads the native @napi-rs/canvas binary
     // (it supplies the DOMMatrix/ImageData/Path2D polyfills pdfjs needs even for
     // plain text extraction). Vercel's file tracing does not follow the platform
@@ -21,6 +21,10 @@ const nextConfig = {
         "./node_modules/pdfjs-dist/**",
       ],
       "/api/v1/admin/norms/upload": [
+        "./node_modules/@napi-rs/canvas*/**",
+        "./node_modules/pdfjs-dist/**",
+      ],
+      "/api/v1/projects/[id]/kenndaten": [
         "./node_modules/@napi-rs/canvas*/**",
         "./node_modules/pdfjs-dist/**",
       ],
