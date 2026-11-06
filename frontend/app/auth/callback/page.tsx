@@ -116,20 +116,20 @@ export default function AuthCallbackPage() {
   if (error) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: "#f87171", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: 10, padding: "10px 14px", maxWidth: 440, margin: 0 }}>
+        <p style={{ fontSize: 14, color: "#EBA1A1", background: "rgba(200,80,80,0.12)", border: "1px solid rgba(235,161,161,0.3)", borderRadius: 10, padding: "10px 14px", maxWidth: 440, margin: 0 }}>
           {error}
         </p>
-        <p style={{ fontSize: 13, color: "#9a9ba3", margin: 0, maxWidth: 440 }}>
+        <p style={{ fontSize: 13, color: "#aab5c8", margin: 0, maxWidth: 440 }}>
           Bitte fordere bei deinem Administrator eine neue Einladung an.
         </p>
-        <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: "#85A6E9" }}>Zur Anmeldung →</a>
+        <a href="/login" style={{ fontSize: 13, fontWeight: 600, color: "#F0C99A" }}>Zur Anmeldung →</a>
       </div>
     );
   }
 
   return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 28, height: 28, border: "2px solid rgba(255,255,255,.15)", borderTopColor: "#2862D7", borderRadius: "50%", animation: "tb-spin 0.8s linear infinite" }} />
+      <div style={{ width: 28, height: 28, border: "2px solid rgba(255,255,255,.15)", borderTopColor: "#F0C99A", borderRadius: "50%", animation: "tb-spin 0.8s linear infinite" }} />
       <style>{`@keyframes tb-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

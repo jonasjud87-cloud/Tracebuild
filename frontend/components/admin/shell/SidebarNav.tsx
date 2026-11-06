@@ -151,7 +151,7 @@ function NavGroup({
   const headingId = `tb-nav-${title}`;
   return (
     <div>
-      <p id={headingId} className="px-3 mb-2 text-[11px] font-semibold uppercase tracking-widest text-[#7B8299]">
+      <p id={headingId} className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tba-text-2,#A7AFBA)]">
         {title}
       </p>
       <ul aria-labelledby={headingId} className="space-y-1">
@@ -164,13 +164,13 @@ function NavGroup({
                 href={item.href}
                 onClick={onNavigate}
                 aria-current={active ? "page" : undefined}
-                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9] ${
+                className={`tba-nav-link flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-[#172540] text-white"
-                    : "text-[#ABAEBB] hover:bg-[#172540]/60 hover:text-white"
+                    ? "tba-nav-active font-semibold"
+                    : "text-[var(--tba-text,#F4F3F0)]"
                 }`}
               >
-                <span className={active ? "text-[#85A6E9]" : "text-[#7B8299]"}>{item.icon}</span>
+                <span className={active ? "text-[var(--tba-cream,#FDF6EE)]" : "text-[var(--tba-text-2,#A7AFBA)]"}>{item.icon}</span>
                 <span className="truncate">{item.label}</span>
               </Link>
             </li>
@@ -187,7 +187,7 @@ export default function SidebarNav({ onNavigate }: { onNavigate: () => void }) {
   const view = searchParams?.get("view") ?? null;
 
   return (
-    <nav aria-label="Admin-Navigation" className="space-y-7">
+    <nav aria-label="Admin-Navigation" className="space-y-6">
       <NavGroup title="Plattform" items={PLATFORM_ITEMS} pathname={pathname} view={view} onNavigate={onNavigate} />
       <NavGroup title="Admin" items={ADMIN_ITEMS} pathname={pathname} view={view} onNavigate={onNavigate} />
     </nav>

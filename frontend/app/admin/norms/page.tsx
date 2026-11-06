@@ -44,7 +44,7 @@ function JurisdictionBadge({ norm }: { norm: AdminNorm }) {
     : norm.jurisdiction_type === "municipal" ? `Gemeinde ${norm.jurisdiction_name ?? ""}`
     : norm.jurisdiction_name ?? "—";
   return (
-    <span className="text-xs bg-[#2862D7]/10 text-[#85A6E9] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
+    <span className="text-xs bg-[#F0C99A]/10 text-[#F0C99A] px-2 py-0.5 rounded-full font-medium whitespace-nowrap">
       {label}
     </span>
   );
@@ -53,13 +53,13 @@ function JurisdictionBadge({ norm }: { norm: AdminNorm }) {
 function OwnerBadge({ norm }: { norm: AdminNorm }) {
   if (!norm.org_id) {
     return (
-      <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">
+      <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#83A9D0]/15 text-[#83A9D0]">
         Plattformweit
       </span>
     );
   }
   return (
-    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]">
+    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]">
       {norm.org_name ?? "Unbekannte Organisation"}
     </span>
   );
@@ -86,27 +86,27 @@ function NormRow({
   }, [expanded, normText, norm.id]);
 
   return (
-    <div className="border-b border-[rgba(60,63,68,0.3)] last:border-0">
+    <div className="border-b border-[rgba(255,255,255,0.08)] last:border-0">
       <div className="px-5 py-3.5 flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <JurisdictionBadge norm={norm} />
-            <span className="text-xs bg-[rgba(60,63,68,0.5)] text-[#ABAEBB] px-2 py-0.5 rounded-full">
+            <span className="text-xs bg-[rgba(255,255,255,0.08)] text-[#A7AFBA] px-2 py-0.5 rounded-full">
               {norm.category}
             </span>
             {norm.zone && (
-              <span className="text-xs bg-amber-500/10 text-amber-400 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-[#D6A45F]/10 text-[#D6A45F] px-2 py-0.5 rounded-full font-medium">
                 Zone {norm.zone}
               </span>
             )}
             <OwnerBadge norm={norm} />
             {norm.pdf_url && (
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#2862D7]/10 text-[#85A6E9]">
+              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#F0C99A]/10 text-[#F0C99A]">
                 PDF
               </span>
             )}
             {norm.promoted_from_org_id && (
-              <span className="text-[10px] text-[#7B8299] italic">
+              <span className="text-[11px] text-[#A7AFBA] italic">
                 ursprünglich von {norm.promoted_from_org_name ?? "unbekannter Organisation"}
               </span>
             )}
@@ -114,12 +114,12 @@ function NormRow({
           <p className="text-sm text-white font-medium truncate">{norm.title || norm.source_url || "Ohne Titel"}</p>
           {expanded && (
             <>
-              <p className="mt-2 text-xs text-[#ABAEBB] leading-relaxed whitespace-pre-wrap">{normText ?? "Text wird geladen …"}</p>
+              <p className="mt-2 text-xs text-[#A7AFBA] leading-relaxed whitespace-pre-wrap">{normText ?? "Text wird geladen …"}</p>
               {norm.pdf_url && (
                 <div className="mt-2">
                   <iframe
                     src={norm.pdf_url}
-                    className="w-full rounded-lg border border-[rgba(133,166,233,0.18)]"
+                    className="w-full rounded-lg border border-[rgba(240,201,154,0.18)]"
                     style={{ height: 480 }}
                     title={`PDF-Vorschau ${norm.title ?? norm.source_url ?? norm.category}`}
                   />
@@ -127,7 +127,7 @@ function NormRow({
                     href={norm.pdf_url}
                     target="_blank"
                     rel="noreferrer"
-                    className="mt-2 inline-block text-xs text-[#85A6E9] hover:text-white transition-colors"
+                    className="mt-2 inline-block text-xs text-[#F0C99A] hover:text-white transition-colors"
                   >
                     Original-PDF öffnen ↗
                   </a>
@@ -137,7 +137,7 @@ function NormRow({
           )}
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="mt-1 text-xs text-[#85A6E9] hover:text-white transition-colors"
+            className="mt-1 text-xs text-[#F0C99A] hover:text-white transition-colors"
           >
             {expanded ? "Inhalt verbergen ▲" : "Inhalt anzeigen ▼"}
           </button>
@@ -147,14 +147,14 @@ function NormRow({
             <button
               onClick={() => onPromote(norm.id)}
               disabled={promoting}
-              className="text-xs font-semibold text-[#85A6E9] border border-[#2862D7]/30 rounded-lg px-3 py-1.5 hover:bg-[#2862D7]/10 disabled:opacity-40 transition-colors whitespace-nowrap"
+              className="text-xs font-semibold text-[#F0C99A] border border-[#F0C99A]/30 rounded-lg px-3 py-1.5 hover:bg-[#F0C99A]/10 disabled:opacity-40 transition-colors whitespace-nowrap"
             >
               {promoting ? "…" : "Für alle Organisationen freigeben"}
             </button>
           )}
           <button
             onClick={() => onDelete(norm.id)}
-            className="text-[#7B8299] hover:text-red-400 transition-colors text-lg leading-none px-1"
+            className="text-[#8E98A6] hover:text-[#EBA1A1] transition-colors text-lg leading-none px-1"
             title="Löschen"
           >
             ×
@@ -269,7 +269,7 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
     <section className="mt-12">
       <div className="mb-4">
         <h2 className="text-base font-semibold text-white">ÖREB-Mapping</h2>
-        <p className="text-sm text-[#7B8299] mt-1">
+        <p className="text-sm text-[#8E98A6] mt-1">
           Verknüpft Bundes-Pflichtthemen des ÖREB-Katasters mit Normen: Betrifft ein Thema die Parzelle, werden alle
           Normen zugewiesen, deren Kategorie das Muster enthält (Teilstring, Gross-/Kleinschreibung egal).
         </p>
@@ -280,15 +280,15 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
           <h3 className="text-sm font-semibold text-white mb-3">Zeile hinzufügen</h3>
           <form onSubmit={handleAdd} className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">ÖREB-Thema</label>
+              <label className="block text-xs font-medium text-[#8E98A6] mb-1">ÖREB-Thema</label>
               <select value={themeCode} onChange={(e) => setThemeCode(e.target.value)} className={`${inputCls} appearance-none`}>
                 {OEREB_FEDERAL_THEMES.map((t) => <option key={t.code} value={t.code}>{t.label}</option>)}
               </select>
-              <p className="text-[11px] text-[#7B8299] mt-1 font-mono">{themeCode}</p>
+              <p className="text-[11px] text-[#A7AFBA] mt-1 font-mono">{themeCode}</p>
             </div>
             <div>
-              <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                Kategorie-Muster <span className="text-red-400">*</span>
+              <label className="block text-xs font-medium text-[#8E98A6] mb-1">
+                Kategorie-Muster <span className="text-[#EBA1A1]">*</span>
               </label>
               <input
                 type="text"
@@ -299,12 +299,12 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
               />
             </div>
             {formError && (
-              <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{formError}</p>
+              <p className="text-xs text-[#EBA1A1] bg-[#D87979]/10 border border-[#D87979]/20 rounded-lg px-3 py-2">{formError}</p>
             )}
             <button
               type="submit"
               disabled={adding || !pattern.trim()}
-              className="w-full bg-[#2862D7] hover:bg-[#3470E8] text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+              className="w-full bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] hover:bg-[#C79B63] text-[#07142B] py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
             >
               {adding ? "Wird gespeichert…" : "Mapping hinzufügen"}
             </button>
@@ -313,24 +313,24 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
 
         <div className="flex-1 min-w-0">
           {loading ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 animate-pulse">
-              <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-1/3 mb-2" />
-              <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-2/3" />
+            <div className="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] rounded-xl p-4 animate-pulse">
+              <div className="h-3 bg-[rgba(255,255,255,0.08)] rounded w-1/3 mb-2" />
+              <div className="h-3 bg-[rgba(255,255,255,0.08)] rounded w-2/3" />
             </div>
           ) : loadError ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-6 text-sm text-[#ABAEBB]">
+            <div className="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] rounded-xl p-6 text-sm text-[#A7AFBA]">
               {loadError}
-              <p className="text-xs text-[#7B8299] mt-1">Ist die Migration 20260902000001_oereb.sql eingespielt?</p>
+              <p className="text-xs text-[#8E98A6] mt-1">Ist die Migration 20260902000001_oereb.sql eingespielt?</p>
             </div>
           ) : mappings.length === 0 ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-10 text-center text-sm text-[#ABAEBB]">
+            <div className="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] rounded-xl p-10 text-center text-sm text-[#A7AFBA]">
               Noch keine Mappings vorhanden.
             </div>
           ) : (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-x-auto">
+            <div className="tba-glass tba-glass--flat rounded-2xl overflow-x-auto tba-scroll-x">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-[11px] uppercase tracking-wider text-[#7B8299] border-b border-[rgba(60,63,68,0.5)]">
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-[#A7AFBA] border-b border-[rgba(255,255,255,0.08)]">
                     <th className="px-5 py-3 font-semibold">Thema</th>
                     <th className="px-5 py-3 font-semibold">Kategorie-Muster</th>
                     <th className="px-5 py-3 font-semibold">Geltung</th>
@@ -340,19 +340,19 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
                 </thead>
                 <tbody>
                   {mappings.map((m) => (
-                    <tr key={m.id} className={`border-b border-[rgba(60,63,68,0.3)] last:border-0 ${m.active ? "" : "opacity-50"}`}>
+                    <tr key={m.id} className={`border-b border-[rgba(255,255,255,0.08)] last:border-0 ${m.active ? "" : "opacity-50"}`}>
                       <td className="px-5 py-3 align-top">
                         <p className="text-white font-medium">{themeLabel(m.theme_code)}</p>
-                        <p className="text-[11px] text-[#7B8299] font-mono">{m.theme_code}</p>
+                        <p className="text-[11px] text-[#A7AFBA] font-mono">{m.theme_code}</p>
                       </td>
                       <td className="px-5 py-3 align-top">
-                        <span className="text-xs bg-[rgba(60,63,68,0.5)] text-[#ABAEBB] px-2 py-0.5 rounded-full font-mono">{m.category_pattern}</span>
+                        <span className="text-xs bg-[rgba(255,255,255,0.08)] text-[#A7AFBA] px-2 py-0.5 rounded-full font-mono">{m.category_pattern}</span>
                       </td>
                       <td className="px-5 py-3 align-top">
                         {m.org_id ? (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(60,63,68,0.5)] text-[#ABAEBB]">Organisation</span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]">Organisation</span>
                         ) : (
-                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-sky-500/15 text-sky-400">Plattformweit</span>
+                          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#83A9D0]/15 text-[#83A9D0]">Plattformweit</span>
                         )}
                       </td>
                       <td className="px-5 py-3 align-top">
@@ -360,7 +360,7 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
                           onClick={() => handleToggle(m)}
                           disabled={busyId === m.id}
                           title={m.active ? "Deaktivieren" : "Aktivieren"}
-                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-40 ${m.active ? "bg-[#2862D7]" : "bg-[rgba(60,63,68,0.7)]"}`}
+                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-40 ${m.active ? "bg-[#A8865B]" : "bg-[#304052]"}`}
                         >
                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${m.active ? "translate-x-4" : "translate-x-0.5"}`} />
                         </button>
@@ -369,7 +369,7 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
                         <button
                           onClick={() => handleDelete(m)}
                           disabled={busyId === m.id}
-                          className="text-[#7B8299] hover:text-red-400 transition-colors text-lg leading-none px-1 disabled:opacity-40"
+                          className="text-[#8E98A6] hover:text-[#EBA1A1] transition-colors text-lg leading-none px-1 disabled:opacity-40"
                           title="Löschen"
                         >
                           ×
@@ -515,14 +515,14 @@ export default function AdminNormsPage() {
       n.jurisdiction_name?.toLowerCase().includes(q)
     );
 
-  const inputCls = "w-full rounded-lg px-3 py-2 text-sm text-white bg-[rgba(23,37,64,0.6)] border border-[rgba(133,166,233,0.25)] placeholder:text-[#7B8299] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors";
+  const inputCls = "w-full rounded-lg px-3 py-2 text-sm text-white bg-[rgba(17,27,43,0.6)] border border-[rgba(240,201,154,0.25)] placeholder:text-[#8E98A6] focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors";
 
   return (
     <>
       <AdminShell userEmail={userEmail}>
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Normen-Datenbank</h1>
-          <p className="text-sm text-[#7B8299] mt-1">
+          <p className="text-sm text-[#8E98A6] mt-1">
             Plattformweit — Normen hier hochgeladen sind für alle Organisationen sichtbar. Du kannst hier ausserdem
             Normen anderer Organisationen einsehen und für alle Organisationen freigeben.
           </p>
@@ -539,7 +539,7 @@ export default function AdminNormsPage() {
                 onDrop={handleDrop}
                 onClick={() => fileRef.current?.click()}
                 className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors ${
-                  dragOver ? "border-[#2862D7] bg-[#2862D7]/10" : "border-[rgba(133,166,233,0.2)] hover:border-[#2862D7]/50"
+                  dragOver ? "border-[#F0C99A] bg-[#F0C99A]/10" : "border-[rgba(240,201,154,0.2)] hover:border-[#F0C99A]/50"
                 }`}
               >
                 <input
@@ -550,17 +550,17 @@ export default function AdminNormsPage() {
                   onChange={(e) => setFile(e.target.files?.[0] ?? null)}
                 />
                 {file ? (
-                  <p className="text-sm text-[#85A6E9] font-medium truncate">{file.name}</p>
+                  <p className="text-sm text-[#F0C99A] font-medium truncate">{file.name}</p>
                 ) : (
                   <div>
-                    <p className="text-sm text-[#ABAEBB]">PDF / TXT</p>
-                    <p className="text-xs text-[#7B8299]">Drag & Drop oder klicken</p>
+                    <p className="text-sm text-[#A7AFBA]">PDF / TXT</p>
+                    <p className="text-xs text-[#8E98A6]">Drag & Drop oder klicken</p>
                   </div>
                 )}
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">Ebene</label>
+                <label className="block text-xs font-medium text-[#8E98A6] mb-1">Ebene</label>
                 <select
                   value={jurisdictionType}
                   onChange={(e) => setJurisdictionType(e.target.value as typeof jurisdictionType)}
@@ -572,7 +572,7 @@ export default function AdminNormsPage() {
 
               {jurisdictionType === "cantonal" && (
                 <div>
-                  <label className="block text-xs font-medium text-[#7B8299] mb-1">Kanton</label>
+                  <label className="block text-xs font-medium text-[#8E98A6] mb-1">Kanton</label>
                   <select value={canton} onChange={(e) => setCanton(e.target.value)} className={`${inputCls} appearance-none`}>
                     {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
@@ -581,8 +581,8 @@ export default function AdminNormsPage() {
 
               {jurisdictionType === "municipal" && (
                 <div>
-                  <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                    Gemeinde <span className="text-red-400">*</span>
+                  <label className="block text-xs font-medium text-[#8E98A6] mb-1">
+                    Gemeinde <span className="text-[#EBA1A1]">*</span>
                   </label>
                   <input
                     type="text"
@@ -596,7 +596,7 @@ export default function AdminNormsPage() {
               )}
 
               <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">Zone (optional)</label>
+                <label className="block text-xs font-medium text-[#8E98A6] mb-1">Zone (optional)</label>
                 <input
                   type="text"
                   value={zone}
@@ -607,8 +607,8 @@ export default function AdminNormsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">
-                  Kategorie <span className="text-red-400">*</span>
+                <label className="block text-xs font-medium text-[#8E98A6] mb-1">
+                  Kategorie <span className="text-[#EBA1A1]">*</span>
                 </label>
                 <input
                   type="text"
@@ -621,7 +621,7 @@ export default function AdminNormsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-[#7B8299] mb-1">Quelle (optional)</label>
+                <label className="block text-xs font-medium text-[#8E98A6] mb-1">Quelle (optional)</label>
                 <input
                   type="text"
                   value={sourceName}
@@ -632,16 +632,16 @@ export default function AdminNormsPage() {
               </div>
 
               {uploadError && (
-                <p className="text-xs text-red-400 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2">{uploadError}</p>
+                <p className="text-xs text-[#EBA1A1] bg-[#D87979]/10 border border-[#D87979]/20 rounded-lg px-3 py-2">{uploadError}</p>
               )}
               {uploadSuccess && (
-                <p className="text-xs text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">{uploadSuccess}</p>
+                <p className="text-xs text-[#65A88A] bg-[#65A88A]/10 border border-[#65A88A]/20 rounded-lg px-3 py-2">{uploadSuccess}</p>
               )}
 
               <button
                 type="submit"
                 disabled={uploading || !file}
-                className="w-full bg-[#2862D7] hover:bg-[#3470E8] text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
+                className="w-full bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] hover:bg-[#C79B63] text-[#07142B] py-2 rounded-lg text-sm font-medium disabled:opacity-50 transition-colors"
               >
                 {uploading ? "Wird verarbeitet…" : "Plattformweit hochladen"}
               </button>
@@ -655,7 +655,7 @@ export default function AdminNormsPage() {
                 <h2 className="text-base font-semibold text-white">
                   Alle Normen
                   {!loading && (
-                    <span className="ml-2 text-sm font-normal text-[#7B8299]">
+                    <span className="ml-2 text-sm font-normal text-[#8E98A6]">
                       ({filtered.length} {filtered.length === 1 ? "Eintrag" : "Einträge"})
                     </span>
                   )}
@@ -685,26 +685,26 @@ export default function AdminNormsPage() {
             {loading ? (
               <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
-                  <div key={i} className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-4 animate-pulse">
-                    <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-1/4 mb-2" />
-                    <div className="h-3 bg-[rgba(60,63,68,0.5)] rounded w-3/4" />
+                  <div key={i} className="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] rounded-xl p-4 animate-pulse">
+                    <div className="h-3 bg-[rgba(255,255,255,0.08)] rounded w-1/4 mb-2" />
+                    <div className="h-3 bg-[rgba(255,255,255,0.08)] rounded w-3/4" />
                   </div>
                 ))}
               </div>
             ) : filtered.length === 0 ? (
-              <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-xl p-16 text-center">
-                <p className="text-[#ABAEBB] text-sm font-medium">Keine Normen gefunden</p>
+              <div className="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] rounded-xl p-16 text-center">
+                <p className="text-[#A7AFBA] text-sm font-medium">Keine Normen gefunden</p>
                 {(search || ownerFilter !== "all") && (
                   <button
                     onClick={() => { setSearch(""); setOwnerFilter("all"); }}
-                    className="mt-2 text-sm text-[#85A6E9] hover:underline"
+                    className="mt-2 text-sm text-[#F0C99A] hover:underline"
                   >
                     Filter zurücksetzen
                   </button>
                 )}
               </div>
             ) : (
-              <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl overflow-hidden">
+              <div className="tba-glass tba-glass--flat rounded-2xl overflow-hidden">
                 {filtered.map((n) => (
                   <NormRow
                     key={n.id}

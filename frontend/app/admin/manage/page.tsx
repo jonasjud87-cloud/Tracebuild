@@ -94,20 +94,20 @@ function KpiCard({
   accent?: boolean;
 }) {
   return (
-    <div className={`bg-[#172540] border rounded-2xl p-4 flex flex-col ${accent ? "border-[#2862D7]/30" : "border-[rgba(60,63,68,0.5)]"}`}>
-      <p className={`text-xl font-bold tracking-tight tabular-nums ${accent ? "text-[#85A6E9]" : "text-white"}`}>
+    <div className={`bg-[#111B2B] border rounded-2xl p-4 flex flex-col ${accent ? "border-[#F0C99A]/30" : "border-[rgba(255,255,255,0.08)]"}`}>
+      <p className={`text-xl font-bold tracking-tight tabular-nums ${accent ? "text-[#F0C99A]" : "text-white"}`}>
         {value}
       </p>
-      <p className="text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest mt-1.5">{label}</p>
+      <p className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest mt-1.5">{label}</p>
       <div className="flex items-center gap-2 mt-1">
         {trend && (
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-            trend.positive ? "bg-emerald-500/15 text-emerald-400" : "bg-red-500/15 text-red-400"
+          <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
+            trend.positive ? "bg-[#65A88A]/15 text-[#65A88A]" : "bg-[#D87979]/15 text-[#EBA1A1]"
           }`}>
             {trend.pct}
           </span>
         )}
-        {note && <p className="text-[10px] text-[#7B8299]">{note}</p>}
+        {note && <p className="text-[11px] text-[#A7AFBA]">{note}</p>}
       </div>
     </div>
   );
@@ -124,7 +124,7 @@ function SearchInput({
   return (
     <div className="relative">
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7B8299] pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E98A6] pointer-events-none"
         width="13" height="13" viewBox="0 0 13 13" fill="none"
       >
         <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
@@ -135,12 +135,12 @@ function SearchInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Suchen..."}
-        className="w-full pl-8 pr-8 py-2.5 text-sm border border-[rgba(133,166,233,0.25)] rounded-xl bg-[rgba(23,37,64,0.6)] text-white focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors placeholder:text-[#7B8299]"
+        className="w-full pl-8 pr-8 py-2.5 text-sm border border-[rgba(240,201,154,0.25)] rounded-xl bg-[rgba(17,27,43,0.6)] text-white focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors placeholder:text-[#8E98A6]"
       />
       {value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#7B8299] hover:text-white transition-colors"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8E98A6] hover:text-white transition-colors"
         >
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
             <path d="M1.5 1.5L9.5 9.5M9.5 1.5L1.5 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -154,9 +154,9 @@ function SearchInput({
 function SectionHeader({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="h-px flex-1 bg-[rgba(60,63,68,0.4)]" />
-      <span className="text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest px-2">{title}</span>
-      <div className="h-px flex-1 bg-[rgba(60,63,68,0.4)]" />
+      <div className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
+      <span className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-2">{title}</span>
+      <div className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
     </div>
   );
 }
@@ -175,18 +175,18 @@ function ConfirmModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center tba-scrim px-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="bg-[#0E111B] rounded-2xl shadow-2xl w-full max-w-sm p-7 border border-[rgba(60,63,68,0.5)]">
+      <div className="tba-glass tba-glass--modal rounded-2xl w-full max-w-sm p-7">
         <h3 className="text-base font-bold text-white text-center mb-2">{title}</h3>
-        <p className="text-sm text-[#ABAEBB] text-center mb-6">
+        <p className="text-sm text-[#A7AFBA] text-center mb-6">
           <span className="font-semibold text-white">{orgName}</span> {description}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border border-[rgba(60,63,68,0.4)] rounded-xl py-2.5 text-sm font-medium text-[#ABAEBB] hover:bg-[#1E2D4A] transition-colors"
+            className="flex-1 border border-[rgba(255,255,255,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] transition-colors"
           >
             Abbrechen
           </button>
@@ -206,10 +206,10 @@ function QuickActionBtn({ icon, label, onClick }: { icon: ReactNode; label: stri
   return (
     <button
       onClick={onClick}
-      className="flex-1 flex flex-col items-center gap-2 py-4 px-3 bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl hover:border-[#2862D7]/40 hover:bg-[#2862D7]/8 transition-all text-center group"
+      className="flex-1 flex flex-col items-center gap-2 py-4 px-3 tba-glass rounded-2xl hover:border-[#F0C99A]/40 hover:bg-[#F0C99A]/10 transition-all text-center group"
     >
-      <span className="text-[#7B8299] group-hover:text-[#85A6E9] transition-colors">{icon}</span>
-      <span className="text-xs font-medium text-[#ABAEBB] group-hover:text-white transition-colors leading-tight">{label}</span>
+      <span className="text-[#8E98A6] group-hover:text-[#F0C99A] transition-colors">{icon}</span>
+      <span className="text-xs font-medium text-[#A7AFBA] group-hover:text-white transition-colors leading-tight">{label}</span>
     </button>
   );
 }
@@ -611,7 +611,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
         {/* Greeting */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-medium text-[#7B8299] uppercase tracking-widest mb-1">
+            <p className="text-[11px] font-medium text-[#A7AFBA] uppercase tracking-widest mb-1">
               {todayStr()}
             </p>
             <h1 className="text-2xl font-bold text-white">
@@ -620,18 +620,18 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           </div>
 
           {hydrated && lastOpened && (
-            <div className="flex-shrink-0 flex items-center gap-4 bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl px-5 py-3.5">
+            <div className="flex-shrink-0 flex items-center gap-4 tba-glass rounded-2xl px-5 py-3.5">
               <div>
-                <p className="text-[10px] font-semibold text-[#7B8299] uppercase tracking-widest">Zuletzt geöffnet</p>
+                <p className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest">Zuletzt geöffnet</p>
                 <p className="text-sm font-semibold text-white mt-0.5">{lastOpened.name}</p>
               </div>
-              <div className="h-7 w-px bg-[rgba(60,63,68,0.4)]" />
+              <div className="h-7 w-px bg-[rgba(255,255,255,0.08)]" />
               <button
                 onClick={() => {
                   const org = orgs.find(o => o.id === lastOpened.id);
                   if (org) handleOpen(org); else router.push("/dashboard");
                 }}
-                className="text-sm font-semibold text-[#85A6E9] hover:text-white bg-[#2862D7]/10 hover:bg-[#2862D7] px-3.5 py-2 rounded-xl transition-all active:scale-[0.97] whitespace-nowrap"
+                className="text-sm font-semibold text-[#F0C99A] hover:text-white bg-[#F0C99A]/10 hover:bg-[#7A5F3D] px-3.5 py-2 rounded-xl transition-all active:scale-[0.97] whitespace-nowrap"
               >
                 Weiter öffnen →
               </button>
@@ -715,7 +715,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-semibold text-white">Alle Organisationen</h2>
-              <p className="text-xs text-[#7B8299] mt-0.5">
+              <p className="text-xs text-[#8E98A6] mt-0.5">
                 {filtered.length} {filtered.length === 1 ? "Eintrag" : "Einträge"}
                 {search ? ` für „${search}"` : ""}
               </p>
@@ -726,7 +726,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
               </div>
               <button
                 onClick={() => { setEditTarget(null); setModalOpen(true); }}
-                className="flex-shrink-0 flex items-center gap-1.5 bg-[#2862D7] text-white text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#3470E8] active:scale-[0.97] transition-all shadow-sm shadow-[#2862D7]/25 whitespace-nowrap"
+                className="flex-shrink-0 flex items-center gap-1.5 bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] text-[#07142B] text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#C79B63] active:scale-[0.97] transition-all shadow-sm shadow-[#F0C99A]/25 whitespace-nowrap"
               >
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
                   <path d="M5.5 1V10M1 5.5H10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -737,12 +737,12 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           </div>
 
           {!hydrated || seeding ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl h-48 animate-pulse" />
+            <div className="tba-skel rounded-2xl h-48 animate-pulse" />
           ) : filtered.length === 0 ? (
-            <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl p-12 text-center">
-              <p className="text-[#ABAEBB] text-sm font-medium">Keine Organisationen gefunden</p>
+            <div className="tba-glass rounded-2xl p-12 text-center">
+              <p className="text-[#A7AFBA] text-sm font-medium">Keine Organisationen gefunden</p>
               {search && (
-                <button onClick={() => setSearch("")} className="mt-2 text-sm text-[#85A6E9] hover:underline">
+                <button onClick={() => setSearch("")} className="mt-2 text-sm text-[#F0C99A] hover:underline">
                   Filter zurücksetzen
                 </button>
               )}
@@ -787,7 +787,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-semibold text-white">Kostendetails</h2>
-                <p className="text-xs text-[#7B8299] mt-0.5">
+                <p className="text-xs text-[#8E98A6] mt-0.5">
                   {filteredCosts.length === 0 ? "Noch keine Kostendaten" : `${filteredCosts.length} Einträge`}
                 </p>
               </div>
@@ -796,7 +796,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
                   <select
                     value={costMonth}
                     onChange={e => setCostMonth(e.target.value)}
-                    className="border border-[rgba(133,166,233,0.25)] rounded-xl px-3 py-2.5 text-sm text-white bg-[rgba(23,37,64,0.6)] focus:outline-none focus:ring-2 focus:ring-[#2862D7]/40 focus:border-[#2862D7] transition-colors"
+                    className="border border-[rgba(240,201,154,0.25)] rounded-xl px-3 py-2.5 text-sm text-white bg-[rgba(17,27,43,0.6)] focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors"
                   >
                     {costMonths.map(m => (
                       <option key={m} value={m}>{fmtMonth(m)}</option>
@@ -809,7 +809,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
               )}
             </div>
             {costsLoading && costs.length === 0 ? (
-              <div className="bg-[#172540] border border-[rgba(60,63,68,0.5)] rounded-2xl h-48 animate-pulse" />
+              <div className="tba-skel rounded-2xl h-48 animate-pulse" />
             ) : (
               <CostTable costs={filteredCosts} />
             )}
@@ -859,7 +859,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation löschen"
           description="wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
           confirmLabel="Löschen"
-          confirmCls="bg-red-600 text-white hover:bg-red-700"
+          confirmCls="bg-[#B85C5C] text-white hover:bg-[#A04E4E]"
           onConfirm={() => handleDelete(deleteTarget)}
           onClose={() => setDeleteTarget(null)}
         />
@@ -871,7 +871,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation pausieren"
           description="wird pausiert. Benutzer können sich nicht mehr einloggen."
           confirmLabel="Pausieren"
-          confirmCls="bg-amber-500 text-white hover:bg-amber-600"
+          confirmCls="bg-[#B88848] text-white hover:bg-[#9A7038]"
           onConfirm={() => handlePause(pauseTarget)}
           onClose={() => setPauseTarget(null)}
         />
@@ -883,7 +883,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation schließen"
           description="wird geschlossen. Daten werden aufbewahrt, aber der Zugang gesperrt."
           confirmLabel="Schließen"
-          confirmCls="bg-[#172540] border border-[rgba(60,63,68,0.5)] text-white hover:bg-[#1E2D4A]"
+          confirmCls="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] text-white hover:bg-[#223247]"
           onConfirm={() => handleClose(closeTarget)}
           onClose={() => setCloseTarget(null)}
         />
@@ -895,7 +895,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation archivieren"
           description="wird archiviert und ist schreibgeschützt."
           confirmLabel="Archivieren"
-          confirmCls="bg-[rgba(60,63,68,0.6)] text-white hover:bg-[rgba(60,63,68,0.8)]"
+          confirmCls="bg-[#304052] text-white hover:bg-[#304052]"
           onConfirm={() => handleArchive(archiveTarget)}
           onClose={() => setArchiveTarget(null)}
         />

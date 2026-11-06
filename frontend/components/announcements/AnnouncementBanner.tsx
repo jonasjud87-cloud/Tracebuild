@@ -19,10 +19,10 @@ const MIN_GAP_MS = 60 * 1000;
 const STORAGE_PREFIX = "tb-announcement-dismissed:";
 
 const STYLES: Record<BannerType, { box: string; icon: string; title: string; label: string }> = {
-  info: { box: "border-sky-500/30 bg-sky-500/10", icon: "text-sky-300", title: "text-sky-100", label: "Information" },
-  warning: { box: "border-amber-500/30 bg-amber-500/10", icon: "text-amber-300", title: "text-amber-100", label: "Warnung" },
-  maintenance: { box: "border-orange-500/35 bg-orange-500/10", icon: "text-orange-300", title: "text-orange-100", label: "Wartung" },
-  critical: { box: "border-red-500/40 bg-red-500/10", icon: "text-red-300", title: "text-red-100", label: "Kritisch" },
+  info: { box: "border-[#83A9D0]/30 bg-[#83A9D0]/10", icon: "text-[#83A9D0]", title: "text-[#83A9D0]", label: "Information" },
+  warning: { box: "border-[#D6A45F]/30 bg-[#D6A45F]/10", icon: "text-[#D6A45F]", title: "text-[#D6A45F]", label: "Warnung" },
+  maintenance: { box: "border-[#83A9D0]/35 bg-[#83A9D0]/10", icon: "text-[#83A9D0]", title: "text-[#83A9D0]", label: "Wartung" },
+  critical: { box: "border-[#D87979]/40 bg-[#D87979]/10", icon: "text-[#EBA1A1]", title: "text-[#EBA1A1]", label: "Kritisch" },
 };
 
 function TypeIcon({ type }: { type: BannerType }) {
@@ -89,7 +89,7 @@ export function AnnouncementBannerView({
                 <span className="sr-only">{s.label}: </span>
                 {item.title}
               </p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#ABAEBB]" style={{ overflowWrap: "anywhere" }}>
+              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#A7AFBA]" style={{ overflowWrap: "anywhere" }}>
                 {item.message}
               </p>
             </div>
@@ -98,7 +98,7 @@ export function AnnouncementBannerView({
                 type="button"
                 onClick={() => onDismiss(item)}
                 aria-label="Schliessen"
-                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9] ${s.icon}`}
+                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A] ${s.icon}`}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -109,7 +109,7 @@ export function AnnouncementBannerView({
         );
       })}
       {rest > 0 && (
-        <p className="px-1 text-xs text-[#7B8299]">
+        <p className="px-1 text-xs text-[#8E98A6]">
           und {rest} weitere {rest === 1 ? "Hinweis" : "Hinweise"}
         </p>
       )}

@@ -22,15 +22,15 @@ import type {
 const PAGE_SIZE = 100;
 
 const STATUS: Record<string, { label: string; cls: string }> = {
-  imported: { label: "Importiert", cls: "border-emerald-500/30 bg-emerald-500/10 text-emerald-300" },
-  pending: { label: "Offen", cls: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
-  rejected: { label: "Abgelehnt", cls: "border-[rgba(133,166,233,0.3)] bg-white/5 text-[#ABAEBB]" },
-  failed: { label: "Fehler", cls: "border-red-500/40 bg-red-500/10 text-red-300" },
-  duplicate_manual: { label: "Von Hand erfasst", cls: "border-[rgba(133,166,233,0.3)] bg-white/5 text-[#ABAEBB]" },
-  removed: { label: "Entfernt", cls: "border-[rgba(60,63,68,0.6)] bg-white/5 text-[#7B8299]" },
-  review: { label: REVIEW_LABEL, cls: "border-sky-500/30 bg-sky-500/10 text-sky-300" },
+  imported: { label: "Importiert", cls: "border-[#65A88A]/30 bg-[#65A88A]/10 text-[#65A88A]" },
+  pending: { label: "Offen", cls: "border-[#83A9D0]/30 bg-[#83A9D0]/10 text-[#83A9D0]" },
+  rejected: { label: "Abgelehnt", cls: "border-[rgba(240,201,154,0.3)] bg-white/5 text-[#A7AFBA]" },
+  failed: { label: "Fehler", cls: "border-[#D87979]/40 bg-[#D87979]/10 text-[#EBA1A1]" },
+  duplicate_manual: { label: "Von Hand erfasst", cls: "border-[rgba(240,201,154,0.3)] bg-white/5 text-[#A7AFBA]" },
+  removed: { label: "Entfernt", cls: "border-[#304052] bg-white/5 text-[#8E98A6]" },
+  review: { label: REVIEW_LABEL, cls: "border-[#83A9D0]/30 bg-[#83A9D0]/10 text-[#83A9D0]" },
 };
-const SCAN_STATUS = { label: "Scan", cls: "border-amber-500/30 bg-amber-500/10 text-amber-300" };
+const SCAN_STATUS = { label: "Scan", cls: "border-[#D6A45F]/30 bg-[#D6A45F]/10 text-[#D6A45F]" };
 
 const DECISION_BADGE: Record<DocumentDecision, string> = {
   force_import: "Admin: trotzdem importieren",
@@ -91,9 +91,9 @@ const RULE_NUMBERS: { key: keyof ImportFilterRules; label: string }[] = [
   { key: "supersede_after_days", label: "Alte Adresse abgelöst nach Tagen" },
 ];
 
-const INPUT = "rounded-lg border border-[rgba(133,166,233,0.25)] bg-[rgba(23,37,64,0.6)] px-3 py-2 text-sm text-white placeholder:text-[#7B8299] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]";
-const ACTION_BTN = "rounded-lg border border-[rgba(60,63,68,0.5)] px-3 py-1.5 text-xs font-medium text-[#ABAEBB] transition-colors hover:bg-[#1E2D4A] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]";
-const PANEL = "rounded-2xl border border-[rgba(60,63,68,0.5)] bg-white/[0.03]";
+const INPUT = "rounded-lg border border-[rgba(240,201,154,0.25)] bg-[rgba(17,27,43,0.6)] px-3 py-2 text-sm text-white placeholder:text-[#8E98A6] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]";
+const ACTION_BTN = "rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-xs font-medium text-[#A7AFBA] transition-colors hover:bg-[#223247] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]";
+const PANEL = "rounded-2xl border border-[rgba(255,255,255,0.08)] bg-white/[0.03]";
 const TH = "px-3 py-2 text-right font-medium";
 const TD = "px-3 py-2 text-right tabular-nums";
 
@@ -108,10 +108,10 @@ function ownRulesText(own: CantonOverview["own_rules"]): string {
 
 function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[]; selected: string; onSelect: (canton: string) => void }) {
   return (
-    <section aria-label="Kantone" className={`${PANEL} overflow-x-auto`}>
-      <table className="w-full min-w-[720px] text-xs text-[#ABAEBB]">
-        <thead className="text-[#7B8299]">
-          <tr className="border-b border-[rgba(60,63,68,0.5)]">
+    <section aria-label="Kantone" className={`${PANEL} overflow-x-auto tba-scroll-x`}>
+      <table className="w-full min-w-[720px] text-xs text-[#A7AFBA]">
+        <thead className="text-[#8E98A6]">
+          <tr className="border-b border-[rgba(255,255,255,0.08)]">
             <th scope="col" className={`${TH} text-left`}>Kanton</th>
             <th scope="col" className={`${TH} text-left`}>Freigabe</th>
             <th scope="col" className={`${TH} text-left`}>Eigene Regeln</th>
@@ -126,18 +126,18 @@ function CantonTable({ cantons, selected, onSelect }: { cantons: CantonOverview[
         </thead>
         <tbody>
           {cantons.map((c) => (
-            <tr key={c.canton} className={`border-b border-[rgba(60,63,68,0.25)] last:border-0 ${c.canton === selected ? "bg-[#2862D7]/15" : ""}`}>
+            <tr key={c.canton} className={`border-b border-[#304052] last:border-0 ${c.canton === selected ? "bg-[#F0C99A]/15" : ""}`}>
               <th scope="row" className="px-3 py-1 text-left font-normal">
                 <button
                   type="button"
                   aria-pressed={c.canton === selected}
                   onClick={() => onSelect(c.canton)}
-                  className="min-h-[28px] min-w-[44px] rounded-md px-2 text-left font-semibold text-[#85A6E9] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]"
+                  className="min-h-[28px] min-w-[44px] rounded-md px-2 text-left font-semibold text-[#F0C99A] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
                 >
                   {c.canton}
                 </button>
               </th>
-              <td className={`px-3 py-2 ${c.release.released ? "text-emerald-300" : "text-amber-300"}`}>{releaseText(c.release)}</td>
+              <td className={`px-3 py-2 ${c.release.released ? "text-[#65A88A]" : "text-[#D6A45F]"}`}>{releaseText(c.release)}</td>
               <td className="px-3 py-2">{ownRulesText(c.own_rules)}</td>
               <td className={TD}>{c.total}</td>
               <td className={TD}>{c.imported}</td>
@@ -158,35 +158,35 @@ function RulesPanel({ canton, rules, filters }: { canton: string; rules: ImportF
   const rows = filters.filter((f) => f.scope === "default" || f.scope === canton);
   return (
     <details className={`${PANEL} px-4 py-3`}>
-      <summary className="cursor-pointer text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#85A6E9]">
+      <summary className="cursor-pointer text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]">
         Aktive Filterregeln für {canton}
       </summary>
-      <p className="mt-2 text-xs text-[#7B8299]">Wirksam sind der Standard im Code, darüber die Zeile default, darüber die Zeile des Kantons. Ändern lassen sich die Zeilen per SQL.</p>
+      <p className="mt-2 text-xs text-[#8E98A6]">Wirksam sind der Standard im Code, darüber die Zeile default, darüber die Zeile des Kantons. Ändern lassen sich die Zeilen per SQL.</p>
       <dl className="mt-3 grid gap-3 md:grid-cols-2">
         {RULE_LISTS.map(({ key, label }) => {
           const values = rules[key] as string[];
           return (
             <div key={key}>
-              <dt className="text-xs font-medium text-[#ABAEBB]">{label}</dt>
-              <dd className="mt-0.5 text-xs text-[#7B8299]" style={{ overflowWrap: "anywhere" }}>{values.length ? values.join(", ") : "keine"}</dd>
+              <dt className="text-xs font-medium text-[#A7AFBA]">{label}</dt>
+              <dd className="mt-0.5 text-xs text-[#8E98A6]" style={{ overflowWrap: "anywhere" }}>{values.length ? values.join(", ") : "keine"}</dd>
             </div>
           );
         })}
         {RULE_NUMBERS.map(({ key, label }) => (
           <div key={key}>
-            <dt className="text-xs font-medium text-[#ABAEBB]">{label}</dt>
-            <dd className="mt-0.5 text-xs tabular-nums text-[#7B8299]">{String(rules[key])}</dd>
+            <dt className="text-xs font-medium text-[#A7AFBA]">{label}</dt>
+            <dd className="mt-0.5 text-xs tabular-nums text-[#8E98A6]">{String(rules[key])}</dd>
           </div>
         ))}
       </dl>
       <h3 className="mt-4 text-xs font-semibold text-white">Zeilen aus der Datenbank</h3>
       {rows.length === 0 ? (
-        <p className="mt-1 text-xs text-[#7B8299]">Keine: Es gilt der Standard im Code.</p>
+        <p className="mt-1 text-xs text-[#8E98A6]">Keine: Es gilt der Standard im Code.</p>
       ) : (
         <ul className="mt-1 space-y-2">
           {rows.map((row) => (
-            <li key={row.scope} className="text-xs text-[#7B8299]">
-              <span className="font-medium text-[#ABAEBB]">{row.scope}</span>
+            <li key={row.scope} className="text-xs text-[#8E98A6]">
+              <span className="font-medium text-[#A7AFBA]">{row.scope}</span>
               {row.active ? "" : " (inaktiv, zählt nicht)"}
               {row.updated_at ? ` · ${formatDate(row.updated_at)}` : ""}
               {row.note ? <span className="block">{row.note}</span> : null}
@@ -216,26 +216,26 @@ function DocumentRow({ doc, busy, onDecide }: { doc: AdminDocument; busy: boolea
       <div className="flex flex-wrap items-center gap-2">
         <span className={`whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-medium ${status.cls}`}>{status.label}</span>
         {doc.manual_decision && (
-          <span className="whitespace-nowrap rounded-full border border-[#85A6E9]/40 bg-[#2862D7]/15 px-2 py-0.5 text-[11px] font-medium text-[#85A6E9]">
+          <span className="whitespace-nowrap rounded-full border border-[#F0C99A]/40 bg-[#F0C99A]/15 px-2 py-0.5 text-[11px] font-medium text-[#F0C99A]">
             {DECISION_BADGE[doc.manual_decision]}
           </span>
         )}
         {doc.text_source === "ai_read" && (
-          <span className="whitespace-nowrap rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300">
+          <span className="whitespace-nowrap rounded-full border border-[#D6A45F]/30 bg-[#D6A45F]/10 px-2 py-0.5 text-[11px] font-medium text-[#D6A45F]">
             {AI_READ_LABEL}
           </span>
         )}
         {href ? (
-          <a href={href} target="_blank" rel="noreferrer" className="text-sm text-white underline decoration-[#85A6E9]/50 underline-offset-2 hover:decoration-white" style={{ overflowWrap: "anywhere" }}>
-            {doc.title} <span aria-hidden="true" className="text-[#85A6E9]">↗</span>
+          <a href={href} target="_blank" rel="noreferrer" className="text-sm text-white underline decoration-[#F0C99A]/50 underline-offset-2 hover:decoration-white" style={{ overflowWrap: "anywhere" }}>
+            {doc.title} <span aria-hidden="true" className="text-[#F0C99A]">↗</span>
           </a>
         ) : (
           <span className="text-sm text-white" style={{ overflowWrap: "anywhere" }}>{doc.title}</span>
         )}
       </div>
-      <p className="mt-1 text-xs text-[#7B8299]" style={{ overflowWrap: "anywhere" }}>{meta}</p>
-      {doc.reject_detail && <p className="mt-0.5 text-xs text-[#7B8299]" style={{ overflowWrap: "anywhere" }}>{doc.reject_detail}</p>}
-      {doc.version_note && <p className="mt-0.5 text-xs text-[#85A6E9]" style={{ overflowWrap: "anywhere" }}>{doc.version_note}</p>}
+      <p className="mt-1 text-xs text-[#8E98A6]" style={{ overflowWrap: "anywhere" }}>{meta}</p>
+      {doc.reject_detail && <p className="mt-0.5 text-xs text-[#8E98A6]" style={{ overflowWrap: "anywhere" }}>{doc.reject_detail}</p>}
+      {doc.version_note && <p className="mt-0.5 text-xs text-[#F0C99A]" style={{ overflowWrap: "anywhere" }}>{doc.version_note}</p>}
       <div className="mt-2 flex flex-wrap gap-2">
         <button type="button" disabled={busy || doc.status === "imported"} onClick={() => onDecide(doc, "force_import")} className={ACTION_BTN}>Trotzdem importieren</button>
         <button type="button" disabled={busy || doc.manual_decision === "exclude"} onClick={() => onDecide(doc, "exclude")} className={ACTION_BTN}>Ausschliessen</button>
@@ -363,29 +363,29 @@ export default function OerebImportsManager() {
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 sm:px-6">
       <div>
         <h1 className="text-2xl font-bold text-white">ÖREB-Importe</h1>
-        <p className="mt-1 text-sm text-[#ABAEBB]">Reglemente aus den ÖREB-Auszügen je Kanton und Gemeinde. Entscheide bleiben auch bei späteren Abrufen bestehen.</p>
+        <p className="mt-1 text-sm text-[#A7AFBA]">Reglemente aus den ÖREB-Auszügen je Kanton und Gemeinde. Entscheide bleiben auch bei späteren Abrufen bestehen.</p>
       </div>
 
       {overviewError && (
-        <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+        <div role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/10 px-4 py-3 text-sm text-[#EBA1A1]">
           {overviewError}{" "}
           <button type="button" onClick={() => void loadOverview()} className="underline underline-offset-2 hover:text-white">Erneut versuchen</button>
         </div>
       )}
       {!overview && !overviewError && (
-        <div aria-busy="true" aria-label="Überblick wird geladen" className="h-64 animate-pulse rounded-2xl border border-[rgba(60,63,68,0.4)] bg-white/[0.03]" />
+        <div aria-busy="true" aria-label="Überblick wird geladen" className="h-64 animate-pulse rounded-2xl border border-[rgba(255,255,255,0.08)] bg-white/[0.03]" />
       )}
       {overview && !overview.available && (
-        <p className={`${PANEL} px-4 py-6 text-center text-sm text-[#ABAEBB]`}>Der automatische Import ist noch nicht aktiv: Die Datenbank-Migration fehlt.</p>
+        <p className={`${PANEL} px-4 py-6 text-center text-sm text-[#A7AFBA]`}>Der automatische Import ist noch nicht aktiv: Die Datenbank-Migration fehlt.</p>
       )}
 
       {overview?.available && (
         <>
-          {overview.truncated && <p className="text-xs text-amber-300">Es gibt mehr Dokumente, als gezählt wurden. Die Zahlen sind Untergrenzen.</p>}
+          {overview.truncated && <p className="text-xs text-[#D6A45F]">Es gibt mehr Dokumente, als gezählt wurden. Die Zahlen sind Untergrenzen.</p>}
           <CantonTable cantons={overview.cantons} selected={canton} onSelect={selectCanton} />
 
           {selected && !selected.release.released && (
-            <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+            <p className="rounded-xl border border-[#D6A45F]/30 bg-[#D6A45F]/10 px-4 py-3 text-sm text-[#D6A45F]">
               Import für {canton} gestoppt: Die Filterregeln lassen keine Dokumentart zu.
             </p>
           )}
@@ -393,46 +393,46 @@ export default function OerebImportsManager() {
           {docs?.available && <RulesPanel canton={canton} rules={docs.rules} filters={overview.filters} />}
 
           <div className="flex flex-wrap items-end gap-3">
-            <label className="text-xs text-[#7B8299]">
+            <label className="text-xs text-[#8E98A6]">
               <span className="mb-1 block">Gemeinde</span>
               <select value={bfs} onChange={(e) => setBfs(e.target.value)} className={INPUT}>
                 <option value="">Alle Gemeinden</option>
                 {docs?.municipalities.map((m) => <option key={m.bfs_number} value={m.bfs_number}>{m.municipality} ({m.count})</option>)}
               </select>
             </label>
-            <label className="text-xs text-[#7B8299]">
+            <label className="text-xs text-[#8E98A6]">
               <span className="mb-1 block">Status</span>
               <select value={status} onChange={(e) => setStatus(e.target.value)} className={INPUT}>
                 <option value="">Alle Status</option>
                 {Object.entries(STATUS).map(([value, s]) => <option key={value} value={value}>{s.label}</option>)}
               </select>
             </label>
-            <label className="text-xs text-[#7B8299]">
+            <label className="text-xs text-[#8E98A6]">
               <span className="mb-1 block">Grund</span>
               <select value={reason} onChange={(e) => setReason(e.target.value)} className={INPUT}>
                 <option value="">Alle Gründe</option>
                 {docs?.reasons.map((r) => <option key={r.reason} value={r.reason}>{rejectReasonLabel(r.reason)} ({r.count})</option>)}
               </select>
             </label>
-            <label className="min-w-[200px] flex-1 text-xs text-[#7B8299]">
+            <label className="min-w-[200px] flex-1 text-xs text-[#8E98A6]">
               <span className="mb-1 block">Titel</span>
               <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="z. B. Baureglement" className={`${INPUT} w-full`} />
             </label>
           </div>
 
-          {docsError && <div role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{docsError}</div>}
+          {docsError && <div role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/10 px-4 py-3 text-sm text-[#EBA1A1]">{docsError}</div>}
 
           <div aria-busy={loading} className={loading ? "opacity-60" : ""}>
             {docs?.available && docs.documents.length === 0 && !loading && (
-              <p className={`${PANEL} px-4 py-10 text-center text-sm text-[#7B8299]`}>Keine Dokumente für diese Auswahl.</p>
+              <p className={`${PANEL} px-4 py-10 text-center text-sm text-[#8E98A6]`}>Keine Dokumente für diese Auswahl.</p>
             )}
             <div className="space-y-4">
               {groups.map((group) => (
                 <section key={group.key} aria-label={`Gemeinde ${group.name}`} className={PANEL}>
-                  <h2 className="border-b border-[rgba(60,63,68,0.5)] px-4 py-2 text-sm font-semibold text-white">
-                    {group.name} <span className="font-normal text-[#7B8299]">BFS {group.key}</span>
+                  <h2 className="border-b border-[rgba(255,255,255,0.08)] px-4 py-2 text-sm font-semibold text-white">
+                    {group.name} <span className="font-normal text-[#8E98A6]">BFS {group.key}</span>
                   </h2>
-                  <ul className="divide-y divide-[rgba(60,63,68,0.3)]">
+                  <ul className="divide-y divide-[rgba(255,255,255,0.08)]">
                     {group.docs.map((doc) => (
                       <DocumentRow key={doc.id} doc={doc} busy={busy} onDecide={(d, decision) => setPending({ doc: d, decision })} />
                     ))}

@@ -1,0 +1,234 @@
+.tba {
+  --tba-bg: #0B1220;
+  --tba-midnight: #080D16;
+  --tba-card: #111B2B;
+  --tba-slate: #192638;
+  --tba-elevated: #223247;
+  --tba-hover: #29394D;
+  --tba-border: #304052;
+  --tba-line: rgba(255, 255, 255, .08);
+  --tba-text: #F4F3F0;
+  --tba-text-2: #A7AFBA;
+  --tba-muted: #8A95A4;
+  --tba-bronze: #A8865B;
+  --tba-bronze-dark: #7A5F3D;
+  --tba-sand: #F0C99A;
+  --tba-cream: #FDF6EE;
+  --tba-success: #65A88A;
+  --tba-warn: #D6A45F;
+  --tba-error: #D87979;
+  --tba-info: #83A9D0;
+  --tba-grad: linear-gradient(135deg, #F0C99A, #B07D3E);
+  --tba-nav-active: linear-gradient(135deg, #A8865B, #7A5F3D);
+  --tba-radius-card: 20px;
+  --tba-radius-pill: 999px;
+  color: var(--tba-text);
+}
+
+.tba-canvas {
+  background-color: var(--tba-bg);
+  background-image:
+    radial-gradient(900px 600px at 100% 0%, rgba(168, 134, 91, .05), transparent 65%),
+    radial-gradient(700px 500px at 0% 100%, rgba(8, 13, 22, .8), transparent 70%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+.tba-topbar {
+  isolation: isolate;
+}
+
+.tba-topbar::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: rgba(11, 18, 32, .86);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  pointer-events: none;
+}
+
+.tba-panel {
+  background-color: #07141F;
+  background-image:
+    radial-gradient(520px 640px at 0% 20%, rgba(168, 134, 91, .28), transparent 70%),
+    linear-gradient(118deg, transparent 34%, rgba(240, 201, 154, .035) 43%, rgba(168, 134, 91, .09) 49%, rgba(240, 201, 154, .04) 55%, transparent 64%),
+    radial-gradient(640px 460px at 88% 6%, rgba(240, 201, 154, .09), transparent 70%),
+    radial-gradient(760px 520px at 45% 100%, rgba(168, 134, 91, .1), transparent 70%);
+  background-repeat: no-repeat;
+  background-attachment: scroll;
+  background-size: 100% 100%, 100% 900px, 100% 100%, 100% 100%;
+  border-top: 1px solid var(--tba-line);
+  border-left: 1px solid var(--tba-line);
+  box-shadow: inset 1px 1px 0 rgba(240, 201, 154, .05);
+}
+
+.tba-nav-active {
+  background-image: linear-gradient(rgba(0, 0, 0, .2), rgba(0, 0, 0, .2)), var(--tba-nav-active);
+  color: var(--tba-cream);
+  box-shadow: 0 6px 18px -8px rgba(168, 134, 91, .55), inset 0 1px 0 rgba(255, 255, 255, .12);
+}
+
+.tba-nav-link:hover:not(.tba-nav-active) {
+  background: rgba(41, 57, 77, .6);
+}
+
+.tba-admin-pill {
+  background: rgba(168, 134, 91, .2);
+  border: 1px solid rgba(168, 134, 91, .4);
+}
+
+.tba-profile-link:hover {
+  background: rgba(41, 57, 77, .6);
+}
+
+.tba a:focus-visible,
+.tba button:focus-visible,
+.tba input:focus-visible,
+.tba select:focus-visible,
+.tba textarea:focus-visible,
+.tba [tabindex]:focus-visible {
+  outline: 2px solid var(--tba-sand);
+  outline-offset: 2px;
+}
+
+.tba input.tba-bare:focus-visible {
+  outline: none;
+}
+
+.tba-ring:focus-within {
+  outline: 2px solid var(--tba-sand);
+  outline-offset: -2px;
+}
+
+.tba-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  border-radius: var(--tba-radius-pill);
+  border: 1px solid var(--tba-border);
+  background: rgba(255, 255, 255, .02);
+  color: var(--tba-text);
+  padding: .55rem 1.1rem;
+  font-size: .875rem;
+  font-weight: 600;
+  transition: background-color .15s, border-color .15s;
+}
+
+.tba-pill-btn:hover {
+  background: var(--tba-hover);
+  border-color: var(--tba-bronze);
+}
+
+.tba-pill-btn:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}
+
+.tba-scrim {
+  background: rgba(7, 15, 25, .45);
+}
+
+.tba-skel {
+  background: rgba(255, 255, 255, .05);
+  border-radius: 8px;
+}
+
+.tba-scroll-x {
+  overflow-x: auto;
+}
+
+@media (max-width: 767px) {
+  .tba-scroll-x {
+    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+  }
+}
+
+:where(.tba-glass) {
+  border-radius: var(--tba-radius-card, 20px);
+}
+
+:where(.tba-glass:not(.fixed):not(.absolute):not(.sticky)) {
+  position: relative;
+}
+
+.tba-glass {
+  isolation: isolate;
+  background:
+    radial-gradient(420px 240px at 0% 0%, rgba(255, 255, 255, .08), transparent 72%),
+    linear-gradient(145deg, rgba(255, 255, 255, .04), rgba(255, 255, 255, .01)),
+    rgba(14, 22, 34, .55);
+  -webkit-backdrop-filter: blur(24px) saturate(125%);
+  backdrop-filter: blur(24px) saturate(125%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .1),
+    inset 0 -1px 0 rgba(0, 0, 0, .25),
+    0 1px 1px rgba(0, 0, 0, .2),
+    0 8px 24px rgba(0, 0, 0, .25),
+    0 24px 64px rgba(0, 0, 0, .3);
+}
+
+.tba-glass::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, .04) 55%, rgba(255, 255, 255, .08));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+.tba-glass--strong {
+  background:
+    radial-gradient(520px 280px at 0% 0%, rgba(255, 255, 255, .11), transparent 72%),
+    linear-gradient(145deg, rgba(255, 255, 255, .05), rgba(255, 255, 255, .012)),
+    rgba(14, 22, 34, .6);
+  -webkit-backdrop-filter: blur(28px) saturate(135%);
+  backdrop-filter: blur(28px) saturate(135%);
+}
+
+.tba-glass--flat {
+  background:
+    radial-gradient(420px 200px at 0% 0%, rgba(255, 255, 255, .05), transparent 72%),
+    rgba(12, 20, 31, .82);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .08),
+    inset 0 -1px 0 rgba(0, 0, 0, .2),
+    0 1px 1px rgba(0, 0, 0, .2),
+    0 8px 24px rgba(0, 0, 0, .2);
+}
+
+.tba-glass--modal {
+  background:
+    radial-gradient(520px 280px at 0% 0%, rgba(255, 255, 255, .08), transparent 72%),
+    rgba(10, 18, 29, .985);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .tba-glass,
+  .tba-glass--strong {
+    background: var(--tba-card, #111B2B);
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tba-glass,
+  .tba-glass--strong,
+  .tba-glass--flat,
+  .tba-glass--modal {
+    background: var(--tba-card, #111B2B);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

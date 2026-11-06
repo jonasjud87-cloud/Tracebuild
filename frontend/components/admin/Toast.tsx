@@ -10,24 +10,24 @@ interface Props {
 
 const toastConfig = {
   success: {
-    bg: "bg-emerald-900/30 border-emerald-500/30",
-    icon: "text-emerald-400",
-    text: "text-emerald-300",
+    bg: "bg-[#65A88A]/15 border-[#65A88A]/40",
+    icon: "text-[#65A88A]",
+    text: "text-[#9BD0B5]",
   },
   error: {
-    bg: "bg-red-900/30 border-red-500/30",
-    icon: "text-red-400",
-    text: "text-red-300",
+    bg: "bg-[#D87979]/15 border-[#D87979]/40",
+    icon: "text-[#D87979]",
+    text: "text-[#EBA5A5]",
   },
   warning: {
-    bg: "bg-amber-900/30 border-amber-500/30",
-    icon: "text-amber-400",
-    text: "text-amber-300",
+    bg: "bg-[#D6A45F]/15 border-[#D6A45F]/40",
+    icon: "text-[#D6A45F]",
+    text: "text-[#EBC995]",
   },
   info: {
-    bg: "bg-sky-900/30 border-sky-500/30",
-    icon: "text-sky-400",
-    text: "text-sky-300",
+    bg: "bg-[#83A9D0]/15 border-[#83A9D0]/40",
+    icon: "text-[#83A9D0]",
+    text: "text-[#B3CCE6]",
   },
 } as const;
 
@@ -74,7 +74,7 @@ function SingleToast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: 
 
   return (
     <div
-      className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border shadow-lg shadow-black/30 min-w-[280px] max-w-sm backdrop-blur-md ${cfg.bg}`}
+      className={`flex items-start gap-3 px-4 py-3.5 rounded-xl border shadow-lg shadow-black/30 min-w-[280px] max-w-sm backdrop-blur-md bg-[#111B2B] ${cfg.bg}`}
       role="alert"
     >
       <span className={`mt-0.5 flex-shrink-0 ${cfg.icon}`}>
@@ -85,7 +85,7 @@ function SingleToast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: 
       </p>
       <button
         onClick={() => onRemove(toast.id)}
-        className={`flex-shrink-0 mt-0.5 opacity-60 hover:opacity-100 transition-opacity ${cfg.icon}`}
+        className={`flex-shrink-0 mt-0.5 opacity-70 hover:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#F0C99A] ${cfg.icon}`}
         aria-label="Schließen"
       >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
