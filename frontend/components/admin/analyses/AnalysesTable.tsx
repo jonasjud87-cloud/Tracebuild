@@ -77,7 +77,7 @@ export default function AnalysesTable(p: Props) {
       )}
       <div className={SHELL}>
         <div className="overflow-x-auto tba-scroll-x">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full text-sm">
             <caption className="sr-only">Analysen organisationsübergreifend</caption>
             <thead>
               <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(17,27,43,0.5)]">

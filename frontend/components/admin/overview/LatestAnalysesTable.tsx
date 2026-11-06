@@ -76,13 +76,13 @@ export default function LatestAnalysesTable({ rows, className = "" }: { rows: Ov
         <p className="py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Noch keine Analysen vorhanden.</p>
       ) : (
         <div role="region" aria-label="Letzte Analysen" tabIndex={0} className={`-mx-5 overflow-x-auto tba-scroll-x px-5 ${focusRing}`}>
-          <table className="w-full min-w-[560px] text-left text-sm">
+          <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-white/[0.08] text-xs text-[var(--tba-text-2,#A7AFBA)]">
                 <th scope="col" className="py-2 pr-3 font-semibold">Projekt</th>
                 <th scope="col" className="py-2 pr-3 font-semibold">Organisation</th>
                 <th scope="col" className="py-2 pr-3 font-semibold">Status</th>
-                <th scope="col" className="py-2 pr-3 font-semibold">Erstellt</th>
+                <th scope="col" className="hidden min-[1400px]:table-cell py-2 pr-3 font-semibold">Erstellt</th>
                 <th scope="col" className="py-2 font-semibold">Ergebnis</th>
               </tr>
             </thead>
@@ -91,15 +91,15 @@ export default function LatestAnalysesTable({ rows, className = "" }: { rows: Ov
                 const s = STATUS[r.status] ?? UNKNOWN;
                 return (
                   <tr key={r.id}>
-                    <th scope="row" className="max-w-[200px] truncate py-3 pr-3 text-left font-medium text-[var(--tba-text,#F4F3F0)]" title={r.projectName}>{r.projectName}</th>
-                    <td className="max-w-[180px] truncate py-3 pr-3 text-[var(--tba-text-2,#A7AFBA)]" title={r.orgName}>{r.orgName}</td>
+                    <th scope="row" className="max-w-[150px] truncate py-3 pr-3 text-left font-medium text-[var(--tba-text,#F4F3F0)]" title={r.projectName}>{r.projectName}</th>
+                    <td className="max-w-[140px] truncate py-3 pr-3 text-[var(--tba-text-2,#A7AFBA)]" title={r.orgName}>{r.orgName}</td>
                     <td className="py-3 pr-3">
                       <span className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-0.5 text-xs font-semibold ${s.cls}`}>
                         <Glyph kind={s.icon} />
                         {s.label}
                       </span>
                     </td>
-                    <td className="whitespace-nowrap py-3 pr-3 text-[var(--tba-text-2,#A7AFBA)]">{formatCreated(r.createdAt)}</td>
+                    <td className="hidden min-[1400px]:table-cell whitespace-nowrap py-3 pr-3 text-[var(--tba-text-2,#A7AFBA)]">{formatCreated(r.createdAt)}</td>
                     <td className="whitespace-nowrap py-3"><Result findings={r.findings} /></td>
                   </tr>
                 );

@@ -87,7 +87,7 @@ function NormRow({
 
   return (
     <div className="border-b border-[rgba(255,255,255,0.08)] last:border-0">
-      <div className="px-5 py-3.5 flex items-start gap-3">
+      <div className="px-4 py-3.5 flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
             <JurisdictionBadge norm={norm} />
@@ -331,31 +331,31 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-[11px] uppercase tracking-wider text-[#A7AFBA] border-b border-[rgba(255,255,255,0.08)]">
-                    <th className="px-5 py-3 font-semibold">Thema</th>
-                    <th className="px-5 py-3 font-semibold">Kategorie-Muster</th>
-                    <th className="px-5 py-3 font-semibold">Geltung</th>
-                    <th className="px-5 py-3 font-semibold">Aktiv</th>
-                    <th className="px-5 py-3" />
+                    <th className="px-4 py-3 font-semibold">Thema</th>
+                    <th className="px-4 py-3 font-semibold">Kategorie-Muster</th>
+                    <th className="px-4 py-3 font-semibold">Geltung</th>
+                    <th className="px-4 py-3 font-semibold">Aktiv</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody>
                   {mappings.map((m) => (
                     <tr key={m.id} className={`border-b border-[rgba(255,255,255,0.08)] last:border-0 ${m.active ? "" : "opacity-50"}`}>
-                      <td className="px-5 py-3 align-top">
+                      <td className="px-4 py-3 align-top">
                         <p className="text-white font-medium">{themeLabel(m.theme_code)}</p>
                         <p className="text-[11px] text-[#A7AFBA] font-mono">{m.theme_code}</p>
                       </td>
-                      <td className="px-5 py-3 align-top">
-                        <span className="text-xs bg-[rgba(255,255,255,0.08)] text-[#A7AFBA] px-2 py-0.5 rounded-full font-mono">{m.category_pattern}</span>
+                      <td className="px-4 py-3 align-top">
+                        <span title={m.category_pattern} className="inline-block max-w-[260px] truncate align-middle text-xs bg-[rgba(255,255,255,0.08)] text-[#A7AFBA] px-2 py-0.5 rounded-full font-mono">{m.category_pattern}</span>
                       </td>
-                      <td className="px-5 py-3 align-top">
+                      <td className="px-4 py-3 align-top">
                         {m.org_id ? (
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]">Organisation</span>
                         ) : (
                           <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#83A9D0]/15 text-[#83A9D0]">Plattformweit</span>
                         )}
                       </td>
-                      <td className="px-5 py-3 align-top">
+                      <td className="px-4 py-3 align-top">
                         <button
                           onClick={() => handleToggle(m)}
                           disabled={busyId === m.id}
@@ -365,7 +365,7 @@ function OerebMappingSection({ inputCls }: { inputCls: string }) {
                           <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${m.active ? "translate-x-4" : "translate-x-0.5"}`} />
                         </button>
                       </td>
-                      <td className="px-5 py-3 align-top text-right">
+                      <td className="px-4 py-3 align-top text-right">
                         <button
                           onClick={() => handleDelete(m)}
                           disabled={busyId === m.id}
