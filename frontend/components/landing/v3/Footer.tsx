@@ -11,9 +11,9 @@ export default function Footer({ offsite = false }: { offsite?: boolean }) {
       <div className={styles.inner}>
         <div className={styles.cta}>
           <Image
-            src="/landing/logo-footer.png"
+            src="/landing/logo-tb.svg"
             alt="TraceBuild"
-            width={125}
+            width={113}
             height={161}
             className={styles.logo}
           />
@@ -32,7 +32,7 @@ export default function Footer({ offsite = false }: { offsite?: boolean }) {
         <div className={styles.columns}>
           <div>
             <div className={styles.brand}>
-              <Image src="/landing/logo-mark-small.png" alt="" width={40} height={44} className={styles.mark} />
+              <Image src="/landing/logo-tb.svg" alt="" width={28} height={40} className={styles.mark} />
               TraceBuild
             </div>
             <p className={styles.about}>

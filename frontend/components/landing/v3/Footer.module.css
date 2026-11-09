@@ -39,7 +39,7 @@
 }
 :global(.tbl) .primary,
 :global(.tbl) .primary:hover {
-  background: linear-gradient(135deg, #f0c99a, #c99a62);
+  background: linear-gradient(135deg, #cbbfae, #b5a893);
   color: var(--navy);
   padding: 16px 34px;
   border-radius: 14px;
@@ -61,7 +61,7 @@
   font-weight: var(--fw-btn);
 }
 :global(.tbl) .secondary:hover {
-  background: rgba(176, 125, 62, 0.2);
+  background: rgba(156, 143, 123, 0.2);
 }
 :global(.tbl) .soon {
   border: 1px solid var(--glass-line);
@@ -82,6 +82,8 @@
   gap: 10px;
   font-size: 24px;
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 :global(.tbl) .mark {
   height: 36px;
@@ -110,7 +112,7 @@
   color: rgba(255, 255, 255, 0.85);
 }
 :global(.tbl) .link:hover {
-  color: #f0c99a;
+  color: #cbbfae;
 }
 :global(.tbl) .inline {
   display: flex;
@@ -136,5 +138,5 @@
   color: rgba(255, 255, 255, 0.85);
 }
 :global(.tbl) .legalLink:hover {
-  color: #f0c99a;
+  color: #cbbfae;
 }

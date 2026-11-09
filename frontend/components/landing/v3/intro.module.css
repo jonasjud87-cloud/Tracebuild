@@ -79,7 +79,7 @@
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  background: linear-gradient(160deg, #07142b 0%, #1b2a41 100%);
+  background: linear-gradient(160deg, #151414 0%, #2e2e30 100%);
 }
 
 @media (scripting: none) {
@@ -116,7 +116,7 @@
   left: -16vmax;
   top: -20vmax;
   opacity: 0.16;
-  background: radial-gradient(circle, #f0c99a 0%, transparent 70%);
+  background: radial-gradient(circle, #cbbfae 0%, transparent 70%);
   animation: glowA 18s ease-in-out -4s infinite;
 }
 
@@ -126,7 +126,7 @@
   right: -18vmax;
   top: 8vmax;
   opacity: 0.13;
-  background: radial-gradient(circle, #b07d3e 0%, transparent 70%);
+  background: radial-gradient(circle, #9c8f7b 0%, transparent 70%);
   animation: glowB 21s ease-in-out -11s infinite;
 }
 
@@ -136,7 +136,7 @@
   left: 18vmax;
   bottom: -24vmax;
   opacity: 0.12;
-  background: radial-gradient(circle, #d4a468 0%, transparent 70%);
+  background: radial-gradient(circle, #cbbfae 0%, transparent 70%);
   animation: glowC 24s ease-in-out -7s infinite;
 }
 
@@ -154,8 +154,8 @@
   background: linear-gradient(
     100deg,
     transparent 0%,
-    #b07d3e 45%,
-    #f0c99a 55%,
+    #9c8f7b 45%,
+    #cbbfae 55%,
     transparent 100%
   );
   animation: sweep 13s ease-in-out 2.5s infinite;
@@ -202,7 +202,8 @@
   font-family: var(--font, "Plus Jakarta Sans", system-ui, sans-serif);
   font-weight: 700;
   font-size: clamp(22px, 4vw, 36px);
-  letter-spacing: -0.02em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   line-height: 1;
   color: #fff;
   animation: rise 0.6s ease-out 0.12s both;
@@ -210,10 +211,7 @@
 
 :global(.tbl) .word b {
   font-weight: 700;
-  background: linear-gradient(135deg, #f0c99a, #c99a62);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: #fff;
 }
 
 @media (prefers-reduced-motion: reduce) {

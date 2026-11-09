@@ -51,12 +51,12 @@
   color: var(--sand);
 }
 :global(.tbl) .prev:hover {
-  background: rgba(176, 125, 62, 0.25);
+  background: rgba(156, 143, 123, 0.25);
 }
 :global(.tbl) .next {
   border: 0;
-  background: var(--bronze);
-  color: #fff;
+  background: var(--sand);
+  color: var(--navy);
 }
 :global(.tbl) .next:hover {
   filter: brightness(1.12);
@@ -85,7 +85,7 @@
 }
 :global(.tbl) .card:hover {
   transform: translateY(-8px);
-  border-color: rgba(240, 201, 154, 0.5);
+  border-color: rgba(203, 191, 174, 0.5);
 }
 :global(.tbl) .media {
   position: relative;

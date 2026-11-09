@@ -8,7 +8,7 @@ export default function Hero() {
       <Image
         data-par="0.18"
         src="/landing/hero.png"
-        alt="TraceBuild Dashboard auf Laptop neben Bauplänen"
+        alt=""
         fill
         priority
         sizes="100vw"

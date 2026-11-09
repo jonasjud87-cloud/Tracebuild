@@ -4,9 +4,9 @@ import { useEffect, useRef } from "react";
 import styles from "./intro.module.css";
 
 const TEXT = "Vision. Technologie. Fortschritt.";
-const SA = [240, 201, 154];
-const SB = [212, 164, 104];
-const SC = [176, 125, 62];
+const SA = [232, 224, 212];
+const SB = [203, 191, 174];
+const SC = [156, 143, 123];
 const ASSEMBLE_MS = 1900;
 const DESIRED = 2600;
 const DESIRED_NARROW = 4600;
@@ -25,7 +25,7 @@ function colorFor(nx: number) {
   return [
     Math.min(255, Math.round(lp(from[0], to[0], lct)) + 15),
     Math.min(255, Math.round(lp(from[1], to[1], lct)) + 15),
-    Math.min(255, Math.round(lp(from[2], to[2], lct)) + 25),
+    Math.min(255, Math.round(lp(from[2], to[2], lct)) + 15),
   ];
 }
 

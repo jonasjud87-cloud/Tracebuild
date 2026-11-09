@@ -17,7 +17,9 @@
 :global(.tbl) .shade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, rgba(7, 20, 43, 0.72) 0%, rgba(7, 20, 43, 0.45) 30%, rgba(7, 20, 43, 0) 58%);
+  background:
+    linear-gradient(180deg, rgba(21, 20, 20, 0.55) 0%, rgba(21, 20, 20, 0) 26%),
+    linear-gradient(90deg, rgba(21, 20, 20, 0.8) 0%, rgba(21, 20, 20, 0.64) 45%, rgba(21, 20, 20, 0.3) 70%, rgba(21, 20, 20, 0) 100%);
 }
 :global(.tbl) .content {
   position: relative;
@@ -31,14 +33,14 @@
   letter-spacing: -0.03em;
 }
 :global(.tbl) .accent {
-  color: #d4a468;
+  color: #cbbfae;
 }
 :global(.tbl) .lead {
   margin-top: 28px;
   max-width: 640px;
   font-size: var(--fs-sub);
   line-height: 1.6;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(255, 255, 255, 0.9);
 }
 :global(.tbl) .actions {
   margin-top: 36px;
@@ -48,7 +50,7 @@
 }
 :global(.tbl) .primary,
 :global(.tbl) .primary:hover {
-  background: linear-gradient(135deg, #f0c99a, #c99a62);
+  background: linear-gradient(135deg, #cbbfae, #b5a893);
   color: var(--navy);
   padding: 16px 34px;
   border-radius: 14px;
@@ -76,6 +78,6 @@
 }
 @media (max-width: 1100px) {
   :global(.tbl) .shade {
-    background: rgba(7, 20, 43, 0.78);
+    background: rgba(21, 20, 20, 0.78);
   }
 }
