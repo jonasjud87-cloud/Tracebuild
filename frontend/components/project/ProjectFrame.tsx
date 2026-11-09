@@ -54,7 +54,8 @@ export default function ProjectFrame({ projectId, pathname, announcements, child
 
       <header className={p.topbar}>
         <Link href="/dashboard" className={p.logoLink} aria-label="TraceBuild Übersicht">
-          <Image src="/landing/logo-mark-navy.svg" alt="" width={24} height={34} className={p.logoMark} priority />
+          <Image src="/landing/logo-tb.svg" alt="" width={24} height={34} className={p.logoMark} priority />
+          <span className={p.wordmark} aria-hidden="true">TraceBuild</span>
         </Link>
         <Link href="/dashboard/projects" className={p.backLink}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>

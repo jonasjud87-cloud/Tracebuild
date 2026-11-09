@@ -82,9 +82,9 @@
 
 .errCard {
   box-shadow:
-    inset 0 1px 0 rgba(252, 247, 238, 0.85),
-    inset 0 0 0 2px rgba(216, 121, 121, 0.45),
-    0 14px 30px -24px rgba(140, 42, 42, 0.3);
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 2px rgba(226, 109, 109, 0.55),
+    0 14px 30px -24px rgba(0, 0, 0, 0.7);
 }
 
 .skelCard {
@@ -139,7 +139,7 @@
   gap: 10px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(240, 230, 214, 0.5);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--ink);
 }
 
@@ -156,7 +156,7 @@
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fffaf1;
+  background: #fff;
 }
 
 .previewEmpty {
@@ -181,13 +181,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(243, 233, 218, 0.7);
+  background: rgba(21, 20, 20, 0.7);
 }
 
 .spinner {
   width: 26px;
   height: 26px;
-  border: 3px solid var(--navy);
+  border: 3px solid var(--sand);
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -312,5 +312,65 @@
   .srcTable .titleCell {
     min-width: 0;
     font-size: 16px;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stack > *,
+.split > * {
+  animation: rise 0.45s ease backwards;
+}
+
+.stack > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.stack > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.stack > :nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+.split > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.catCard {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.catCard:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.45), 0 18px 32px -18px rgba(0, 0, 0, 0.85);
+}
+
+.kennRow {
+  transition: background-color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack > *,
+  .split > * {
+    animation: none;
+  }
+
+  .catCard {
+    transition: none;
+  }
+
+  .catCard:hover {
+    transform: none;
   }
 }

@@ -2,13 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* scroll-behavior: smooth removed — Lenis owns smooth scrolling on the
-   landing page (this rule collided with it); /impressum is a short static
-   page that does not need it. */
-
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #151414;
+  --foreground: #ffffff;
+  color-scheme: dark;
+}
+
+html {
+  scrollbar-color: rgba(203, 191, 174, 0.32) #151414;
 }
 
 body {
@@ -21,71 +22,85 @@ h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display, var(--font-sans, Arial, sans-serif));
 }
 
+::selection {
+  background: rgba(203, 191, 174, 0.35);
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid #cbbfae;
+  outline-offset: 2px;
+}
+
 /* ─── Native <select> dropdowns ────────────────────────── */
-/* The app UI (dashboard/admin) is dark throughout, but a plain <select>'s
-   open option list still falls back to the OS/browser default (light grey,
-   system-blue highlight) unless told otherwise. color-scheme hints the
-   browser to use its dark native-control theme; the option colours pin the
-   popup to the app palette on top of that. */
+
 select {
   color-scheme: dark;
 }
 select option {
-  background-color: #111B2B;
+  background-color: #2e2e30;
   color: #ffffff;
 }
 select option:checked,
 select option:hover,
 select option:focus {
-  background-color: #7A5F3D;
-  color: #ffffff;
+  background-color: #cbbfae;
+  color: #151414;
 }
 
 
-/* ─── Landing · design tokens ─────────────────────────── */
-/* Used by the product preview (components/landing/v3) and the admin shell
-   background. Prefixed --tb-* so they never collide with the app's
-   light-mode --background / --foreground. */
+/* ─── Design tokens ───────────────────────────────────── */
 
 :root {
-  --tb-canvas: linear-gradient(150deg, #0a1a24 0%, #0a1420 45%, #070b14 100%);
-  --tb-canvas-solid: #0a1420;
+  --tb-canvas: linear-gradient(160deg, #1c1b1b 0%, #151414 55%, #121111 100%);
+  --tb-canvas-solid: #151414;
   --tb-glass: rgba(255, 255, 255, 0.03);
-  --tb-glass-hover: rgba(255, 255, 255, 0.05);
-  --tb-float: #0a1420;
+  --tb-glass-hover: rgba(255, 255, 255, 0.06);
+  --tb-float: #1c1b1b;
   --tb-border: rgba(255, 255, 255, 0.1);
-  --tb-border-strong: rgba(255, 255, 255, 0.2);
+  --tb-border-strong: rgba(255, 255, 255, 0.18);
+  --tb-border-accent: rgba(203, 191, 174, 0.45);
   --tb-hairline: rgba(255, 255, 255, 0.06);
 
+  --tb-surface-1: #1c1b1b;
+  --tb-surface-2: #2e2e30;
+  --tb-surface-3: #3a3a3d;
+
   --tb-text: #ffffff;
-  --tb-text-tertiary: #9aa1b8;
-  --tb-text-muted: #6b7086;
-  --tb-text-bright: #c7c8d1;
+  --tb-text-secondary: rgba(255, 255, 255, 0.82);
+  --tb-text-tertiary: rgba(255, 255, 255, 0.72);
+  --tb-text-muted: rgba(255, 255, 255, 0.64);
+  --tb-text-bright: rgba(255, 255, 255, 0.9);
 
-  --tb-accent: #38bdf8;
-  --tb-accent-gradient: linear-gradient(120deg, #4fd1ff 0%, #38bdf8 45%, #2862d7 100%);
-  --tb-on-accent: #06121c;
-  --tb-info: #8fb3f5;
+  --tb-accent: #cbbfae;
+  --tb-accent-hover: #d8cebf;
+  --tb-accent-deep: #b5a893;
+  --tb-accent-subtle: rgba(203, 191, 174, 0.12);
+  --tb-accent-gradient: linear-gradient(135deg, #d8cebf 0%, #b5a893 100%);
+  --tb-on-accent: #151414;
+  --tb-info: #cbbfae;
 
-  --tb-danger-bright: #f87171;
-  --tb-warn-bright: #fbbf24;
+  --tb-danger-bright: #f08a8a;
+  --tb-warn-bright: #e6b95a;
+  --tb-ok-bright: #6fcf9f;
 
   --tb-r-chip: 8px;
   --tb-r-btn: 12px;
   --tb-r-container: 24px;
   --tb-r-pill: 999px;
 
-  --tb-lift: 0 20px 60px -24px rgba(7, 11, 20, 0.6);
+  --tb-lift: 0 20px 60px -24px rgba(0, 0, 0, 0.6);
+  --tb-glow: 0 12px 32px -14px rgba(203, 191, 174, 0.3);
 }
 
 /* ─── Utility classes ─────────────────────────────────── */
 
 @layer utilities {
-  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(133,166,233,0.28) transparent; }
+  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(203,191,174,0.32) transparent; }
   .scrollbar-dark::-webkit-scrollbar              { width: 5px; height: 5px; }
   .scrollbar-dark::-webkit-scrollbar-track        { background: transparent; }
-  .scrollbar-dark::-webkit-scrollbar-thumb        { background: rgba(133,166,233,0.22); border-radius: 3px; }
-  .scrollbar-dark::-webkit-scrollbar-thumb:hover  { background: rgba(133,166,233,0.42); }
+  .scrollbar-dark::-webkit-scrollbar-thumb        { background: rgba(203,191,174,0.26); border-radius: 3px; }
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover  { background: rgba(203,191,174,0.5); }
 }
 
 /* ─── Reduced motion ──────────────────────────────────── */

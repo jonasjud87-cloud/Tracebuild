@@ -14,7 +14,7 @@ interface Props {
 
 const TONE_CLS = {
   danger: "bg-[#B85C5C] hover:bg-[#A04E4E] focus-visible:ring-[#D87979]",
-  primary: "bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] hover:brightness-110 !text-[#07142B] focus-visible:ring-[#F0C99A]",
+  primary: "tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] hover:brightness-110 !text-[#151414] focus-visible:ring-[#CBBFAE]",
 };
 
 export default function ConfirmDialog({ title, description, confirmLabel, busy, onConfirm, onClose, tone = "danger" }: Props) {
@@ -54,16 +54,16 @@ export default function ConfirmDialog({ title, description, confirmLabel, busy, 
       className="fixed inset-0 z-[60] flex items-center justify-center tba-scrim px-4"
       onClick={(e) => { if (e.target === e.currentTarget && !busy) onClose(); }}
     >
-      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc" className="w-full max-w-sm tba-glass tba-glass--modal rounded-2xl p-7">
+      <div role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-desc" className="tba-pop w-full max-w-sm tba-glass tba-glass--modal rounded-2xl p-7">
         <h2 id="confirm-title" className="mb-2 text-center text-base font-bold text-white">{title}</h2>
-        <p id="confirm-desc" className="mb-6 text-center text-sm text-[#A7AFBA]">{description}</p>
+        <p id="confirm-desc" className="mb-6 text-center text-sm text-[#D5D5D5]">{description}</p>
         <div className="flex gap-3">
           <button
             ref={cancelRef}
             type="button"
             onClick={onClose}
             disabled={busy}
-            className="flex-1 rounded-xl border border-[rgba(255,255,255,0.08)] py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+            className="flex-1 rounded-xl border border-[rgba(255,255,255,0.08)] py-2.5 text-sm font-medium text-[#D5D5D5] hover:bg-[#2E2E30] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
           >
             Zurück
           </button>

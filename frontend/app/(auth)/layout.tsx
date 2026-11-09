@@ -13,22 +13,22 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       >
         <defs>
           <linearGradient id="authArcL" gradientUnits="userSpaceOnUse" x1="-40" y1="0" x2="640" y2="0">
-            <stop offset="0" stopColor="#F0C99A" stopOpacity="1" />
-            <stop offset="0.55" stopColor="#D4A468" stopOpacity="0.55" />
-            <stop offset="1" stopColor="#B07D3E" stopOpacity="0" />
+            <stop offset="0" stopColor="#CBBFAE" stopOpacity="1" />
+            <stop offset="0.55" stopColor="#B5A893" stopOpacity="0.55" />
+            <stop offset="1" stopColor="#9C8F7B" stopOpacity="0" />
           </linearGradient>
           <linearGradient id="authArcR" gradientUnits="userSpaceOnUse" x1="980" y1="0" x2="1830" y2="0">
-            <stop offset="0" stopColor="#B07D3E" stopOpacity="0" />
-            <stop offset="0.5" stopColor="#D4A468" stopOpacity="0.5" />
-            <stop offset="1" stopColor="#F0C99A" stopOpacity="1" />
+            <stop offset="0" stopColor="#9C8F7B" stopOpacity="0" />
+            <stop offset="0.5" stopColor="#B5A893" stopOpacity="0.5" />
+            <stop offset="1" stopColor="#CBBFAE" stopOpacity="1" />
           </linearGradient>
           <radialGradient id="authBloom" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0" stopColor="#F0C99A" stopOpacity="0.26" />
-            <stop offset="1" stopColor="#F0C99A" stopOpacity="0" />
+            <stop offset="0" stopColor="#CBBFAE" stopOpacity="0.14" />
+            <stop offset="1" stopColor="#CBBFAE" stopOpacity="0" />
           </radialGradient>
           <radialGradient id="authBloomL" cx="0.5" cy="0.5" r="0.5">
-            <stop offset="0" stopColor="#F0C99A" stopOpacity="0.3" />
-            <stop offset="1" stopColor="#F0C99A" stopOpacity="0" />
+            <stop offset="0" stopColor="#CBBFAE" stopOpacity="0.16" />
+            <stop offset="1" stopColor="#CBBFAE" stopOpacity="0" />
           </radialGradient>
           <filter id="authBlur" x="-20%" y="-50%" width="140%" height="200%">
             <feGaussianBlur stdDeviation="16" />

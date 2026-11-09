@@ -12,20 +12,20 @@ import { formatDateTime } from "./time";
 const API = "/api/v1/admin/announcements";
 
 const TYPE_BADGE: Record<AnnouncementType, string> = {
-  info: "border-[#83A9D0]/30 bg-[#83A9D0]/10 text-[#83A9D0]",
+  info: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#CBBFAE]",
   warning: "border-[#D6A45F]/30 bg-[#D6A45F]/10 text-[#D6A45F]",
   maintenance: "border-[#D6A45F]/35 bg-[#D6A45F]/10 text-[#D6A45F]",
   critical: "border-[#D87979]/40 bg-[#D87979]/10 text-[#EBA1A1]",
 };
 
 const STATE_BADGE: Record<AnnouncementState, { label: string; cls: string }> = {
-  scheduled: { label: "Geplant", cls: "border-[#83A9D0]/30 bg-[#83A9D0]/10 text-[#83A9D0]" },
+  scheduled: { label: "Geplant", cls: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#CBBFAE]" },
   live: { label: "Live", cls: "border-[#65A88A]/30 bg-[#65A88A]/10 text-[#65A88A]" },
-  expired: { label: "Abgelaufen", cls: "border-[#304052] bg-white/5 text-[#8E98A6]" },
-  disabled: { label: "Deaktiviert", cls: "border-[#304052] bg-white/5 text-[#8E98A6]" },
+  expired: { label: "Abgelaufen", cls: "border-[#4A4A4D] bg-white/5 text-[#ABABAB]" },
+  disabled: { label: "Deaktiviert", cls: "border-[#4A4A4D] bg-white/5 text-[#ABABAB]" },
 };
 
-const ACTION_BTN = "rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-xs font-medium text-[#A7AFBA] transition-colors hover:bg-[#223247] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]";
+const ACTION_BTN = "rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-[13px] font-medium text-[#D5D5D5] transition-colors hover:bg-[#2E2E30] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]";
 
 function typeLabel(t: AnnouncementType) {
   return TYPE_OPTIONS.find(o => o.value === t)?.label ?? t;
@@ -186,12 +186,12 @@ export default function AnnouncementsManager() {
       <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Ankündigungen</h1>
-          <p className="mt-1 text-sm text-[#A7AFBA]">Wartungs- und Hinweisbanner für alle Nutzer oder eine einzelne Organisation.</p>
+          <p className="mt-1 text-sm text-[#D5D5D5]">Wartungs- und Hinweisbanner für alle Nutzer oder eine einzelne Organisation.</p>
         </div>
         <button
           type="button"
           onClick={openCreate}
-          className="rounded-xl bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] px-4 py-2.5 text-sm font-semibold text-[#07142B] hover:bg-[#C79B63] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+          className="rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] px-4 py-2.5 text-sm font-semibold text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
         >
           Neue Ankündigung
         </button>
@@ -205,32 +205,32 @@ export default function AnnouncementsManager() {
           <button type="button" onClick={load} className={ACTION_BTN}>Erneut versuchen</button>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#304052] bg-white/[0.02] p-10 text-center">
+        <div className="rounded-2xl border border-dashed border-[#4A4A4D] bg-white/[0.02] p-10 text-center">
           <p className="mb-1 text-base font-semibold text-white">Noch keine Ankündigungen</p>
-          <p className="mb-5 text-sm text-[#8E98A6]">Legen Sie die erste Ankündigung an, um Nutzer über Wartungen oder Änderungen zu informieren.</p>
+          <p className="mb-5 text-sm text-[#ABABAB]">Legen Sie die erste Ankündigung an, um Nutzer über Wartungen oder Änderungen zu informieren.</p>
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-xl bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] px-4 py-2.5 text-sm font-semibold text-[#07142B] hover:bg-[#C79B63] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+            className="rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] px-4 py-2.5 text-sm font-semibold text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
           >
             Neue Ankündigung
           </button>
         </div>
       ) : (
-        <ul className="space-y-3" aria-busy={loading}>
+        <ul className="tba-stagger space-y-3" aria-busy={loading}>
           {items.map(a => {
             const st = STATE_BADGE[a.state];
             const busy = busyId === a.id;
             return (
-              <li key={a.id} className="rounded-2xl border border-[rgba(240,201,154,0.12)] bg-[rgba(11,18,32,0.7)] p-4 backdrop-blur-sm sm:p-5">
+              <li key={a.id} className="tba-card rounded-2xl border border-[rgba(203,191,174,0.12)] bg-[#2E2E30] p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${TYPE_BADGE[a.type]}`}>{typeLabel(a.type)}</span>
-                  <span className={`rounded-md border px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider ${st.cls}`}>{st.label}</span>
-                  <span className="text-xs text-[#8E98A6]">{a.orgId ? (a.orgName ?? "Organisation") : "Alle Nutzer"}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${TYPE_BADGE[a.type]}`}>{typeLabel(a.type)}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${st.cls}`}>{st.label}</span>
+                  <span className="text-[13px] text-[#ABABAB]">{a.orgId ? (a.orgName ?? "Organisation") : "Alle Nutzer"}</span>
                 </div>
                 <h2 className="mt-2 text-base font-semibold text-white" style={{ overflowWrap: "anywhere" }}>{a.title}</h2>
-                <p className="mt-1 text-sm text-[#A7AFBA]" style={{ overflowWrap: "anywhere" }}>{excerpt(a.message)}</p>
-                <p className="mt-2 text-xs text-[#8E98A6]">
+                <p className="mt-1 text-sm text-[#D5D5D5]" style={{ overflowWrap: "anywhere" }}>{excerpt(a.message)}</p>
+                <p className="mt-2 text-[13px] text-[#ABABAB]">
                   {formatDateTime(a.startsAt)} {a.endsAt ? `bis ${formatDateTime(a.endsAt)}` : "· ohne Ende"}
                   {a.createdByEmail ? ` · von ${a.createdByEmail}` : ""}
                 </p>
@@ -243,7 +243,7 @@ export default function AnnouncementsManager() {
                     type="button"
                     onClick={() => setDeleting(a)}
                     disabled={busy}
-                    className="rounded-lg border border-[#D87979]/30 px-3 py-1.5 text-xs font-medium text-[#EBA1A1] transition-colors hover:bg-[#D87979]/30 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]"
+                    className="rounded-lg border border-[#D87979]/30 px-3 py-1.5 text-[13px] font-medium text-[#EBA1A1] transition-colors hover:bg-[#D87979]/15 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]"
                   >
                     Löschen
                   </button>

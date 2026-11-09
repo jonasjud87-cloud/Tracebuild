@@ -18,8 +18,8 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(180deg, rgba(21, 20, 20, 0.55) 0%, rgba(21, 20, 20, 0) 26%),
-    linear-gradient(90deg, rgba(21, 20, 20, 0.8) 0%, rgba(21, 20, 20, 0.64) 45%, rgba(21, 20, 20, 0.3) 70%, rgba(21, 20, 20, 0) 100%);
+    linear-gradient(180deg, rgba(21, 20, 20, 0.7) 0%, rgba(21, 20, 20, 0) 22%),
+    linear-gradient(90deg, rgba(21, 20, 20, 0.8) 0%, rgba(21, 20, 20, 0.68) 55%, rgba(21, 20, 20, 0.36) 78%, rgba(21, 20, 20, 0) 100%);
 }
 :global(.tbl) .content {
   position: relative;
@@ -31,6 +31,7 @@
   line-height: 1.04;
   font-weight: var(--fw-title);
   letter-spacing: -0.03em;
+  text-shadow: 0 2px 28px rgba(21, 20, 20, 0.35);
 }
 :global(.tbl) .accent {
   color: #cbbfae;
@@ -41,6 +42,7 @@
   font-size: var(--fs-sub);
   line-height: 1.6;
   color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 1px 20px rgba(21, 20, 20, 0.4);
 }
 :global(.tbl) .actions {
   margin-top: 36px;
@@ -59,6 +61,18 @@
 }
 :global(.tbl) .primary:hover {
   filter: brightness(1.08);
+}
+:global(.tbl) .primary,
+:global(.tbl) .secondary {
+  transition: transform 0.2s ease, filter 0.2s ease, background-color 0.2s ease;
+}
+:global(.tbl) .primary:hover,
+:global(.tbl) .secondary:hover {
+  transform: translateY(-2px);
+}
+:global(.tbl) .primary:active,
+:global(.tbl) .secondary:active {
+  transform: translateY(0);
 }
 :global(.tbl) .primary:focus-visible {
   outline-color: #fff;

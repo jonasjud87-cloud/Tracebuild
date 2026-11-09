@@ -133,18 +133,18 @@ export default function AuditLogView() {
             <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
             <path d="M12 7.5V13M12 16.2V16.3" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
-          <p className="text-[#A7AFBA] text-sm font-medium">{error}</p>
-          <button onClick={() => load(applied, null)} className="mt-3 text-sm text-[#F0C99A] hover:underline">
+          <p className="text-[#D5D5D5] text-sm font-medium">{error}</p>
+          <button onClick={() => load(applied, null)} className="mt-3 text-sm text-[#CBBFAE] hover:underline">
             Erneut versuchen
           </button>
         </div>
       ) : items.length === 0 ? (
         <div className={`${CARD} p-12 text-center`}>
-          <p className="text-[#A7AFBA] text-sm font-medium">
+          <p className="text-[#D5D5D5] text-sm font-medium">
             {filtered ? "Keine Einträge für diese Filter gefunden" : "Noch keine Einträge protokolliert"}
           </p>
           {filtered && (
-            <button onClick={() => setFilters(EMPTY_FILTERS)} className="mt-2 text-sm text-[#F0C99A] hover:underline">
+            <button onClick={() => setFilters(EMPTY_FILTERS)} className="mt-2 text-sm text-[#CBBFAE] hover:underline">
               Filter zurücksetzen
             </button>
           )}
@@ -156,12 +156,12 @@ export default function AuditLogView() {
             <p role="alert" className="text-sm text-[#EBA1A1] text-center">{error}</p>
           )}
           <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-[#8E98A6]">{items.length} Einträge geladen</p>
+            <p className="text-[13px] text-[#ABABAB]">{items.length} Einträge geladen</p>
             {nextCursor && (
               <button
                 onClick={() => load(applied, nextCursor)}
                 disabled={loadingMore}
-                className="text-sm font-semibold text-[#F0C99A] hover:text-white bg-[#F0C99A]/10 hover:bg-[#7A5F3D] px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
+                className="text-sm font-semibold text-[#CBBFAE] bg-[#CBBFAE]/10 hover:bg-[#D8CEBF] hover:text-[#151414] px-4 py-2.5 rounded-xl transition-all active:scale-[0.97] disabled:opacity-40 disabled:pointer-events-none"
               >
                 {loadingMore ? "Lade..." : "Mehr laden"}
               </button>

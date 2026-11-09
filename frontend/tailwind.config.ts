@@ -11,6 +11,16 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        "tb-black": "#151414",
+        "tb-surface": "#1c1b1b",
+        "tb-graphite": "#2e2e30",
+        "tb-graphite-hover": "#3a3a3d",
+        "tb-white": "#ffffff",
+        "tb-beige": "#cbbfae",
+        "tb-beige-hover": "#d8cebf",
+        "tb-beige-deep": "#b5a893",
+        "tb-cream": "#f6f3ee",
+        "tb-bronze-ink": "#6b6153",
       },
       fontFamily: {
         sans:    ["var(--font-sans)", "Arial", "Helvetica", "sans-serif"],

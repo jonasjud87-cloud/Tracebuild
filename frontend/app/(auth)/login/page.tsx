@@ -62,7 +62,7 @@ export default function LoginPage() {
       <AuthBackButton />
       <div className={`${styles.glass} ${styles.card}`}>
         <div className={styles.head}>
-          <Image className={styles.mark} style={{ width: 40, height: "auto" }} src="/landing/logo-mark.svg" alt="TraceBuild" width={40} height={57} unoptimized priority />
+          <Image className={styles.mark} style={{ width: 40, height: "auto" }} src="/landing/logo-tb.svg" alt="TraceBuild" width={40} height={57} unoptimized priority />
           <h1 className={styles.title}>Willkommen zurück</h1>
           <p className={styles.subtitle}>Melde dich bei deinem Konto an</p>
         </div>

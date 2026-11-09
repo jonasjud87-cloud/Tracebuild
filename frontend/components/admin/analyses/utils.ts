@@ -42,15 +42,15 @@ export function statusMeta(status: string, orphaned: boolean): StatusMeta {
   }
   switch (status) {
     case "running":
-      return { tone: "running", label: "Laufend", badge: "bg-[#83A9D0]/15 text-[#83A9D0] border-[#83A9D0]/30" };
+      return { tone: "running", label: "Laufend", badge: "bg-[#CBBFAE]/15 text-[#CBBFAE] border-[#CBBFAE]/30" };
     case "error":
       return { tone: "error", label: "Fehlgeschlagen", badge: "bg-[#D87979]/15 text-[#EBA1A1] border-[#D87979]/30" };
     case "cancelled":
-      return { tone: "cancelled", label: "Abgebrochen", badge: "bg-slate-500/20 text-slate-300 border-slate-400/30" };
+      return { tone: "cancelled", label: "Abgebrochen", badge: "bg-white/10 text-[#D5D5D5] border-white/20" };
     case "done":
-      return { tone: "done", label: "Abgeschlossen", badge: "bg-[#65A88A]/15 text-[#65A88A] border-[#65A88A]/30" };
+      return { tone: "done", label: "Abgeschlossen", badge: "bg-[#65A88A]/15 text-[#8FD0B1] border-[#65A88A]/30" };
     default:
-      return { tone: "neutral", label: status || "Unbekannt", badge: "bg-slate-500/20 text-slate-300 border-slate-400/30" };
+      return { tone: "neutral", label: status || "Unbekannt", badge: "bg-white/10 text-[#D5D5D5] border-white/20" };
   }
 }
 

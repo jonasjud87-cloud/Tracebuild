@@ -5,10 +5,10 @@ import { AlertCircleIcon, DocumentIcon, LayersIcon, ShieldCheckIcon } from "@/co
 import s from "./dashboard.module.css";
 
 const DONUT = [
-  { label: "Abstände",     pct: "42%", color: "#C98A45", dash: "58.06 80.17",  offset: "0" },
-  { label: "Bemaßung",     pct: "28%", color: "#F3D3A8", dash: "38.70 99.53",  offset: "-58.06" },
-  { label: "Konstruktion", pct: "18%", color: "#5C4733", dash: "24.88 113.35", offset: "-96.76" },
-  { label: "Sonstige",     pct: "12%", color: "#A8957C", dash: "16.59 121.64", offset: "-121.64" },
+  { label: "Abstände",     pct: "42%", color: "#cbbfae", dash: "58.06 80.17",  offset: "0" },
+  { label: "Bemaßung",     pct: "28%", color: "#f1ede6", dash: "38.70 99.53",  offset: "-58.06" },
+  { label: "Konstruktion", pct: "18%", color: "#a39989", dash: "24.88 113.35", offset: "-96.76" },
+  { label: "Sonstige",     pct: "12%", color: "#8a8070", dash: "16.59 121.64", offset: "-121.64" },
 ];
 
 function relTime(iso: string): string {
@@ -62,7 +62,7 @@ export default function DashboardOverviewPage() {
               <div className={s.donutWrap}>
                 <div className={s.donut}>
                   <svg viewBox="0 0 60 60" role="img" aria-label="Beispielverteilung der Fehler nach Kategorie als Ringdiagramm">
-                    <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(168,134,91,0.14)" strokeWidth="9" />
+                    <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
                     {DONUT.map(seg => (
                       <circle key={seg.label} cx="30" cy="30" r="22" fill="none" stroke={seg.color} strokeWidth="9"
                         strokeDasharray={seg.dash} strokeDashoffset={seg.offset} transform="rotate(-90 30 30)" />

@@ -16,28 +16,28 @@ const TONE_VALUE: Record<NonNullable<TileProps["tone"]>, string> = {
   default: "text-white",
   warn: "text-[#D6A45F]",
   danger: "text-[#EBA1A1]",
-  accent: "text-[#F0C99A]",
+  accent: "text-[#CBBFAE]",
 };
 
 function Tile({ label, value, note, tone = "default", onSelect, loading }: TileProps) {
   const body = (
     <>
-      <span className="text-[11px] font-semibold uppercase tracking-widest text-[#A7AFBA]">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-widest text-[#D5D5D5]">{label}</span>
       {loading ? (
-        <span className="mt-2 h-7 w-16 animate-pulse rounded bg-[rgba(240,201,154,0.15)]" aria-hidden="true" />
+        <span className="mt-2 h-7 w-16 animate-pulse rounded bg-[rgba(203,191,174,0.15)]" aria-hidden="true" />
       ) : (
         <span className={`mt-1.5 text-2xl font-bold tabular-nums tracking-tight ${TONE_VALUE[tone]}`}>{value}</span>
       )}
-      {note && <span className="mt-1 text-[11px] text-[#A7AFBA]">{note}</span>}
+      {note && <span className="mt-1 text-[13px] text-[#D5D5D5]">{note}</span>}
     </>
   );
-  const cls = "flex flex-col items-start rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#111B2B] p-4 text-left";
+  const cls = "flex flex-col items-start rounded-2xl border border-[rgba(255,255,255,0.08)] bg-[#1C1B1B] p-4 text-left";
   if (!onSelect) return <div className={cls}>{body}</div>;
   return (
     <button
       type="button"
       onClick={onSelect}
-      className={`${cls} transition-colors hover:border-[#F0C99A]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]`}
+      className={`${cls} transition-colors hover:border-[#CBBFAE]/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]`}
     >
       {body}
     </button>
@@ -59,7 +59,7 @@ export default function AnalysesSummary({ summary, loading, failed, expensiveChf
   const v = (n: number | undefined) => (summary && n !== undefined ? String(n) : "—");
   return (
     <section aria-label="Zusammenfassung" className="space-y-2">
-    <p className="text-xs text-[#8E98A6]">
+    <p className="text-[13px] text-[#ABABAB]">
       Kennzahlen gesamt, ohne Filter
       {failed && <span className="ml-2 text-[#D6A45F]" role="status">Kennzahlen konnten nicht aktualisiert werden</span>}
     </p>

@@ -8,7 +8,7 @@ export type Resource<T> =
   | { status: "ready"; data: T };
 
 export const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tba-sand,#F0C99A)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#111B2B]";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--tba-sand,#CBBFAE)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#2E2E30]";
 
 interface CardProps {
   title: string;
@@ -24,11 +24,11 @@ const variantClass = { default: "tba-glass", flat: "tba-glass tba-glass--flat", 
 export function Card({ title, subtitle, action, className = "", variant = "default", children }: CardProps) {
   const id = useId();
   return (
-    <section aria-labelledby={id} className={`${variantClass[variant]} h-full min-w-0 overflow-hidden rounded-[20px] p-5 sm:p-6 ${className}`}>
+    <section aria-labelledby={id} className={`${variantClass[variant]} tba-card tba-card--static h-full min-w-0 overflow-hidden rounded-[20px] p-5 sm:p-6 ${className}`}>
       <header className="mb-4 flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
         <div className="min-w-0">
-          <h2 id={id} className="text-base font-semibold text-[var(--tba-text,#F4F3F0)]">{title}</h2>
-          {subtitle && <p className="mt-1 text-xs text-[var(--tba-text-2,#A7AFBA)]">{subtitle}</p>}
+          <h2 id={id} className="text-base font-semibold text-[var(--tba-text,#FFFFFF)]">{title}</h2>
+          {subtitle && <p className="mt-1 text-xs text-[var(--tba-text-2,#D5D5D5)]">{subtitle}</p>}
         </div>
         {action}
       </header>
@@ -54,7 +54,7 @@ export function CardError({ message, onRetry }: { message: string; onRetry: () =
       <button
         type="button"
         onClick={onRetry}
-        className={`rounded-full bg-[image:var(--tba-grad,linear-gradient(135deg,#F0C99A,#B07D3E))] px-4 py-1.5 text-xs font-semibold text-[#0B1220] transition-opacity hover:opacity-90 ${focusRing}`}
+        className={`tba-btn rounded-full bg-[image:var(--tba-grad,linear-gradient(135deg,#CBBFAE,#B5A893))] px-4 py-1.5 text-xs font-semibold text-[#151414] ${focusRing}`}
       >
         Erneut versuchen
       </button>

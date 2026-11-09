@@ -17,7 +17,7 @@ export default function LogoutButton({ className }: { className?: string } = {})
     <button
       type="button"
       onClick={handleLogout}
-      className={className ?? "text-sm text-slate-500 hover:text-slate-100 transition-colors"}
+      className={className ?? "text-sm text-white/80 hover:text-white transition-colors"}
     >
       Abmelden
     </button>

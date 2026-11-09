@@ -41,8 +41,8 @@ function NavItem({ href, active, icon, label, onNavigate }: { href: string; acti
 function Brand({ onNavigate, className, priority }: { onNavigate: () => void; className?: string; priority?: boolean }) {
   return (
     <Link href="/dashboard" className={`${s.brand} ${className ?? ""}`} onClick={onNavigate} aria-label="TraceBuild Übersicht">
-      <Image src="/landing/logo-mark.svg" alt="" width={28} height={40} className={s.brandMark} priority={priority} />
-      <span className={s.wordmark} aria-hidden="true">Trace<span>Build</span></span>
+      <Image src="/landing/logo-tb.svg" alt="" width={28} height={40} className={s.brandMark} priority={priority} />
+      <span className={s.wordmark} aria-hidden="true">TraceBuild</span>
     </Link>
   );
 }

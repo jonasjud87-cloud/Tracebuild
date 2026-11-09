@@ -10,7 +10,7 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid var(--line);
-  background: rgba(240, 230, 214, 0.4);
+  background: #1c1b1b;
 }
 
 .sideHead {
@@ -43,18 +43,18 @@
 }
 
 .thread:hover {
-  background: rgba(255, 250, 241, 0.7);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .threadActive,
 .threadActive:hover {
-  color: #fff;
-  background: linear-gradient(135deg, #1b2a41, #07142b);
+  color: #151414;
+  background: linear-gradient(135deg, #d8cebf, #b5a893);
 }
 
 .threadActive:focus-visible {
-  outline-color: var(--navy);
-  box-shadow: 0 0 0 2px var(--sand);
+  outline-color: var(--sand);
+  box-shadow: 0 0 0 2px #fff;
 }
 
 .threadTitle {
@@ -75,7 +75,7 @@
 }
 
 .threadActive .threadDate {
-  color: #bccadf;
+  color: rgba(21, 20, 20, 0.78);
 }
 
 .sideEmpty {
@@ -173,8 +173,8 @@
   display: block;
   width: 24px;
   height: 24px;
-  border: 3px solid rgba(176, 125, 62, 0.25);
-  border-top-color: var(--navy);
+  border: 3px solid rgba(203, 191, 174, 0.25);
+  border-top-color: var(--sand);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -219,12 +219,13 @@
 
 .avatarUser {
   color: #fff;
-  background: linear-gradient(135deg, #1b2a41, #07142b);
+  background: #3a3a3d;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
 }
 
 .avatarBot {
-  color: var(--ink);
-  background: linear-gradient(145deg, #f6d9b2, #e9b987);
+  color: #151414;
+  background: linear-gradient(145deg, #d8cebf, #b5a893);
 }
 
 .bubble {
@@ -237,20 +238,20 @@
 
 .bubbleUser {
   border-top-right-radius: 6px;
-  color: #fff;
-  background: linear-gradient(135deg, #1b2a41, #07142b);
-  box-shadow: 0 10px 20px -14px rgba(7, 20, 43, 0.7);
+  color: #151414;
+  background: linear-gradient(135deg, #d8cebf, #b5a893);
+  box-shadow: 0 10px 20px -14px rgba(0, 0, 0, 0.6);
 }
 
 .bubbleBot {
   border-top-left-radius: 6px;
-  color: var(--ink);
+  color: var(--body);
 }
 
 .userText {
-  font-size: 15px;
+  font-size: 16px;
   line-height: 1.6;
-  color: #fff;
+  color: #151414;
   white-space: pre-wrap;
 }
 
@@ -286,7 +287,7 @@
   height: 15px;
   margin-left: 2px;
   vertical-align: middle;
-  background: var(--navy);
+  background: var(--sand);
   animation: pulse 1s ease-in-out infinite;
 }
 
@@ -318,7 +319,7 @@
   flex-shrink: 0;
   padding: 12px clamp(12px, 2vw, 20px) 14px;
   border-top: 1px solid var(--line);
-  background: rgba(240, 230, 214, 0.45);
+  background: #1c1b1b;
 }
 
 .field {
@@ -328,13 +329,14 @@
   padding: 6px 6px 6px 16px;
   border-radius: 18px;
   background: var(--field);
-  box-shadow: inset 0 1px 2px rgba(110, 76, 34, 0.14), inset 0 0 0 1px rgba(176, 125, 62, 0.28);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.38);
+  transition: box-shadow 0.2s ease, background-color 0.2s ease;
 }
 
 .field:focus-within {
-  outline: 2px solid var(--navy);
+  outline: 2px solid var(--sand);
   outline-offset: 1px;
-  background: #fffaf1;
+  background: #151414;
 }
 
 .textarea {
@@ -354,7 +356,7 @@
 }
 
 .textarea::placeholder {
-  color: #7a6d5d;
+  color: rgba(255, 255, 255, 0.64);
 }
 
 .textarea:disabled {
@@ -437,4 +439,75 @@
 
 .field .textarea:focus-visible {
   outline: none;
+  box-shadow: none;
+}
+
+.bubble.bubbleBot {
+  padding: 14px 18px;
+  background: #1c1b1b;
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  font-size: 16px;
+  line-height: 1.65;
+}
+
+.bubble.bubbleUser {
+  padding: 12px 18px;
+}
+
+.thread {
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.thread:hover {
+  transform: translateX(2px);
+}
+
+.threadActive:hover {
+  transform: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.msg {
+  animation: rise 0.35s ease backwards;
+}
+
+.threadList > * {
+  animation: rise 0.35s ease backwards;
+}
+
+.threadList > :nth-child(2) {
+  animation-delay: 0.04s;
+}
+
+.threadList > :nth-child(3) {
+  animation-delay: 0.08s;
+}
+
+.threadList > :nth-child(n + 4) {
+  animation-delay: 0.12s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .msg,
+  .threadList > * {
+    animation: none;
+  }
+
+  .thread {
+    transition: none;
+  }
+
+  .thread:hover {
+    transform: none;
+  }
 }

@@ -151,7 +151,7 @@ function NavGroup({
   const headingId = `tb-nav-${title}`;
   return (
     <div>
-      <p id={headingId} className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--tba-text-2,#A7AFBA)]">
+      <p id={headingId} className="mb-2 px-3 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--tba-text-2,#D5D5D5)]">
         {title}
       </p>
       <ul aria-labelledby={headingId} className="space-y-1">
@@ -167,10 +167,10 @@ function NavGroup({
                 className={`tba-nav-link flex items-center gap-3 rounded-full px-4 py-2.5 text-sm font-medium transition-colors ${
                   active
                     ? "tba-nav-active font-semibold"
-                    : "text-[var(--tba-text,#F4F3F0)]"
+                    : "text-[var(--tba-text,#FFFFFF)]"
                 }`}
               >
-                <span className={active ? "text-[var(--tba-cream,#FDF6EE)]" : "text-[var(--tba-text-2,#A7AFBA)]"}>{item.icon}</span>
+                <span className={active ? "text-[var(--tba-cream,#FFFFFF)]" : "text-[var(--tba-text-2,#D5D5D5)]"}>{item.icon}</span>
                 <span className="truncate">{item.label}</span>
               </Link>
             </li>

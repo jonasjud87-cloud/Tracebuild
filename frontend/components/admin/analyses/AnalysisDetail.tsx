@@ -20,7 +20,7 @@ interface Props {
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-[11px] font-semibold uppercase tracking-widest text-[#A7AFBA]">{title}</h3>
+      <h3 className="text-xs font-semibold uppercase tracking-widest text-[#D5D5D5]">{title}</h3>
       {children}
     </section>
   );
@@ -29,7 +29,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex items-baseline justify-between gap-4 border-b border-[rgba(255,255,255,0.08)] py-2 last:border-0">
-      <dt className="text-xs text-[#8E98A6]">{label}</dt>
+      <dt className="text-[13px] text-[#ABABAB]">{label}</dt>
       <dd className="min-w-0 text-right text-sm text-white">{children}</dd>
     </div>
   );
@@ -53,7 +53,7 @@ function IdField({ label, value }: { label: string; value: string | null }) {
         type="button"
         onClick={copy}
         title="In die Zwischenablage kopieren"
-        className="max-w-full break-all rounded text-right font-mono text-xs text-[#F0C99A] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+        className="max-w-full break-all rounded text-right font-mono text-xs text-[#CBBFAE] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
       >
         {copied ? "Kopiert" : value}
       </button>
@@ -105,26 +105,26 @@ export default function AnalysisDetail({ row, stale, now, orphanMinutes, busy, e
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40 lg:bg-black/20" onClick={onClose} aria-hidden="true" />
+      <div className="tba-scrim tbb-fade fixed inset-0 z-40" onClick={onClose} aria-hidden="true" />
       <aside
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="analysis-detail-title"
-        className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col tba-glass tba-glass--modal"
+        className="tbb-slide fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col rounded-l-[20px] rounded-r-none tba-glass tba-glass--modal"
       >
         <header className="flex items-start justify-between gap-3 border-b border-[rgba(255,255,255,0.08)] p-5">
           <div className="min-w-0 space-y-2">
             <StatusBadge status={row.status} orphaned={orphaned} />
             <h2 id="analysis-detail-title" className="truncate text-base font-bold text-white">{row.projectName}</h2>
-            <p className="truncate text-xs text-[#A7AFBA]">{row.orgName}</p>
+            <p className="truncate text-[13px] text-[#D5D5D5]">{row.orgName}</p>
           </div>
           <button
             ref={closeRef}
             type="button"
             onClick={onClose}
             aria-label="Details schliessen"
-            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[#8E98A6] hover:bg-[#111B2B] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+            className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl text-[#ABABAB] hover:bg-[#1C1B1B] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
           >
             <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
               <path d="M2 2 12 12M12 2 2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -134,7 +134,7 @@ export default function AnalysisDetail({ row, stale, now, orphanMinutes, busy, e
 
         <div className="flex-1 space-y-6 overflow-y-auto p-5">
           {stale && (
-            <p className="rounded-xl border border-[#D6A45F]/30 bg-[#D6A45F]/20 px-3 py-2 text-xs text-[#D6A45F]">
+            <p className="rounded-xl border border-[#D6A45F]/30 bg-[#D6A45F]/20 px-3 py-2 text-[13px] text-[#E8C48A]">
               Dieser Eintrag ist nicht mehr in der aktuellen Liste. Angezeigt wird der letzte bekannte Stand.
             </p>
           )}
@@ -145,7 +145,7 @@ export default function AnalysisDetail({ row, stale, now, orphanMinutes, busy, e
                 {row.errorText}
               </p>
             ) : (
-              <p className="text-sm text-[#8E98A6]">Kein Fehlertext hinterlegt.</p>
+              <p className="text-sm text-[#ABABAB]">Kein Fehlertext hinterlegt.</p>
             )}
           </Section>
 
@@ -178,9 +178,9 @@ export default function AnalysisDetail({ row, stale, now, orphanMinutes, busy, e
 
         <footer className="space-y-3 border-t border-[rgba(255,255,255,0.08)] p-5">
           {canRestart(row, now, orphanMinutes) && (
-            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#111B2B] px-3 py-2.5">
-              <p className="text-sm font-semibold text-[#A7AFBA]">{RESTART_UNAVAILABLE_HINT}</p>
-              <p className="mt-0.5 text-xs text-[#A7AFBA]">
+            <div className="rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#1C1B1B] px-3 py-2.5">
+              <p className="text-sm font-semibold text-[#D5D5D5]">{RESTART_UNAVAILABLE_HINT}</p>
+              <p className="mt-0.5 text-[13px] text-[#D5D5D5]">
                 Fehlgeschlagene, abgebrochene oder verwaiste Analysen können aus dem Monitor noch nicht erneut gestartet werden.
               </p>
             </div>

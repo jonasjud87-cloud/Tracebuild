@@ -7,9 +7,9 @@
 
 .geoCardAttention {
   box-shadow:
-    inset 0 1px 0 rgba(252, 247, 238, 0.85),
-    inset 0 0 0 1.5px rgba(214, 164, 95, 0.75),
-    0 20px 40px -28px rgba(110, 76, 34, 0.32);
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 0 0 1.5px rgba(224, 170, 79, 0.7),
+    0 20px 40px -28px rgba(0, 0, 0, 0.8);
 }
 
 .geoPlan {
@@ -24,9 +24,8 @@
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
-  filter: sepia(0.5) saturate(0.7) contrast(0.85);
-  opacity: 0.3;
-  mix-blend-mode: multiply;
+  filter: grayscale(1) brightness(0.7);
+  opacity: 0.14;
   -webkit-mask-image: linear-gradient(to left, #000 15%, transparent 95%);
   mask-image: linear-gradient(to left, #000 15%, transparent 95%);
 }
@@ -114,8 +113,8 @@
   margin-top: 12px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(214, 164, 95, 0.55);
-  background: rgba(214, 164, 95, 0.16);
+  border: 1px solid rgba(224, 170, 79, 0.55);
+  background: rgba(224, 170, 79, 0.14);
 }
 
 .attentionTitle {
@@ -193,15 +192,15 @@
 }
 
 .link {
-  color: var(--navy);
+  color: var(--sand);
   font-weight: 600;
   text-decoration: underline;
-  text-decoration-color: rgba(125, 85, 31, 0.55);
+  text-decoration-color: rgba(203, 191, 174, 0.6);
   text-underline-offset: 3px;
 }
 
 .link:hover {
-  color: var(--bronze-deep);
+  color: #fff;
 }
 
 .links {
@@ -239,18 +238,18 @@
 }
 
 .noticeErr {
-  background: rgba(216, 121, 121, 0.16);
-  border-color: rgba(216, 121, 121, 0.5);
+  background: rgba(226, 109, 109, 0.16);
+  border-color: rgba(226, 109, 109, 0.5);
 }
 
 .noticeWarn {
-  background: rgba(214, 164, 95, 0.18);
-  border-color: rgba(214, 164, 95, 0.55);
+  background: rgba(224, 170, 79, 0.14);
+  border-color: rgba(224, 170, 79, 0.55);
 }
 
 .noticeInfo {
-  background: rgba(131, 169, 208, 0.18);
-  border-color: rgba(131, 169, 208, 0.55);
+  background: rgba(203, 191, 174, 0.1);
+  border-color: rgba(203, 191, 174, 0.4);
 }
 
 .noticeMain {
@@ -364,7 +363,7 @@
   margin: 0 0 12px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(176, 125, 62, 0.26);
+  background: rgba(255, 255, 255, 0.14);
 }
 
 .trackFull {
@@ -375,7 +374,7 @@
 .bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #07142b, #1b2a41 70%, #b07d3e);
+  background: linear-gradient(90deg, #b5a893, #d8cebf);
   transition: width 0.6s ease;
 }
 
@@ -385,7 +384,7 @@
   bottom: 0;
   width: 35%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1b2a41, #07142b);
+  background: linear-gradient(90deg, #b5a893, #d8cebf);
   animation: runSlide 1.4s ease-in-out infinite;
 }
 
@@ -444,12 +443,12 @@
 
 button.cancelBtn {
   color: var(--err-text);
-  background: rgba(216, 121, 121, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.55);
+  background: rgba(226, 109, 109, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(226, 109, 109, 0.55);
 }
 
 button.cancelBtn:hover:not(:disabled) {
-  background: rgba(216, 121, 121, 0.26);
+  background: rgba(226, 109, 109, 0.26);
 }
 
 .alert {
@@ -464,26 +463,26 @@ button.cancelBtn:hover:not(:disabled) {
 .alertErr {
   color: var(--err-text);
   font-weight: 600;
-  background: rgba(216, 121, 121, 0.16);
-  border-color: rgba(216, 121, 121, 0.5);
+  background: rgba(226, 109, 109, 0.16);
+  border-color: rgba(226, 109, 109, 0.5);
 }
 
 .alertWarn {
   color: var(--warn-text);
-  background: rgba(214, 164, 95, 0.18);
-  border-color: rgba(214, 164, 95, 0.55);
+  background: rgba(224, 170, 79, 0.14);
+  border-color: rgba(224, 170, 79, 0.55);
 }
 
 .alertInfo {
   color: var(--body);
-  background: rgba(131, 169, 208, 0.16);
-  border-color: rgba(131, 169, 208, 0.5);
+  background: rgba(203, 191, 174, 0.1);
+  border-color: rgba(203, 191, 174, 0.4);
 }
 
 .spinner {
   flex-shrink: 0;
   border-radius: 50%;
-  border: 2px solid var(--navy);
+  border: 2px solid var(--sand);
   border-top-color: transparent;
   animation: spin 0.7s linear infinite;
 }
@@ -529,5 +528,56 @@ button.cancelBtn:hover:not(:disabled) {
   .link {
     display: inline-block;
     padding: 8px 0;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.geoCard,
+.run,
+.notice,
+.alert {
+  animation: rise 0.45s ease backwards;
+}
+
+.geoCard {
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.geoCard:hover {
+  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.4), 0 20px 40px -26px rgba(0, 0, 0, 0.85);
+}
+
+.geoCardAttention:hover {
+  box-shadow: inset 0 0 0 1.5px rgba(224, 170, 79, 0.85), 0 20px 40px -26px rgba(0, 0, 0, 0.85);
+}
+
+.expander:hover {
+  color: #cbbfae;
+}
+
+.bar {
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geoCard,
+  .run,
+  .notice,
+  .alert {
+    animation: none;
+  }
+
+  .geoCard {
+    transition: none;
   }
 }

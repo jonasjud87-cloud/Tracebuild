@@ -16,7 +16,7 @@ export default function OpengraphImage() {
           flexDirection: "column",
           justifyContent: "space-between",
           padding: "88px 96px",
-          background: "linear-gradient(150deg, #0a1a24 0%, #0a1420 45%, #070b14 100%)",
+          background: "linear-gradient(150deg, #1c1b1b 0%, #151414 55%, #121111 100%)",
           fontFamily: "system-ui, sans-serif",
         }}
       >
@@ -28,8 +28,8 @@ export default function OpengraphImage() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "linear-gradient(120deg, #4fd1ff 0%, #2862d7 100%)",
-              color: "#07101a",
+              background: "linear-gradient(135deg, #d8cebf 0%, #b5a893 100%)",
+              color: "#151414",
               fontSize: 34,
               fontWeight: 800,
               borderRadius: 14,
@@ -37,7 +37,7 @@ export default function OpengraphImage() {
           >
             T
           </div>
-          <div style={{ color: "#eef1fb", fontSize: 30, fontWeight: 700, letterSpacing: -0.5 }}>
+          <div style={{ color: "#ffffff", fontSize: 30, fontWeight: 700, letterSpacing: 1.2, textTransform: "uppercase" }}>
             TraceBuild
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function OpengraphImage() {
           >
             Zeichnungen prüfen, Normen einhalten.
           </div>
-          <div style={{ color: "#9aa1b8", fontSize: 30, lineHeight: 1.4, maxWidth: 820 }}>
+          <div style={{ color: "rgba(255,255,255,0.72)", fontSize: 30, lineHeight: 1.4, maxWidth: 820 }}>
             PDF hochladen, KI-Prüfung gegen geltende Normen, eine klare Übersicht der Befunde.
           </div>
         </div>
@@ -65,7 +65,7 @@ export default function OpengraphImage() {
             height: 6,
             width: 260,
             borderRadius: 3,
-            background: "linear-gradient(120deg, #4fd1ff 0%, #38bdf8 45%, #2862d7 100%)",
+            background: "linear-gradient(135deg, #d8cebf 0%, #b5a893 100%)",
           }}
         />
       </div>

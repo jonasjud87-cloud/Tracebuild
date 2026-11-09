@@ -62,7 +62,7 @@ span.chipXs {
 }
 
 .closeBtn:hover {
-  background: rgba(255, 250, 241, 0.7);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--ink);
 }
 
@@ -81,7 +81,7 @@ span.chipXs {
 }
 
 .iconBtn:hover {
-  background: rgba(255, 250, 241, 0.7);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .newType {
@@ -288,19 +288,21 @@ span.chipXs {
   font: inherit;
   text-align: left;
   color: var(--ink);
-  background: linear-gradient(155deg, rgba(252, 247, 238, 0.8), rgba(246, 238, 226, 0.5));
-  box-shadow: inset 0 1px 0 rgba(255, 252, 245, 0.9), inset 0 0 0 1px rgba(176, 125, 62, 0.22);
+  background: #1c1b1b;
+  box-shadow: inset 0 0 0 1px var(--line);
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 
 .versionBtn:hover {
-  background: #fffaf1;
+  background: #2e2e30;
+  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.45);
+  transform: translateY(-2px);
 }
 
 .versionBtn.versionActive {
-  background: #fffaf1;
-  box-shadow: inset 0 0 0 2px var(--navy), 0 8px 16px -12px rgba(7, 20, 43, 0.5);
+  background: #2e2e30;
+  box-shadow: inset 0 0 0 2px var(--sand), 0 10px 20px -14px rgba(0, 0, 0, 0.8);
 }
 
 .versionNr {
@@ -333,7 +335,7 @@ span.chipXs {
 }
 
 .menuTrigger:hover {
-  background: rgba(240, 201, 154, 0.5);
+  background: rgba(255, 255, 255, 0.1);
   color: var(--ink);
 }
 
@@ -345,8 +347,9 @@ span.chipXs {
   min-width: 170px;
   padding: 4px;
   border-radius: 14px;
-  background: #fbf5ea;
-  box-shadow: inset 0 0 0 1px rgba(176, 125, 62, 0.28), 0 14px 30px -12px rgba(7, 20, 43, 0.35);
+  background: #3a3a3d;
+  box-shadow: inset 0 0 0 1px var(--line-strong), 0 14px 30px -12px rgba(0, 0, 0, 0.7);
+  animation: rise 0.2s ease;
 }
 
 .menuItem {
@@ -379,10 +382,10 @@ span.chipXs {
 .dropzone {
   width: 100%;
   padding: clamp(36px, 6vw, 64px) 20px;
-  border: 2px dashed rgba(125, 85, 31, 0.5);
+  border: 2px dashed rgba(203, 191, 174, 0.5);
   border-radius: 22px;
   text-align: center;
-  background: rgba(250, 244, 234, 0.5);
+  background: rgba(255, 255, 255, 0.03);
   transition: background 0.15s, border-color 0.15s;
 }
 
@@ -391,7 +394,7 @@ span.chipXs {
 }
 
 .dropzoneIdle:hover {
-  background: rgba(255, 250, 241, 0.8);
+  background: rgba(203, 191, 174, 0.1);
 }
 
 .dropzoneCompact {
@@ -400,8 +403,8 @@ span.chipXs {
 }
 
 .dropzoneOver {
-  border-color: var(--navy);
-  background: rgba(255, 250, 241, 0.85);
+  border-color: var(--sand);
+  background: rgba(203, 191, 174, 0.14);
 }
 
 .dropzone .bigTile {
@@ -474,7 +477,7 @@ span.chipXs {
   gap: 10px;
   padding: 6px 6px 6px 14px;
   border-radius: 14px;
-  background: rgba(255, 250, 241, 0.75);
+  background: rgba(255, 255, 255, 0.05);
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
@@ -527,7 +530,7 @@ span.chipXs {
   gap: 10px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
-  background: rgba(240, 230, 214, 0.45);
+  background: rgba(255, 255, 255, 0.03);
   color: var(--ink);
 }
 
@@ -677,7 +680,7 @@ select.previewSelect {
 }
 
 .stat.statActive {
-  box-shadow: 0 0 0 2px var(--navy);
+  box-shadow: 0 0 0 2px var(--sand);
 }
 
 .statHead {
@@ -893,5 +896,111 @@ select.previewSelect {
 
   .collapse {
     min-height: 40px;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.folderGrid > *,
+.list > *,
+.stats > *,
+.versionList > *,
+.fileList > *,
+.results > * {
+  animation: rise 0.4s ease backwards;
+}
+
+.folderGrid > :nth-child(2),
+.list > :nth-child(2),
+.stats > :nth-child(2),
+.versionList > :nth-child(2),
+.fileList > :nth-child(2),
+.results > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.folderGrid > :nth-child(3),
+.list > :nth-child(3),
+.stats > :nth-child(3),
+.versionList > :nth-child(3),
+.fileList > :nth-child(3),
+.results > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.folderGrid > :nth-child(4),
+.list > :nth-child(4),
+.versionList > :nth-child(4),
+.results > :nth-child(4) {
+  animation-delay: 0.15s;
+}
+
+.folderGrid > :nth-child(n + 5),
+.list > :nth-child(n + 5),
+.versionList > :nth-child(n + 5),
+.results > :nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+
+.folderCard,
+.stat,
+.check {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.folderCard:hover,
+.stat:hover,
+.check:hover {
+  transform: translateY(-3px);
+  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.45), 0 18px 32px -18px rgba(0, 0, 0, 0.85), 0 0 0 3px rgba(203, 191, 174, 0.08);
+}
+
+.folderCard:active,
+.stat:active {
+  transform: translateY(0);
+}
+
+.stat.statActive,
+.stat.statActive:hover {
+  box-shadow: 0 0 0 2px var(--sand), 0 18px 32px -18px rgba(0, 0, 0, 0.85);
+}
+
+.folderCard:focus-visible,
+.stat:focus-visible {
+  transform: translateY(-2px);
+}
+
+.checkHead:focus-visible {
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folderGrid > *,
+  .list > *,
+  .stats > *,
+  .versionList > *,
+  .fileList > *,
+  .results > *,
+  .menu {
+    animation: none;
+  }
+
+  .check:hover,
+  .folderCard:focus-visible,
+  .stat:focus-visible {
+    transform: none;
+  }
+
+  .check {
+    transition: none;
   }
 }

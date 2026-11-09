@@ -81,9 +81,9 @@ function getProjects(orgId: string) {
 
 function Initials({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
   const init = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  const cls = size === "md" ? "w-9 h-9 text-sm" : "w-7 h-7 text-[11px]";
+  const cls = size === "md" ? "w-9 h-9 text-sm" : "w-7 h-7 text-[13px]";
   return (
-    <div className={`${cls} rounded-lg bg-[#F0C99A]/10 flex items-center justify-center flex-shrink-0 font-bold text-[#F0C99A]`}>
+    <div className={`${cls} rounded-lg bg-[#cbbfae]/10 flex items-center justify-center flex-shrink-0 font-bold text-[#cbbfae]`}>
       {init}
     </div>
   );
@@ -91,16 +91,16 @@ function Initials({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
 
 const planLabel: Record<PlanTier, string> = { starter: "Starter", business: "Business", enterprise: "Enterprise" };
 const planCls: Record<PlanTier, string> = {
-  starter:    "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]",
-  business:   "bg-[#83A9D0]/15 text-[#83A9D0]",
-  enterprise: "bg-[#F0C99A]/10 text-[#F0C99A]",
+  starter:    "bg-[rgba(255,255,255,0.10)] text-[#d6d5d4]",
+  business:   "bg-[#d6d5d4]/15 text-[#d6d5d4]",
+  enterprise: "bg-[#cbbfae]/10 text-[#cbbfae]",
 };
 type StatusMeta = { dot: string; text: string; label: string };
 const statusMeta: Record<OrgStatus, StatusMeta> = {
   active:   { dot: "bg-[#65A88A]", text: "text-[#65A88A]", label: "Aktiv"       },
   paused:   { dot: "bg-[#D6A45F]",   text: "text-[#D6A45F]",   label: "Pausiert"    },
-  closed:   { dot: "bg-[#737F8E]",   text: "text-[#A7AFBA]",   label: "Geschlossen" },
-  archived: { dot: "bg-[#4A5668]",   text: "text-[#8E98A6]",   label: "Archiviert"  },
+  closed:   { dot: "bg-[#8a8a8a]",   text: "text-[#d6d5d4]",   label: "Geschlossen" },
+  archived: { dot: "bg-[#5f5e5e]",   text: "text-[#adacab]",   label: "Archiviert"  },
 };
 
 function chf(n: number): string { return `CHF ${n.toFixed(2)}`; }
@@ -120,28 +120,28 @@ function UebersichtTab({ org, costs }: { org: Organization; costs: OrgCost[] }) 
   return (
     <div className="space-y-5">
       <div className="flex items-center gap-3 flex-wrap">
-        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${sm.text}`}>
+        <span className={`inline-flex items-center gap-1.5 text-sm font-medium ${sm.text}`}>
           <span className={`w-2 h-2 rounded-full ${sm.dot}`} />
           {sm.label}
         </span>
-        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${planCls[org.planTier]}`}>
+        <span className={`text-[13px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wide ${planCls[org.planTier]}`}>
           {planLabel[org.planTier]}
         </span>
         {org.isDefault && (
-          <span className="text-[11px] font-bold text-[#F0C99A] bg-[#F0C99A]/10 px-1.5 py-0.5 rounded uppercase tracking-wider">
+          <span className="text-[13px] font-bold text-[#cbbfae] bg-[#cbbfae]/10 px-1.5 py-0.5 rounded uppercase tracking-wider">
             Default
           </span>
         )}
       </div>
 
-      {org.description && <p className="text-sm text-[#A7AFBA]">{org.description}</p>}
+      {org.description && <p className="text-sm text-[#d6d5d4]">{org.description}</p>}
 
       {(org.owner || org.ownerEmail) && (
-        <div className="flex items-center gap-3 bg-[#111B2B] rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 bg-[#1c1b1b] rounded-xl px-4 py-3">
           <Initials name={org.owner ?? org.name} size="md" />
           <div>
             {org.owner && <p className="text-sm font-medium text-white">{org.owner}</p>}
-            {org.ownerEmail && <p className="text-xs text-[#8E98A6]">{org.ownerEmail}</p>}
+            {org.ownerEmail && <p className="text-sm text-[#adacab]">{org.ownerEmail}</p>}
           </div>
         </div>
       )}
@@ -155,14 +155,14 @@ function UebersichtTab({ org, costs }: { org: Organization; costs: OrgCost[] }) 
           { label: "Budget/Monat", value: org.monthlyBudget !== undefined ? chf(org.monthlyBudget) : "—" },
           { label: "Kosten/Monat", value: currentCost ? chf(currentCost.totalCost) : "—" },
         ].map(stat => (
-          <div key={stat.label} className="bg-[#111B2B] rounded-xl px-4 py-3">
-            <p className="text-[11px] font-semibold text-[#8E98A6] uppercase tracking-widest">{stat.label}</p>
+          <div key={stat.label} className="bg-[#1c1b1b] rounded-xl px-4 py-3">
+            <p className="text-[13px] font-semibold text-[#adacab] uppercase tracking-widest">{stat.label}</p>
             <p className="text-base font-bold text-white mt-0.5">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="text-xs text-[#8E98A6] space-y-1">
+      <div className="text-sm text-[#adacab] space-y-1">
         <p>Erstellt: {new Date(org.createdAt).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}</p>
         {currentCost && <p>Aktueller Monat: {fmtMonth(currentCost.month)} ({currentCost.status})</p>}
       </div>
@@ -188,16 +188,16 @@ function ConfirmModal({
   return createPortal(
     <div className="tba">
     <div
-      className="tba-scrim fixed inset-0 z-[80] flex items-center justify-center px-4"
+      className="tba-scrim tbb-fade fixed inset-0 z-[80] flex items-center justify-center px-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div role="dialog" aria-modal="true" aria-label={title} className="tba-glass tba-glass--modal rounded-2xl w-full max-w-sm p-7">
+      <div role="dialog" aria-modal="true" aria-label={title} className="tba-glass tba-glass--modal rounded-2xl tbb-rise w-full max-w-sm p-7">
         <h3 className="text-base font-bold text-white text-center mb-2">{title}</h3>
-        <p className="text-sm text-[#A7AFBA] text-center mb-6">{description}</p>
+        <p className="text-sm text-[#d6d5d4] text-center mb-6">{description}</p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border border-[rgba(255,255,255,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] transition-colors"
+            className="flex-1 border border-[rgba(255,255,255,0.10)] rounded-xl py-2.5 text-sm font-medium text-[#d6d5d4] hover:bg-[#2e2e30] transition-colors"
           >
             Abbrechen
           </button>
@@ -316,8 +316,8 @@ function MitgliederTab({
 
   const iCls = [
     "rounded-xl px-3 py-2 text-sm text-white",
-    "bg-[rgba(17,27,43,0.6)] border border-[rgba(240,201,154,0.25)]",
-    "placeholder:text-[#8E98A6] focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A]",
+    "bg-[rgba(28,27,27,0.6)] border border-[rgba(203,191,174,0.55)]",
+    "placeholder:text-[#adacab] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 focus:border-[#cbbfae]",
     "transition-colors",
   ].join(" ");
 
@@ -344,25 +344,25 @@ function MitgliederTab({
         </select>
         <button
           type="submit" disabled={adding}
-          className="flex-shrink-0 bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] hover:bg-[#C79B63] disabled:opacity-50 text-[#07142B] text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          className="flex-shrink-0 bg-[linear-gradient(135deg,#cbbfae,#b5a893)] hover:brightness-110 disabled:opacity-50 text-[#151414] text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
         >
           {adding ? "..." : "Hinzufügen"}
         </button>
       </form>
 
       {loading ? (
-        <div className="py-8 text-center text-[#8E98A6] text-sm">Lade Mitglieder…</div>
+        <div className="py-8 text-center text-[#adacab] text-sm">Lade Mitglieder…</div>
       ) : members.length === 0 ? (
-        <div className="py-8 text-center text-[#8E98A6] text-sm">Noch keine Mitglieder.</div>
+        <div className="py-8 text-center text-[#adacab] text-sm">Noch keine Mitglieder.</div>
       ) : (
         <div>
-          <p className="text-xs text-[#8E98A6] mb-3">{members.length} Mitglieder</p>
+          <p className="text-sm text-[#adacab] mb-3">{members.length} Mitglieder</p>
           {members.map(m => (
-            <div key={m.id} className="flex items-center gap-3 py-2.5 border-b border-[rgba(255,255,255,0.08)] last:border-0">
+            <div key={m.id} className="flex items-center gap-3 py-2.5 border-b border-[rgba(255,255,255,0.10)] last:border-0">
               <Initials name={m.name || m.email} size="md" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-white truncate">{m.name || m.email}</p>
-                <p className="text-xs text-[#8E98A6] truncate">
+                <p className="text-sm text-[#adacab] truncate">
                   {m.name ? `${m.email} · ` : ""}{new Date(m.created_at).toLocaleDateString("de-CH")}
                 </p>
               </div>
@@ -371,10 +371,10 @@ function MitgliederTab({
                   value={m.role}
                   onChange={e => handleRoleChange(m, e.target.value)}
                   disabled={savingRoleId === m.id}
-                  className={`text-[11px] font-semibold pl-2 pr-1 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 transition-colors disabled:opacity-50 ${
+                  className={`text-[13px] font-semibold pl-2 pr-1 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 transition-colors disabled:opacity-50 ${
                     m.role === "org_admin" || m.role === "super_admin"
-                      ? "bg-[#F0C99A]/10 text-[#F0C99A]"
-                      : "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]"
+                      ? "bg-[#cbbfae]/10 text-[#cbbfae]"
+                      : "bg-[rgba(255,255,255,0.10)] text-[#d6d5d4]"
                   }`}
                 >
                   {(["member", "project_manager", "org_admin"] as const).map(r => (
@@ -384,7 +384,7 @@ function MitgliederTab({
                 <button
                   onClick={() => setConfirmRemove(m)}
                   disabled={removingId === m.id}
-                  className="w-6 h-6 flex items-center justify-center text-[#8E98A6] hover:text-[#EBA1A1] hover:bg-[#D87979]/10 rounded-lg transition-colors disabled:opacity-40"
+                  className="w-6 h-6 flex items-center justify-center text-[#adacab] hover:text-[#EBA1A1] hover:bg-[#D87979]/10 rounded-lg transition-colors disabled:opacity-40"
                   title="Entfernen"
                 >
                   <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -482,7 +482,7 @@ type AuditSortKey = "created_at" | "actor_email" | "action";
 
 function SortIndicator({ active, dir }: { active: boolean; dir: "asc" | "desc" }) {
   if (!active) return null;
-  return <span className="ml-1 text-[11px]">{dir === "asc" ? "▲" : "▼"}</span>;
+  return <span className="ml-1 text-[13px]">{dir === "asc" ? "▲" : "▼"}</span>;
 }
 
 function AuditLogTab({ org }: { org: Organization }) {
@@ -525,21 +525,21 @@ function AuditLogTab({ org }: { org: Organization }) {
     return sort.dir === "asc" ? cmp : -cmp;
   });
 
-  const thCls = "text-left text-[11px] font-semibold text-[#8E98A6] uppercase tracking-widest px-3 py-2 cursor-pointer select-none whitespace-nowrap";
+  const thCls = "text-left text-[13px] font-semibold text-[#adacab] uppercase tracking-widest px-3 py-2 cursor-pointer select-none whitespace-nowrap";
 
   return (
     <div className="space-y-4">
       {loading ? (
-        <div className="py-8 text-center text-[#8E98A6] text-sm">Lade Einträge…</div>
+        <div className="py-8 text-center text-[#adacab] text-sm">Lade Einträge…</div>
       ) : loadError ? (
         <div className="py-8 text-center text-sm text-[#EBA1A1]">{loadError}</div>
       ) : entries.length === 0 ? (
-        <div className="py-8 text-center text-[#8E98A6] text-sm">Noch keine Einträge.</div>
+        <div className="py-8 text-center text-[#adacab] text-sm">Noch keine Einträge.</div>
       ) : (
         <div className="overflow-x-auto scrollbar-dark">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.08)]">
+              <tr className="border-b border-[rgba(255,255,255,0.10)]">
                 <th className={thCls} onClick={() => toggleSort("created_at")}>
                   Zeitpunkt<SortIndicator active={sort.key === "created_at"} dir={sort.dir} />
                 </th>
@@ -555,14 +555,14 @@ function AuditLogTab({ org }: { org: Organization }) {
             </thead>
             <tbody>
               {sorted.map(e => (
-                <tr key={e.id} className="border-b border-[rgba(255,255,255,0.08)] last:border-0">
-                  <td className="px-3 py-2.5 text-xs text-[#A7AFBA] whitespace-nowrap">
+                <tr key={e.id} className="tba-row transition-colors border-b border-[rgba(255,255,255,0.10)] last:border-0">
+                  <td className="px-3 py-2.5 text-sm text-[#d6d5d4] whitespace-nowrap">
                     {new Date(e.created_at).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}
                   </td>
                   <td className="px-3 py-2.5 text-sm text-white truncate max-w-[160px]">{e.actor_email}</td>
                   <td className="px-3 py-2.5 text-sm text-white whitespace-nowrap">{auditActionLabel(e)}</td>
-                  <td className="px-3 py-2.5 text-xs text-[#8E98A6] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-xs text-[#8E98A6] whitespace-nowrap">{auditDetails(e)}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#adacab] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#adacab] whitespace-nowrap">{auditDetails(e)}</td>
                 </tr>
               ))}
             </tbody>
@@ -577,17 +577,17 @@ function ProjekteTab({ org }: { org: Organization }) {
   const projects = getProjects(org.id);
   return (
     <div className="space-y-2">
-      <p className="text-xs text-[#8E98A6] mb-3">{projects.length} Projekte</p>
+      <p className="text-sm text-[#adacab] mb-3">{projects.length} Projekte</p>
       {projects.map(p => (
-        <div key={p.name} className="flex items-start gap-3 py-2.5 border-b border-[rgba(255,255,255,0.08)] last:border-0">
-          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${p.status === "active" ? "bg-[#65A88A]" : "bg-[rgba(255,255,255,0.08)]"}`} />
+        <div key={p.name} className="flex items-start gap-3 py-2.5 border-b border-[rgba(255,255,255,0.10)] last:border-0">
+          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${p.status === "active" ? "bg-[#65A88A]" : "bg-[rgba(255,255,255,0.10)]"}`} />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-white truncate">{p.name}</p>
-            <p className="text-xs text-[#8E98A6]">Erstellt: {new Date(p.created).toLocaleDateString("de-CH")}</p>
+            <p className="text-sm text-[#adacab]">Erstellt: {new Date(p.created).toLocaleDateString("de-CH")}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-xs font-medium text-[#A7AFBA]">{p.analyses} Analysen</p>
-            <p className={`text-[11px] ${p.status === "active" ? "text-[#65A88A]" : "text-[#8E98A6]"}`}>
+            <p className="text-sm font-medium text-[#d6d5d4]">{p.analyses} Analysen</p>
+            <p className={`text-[13px] ${p.status === "active" ? "text-[#65A88A]" : "text-[#adacab]"}`}>
               {p.status === "active" ? "Aktiv" : "Archiviert"}
             </p>
           </div>
@@ -606,11 +606,11 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h5 className="text-xs font-semibold text-[#8E98A6] uppercase tracking-widest mb-3">
+        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">
           Analysen / Monat (letzte 6 Monate)
         </h5>
         {orgCosts.length === 0 ? (
-          <p className="text-sm text-[#A7AFBA]">Keine Daten</p>
+          <p className="text-sm text-[#d6d5d4]">Keine Daten</p>
         ) : (
           <div className="space-y-2">
             {orgCosts.map(c => {
@@ -618,17 +618,17 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
               const isCurrent = c.status === "laufend";
               return (
                 <div key={c.month} className="flex items-center gap-3">
-                  <span className="text-[11px] text-[#8E98A6] w-14 flex-shrink-0">{fmtMonth(c.month)}</span>
-                  <div className="flex-1 h-5 bg-[#111B2B] rounded-md overflow-hidden">
+                  <span className="text-[13px] text-[#adacab] w-14 flex-shrink-0">{fmtMonth(c.month)}</span>
+                  <div className="flex-1 h-5 bg-[#1c1b1b] rounded-md overflow-hidden">
                     <div
                       className="h-full rounded-md"
                       style={{
                         width: `${barPct}%`,
-                        backgroundColor: isCurrent ? "#F0C99A" : "rgba(168,134,91,0.25)",
+                        backgroundColor: isCurrent ? "#cbbfae" : "rgba(203,191,174,0.35)",
                       }}
                     />
                   </div>
-                  <span className="text-[11px] font-medium text-[#A7AFBA] tabular-nums w-8 text-right flex-shrink-0">
+                  <span className="text-[13px] font-medium text-[#d6d5d4] tabular-nums w-8 text-right flex-shrink-0">
                     {c.analyseCount}
                   </span>
                 </div>
@@ -639,26 +639,26 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
       </div>
 
       <div>
-        <h5 className="text-xs font-semibold text-[#8E98A6] uppercase tracking-widest mb-3">
+        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">
           Speicherverbrauch
         </h5>
         <div className="flex items-center justify-between mb-1.5">
           <span className="text-sm font-medium text-white">
             {org.storageGB !== undefined ? `${formatGB(org.storageGB)} belegt` : "Verbrauch nicht verfügbar"}
           </span>
-          <span className="text-xs text-[#8E98A6]">
+          <span className="text-sm text-[#adacab]">
             {storageLimit ? `von ${formatGB(storageLimit)}` : "kein Limit gesetzt"}
           </span>
         </div>
         {storagePct !== null && (
           <>
-            <div className="h-3 bg-[#F0C99A]/10 rounded-full overflow-hidden">
+            <div className="h-3 bg-[#cbbfae]/10 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#D87979" : "#F0C99A" }}
+                style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#D87979" : "#cbbfae" }}
               />
             </div>
-            <p className="text-[11px] text-[#8E98A6] mt-1">{storagePct.toFixed(0)} % genutzt</p>
+            <p className="text-[13px] text-[#adacab] mt-1">{storagePct.toFixed(0)} % genutzt</p>
           </>
         )}
       </div>
@@ -676,48 +676,48 @@ function KostenTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
   return (
     <div className="space-y-5">
       {org.monthlyBudget && latestCost && (
-        <div className="bg-[#111B2B] rounded-xl p-4">
+        <div className="bg-[#1c1b1b] rounded-xl p-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-semibold text-[#8E98A6] uppercase tracking-widest">
+            <span className="text-sm font-semibold text-[#adacab] uppercase tracking-widest">
               Budget {fmtMonth(latestCost.month)}
             </span>
-            <span className={`text-xs font-semibold ${budgetPct >= 90 ? "text-[#EBA1A1]" : budgetPct >= 70 ? "text-[#D6A45F]" : "text-[#F0C99A]"}`}>
+            <span className={`text-sm font-semibold ${budgetPct >= 90 ? "text-[#EBA1A1]" : budgetPct >= 70 ? "text-[#D6A45F]" : "text-[#cbbfae]"}`}>
               {chf(latestCost.totalCost)} / {chf(org.monthlyBudget)}
             </span>
           </div>
-          <div className="h-2.5 bg-[#F0C99A]/10 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-[#cbbfae]/10 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
               style={{
                 width: `${budgetPct}%`,
-                backgroundColor: budgetPct >= 90 ? "#D87979" : budgetPct >= 70 ? "#D6A45F" : "#F0C99A",
+                backgroundColor: budgetPct >= 90 ? "#D87979" : budgetPct >= 70 ? "#D6A45F" : "#cbbfae",
               }}
             />
           </div>
-          <p className="text-[11px] text-[#8E98A6] mt-1">{budgetPct.toFixed(0)} % verbraucht</p>
+          <p className="text-[13px] text-[#adacab] mt-1">{budgetPct.toFixed(0)} % verbraucht</p>
         </div>
       )}
 
       <div>
-        <h5 className="text-xs font-semibold text-[#8E98A6] uppercase tracking-widest mb-3">Letzte 3 Monate</h5>
+        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">Letzte 3 Monate</h5>
         {orgCosts.length === 0 ? (
-          <p className="text-sm text-[#A7AFBA]">Keine Kostendaten vorhanden</p>
+          <p className="text-sm text-[#d6d5d4]">Keine Kostendaten vorhanden</p>
         ) : (
           <div className="space-y-2">
             {orgCosts.map(c => (
-              <div key={c.month} className="bg-[#111B2B] rounded-xl px-4 py-3">
+              <div key={c.month} className="bg-[#1c1b1b] rounded-xl px-4 py-3">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-sm font-medium text-white">{fmtMonth(c.month)}</span>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
-                      c.status === "laufend" ? "bg-[#D6A45F]/15 text-[#D6A45F]" : "bg-[#65A88A]/15 text-[#65A88A]"
+                    <span className={`text-[13px] font-semibold px-1.5 py-0.5 rounded ${
+                      c.status === "laufend" ? "bg-[#D6A45F]/15 text-[#D6A45F]" : "bg-[#65A88A]/15 text-[#8FD0B1]"
                     }`}>
                       {c.status === "laufend" ? "Laufend" : "Final"}
                     </span>
                     <span className="text-sm font-bold text-white tabular-nums">{chf(c.totalCost)}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-[11px] text-[#8E98A6]">
+                <div className="grid grid-cols-3 gap-2 text-[13px] text-[#adacab]">
                   <span>Analysen {chf(c.analyseCost)}</span>
                   <span>Chat {chf(c.chatCost)}</span>
                   <span>Normen {chf(c.normCost)}</span>
@@ -758,34 +758,34 @@ function EinstellungenTab({
 
   const iCls = [
     "w-full rounded-xl px-3.5 py-2.5 text-sm text-white",
-    "bg-[rgba(17,27,43,0.6)] border border-[rgba(240,201,154,0.25)]",
-    "placeholder:text-[#8E98A6]",
-    "focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A]",
+    "bg-[rgba(28,27,27,0.6)] border border-[rgba(203,191,174,0.55)]",
+    "placeholder:text-[#adacab]",
+    "focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 focus:border-[#cbbfae]",
     "transition-colors",
   ].join(" ");
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-xs font-medium text-[#8E98A6] mb-1.5">Organisationsname *</label>
+        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Organisationsname *</label>
         <input value={name} onChange={e => setName(e.target.value)} className={iCls} />
       </div>
       <div>
-        <label className="block text-xs font-medium text-[#8E98A6] mb-1.5">Kurzbeschreibung</label>
+        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Kurzbeschreibung</label>
         <input value={description} onChange={e => setDesc(e.target.value)} placeholder="Kurze Beschreibung" className={iCls} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-xs font-medium text-[#8E98A6] mb-1.5">Besitzer</label>
+          <label className="block text-sm font-medium text-[#adacab] mb-1.5">Besitzer</label>
           <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Name" className={iCls} />
         </div>
         <div>
-          <label className="block text-xs font-medium text-[#8E98A6] mb-1.5">E-Mail</label>
+          <label className="block text-sm font-medium text-[#adacab] mb-1.5">E-Mail</label>
           <input type="email" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} placeholder="email@beispiel.ch" className={iCls} />
         </div>
       </div>
       <div>
-        <label className="block text-xs font-medium text-[#8E98A6] mb-1.5">Monatliches Budget (CHF)</label>
+        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Monatliches Budget (CHF)</label>
         <input
           type="number"
           min={0}
@@ -798,14 +798,14 @@ function EinstellungenTab({
       <div className="pt-2">
         <button
           onClick={handleSave}
-          className="w-full bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] text-[#07142B] rounded-xl py-2.5 text-sm font-semibold hover:bg-[#C79B63] active:scale-[0.98] transition-all"
+          className="w-full bg-[linear-gradient(135deg,#cbbfae,#b5a893)] text-[#151414] rounded-xl py-2.5 text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition-all"
         >
           Einstellungen speichern
         </button>
       </div>
       {!org.isDefault && (
-        <div className="pt-2 border-t border-[rgba(255,255,255,0.08)]">
-          <p className="text-[11px] font-semibold text-[#8E98A6] uppercase tracking-widest mb-2">Gefahrenzone</p>
+        <div className="pt-2 border-t border-[rgba(255,255,255,0.10)]">
+          <p className="text-[13px] font-semibold text-[#adacab] uppercase tracking-widest mb-2">Gefahrenzone</p>
           <button
             onClick={() => onToast("Bitte nutze die Aktionsmenü-Optionen zum Löschen.", "warning")}
             className="w-full border border-[#D87979]/30 text-[#EBA1A1] rounded-xl py-2 text-sm font-medium hover:bg-[#D87979]/10 transition-colors"
@@ -893,7 +893,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
       />
 
       <div
-        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[var(--tb-panel-w)] tba-glass tba-glass--modal flex flex-col transform transition-transform duration-300 ${
+        className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[var(--tb-panel-w)] rounded-l-[20px] rounded-r-none tba-glass tba-glass--modal flex flex-col transform transition-transform duration-300 ${
           org ? "translate-x-0" : "translate-x-full"
         }`}
         style={{ "--tb-panel-w": `${panelWidth}px` } as React.CSSProperties}
@@ -901,33 +901,33 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
         <div
           onMouseDown={startResize}
           title="Breite anpassen"
-          className="hidden sm:block absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize z-10 hover:bg-[#F0C99A]/40 active:bg-[#F0C99A]/60 transition-colors"
+          className="hidden sm:block absolute left-0 top-0 bottom-0 w-1.5 -translate-x-1/2 cursor-col-resize z-10 hover:bg-[#cbbfae]/40 active:bg-[#cbbfae]/60 transition-colors"
         />
         {org && (
           <>
-            <div className="flex-shrink-0 px-6 py-5 border-b border-[rgba(255,255,255,0.08)]">
+            <div className="flex-shrink-0 px-6 py-5 border-b border-[rgba(255,255,255,0.10)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#F0C99A]/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-[#F0C99A]">
+                  <div className="w-10 h-10 rounded-xl bg-[#cbbfae]/10 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-[#cbbfae]">
                       {org.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0">
                     <h2 className="text-base font-bold text-white truncate">{org.name}</h2>
-                    <p className="text-xs text-[#8E98A6] truncate">{org.ownerEmail ?? org.id}</p>
+                    <p className="text-sm text-[#adacab] truncate">{org.ownerEmail ?? org.id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={onEdit}
-                    className="text-xs font-semibold text-[#F0C99A] bg-[#F0C99A]/10 hover:bg-[#7A5F3D] hover:text-white px-3 py-1.5 rounded-lg transition-all"
+                    className="text-sm font-semibold text-[#cbbfae] bg-[#cbbfae]/10 hover:bg-[#cbbfae] hover:text-[#151414] px-3 py-1.5 rounded-lg transition-all"
                   >
                     Bearbeiten
                   </button>
                   <button
                     onClick={onClose}
-                    className="w-7 h-7 flex items-center justify-center text-[#8E98A6] hover:text-white hover:bg-[#223247] rounded-lg transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-[#adacab] hover:text-white hover:bg-[#2e2e30] rounded-lg transition-colors"
                   >
                     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
                       <path d="M1.5 1.5L9.5 9.5M9.5 1.5L1.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -941,10 +941,10 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
                   <button
                     key={t.id}
                     onClick={() => setActiveTab(t.id)}
-                    className={`flex-shrink-0 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+                    className={`flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                       activeTab === t.id
-                        ? "bg-[linear-gradient(135deg,#A8865B,#7A5F3D)] text-white"
-                        : "text-[#8E98A6] hover:text-white hover:bg-[#111B2B]"
+                        ? "bg-[linear-gradient(135deg,#cbbfae,#b5a893)] text-[#151414]"
+                        : "text-[#adacab] hover:text-white hover:bg-[#1c1b1b]"
                     }`}
                   >
                     {t.label}
