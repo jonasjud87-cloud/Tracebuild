@@ -23,10 +23,10 @@ interface Props {
 }
 
 const inputCls = [
-  "w-full rounded-xl px-3.5 py-2.5 text-sm text-white",
-  "bg-[rgba(17,27,43,0.6)] border border-[rgba(240,201,154,0.25)]",
-  "placeholder:text-[#8E98A6]",
-  "focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A]",
+  "w-full rounded-xl px-3.5 py-2.5 text-sm text-[#151414]",
+  "bg-white border border-[#8c8b8e]",
+  "placeholder:text-[#6e6e73]",
+  "focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 focus:border-[#151414]",
   "transition-colors",
 ].join(" ");
 
@@ -40,7 +40,7 @@ function NumInput({
 }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-[#8E98A6] mb-1">{label}</label>
+      <label className="block text-sm font-medium text-[#5f5f64] mb-1">{label}</label>
       <div className="relative">
         <input
           type="number"
@@ -51,7 +51,7 @@ function NumInput({
           placeholder="—"
         />
         {suffix && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-[#8E98A6] pointer-events-none">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-[#5f5f64] pointer-events-none">
             {suffix}
           </span>
         )}
@@ -103,31 +103,31 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
   }
 
   const statusOptions: { value: OrgStatus; label: string; dot: string; active: string }[] = [
-    { value: "active",   label: "Aktiv",       dot: "bg-[#65A88A]", active: "bg-[#65A88A]/15 border-[#65A88A]/40 text-[#65A88A]" },
-    { value: "paused",   label: "Pausiert",    dot: "bg-[#D6A45F]",   active: "bg-[#D6A45F]/15 border-[#D6A45F]/40 text-[#D6A45F]"       },
-    { value: "closed",   label: "Geschlossen", dot: "bg-[#737F8E]",   active: "bg-[rgba(255,255,255,0.08)] border-[rgba(240,201,154,0.3)] text-[#A7AFBA]" },
-    { value: "archived", label: "Archiviert",  dot: "bg-[#4A5668]",   active: "bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.08)] text-[#8E98A6]"   },
+    { value: "active",   label: "Aktiv",       dot: "bg-[#65A88A]", active: "bg-[#e4f3ea] border-[#65A88A]/40 text-[#136a40]" },
+    { value: "paused",   label: "Pausiert",    dot: "bg-[#D6A45F]",   active: "bg-[#fff1d6] border-[#D6A45F]/40 text-[#7a4f00]"       },
+    { value: "closed",   label: "Geschlossen", dot: "bg-[#8a8a8a]",   active: "bg-[rgba(21,20,20,0.08)] border-[rgba(21,20,20,0.15)] text-[#46464a]" },
+    { value: "archived", label: "Archiviert",  dot: "bg-[#5f5e5e]",   active: "bg-[rgba(21,20,20,0.08)] border-[rgba(21,20,20,0.08)] text-[#5f5f64]"   },
   ];
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center tba-scrim px-4 py-6 overflow-y-auto"
+      className="fixed inset-0 z-50 flex items-center justify-center tba-scrim tbb-fade px-4 py-6 overflow-y-auto"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="tba-glass tba-glass--modal rounded-2xl w-full max-w-lg overflow-hidden my-auto">
+      <div className="tba-glass tba-glass--modal rounded-2xl tbb-rise w-full max-w-lg overflow-hidden my-auto">
 
-        <div className="px-7 py-5 border-b border-[rgba(255,255,255,0.08)] flex items-start justify-between">
+        <div className="px-7 py-5 border-b border-[rgba(21,20,20,0.08)] flex items-start justify-between">
           <div>
-            <h2 className="text-base font-bold text-white">
+            <h2 className="text-base font-bold text-[#151414]">
               {org ? "Organisation bearbeiten" : "Neue Organisation erstellen"}
             </h2>
-            <p className="text-sm text-[#A7AFBA] mt-0.5">
+            <p className="text-sm text-[#46464a] mt-0.5">
               {org ? "Angaben aktualisieren" : "Neue Organisation zum System hinzufügen"}
             </p>
           </div>
           <button
             onClick={onClose}
-            className="w-7 h-7 flex items-center justify-center text-[#8E98A6] hover:text-white hover:bg-[#223247] rounded-lg transition-colors ml-4 flex-shrink-0"
+            className="w-7 h-7 flex items-center justify-center text-[#5f5f64] hover:text-[#151414] hover:bg-[#f6f3ee] rounded-lg transition-colors ml-4 flex-shrink-0"
           >
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
               <path d="M1.5 1.5L9.5 9.5M9.5 1.5L1.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -138,8 +138,8 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
         <div className="px-7 py-5 space-y-4 max-h-[calc(100vh-220px)] overflow-y-auto">
 
           <div>
-            <label className="block text-sm font-medium text-[#A7AFBA] mb-1.5">
-              Organisationsname <span className="text-[#EBA1A1]">*</span>
+            <label className="block text-sm font-medium text-[#46464a] mb-1.5">
+              Organisationsname <span className="text-[#a3201a]">*</span>
             </label>
             <input
               value={name}
@@ -152,7 +152,7 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-[#A7AFBA] mb-1.5">Kurzbeschreibung</label>
+            <label className="block text-sm font-medium text-[#46464a] mb-1.5">Kurzbeschreibung</label>
             <input
               value={description}
               onChange={e => setDescription(e.target.value)}
@@ -163,7 +163,7 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-[#A7AFBA] mb-1.5">Besitzer / Ansprechpartner</label>
+              <label className="block text-sm font-medium text-[#46464a] mb-1.5">Besitzer / Ansprechpartner</label>
               <input
                 value={owner}
                 onChange={e => setOwner(e.target.value)}
@@ -172,7 +172,7 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#A7AFBA] mb-1.5">E-Mail</label>
+              <label className="block text-sm font-medium text-[#46464a] mb-1.5">E-Mail</label>
               <input
                 type="email"
                 value={ownerEmail}
@@ -185,8 +185,8 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="text-sm font-medium text-[#A7AFBA]">Tarif</label>
-              <span className="text-[11px] font-semibold text-[#F0C99A] bg-[#F0C99A]/10 px-2 py-0.5 rounded uppercase tracking-wider">
+              <label className="text-sm font-medium text-[#46464a]">Tarif</label>
+              <span className="text-[13px] font-semibold text-[#6b6153] bg-[#cbbfae]/30 px-2 py-0.5 rounded uppercase tracking-wider">
                 Nur TraceBuild-Intern
               </span>
             </div>
@@ -199,14 +199,14 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
               <option value="business">Business</option>
               <option value="enterprise">Enterprise</option>
             </select>
-            <p className="text-[11px] text-[#A7AFBA] mt-1">
+            <p className="text-[13px] text-[#46464a] mt-1">
               Abos werden ausschliesslich durch TraceBuild eingerichtet — keine Selbstverwaltung für Kunden.
             </p>
           </div>
 
           {!org?.isDefault && (
             <div>
-              <label className="block text-sm font-medium text-[#A7AFBA] mb-2">Status</label>
+              <label className="block text-sm font-medium text-[#46464a] mb-2">Status</label>
               <div className="grid grid-cols-2 gap-2">
                 {statusOptions.map(opt => (
                   <button
@@ -216,10 +216,10 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
                     className={`flex items-center gap-2 py-2 px-3 rounded-xl border text-sm font-medium transition-all ${
                       status === opt.value
                         ? opt.active
-                        : "border-[rgba(255,255,255,0.08)] text-[#8E98A6] hover:border-[rgba(240,201,154,0.3)] hover:bg-[#223247]"
+                        : "border-[rgba(21,20,20,0.08)] text-[#5f5f64] hover:border-[rgba(21,20,20,0.15)] hover:bg-[#f6f3ee]"
                     }`}
                   >
-                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${status === opt.value ? opt.dot : "bg-[rgba(255,255,255,0.08)]"}`} />
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${status === opt.value ? opt.dot : "bg-[rgba(21,20,20,0.08)]"}`} />
                     {opt.label}
                   </button>
                 ))}
@@ -228,7 +228,7 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
           )}
 
           <div>
-            <p className="text-sm font-medium text-[#A7AFBA] mb-2">Limits & Budget</p>
+            <p className="text-sm font-medium text-[#46464a] mb-2">Limits & Budget</p>
             <div className="grid grid-cols-2 gap-3">
               <NumInput label="Benutzerlimit"      value={userLimit}     onChange={setUserLimit}    />
               <NumInput label="Projektlimit"       value={projectLimit}  onChange={setProjectLimit} />
@@ -238,17 +238,17 @@ export default function OrgModal({ org, onSave, onClose }: Props) {
           </div>
         </div>
 
-        <div className="px-7 py-5 border-t border-[rgba(255,255,255,0.08)] flex gap-3">
+        <div className="px-7 py-5 border-t border-[rgba(21,20,20,0.08)] flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border border-[rgba(255,255,255,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] transition-colors"
+            className="flex-1 border border-[rgba(21,20,20,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#46464a] hover:bg-[#f6f3ee] transition-colors"
           >
             Abbrechen
           </button>
           <button
             onClick={handleSave}
             disabled={!name.trim()}
-            className="flex-1 bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] text-[#07142B] rounded-xl py-2.5 text-sm font-semibold hover:bg-[#C79B63] disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+            className="flex-1 bg-[#151414] hover:bg-[#2e2e30] text-white rounded-xl py-2.5 text-sm font-semibold disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
           >
             {org ? "Speichern" : "Erstellen →"}
           </button>

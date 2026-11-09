@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import AdminShell from "@/components/admin/shell/AdminShell";
+import PageHeader from "@/components/admin/shell/PageHeader";
 import OrgTable from "@/components/admin/OrgTable";
 import OrgModal from "@/components/admin/OrgModal";
 import type { OrgFormData } from "@/components/admin/OrgModal";
@@ -85,29 +86,30 @@ const TRACEBUILD_SEED: OrgFormData = {
 };
 
 function KpiCard({
-  label, value, note, trend, accent,
+  label, value, note, trend, accent, dark,
 }: {
   label: string;
   value: string;
   note?: string;
   trend?: { pct: string; positive: boolean };
   accent?: boolean;
+  dark?: boolean;
 }) {
   return (
-    <div className={`bg-[#111B2B] border rounded-2xl p-4 flex flex-col ${accent ? "border-[#F0C99A]/30" : "border-[rgba(255,255,255,0.08)]"}`}>
-      <p className={`text-xl font-bold tracking-tight tabular-nums ${accent ? "text-[#F0C99A]" : "text-white"}`}>
+    <div className={`tba-card tba-card--static border rounded-2xl p-4 flex flex-col ${dark ? "tba-glass--dark border-[#151414]" : `bg-white ${accent ? "border-[#cbbfae]/30" : "border-[rgba(21,20,20,0.08)]"}`}`}>
+      <p className={`text-xl font-bold tracking-tight tabular-nums ${dark ? "text-white" : accent ? "text-[#6b6153]" : "text-[#151414]"}`}>
         {value}
       </p>
-      <p className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest mt-1.5">{label}</p>
+      <p className={`text-[13px] font-semibold uppercase tracking-wider break-words hyphens-auto mt-1.5 ${dark ? "text-white/80" : "text-[#46464a]"}`}>{label}</p>
       <div className="flex items-center gap-2 mt-1">
         {trend && (
-          <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded ${
-            trend.positive ? "bg-[#65A88A]/15 text-[#65A88A]" : "bg-[#D87979]/15 text-[#EBA1A1]"
+          <span className={`text-[13px] font-semibold px-1.5 py-0.5 rounded ${
+            trend.positive ? "bg-[#e4f3ea] text-[#136a40]" : "bg-[#fde7e5] text-[#a3201a]"
           }`}>
             {trend.pct}
           </span>
         )}
-        {note && <p className="text-[11px] text-[#A7AFBA]">{note}</p>}
+        {note && <p className={`text-[13px] ${dark ? "text-white/80" : "text-[#46464a]"}`}>{note}</p>}
       </div>
     </div>
   );
@@ -124,7 +126,7 @@ function SearchInput({
   return (
     <div className="relative">
       <svg
-        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E98A6] pointer-events-none"
+        className="absolute left-3 top-1/2 -translate-y-1/2 text-[#5f5f64] pointer-events-none"
         width="13" height="13" viewBox="0 0 13 13" fill="none"
       >
         <circle cx="5.5" cy="5.5" r="4" stroke="currentColor" strokeWidth="1.3" />
@@ -135,12 +137,13 @@ function SearchInput({
         value={value}
         onChange={e => onChange(e.target.value)}
         placeholder={placeholder ?? "Suchen..."}
-        className="w-full pl-8 pr-8 py-2.5 text-sm border border-[rgba(240,201,154,0.25)] rounded-xl bg-[rgba(17,27,43,0.6)] text-white focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors placeholder:text-[#8E98A6]"
+        className="w-full pl-8 pr-8 py-2.5 text-sm border border-[#8c8b8e] rounded-xl bg-white text-[#151414] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 focus:border-[#151414] transition-colors placeholder:text-[#6e6e73]"
       />
       {value && (
         <button
           onClick={() => onChange("")}
-          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#8E98A6] hover:text-white transition-colors"
+          aria-label="Suche leeren"
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#5f5f64] hover:text-[#151414] transition-colors"
         >
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
             <path d="M1.5 1.5L9.5 9.5M9.5 1.5L1.5 9.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
@@ -154,9 +157,9 @@ function SearchInput({
 function SectionHeader({ title }: { title: string }) {
   return (
     <div className="flex items-center gap-3">
-      <div className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
-      <span className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest px-2">{title}</span>
-      <div className="h-px flex-1 bg-[rgba(255,255,255,0.08)]" />
+      <div className="h-px flex-1 bg-[rgba(21,20,20,0.08)]" />
+      <span className="text-[13px] font-semibold text-[#46464a] uppercase tracking-widest px-2">{title}</span>
+      <div className="h-px flex-1 bg-[rgba(21,20,20,0.08)]" />
     </div>
   );
 }
@@ -175,18 +178,18 @@ function ConfirmModal({
 }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center tba-scrim px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center tba-scrim tbb-fade px-4"
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
-      <div className="tba-glass tba-glass--modal rounded-2xl w-full max-w-sm p-7">
-        <h3 className="text-base font-bold text-white text-center mb-2">{title}</h3>
-        <p className="text-sm text-[#A7AFBA] text-center mb-6">
-          <span className="font-semibold text-white">{orgName}</span> {description}
+      <div className="tba-glass tba-glass--modal rounded-2xl tbb-rise w-full max-w-sm p-7">
+        <h3 className="text-base font-bold text-[#151414] text-center mb-2">{title}</h3>
+        <p className="text-sm text-[#46464a] text-center mb-6">
+          <span className="font-semibold text-[#151414]">{orgName}</span> {description}
         </p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border border-[rgba(255,255,255,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#A7AFBA] hover:bg-[#223247] transition-colors"
+            className="flex-1 border border-[#8c8b8e] rounded-xl py-2.5 text-sm font-medium text-[#151414] hover:bg-[#f6f3ee] transition-colors"
           >
             Abbrechen
           </button>
@@ -206,10 +209,10 @@ function QuickActionBtn({ icon, label, onClick }: { icon: ReactNode; label: stri
   return (
     <button
       onClick={onClick}
-      className="flex-1 flex flex-col items-center gap-2 py-4 px-3 tba-glass rounded-2xl hover:border-[#F0C99A]/40 hover:bg-[#F0C99A]/10 transition-all text-center group"
+      className="flex-1 flex flex-col items-center gap-2 py-4 px-3 tba-glass rounded-2xl hover:bg-[#cbbfae]/25 hover:shadow-[0_0_0_1px_rgba(156,143,123,.7),0_10px_30px_rgba(21,20,20,.1)] transition-all text-center group"
     >
-      <span className="text-[#8E98A6] group-hover:text-[#F0C99A] transition-colors">{icon}</span>
-      <span className="text-xs font-medium text-[#A7AFBA] group-hover:text-white transition-colors leading-tight">{label}</span>
+      <span className="text-[#5f5f64] group-hover:text-[#6b6153] transition-colors">{icon}</span>
+      <span className="text-sm font-medium text-[#46464a] group-hover:text-[#151414] transition-colors leading-tight">{label}</span>
     </button>
   );
 }
@@ -608,38 +611,35 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
       <AdminShell userEmail={userEmail}>
       <div className="space-y-8">
 
-        {/* Greeting */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-medium text-[#A7AFBA] uppercase tracking-widest mb-1">
-              {todayStr()}
-            </p>
-            <h1 className="text-2xl font-bold text-white">
-              Willkommen zurück{userName ? `, ${userName}` : ""}
-            </h1>
-          </div>
+        <PageHeader
+          variant="hero"
+          photo="dashboard"
+          eyebrow={todayStr()}
+          title={`Willkommen zurück${userName ? `, ${userName}` : ""}`}
+          actions={
+            hydrated && lastOpened ? (
+              <>
+                <div className="mr-2 hidden sm:block">
+                  <p className="text-[13px] font-semibold uppercase tracking-widest text-white/70">Zuletzt geöffnet</p>
+                  <p className="mt-0.5 text-sm font-semibold text-white">{lastOpened.name}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const org = orgs.find(o => o.id === lastOpened.id);
+                    if (org) handleOpen(org); else router.push("/dashboard");
+                  }}
+                  className="tba-pill-btn whitespace-nowrap"
+                >
+                  Weiter öffnen →
+                </button>
+              </>
+            ) : undefined
+          }
+        />
 
-          {hydrated && lastOpened && (
-            <div className="flex-shrink-0 flex items-center gap-4 tba-glass rounded-2xl px-5 py-3.5">
-              <div>
-                <p className="text-[11px] font-semibold text-[#A7AFBA] uppercase tracking-widest">Zuletzt geöffnet</p>
-                <p className="text-sm font-semibold text-white mt-0.5">{lastOpened.name}</p>
-              </div>
-              <div className="h-7 w-px bg-[rgba(255,255,255,0.08)]" />
-              <button
-                onClick={() => {
-                  const org = orgs.find(o => o.id === lastOpened.id);
-                  if (org) handleOpen(org); else router.push("/dashboard");
-                }}
-                className="text-sm font-semibold text-[#F0C99A] hover:text-white bg-[#F0C99A]/10 hover:bg-[#7A5F3D] px-3.5 py-2 rounded-xl transition-all active:scale-[0.97] whitespace-nowrap"
-              >
-                Weiter öffnen →
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className={`grid grid-cols-2 sm:grid-cols-4 ${view === "Alle" ? "lg:grid-cols-8" : "lg:grid-cols-4"} gap-3`}>
+        <div className="relative z-10 !-mt-20 px-6 sm:px-10">
+        <div className={`tba-stagger grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 ${view === "Alle" ? "min-[1280px]:grid-cols-8" : ""} gap-3`}>
           {show("kpi-orgs") && <KpiCard label="Organisationen" value={hydrated ? kpiData.orgsCount.toString() : "—"} />}
           {show("kpi-active") && <KpiCard label="Aktive Orgs"    value={hydrated ? kpiData.activeOrgs.toString() : "—"}
             note={hydrated ? `${orgs.filter(o => o.status !== "active").length} inaktiv` : undefined} />}
@@ -647,9 +647,10 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           {show("kpi-users") && <KpiCard label="Benutzer"       value={kpiData.totalUsers.toString()} />}
           {show("kpi-invites") && <KpiCard label="Offene Einladungen" value={usersLoading && userGroups.length === 0 ? "—" : pendingInvites.toString()} accent={pendingInvites > 0} />}
           {show("kpi-analyses") && <KpiCard label="Analysen / Mo." value={kpiData.totalAnalyses.toString()} />}
-          {show("kpi-cost") && <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} accent />}
+          {show("kpi-cost") && <KpiCard label="Kosten / Mo."   value={`CHF ${kpiData.totalCost.toFixed(2)}`} dark />}
           {show("kpi-avg") && <KpiCard label="Ø / Analyse"    value={`CHF ${kpiData.avgCostPerAnalyse.toFixed(2)}`} accent />}
           {show("kpi-storage") && <KpiCard label="Speicher ges."  value={kpiData.totalStorageGB === null ? "—" : kpiData.totalStorageGB < 1 ? `${(kpiData.totalStorageGB * 1000).toFixed(1)} MB` : `${kpiData.totalStorageGB.toFixed(2)} GB`} />}
+        </div>
         </div>
 
         {show("quick-invite") && <div className="flex gap-3 flex-wrap sm:flex-nowrap">
@@ -714,8 +715,8 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           <SectionHeader title="Organisationen" />
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-semibold text-white">Alle Organisationen</h2>
-              <p className="text-xs text-[#8E98A6] mt-0.5">
+              <h2 className="text-base font-semibold text-[#151414]">Alle Organisationen</h2>
+              <p className="text-sm text-[#5f5f64] mt-0.5">
                 {filtered.length} {filtered.length === 1 ? "Eintrag" : "Einträge"}
                 {search ? ` für „${search}"` : ""}
               </p>
@@ -726,7 +727,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
               </div>
               <button
                 onClick={() => { setEditTarget(null); setModalOpen(true); }}
-                className="flex-shrink-0 flex items-center gap-1.5 bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] text-[#07142B] text-sm font-semibold px-4 py-2.5 rounded-xl hover:bg-[#C79B63] active:scale-[0.97] transition-all shadow-sm shadow-[#F0C99A]/25 whitespace-nowrap"
+                className="flex-shrink-0 flex items-center gap-1.5 bg-[#151414] hover:bg-[#2e2e30] text-white text-sm font-semibold px-4 py-2.5 rounded-xl active:scale-[0.97] transition-all shadow-sm shadow-[#cbbfae]/25 whitespace-nowrap"
               >
                 <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
                   <path d="M5.5 1V10M1 5.5H10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -740,9 +741,9 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             <div className="tba-skel rounded-2xl h-48 animate-pulse" />
           ) : filtered.length === 0 ? (
             <div className="tba-glass rounded-2xl p-12 text-center">
-              <p className="text-[#A7AFBA] text-sm font-medium">Keine Organisationen gefunden</p>
+              <p className="text-[#46464a] text-sm font-medium">Keine Organisationen gefunden</p>
               {search && (
-                <button onClick={() => setSearch("")} className="mt-2 text-sm text-[#F0C99A] hover:underline">
+                <button onClick={() => setSearch("")} className="mt-2 text-sm text-[#6b6153] hover:underline">
                   Filter zurücksetzen
                 </button>
               )}
@@ -786,8 +787,8 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             <SectionHeader title="Kosten pro Organisation" />
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
-                <h2 className="text-base font-semibold text-white">Kostendetails</h2>
-                <p className="text-xs text-[#8E98A6] mt-0.5">
+                <h2 className="text-base font-semibold text-[#151414]">Kostendetails</h2>
+                <p className="text-sm text-[#5f5f64] mt-0.5">
                   {filteredCosts.length === 0 ? "Noch keine Kostendaten" : `${filteredCosts.length} Einträge`}
                 </p>
               </div>
@@ -796,7 +797,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
                   <select
                     value={costMonth}
                     onChange={e => setCostMonth(e.target.value)}
-                    className="border border-[rgba(240,201,154,0.25)] rounded-xl px-3 py-2.5 text-sm text-white bg-[rgba(17,27,43,0.6)] focus:outline-none focus:ring-2 focus:ring-[#F0C99A]/40 focus:border-[#F0C99A] transition-colors"
+                    className="border border-[#8c8b8e] rounded-xl px-3 py-2.5 text-sm text-[#151414] bg-white focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 focus:border-[#151414] transition-colors"
                   >
                     {costMonths.map(m => (
                       <option key={m} value={m}>{fmtMonth(m)}</option>
@@ -859,7 +860,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation löschen"
           description="wird dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden."
           confirmLabel="Löschen"
-          confirmCls="bg-[#B85C5C] text-white hover:bg-[#A04E4E]"
+          confirmCls="bg-[#b42318] text-white hover:bg-[#8f1c12]"
           onConfirm={() => handleDelete(deleteTarget)}
           onClose={() => setDeleteTarget(null)}
         />
@@ -871,7 +872,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation pausieren"
           description="wird pausiert. Benutzer können sich nicht mehr einloggen."
           confirmLabel="Pausieren"
-          confirmCls="bg-[#B88848] text-white hover:bg-[#9A7038]"
+          confirmCls="bg-[#151414] text-white hover:bg-[#2e2e30]"
           onConfirm={() => handlePause(pauseTarget)}
           onClose={() => setPauseTarget(null)}
         />
@@ -883,7 +884,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation schließen"
           description="wird geschlossen. Daten werden aufbewahrt, aber der Zugang gesperrt."
           confirmLabel="Schließen"
-          confirmCls="bg-[#111B2B] border border-[rgba(255,255,255,0.08)] text-white hover:bg-[#223247]"
+          confirmCls="bg-white border-[1.5px] border-[#151414] text-[#151414] hover:bg-[#f6f3ee]"
           onConfirm={() => handleClose(closeTarget)}
           onClose={() => setCloseTarget(null)}
         />
@@ -895,7 +896,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
           title="Organisation archivieren"
           description="wird archiviert und ist schreibgeschützt."
           confirmLabel="Archivieren"
-          confirmCls="bg-[#304052] text-white hover:bg-[#304052]"
+          confirmCls="bg-[#46464a] text-white hover:bg-[#2e2e30]"
           onConfirm={() => handleArchive(archiveTarget)}
           onClose={() => setArchiveTarget(null)}
         />

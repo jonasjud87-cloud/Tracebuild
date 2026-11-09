@@ -7,9 +7,8 @@
 
 .geoCardAttention {
   box-shadow:
-    inset 0 1px 0 rgba(252, 247, 238, 0.85),
-    inset 0 0 0 1.5px rgba(214, 164, 95, 0.75),
-    0 20px 40px -28px rgba(110, 76, 34, 0.32);
+    inset 0 0 0 1.5px rgba(217, 154, 31, 0.85),
+    0 10px 30px rgba(21, 20, 20, 0.07);
 }
 
 .geoPlan {
@@ -24,9 +23,8 @@
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
-  filter: sepia(0.5) saturate(0.7) contrast(0.85);
-  opacity: 0.3;
-  mix-blend-mode: multiply;
+  filter: grayscale(1) brightness(0.7);
+  opacity: 0.12;
   -webkit-mask-image: linear-gradient(to left, #000 15%, transparent 95%);
   mask-image: linear-gradient(to left, #000 15%, transparent 95%);
 }
@@ -114,8 +112,8 @@
   margin-top: 12px;
   padding: 14px 16px;
   border-radius: 16px;
-  border: 1px solid rgba(214, 164, 95, 0.55);
-  background: rgba(214, 164, 95, 0.16);
+  border: 1px solid rgba(217, 154, 31, 0.6);
+  background: #fff1d6;
 }
 
 .attentionTitle {
@@ -193,15 +191,15 @@
 }
 
 .link {
-  color: var(--navy);
+  color: #151414;
   font-weight: 600;
   text-decoration: underline;
-  text-decoration-color: rgba(125, 85, 31, 0.55);
+  text-decoration-color: rgba(107, 97, 83, 0.6);
   text-underline-offset: 3px;
 }
 
 .link:hover {
-  color: var(--bronze-deep);
+  color: #6b6153;
 }
 
 .links {
@@ -239,18 +237,18 @@
 }
 
 .noticeErr {
-  background: rgba(216, 121, 121, 0.16);
-  border-color: rgba(216, 121, 121, 0.5);
+  background: #fde7e5;
+  border-color: rgba(163, 32, 26, 0.4);
 }
 
 .noticeWarn {
-  background: rgba(214, 164, 95, 0.18);
-  border-color: rgba(214, 164, 95, 0.55);
+  background: #fff1d6;
+  border-color: rgba(217, 154, 31, 0.55);
 }
 
 .noticeInfo {
-  background: rgba(131, 169, 208, 0.18);
-  border-color: rgba(131, 169, 208, 0.55);
+  background: #f6f3ee;
+  border-color: rgba(156, 143, 123, 0.5);
 }
 
 .noticeMain {
@@ -339,7 +337,7 @@
 
 .runEyebrow {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -364,7 +362,7 @@
   margin: 0 0 12px;
   border-radius: 999px;
   overflow: hidden;
-  background: rgba(176, 125, 62, 0.26);
+  background: rgba(255, 255, 255, 0.22);
 }
 
 .trackFull {
@@ -375,7 +373,7 @@
 .bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #07142b, #1b2a41 70%, #b07d3e);
+  background: linear-gradient(90deg, #b5a893, #d8cebf);
   transition: width 0.6s ease;
 }
 
@@ -385,7 +383,7 @@
   bottom: 0;
   width: 35%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #1b2a41, #07142b);
+  background: linear-gradient(90deg, #b5a893, #d8cebf);
   animation: runSlide 1.4s ease-in-out infinite;
 }
 
@@ -444,12 +442,12 @@
 
 button.cancelBtn {
   color: var(--err-text);
-  background: rgba(216, 121, 121, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.55);
+  background: #fde7e5;
+  box-shadow: inset 0 0 0 1.5px rgba(163, 32, 26, 0.5);
 }
 
 button.cancelBtn:hover:not(:disabled) {
-  background: rgba(216, 121, 121, 0.26);
+  background: #fbd3cf;
 }
 
 .alert {
@@ -464,26 +462,27 @@ button.cancelBtn:hover:not(:disabled) {
 .alertErr {
   color: var(--err-text);
   font-weight: 600;
-  background: rgba(216, 121, 121, 0.16);
-  border-color: rgba(216, 121, 121, 0.5);
+  background: #fde7e5;
+  border-color: rgba(163, 32, 26, 0.4);
 }
 
 .alertWarn {
   color: var(--warn-text);
-  background: rgba(214, 164, 95, 0.18);
-  border-color: rgba(214, 164, 95, 0.55);
+  background: #fff1d6;
+  border-color: rgba(217, 154, 31, 0.55);
 }
 
 .alertInfo {
   color: var(--body);
-  background: rgba(131, 169, 208, 0.16);
-  border-color: rgba(131, 169, 208, 0.5);
+  background: #f6f3ee;
+  border-color: rgba(156, 143, 123, 0.5);
 }
 
 .spinner {
   flex-shrink: 0;
   border-radius: 50%;
-  border: 2px solid var(--navy);
+  border: 2px solid currentColor;
+  color: var(--ink);
   border-top-color: transparent;
   animation: spin 0.7s linear infinite;
 }
@@ -530,4 +529,102 @@ button.cancelBtn:hover:not(:disabled) {
     display: inline-block;
     padding: 8px 0;
   }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.geoCard,
+.run,
+.notice,
+.alert {
+  animation: rise 0.45s ease backwards;
+}
+
+.geoCard {
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+
+.geoCard:hover {
+  box-shadow: 0 0 0 1px rgba(156, 143, 123, 0.55), 0 18px 44px rgba(21, 20, 20, 0.14);
+}
+
+.geoCardAttention:hover {
+  box-shadow: inset 0 0 0 1.5px #d99a1f, 0 18px 44px rgba(21, 20, 20, 0.14);
+}
+
+.expander:hover {
+  color: #6b6153;
+}
+
+.bar {
+  background-size: 200% 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .geoCard,
+  .run,
+  .notice,
+  .alert {
+    animation: none;
+  }
+
+  .geoCard {
+    transition: none;
+  }
+}
+
+div.run,
+div.runFull {
+  --ink: #ffffff;
+  --body: rgba(255, 255, 255, 0.86);
+  --muted: rgba(255, 255, 255, 0.7);
+  --err-text: #ffb8b2;
+  --warn-text: #ffd98a;
+  color: #fff;
+  background: #151414;
+  border-color: #151414;
+  box-shadow: 0 18px 44px rgba(21, 20, 20, 0.24);
+}
+
+div.run :focus-visible,
+div.runFull :focus-visible {
+  outline-color: #cbbfae;
+  box-shadow: none;
+}
+
+div.run button:not(.cancelBtn),
+div.runFull button:not(.cancelBtn) {
+  color: #fff;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px rgba(255, 255, 255, 0.7);
+}
+
+div.run button:not(.cancelBtn):hover:not(:disabled),
+div.runFull button:not(.cancelBtn):hover:not(:disabled) {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 0 0 1.5px #fff;
+}
+
+div.run button.cancelBtn,
+div.runFull button.cancelBtn {
+  color: #ffb8b2;
+  background: rgba(214, 69, 61, 0.22);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 150, 143, 0.6);
+}
+
+div.run button.cancelBtn:hover:not(:disabled),
+div.runFull button.cancelBtn:hover:not(:disabled) {
+  color: #fff;
+  background: rgba(214, 69, 61, 0.42);
+  box-shadow: inset 0 0 0 1.5px rgba(255, 150, 143, 0.9);
 }

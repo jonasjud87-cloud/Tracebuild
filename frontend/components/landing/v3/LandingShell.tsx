@@ -33,11 +33,21 @@ export default function LandingShell({ children }: { children: React.ReactNode }
       else el.classList.add("in");
     };
 
-    root.querySelectorAll<HTMLElement>(REVEAL_SELECTOR).forEach((el, i) => {
-      if (el.tagName === "IMG" || el.children.length || el.textContent?.trim()) {
-        reveal(el, i, 0.08);
+    const revealTree = (el: HTMLElement, index: number) => {
+      if (el.hasAttribute("data-card")) {
+        if (el.getAttribute("data-card") !== "static") reveal(el, index, 0.06);
+        return;
       }
-    });
+      if (!el.querySelector("[data-card]")) {
+        if (el.tagName === "IMG" || el.children.length || el.textContent?.trim()) {
+          reveal(el, index, 0.08);
+        }
+        return;
+      }
+      Array.from(el.children).forEach((child, i) => revealTree(child as HTMLElement, i));
+    };
+
+    root.querySelectorAll<HTMLElement>(REVEAL_SELECTOR).forEach((el, i) => revealTree(el, i));
 
     const header = root.querySelector<HTMLElement>("header");
     if (header && "ResizeObserver" in window) {

@@ -106,6 +106,7 @@ export default function Product() {
           viewport={inView}
           transition={{ duration: 0.72, ease: EASE_OUT }}
           data-theme="dark"
+          data-card="static"
           className={`${styles.scope} ${styles.frame}`}
         >
           <motion.div

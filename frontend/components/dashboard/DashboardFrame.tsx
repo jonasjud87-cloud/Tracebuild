@@ -7,7 +7,6 @@ import { jakarta as font } from "@/lib/fonts";
 import { roleLabel } from "@/lib/roles";
 import type { OrgInfo } from "@/lib/dashboardContext";
 import AnnouncementBanner from "@/components/announcements/AnnouncementBanner";
-import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import { BookIcon, CloseIcon, HomeIcon, LayersIcon, LogoutIcon, MenuIcon, UsersIcon } from "@/components/dashboard/icons";
 import s from "@/app/dashboard/dashboard.module.css";
 
@@ -41,8 +40,8 @@ function NavItem({ href, active, icon, label, onNavigate }: { href: string; acti
 function Brand({ onNavigate, className, priority }: { onNavigate: () => void; className?: string; priority?: boolean }) {
   return (
     <Link href="/dashboard" className={`${s.brand} ${className ?? ""}`} onClick={onNavigate} aria-label="TraceBuild Übersicht">
-      <Image src="/landing/logo-mark.svg" alt="" width={28} height={40} className={s.brandMark} priority={priority} />
-      <span className={s.wordmark} aria-hidden="true">Trace<span>Build</span></span>
+      <Image src="/landing/logo-tb.svg" alt="" width={28} height={40} className={s.brandMark} priority={priority} />
+      <span className={s.wordmark} aria-hidden="true">TraceBuild</span>
     </Link>
   );
 }
@@ -140,7 +139,6 @@ export default function DashboardFrame({ pathname, email, userName, role, active
       </aside>
 
       <div ref={mainRef} className={s.main}>
-        <DashboardBackdrop />
         <div className={s.content}>
           {showAdminBanner && (
             <div className={s.banner}>
@@ -152,7 +150,9 @@ export default function DashboardFrame({ pathname, email, userName, role, active
             </div>
           )}
           <main className={s.pad}>
-            <AnnouncementBanner />
+            <div className={s.bannerSlot}>
+              <AnnouncementBanner />
+            </div>
             {children}
           </main>
         </div>

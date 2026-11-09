@@ -34,7 +34,7 @@ export default function AnalysesTabs({ view, summary, showCounts, onChange }: Pr
   }
 
   return (
-    <div role="tablist" aria-label="Ansicht" onKeyDown={onKeyDown} className="flex gap-1 overflow-x-auto border-b border-[rgba(255,255,255,0.08)]">
+    <div role="tablist" aria-label="Ansicht" onKeyDown={onKeyDown} className="flex gap-1 overflow-x-auto border-b border-[rgba(21,20,20,.08)]">
       {VIEW_ORDER.map((v) => {
         const active = v === view;
         const count = countFor(v, summary, showCounts);
@@ -48,13 +48,13 @@ export default function AnalysesTabs({ view, summary, showCounts, onChange }: Pr
             aria-controls="analyses-panel"
             tabIndex={active ? 0 : -1}
             onClick={() => onChange(v)}
-            className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A] ${
-              active ? "border-[#F0C99A] text-white" : "border-transparent text-[#8E98A6] hover:text-[#A7AFBA]"
+            className={`-mb-px flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414] ${
+              active ? "border-[#151414] text-[#151414]" : "border-transparent text-[#5f5f64] hover:text-[#46464a]"
             }`}
           >
             {VIEW_LABELS[v]}
             {count !== null && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold tabular-nums ${active ? "bg-[#F0C99A]/25 text-[#F0C99A]" : "bg-[rgba(255,255,255,0.08)] text-[#A7AFBA]"}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-[13px] font-bold tabular-nums ${active ? "bg-[#CBBFAE]/15 text-[#6b6153]" : "bg-[rgba(21,20,20,.07)] text-[#46464a]"}`}>
                 {count}
               </span>
             )}

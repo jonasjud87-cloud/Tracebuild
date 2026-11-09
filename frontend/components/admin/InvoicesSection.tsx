@@ -10,8 +10,8 @@ type Format = "csv" | "pdf";
 
 const MONTHS = ["Januar", "Februar", "März", "April", "Mai", "Juni", "Juli", "August", "September", "Oktober", "November", "Dezember"];
 const CARD = "tba-glass rounded-2xl";
-const FOCUS = "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]";
-const SMALL_BTN = `text-xs font-semibold text-[#F0C99A] bg-[#F0C99A]/10 hover:bg-[#7A5F3D] hover:text-white px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none ${FOCUS}`;
+const FOCUS = "focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]";
+const SMALL_BTN = `text-sm font-semibold text-[#6b6153] bg-[#cbbfae]/30 hover:bg-[#cbbfae] hover:text-[#151414] px-2.5 py-1 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none ${FOCUS}`;
 
 function chf(n: number): string {
   return `CHF ${n.toLocaleString("de-CH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -48,10 +48,10 @@ function fileNameFrom(res: Response, fallback: string): string {
 
 function StatusBadge({ status }: { status: Invoice["status"] }) {
   const cls = status === "final"
-    ? "bg-[#65A88A]/10 text-[#65A88A] border-[#65A88A]/30"
-    : "bg-[#D6A45F]/10 text-[#D6A45F] border-[#D6A45F]/30";
+    ? "bg-[#e4f3ea] text-[#136a40] border-[#65A88A]/30"
+    : "bg-[#fff1d6] text-[#7a4f00] border-[#D6A45F]/30";
   return (
-    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold ${cls}`}>
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[13px] font-semibold ${cls}`}>
       {status === "final" ? "Final" : "Laufend"}
     </span>
   );
@@ -149,15 +149,15 @@ export default function InvoicesSection({ onToast }: Props) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className={`lg:col-span-2 ${CARD} overflow-hidden`}>
-        <div className="px-5 py-4 border-b border-[rgba(255,255,255,0.08)] flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-sm font-semibold text-white">Monatliche Kostenberichte</h3>
+        <div className="px-5 py-4 border-b border-[rgba(21,20,20,0.08)] flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold text-[#151414]">Monatliche Kostenberichte</h3>
           <div className="flex items-center gap-2">
             <label className="sr-only" htmlFor="invoice-year">Jahr</label>
             <select
               id="invoice-year"
               value={year}
               onChange={e => setYear(e.target.value)}
-              className={`rounded-lg border border-[rgba(240,201,154,0.25)] bg-[rgba(17,27,43,0.6)] px-2.5 py-1.5 text-xs text-white ${FOCUS}`}
+              className={`rounded-lg border border-[#8c8b8e] bg-white px-2.5 py-1.5 text-sm text-[#151414] ${FOCUS}`}
             >
               {years.map(y => <option key={y} value={y}>{y}</option>)}
             </select>
@@ -165,7 +165,7 @@ export default function InvoicesSection({ onToast }: Props) {
               type="button"
               onClick={() => void download("csv", year)}
               disabled={busy !== null || loading || invoices.length === 0}
-              className={`text-xs font-semibold text-[#F0C99A] bg-[#F0C99A]/10 hover:bg-[#7A5F3D] hover:text-white px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none ${FOCUS}`}
+              className={`text-sm font-semibold text-[#6b6153] bg-[#cbbfae]/30 hover:bg-[#cbbfae] hover:text-[#151414] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 disabled:pointer-events-none ${FOCUS}`}
             >
               {isBusy("csv", year) ? "Wird exportiert …" : "Alle exportieren"}
             </button>
@@ -173,43 +173,43 @@ export default function InvoicesSection({ onToast }: Props) {
         </div>
 
         {loading ? (
-          <div className="divide-y divide-[rgba(255,255,255,0.08)]" aria-busy="true" aria-label="Lade Kostenberichte">
+          <div className="divide-y divide-[rgba(21,20,20,0.08)]" aria-busy="true" aria-label="Lade Kostenberichte">
             {Array.from({ length: 5 }).map((_, i) => (
               <div key={i} className="flex items-center gap-4 px-5 py-4 animate-pulse">
-                <div className="h-3 w-28 rounded bg-[rgba(255,255,255,0.08)]" />
-                <div className="h-3 flex-1 rounded bg-[rgba(255,255,255,0.08)]" />
-                <div className="h-3 w-20 rounded bg-[rgba(255,255,255,0.08)]" />
+                <div className="h-3 w-28 rounded bg-[rgba(21,20,20,0.08)]" />
+                <div className="h-3 flex-1 rounded bg-[rgba(21,20,20,0.08)]" />
+                <div className="h-3 w-20 rounded bg-[rgba(21,20,20,0.08)]" />
               </div>
             ))}
           </div>
         ) : error ? (
           <div role="alert" className="flex flex-col items-center justify-center py-14 px-6 text-center">
-            <p className="text-sm font-medium text-white mb-1">Kostenberichte konnten nicht geladen werden</p>
-            <p className="text-xs text-[#8E98A6] mb-4">{error}</p>
+            <p className="text-sm font-medium text-[#151414] mb-1">Kostenberichte konnten nicht geladen werden</p>
+            <p className="text-sm text-[#5f5f64] mb-4">{error}</p>
             <button
               type="button"
               onClick={() => void load()}
-              className={`text-xs font-semibold text-white bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] hover:brightness-110 px-4 py-2 rounded-xl transition-colors ${FOCUS}`}
+              className={`text-sm font-semibold text-white bg-[#151414] hover:bg-[#2e2e30] px-4 py-2 rounded-xl transition-colors ${FOCUS}`}
             >
               Erneut versuchen
             </button>
           </div>
         ) : groups.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-            <div className="w-10 h-10 rounded-xl bg-[#F0C99A]/10 flex items-center justify-center mb-3">
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="text-[#F0C99A]" aria-hidden="true">
+            <div className="w-10 h-10 rounded-xl bg-[#cbbfae]/30 flex items-center justify-center mb-3">
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none" className="text-[#6b6153]" aria-hidden="true">
                 <path d="M4 14V4a1 1 0 011-1h6l3 3v8a1 1 0 01-1 1H5a1 1 0 01-1-1Z" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M11 3v3h3M7 9h4M7 12h4" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
             </div>
-            <p className="text-sm font-medium text-white mb-1">Keine Kostenberichte für {year}</p>
-            <p className="text-xs text-[#8E98A6]">Berichte erscheinen hier, sobald Nutzungskosten anfallen.</p>
+            <p className="text-sm font-medium text-[#151414] mb-1">Keine Kostenberichte für {year}</p>
+            <p className="text-sm text-[#5f5f64]">Berichte erscheinen hier, sobald Nutzungskosten anfallen.</p>
           </div>
         ) : (
           <div className="overflow-x-auto tba-scroll-x">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[rgba(255,255,255,0.08)] text-left text-[11px] font-semibold uppercase tracking-widest text-[#A7AFBA]">
+                <tr className="border-b border-[rgba(21,20,20,0.08)] text-left text-[13px] font-semibold uppercase tracking-widest text-[#46464a]">
                   <th scope="col" className="px-4 py-3">Beleg-Nr.</th>
                   <th scope="col" className="px-4 py-3">Organisation</th>
                   <th scope="col" className="px-4 py-3 text-right">Analysen</th>
@@ -221,10 +221,10 @@ export default function InvoicesSection({ onToast }: Props) {
               <tbody>
                 {groups.map(g => (
                   <Fragment key={g.month}>
-                    <tr className="bg-[#192638]/50 border-y border-[rgba(255,255,255,0.08)]">
-                      <th scope="colgroup" colSpan={3} className="px-4 py-2.5 text-left text-xs font-semibold text-white">
+                    <tr className="bg-[#f6f3ee] border-y border-[rgba(21,20,20,0.08)]">
+                      <th scope="colgroup" colSpan={3} className="px-4 py-2.5 text-left text-sm font-semibold text-[#151414]">
                         {monthLabel(g.month)}
-                        <span className="ml-3 font-normal text-[#8E98A6] tabular-nums">{chf(g.total)}</span>
+                        <span className="ml-3 font-normal text-[#5f5f64] tabular-nums">{chf(g.total)}</span>
                       </th>
                       <td colSpan={3} className="px-4 py-2 text-right">
                         <div className="inline-flex gap-2">
@@ -241,33 +241,33 @@ export default function InvoicesSection({ onToast }: Props) {
                       const expanded = open.has(inv.id);
                       return (
                         <Fragment key={inv.id}>
-                          <tr className="border-b border-[rgba(255,255,255,0.08)] hover:bg-[#223247]/60 transition-colors">
+                          <tr className="border-b border-[rgba(21,20,20,0.08)] tba-row transition-colors">
                             <td className="px-4 py-3">
                               <button
                                 type="button"
                                 onClick={() => toggle(inv.id)}
                                 aria-expanded={expanded}
                                 aria-controls={`inv-lines-${inv.id}`}
-                                className={`flex items-center gap-2 rounded text-left font-mono text-xs text-white ${FOCUS}`}
+                                className={`flex items-center gap-2 rounded text-left font-mono text-sm text-[#151414] ${FOCUS}`}
                               >
-                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className={`text-[#8E98A6] transition-transform ${expanded ? "rotate-90" : ""}`}>
+                                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true" className={`text-[#5f5f64] transition-transform ${expanded ? "rotate-90" : ""}`}>
                                   <path d="M3 1.5 6.5 5 3 8.5" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
                                 </svg>
                                 {inv.id}
                               </button>
                             </td>
-                            <td className="px-4 py-3 text-[#A7AFBA] max-w-[240px] truncate" title={inv.orgName}>{inv.orgName}</td>
-                            <td className="px-4 py-3 text-right tabular-nums text-[#A7AFBA]">{inv.analyseCount}</td>
-                            <td className="px-4 py-3 text-right tabular-nums font-semibold text-white whitespace-nowrap">{chf(inv.amountChf)}</td>
+                            <td className="px-4 py-3 text-[#46464a] max-w-[240px] truncate" title={inv.orgName}>{inv.orgName}</td>
+                            <td className="px-4 py-3 text-right tabular-nums text-[#46464a]">{inv.analyseCount}</td>
+                            <td className="px-4 py-3 text-right tabular-nums font-semibold text-[#151414] whitespace-nowrap">{chf(inv.amountChf)}</td>
                             <td className="px-4 py-3"><StatusBadge status={inv.status} /></td>
-                            <td className="px-4 py-3 text-[#A7AFBA] whitespace-nowrap tabular-nums">{formatDate(inv.issuedAt)}</td>
+                            <td className="px-4 py-3 text-[#46464a] whitespace-nowrap tabular-nums">{formatDate(inv.issuedAt)}</td>
                           </tr>
                           {expanded && (
-                            <tr id={`inv-lines-${inv.id}`} className="border-b border-[rgba(255,255,255,0.08)] bg-[#0B1220]/40">
+                            <tr id={`inv-lines-${inv.id}`} className="border-b border-[rgba(21,20,20,0.08)] bg-[#f6f3ee]">
                               <td colSpan={6} className="px-4 py-3">
-                                <table className="w-full text-xs">
+                                <table className="w-full text-sm">
                                   <thead>
-                                    <tr className="text-left text-[11px] font-semibold uppercase tracking-widest text-[#A7AFBA]">
+                                    <tr className="text-left text-[13px] font-semibold uppercase tracking-widest text-[#46464a]">
                                       <th scope="col" className="py-1.5 pr-3 font-semibold">Position</th>
                                       <th scope="col" className="py-1.5 px-3 text-right font-semibold">Menge</th>
                                       <th scope="col" className="py-1.5 px-3 text-right font-semibold">Einzelpreis</th>
@@ -276,11 +276,11 @@ export default function InvoicesSection({ onToast }: Props) {
                                   </thead>
                                   <tbody>
                                     {inv.lines.map((l, i) => (
-                                      <tr key={i} className="text-[#A7AFBA]">
+                                      <tr key={i} className="text-[#46464a]">
                                         <td className="py-1.5 pr-3">{l.description}</td>
                                         <td className="py-1.5 px-3 text-right tabular-nums">{l.quantity}</td>
                                         <td className="py-1.5 px-3 text-right tabular-nums whitespace-nowrap">{chfUnit(l.unitChf)}</td>
-                                        <td className="py-1.5 pl-3 text-right tabular-nums whitespace-nowrap text-white">{chf(l.totalChf)}</td>
+                                        <td className="py-1.5 pl-3 text-right tabular-nums whitespace-nowrap text-[#151414]">{chf(l.totalChf)}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -301,7 +301,7 @@ export default function InvoicesSection({ onToast }: Props) {
 
       <div className="space-y-4">
         <div className={`${CARD} p-5`}>
-          <h4 className="text-sm font-semibold text-white mb-4">Schnellexport</h4>
+          <h4 className="text-sm font-semibold text-[#151414] mb-4">Schnellexport</h4>
           <div className="space-y-2">
             {([
               { label: "Aktueller Monat — PDF", format: "pdf", period: month },
@@ -313,7 +313,7 @@ export default function InvoicesSection({ onToast }: Props) {
                 type="button"
                 onClick={() => void download(format, period)}
                 disabled={busy !== null}
-                className={`w-full text-left text-sm font-medium text-[#A7AFBA] hover:text-white hover:bg-[#223247]/60 py-2.5 px-3.5 rounded-xl border border-[rgba(255,255,255,0.08)] transition-colors disabled:opacity-50 disabled:pointer-events-none ${FOCUS}`}
+                className={`w-full text-left text-sm font-medium text-[#46464a] hover:text-[#151414] hover:bg-[#f6f3ee] py-2.5 px-3.5 rounded-xl border border-[rgba(21,20,20,0.08)] transition-colors disabled:opacity-50 disabled:pointer-events-none ${FOCUS}`}
               >
                 {isBusy(format, period) ? "Wird exportiert …" : label}
               </button>
@@ -322,8 +322,8 @@ export default function InvoicesSection({ onToast }: Props) {
         </div>
 
         <div className={`${CARD} p-5`}>
-          <h4 className="text-sm font-semibold text-white mb-2">Hinweis</h4>
-          <p className="text-xs text-[#8E98A6] leading-relaxed">
+          <h4 className="text-sm font-semibold text-[#151414] mb-2">Hinweis</h4>
+          <p className="text-sm text-[#5f5f64] leading-relaxed">
             Die Beträge sind aus den Nutzungskosten der Analysen abgeleitet und keine steuerlich gültigen Rechnungen.
             {rate !== undefined && ` Umrechnung in CHF zum aktuellen Kurs ${rate.toLocaleString("de-CH", { maximumFractionDigits: 4 })} (USD/CHF), nicht historisiert.`}
             {" "}Monate mit Status «Laufend» sind vorläufig und können sich noch ändern.

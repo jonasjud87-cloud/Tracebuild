@@ -37,17 +37,18 @@
 }
 :global(.tbl) .steps {
   margin-top: 56px;
+  display: grid;
+  gap: 16px;
 }
 :global(.tbl) .step {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px 32px;
   align-items: center;
-  padding: 36px 0;
-  border-top: 1px solid rgba(21, 20, 20, 0.12);
-}
-:global(.tbl) .step:hover {
-  padding-left: 12px;
+  padding: 28px 32px;
+  background: #fff;
+  border: 1px solid rgba(21, 20, 20, 0.1);
+  border-radius: 20px;
 }
 :global(.tbl) .stepHead {
   display: grid;

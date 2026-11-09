@@ -27,7 +27,7 @@ export default function Approach() {
         </div>
         <div className={styles.steps}>
           {STEPS.map((s) => (
-            <div key={s.n} className={styles.step}>
+            <div key={s.n} className={styles.step} data-card="">
               <div className={styles.stepHead}>
                 <span className={styles.num}>{s.n}</span>
                 <h3 className={styles.stepTitle}>{s.t}</h3>

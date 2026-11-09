@@ -81,10 +81,7 @@
 }
 
 .errCard {
-  box-shadow:
-    inset 0 1px 0 rgba(252, 247, 238, 0.85),
-    inset 0 0 0 2px rgba(216, 121, 121, 0.45),
-    0 14px 30px -24px rgba(140, 42, 42, 0.3);
+  box-shadow: inset 0 0 0 2px rgba(214, 69, 61, 0.6), 0 10px 30px rgba(21, 20, 20, 0.07);
 }
 
 .skelCard {
@@ -139,7 +136,7 @@
   gap: 10px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--line);
-  background: rgba(240, 230, 214, 0.5);
+  background: #f6f3ee;
   color: var(--ink);
 }
 
@@ -156,7 +153,7 @@
   flex: 1;
   width: 100%;
   border: 0;
-  background: #fffaf1;
+  background: #fff;
 }
 
 .previewEmpty {
@@ -181,13 +178,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(243, 233, 218, 0.7);
+  background: rgba(246, 243, 238, 0.82);
 }
 
 .spinner {
   width: 26px;
   height: 26px;
-  border: 3px solid var(--navy);
+  border: 3px solid #151414;
   border-top-color: transparent;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -312,5 +309,65 @@
   .srcTable .titleCell {
     min-width: 0;
     font-size: 16px;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.stack > *,
+.split > * {
+  animation: rise 0.45s ease backwards;
+}
+
+.stack > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+
+.stack > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+
+.stack > :nth-child(n + 4) {
+  animation-delay: 0.15s;
+}
+
+.split > :nth-child(2) {
+  animation-delay: 0.08s;
+}
+
+.catCard {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.catCard:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 0 0 1px rgba(156, 143, 123, 0.55), 0 18px 44px rgba(21, 20, 20, 0.14);
+}
+
+.kennRow {
+  transition: background-color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stack > *,
+  .split > * {
+    animation: none;
+  }
+
+  .catCard {
+    transition: none;
+  }
+
+  .catCard:hover {
+    transform: none;
   }
 }

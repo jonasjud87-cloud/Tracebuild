@@ -16,10 +16,10 @@ export interface SystemStatusData {
 }
 
 const CFG: Record<Status, { label: string; text: string; pill: string }> = {
-  online: { label: "Online", text: "text-[#65A88A]", pill: "bg-[#65A88A]/15 text-[#8FD0B1]" },
-  degraded: { label: "Verlangsamt", text: "text-[#D6A45F]", pill: "bg-[#D6A45F]/15 text-[#F0C99A]" },
-  offline: { label: "Offline", text: "text-[#EBA1A1]", pill: "bg-[#D87979]/15 text-[#EBA1A1]" },
-  unknown: { label: "Unbekannt", text: "text-[var(--tba-text-2,#A7AFBA)]", pill: "bg-white/[0.07] text-[#D5D9E0]" },
+  online: { label: "Online", text: "text-[#136a40]", pill: "bg-[#65A88A]/15 text-[#136a40]" },
+  degraded: { label: "Verlangsamt", text: "text-[#7a4f00]", pill: "bg-[#D6A45F]/15 text-[#7a4f00]" },
+  offline: { label: "Offline", text: "text-[#a3201a]", pill: "bg-[#D87979]/15 text-[#a3201a]" },
+  unknown: { label: "Unbekannt", text: "text-[var(--tba-text-2,#46464a)]", pill: "bg-[rgba(21,20,20,.05)] text-[#46464a]" },
 };
 
 function Icon({ status }: { status: Status }) {
@@ -32,9 +32,9 @@ function Icon({ status }: { status: Status }) {
 }
 
 function overall(services: StatusService[]): { label: string; cls: string; status: Status } {
-  if (services.some(s => s.status === "offline")) return { label: "Störung", cls: "bg-[#D87979]/15 text-[#EBA1A1]", status: "offline" };
-  if (services.some(s => s.status !== "online")) return { label: "Eingeschränkt", cls: "bg-[#D6A45F]/15 text-[#F0C99A]", status: "degraded" };
-  return { label: "Alle Systeme aktiv", cls: "bg-[#F0C99A]/15 text-[#F0C99A]", status: "online" };
+  if (services.some(s => s.status === "offline")) return { label: "Störung", cls: "bg-[#D87979]/15 text-[#a3201a]", status: "offline" };
+  if (services.some(s => s.status !== "online")) return { label: "Eingeschränkt", cls: "bg-[#D6A45F]/15 text-[#7a4f00]", status: "degraded" };
+  return { label: "Alle Systeme aktiv", cls: "bg-[#65A88A]/15 text-[#136a40]", status: "online" };
 }
 
 function formatLatency(ms: number) {
@@ -60,7 +60,7 @@ export default function SystemStatusCard({ data, className = "" }: { data: Syste
       className={className}
       action={
         services.length > 0 ? (
-          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold ${badge.cls}`}>
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold ${badge.cls}`}>
             <Icon status={badge.status} />
             {badge.label}
           </span>
@@ -68,31 +68,31 @@ export default function SystemStatusCard({ data, className = "" }: { data: Syste
       }
     >
       {services.length === 0 ? (
-        <p className="text-sm text-[var(--tba-text-2,#A7AFBA)]">Keine Dienste gemeldet.</p>
+        <p className="text-sm text-[var(--tba-text-2,#46464a)]">Keine Dienste gemeldet.</p>
       ) : (
-        <ul className="divide-y divide-white/[0.06]">
+        <ul className="divide-y divide-[rgba(21,20,20,.08)]">
           {services.map(s => {
             const st: Status = CFG[s.status] ? s.status : "unknown";
             const c = CFG[st];
             return (
-              <li key={s.key} className="flex items-center gap-3 py-3">
+              <li key={s.key} className="tba-row flex items-center gap-3 py-3">
                 <Icon status={st} />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-[var(--tba-text,#F4F3F0)]">{s.name}</p>
-                  {st !== "online" && s.note && <p className="truncate text-xs text-[var(--tba-text-2,#A7AFBA)]">{s.note}</p>}
+                  <p className="truncate text-sm font-medium text-[var(--tba-text,#151414)]">{s.name}</p>
+                  {st !== "online" && s.note && <p className="truncate text-[13px] text-[var(--tba-text-2,#46464a)]">{s.note}</p>}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                   {typeof s.latencyMs === "number" && (
-                    <span className="hidden text-sm tabular-nums text-[var(--tba-text-2,#A7AFBA)] sm:inline">{formatLatency(s.latencyMs)}</span>
+                    <span className="hidden text-sm tabular-nums text-[var(--tba-text-2,#46464a)] sm:inline">{formatLatency(s.latencyMs)}</span>
                   )}
-                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${c.pill}`}>{c.label}</span>
+                  <span className={`rounded-full px-2.5 py-0.5 text-[13px] font-medium ${c.pill}`}>{c.label}</span>
                 </div>
               </li>
             );
           })}
         </ul>
       )}
-      {time && <p className="mt-2 text-xs text-[var(--tba-text-2,#A7AFBA)]">Zuletzt geprüft: {time}</p>}
+      {time && <p className="mt-2 text-[13px] text-[var(--tba-text-2,#46464a)]">Zuletzt geprüft: {time}</p>}
     </Card>
   );
 }

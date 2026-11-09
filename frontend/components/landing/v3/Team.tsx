@@ -30,7 +30,7 @@ export default function Team() {
         <p className={styles.lead}>TraceBuild ist von uns beiden – von der ersten Idee bis zur fertigen Anwendung.</p>
         <div className={styles.list}>
           {TEAM.map((p) => (
-            <div key={p.mail} className={p.reverse ? `${styles.person} ${styles.reverse}` : styles.person}>
+            <div key={p.mail} data-card="" className={p.reverse ? `${styles.person} ${styles.reverse}` : styles.person}>
               <div className={styles.avatar} aria-hidden="true">
                 <div className={styles.monogram}>{p.initials}</div>
                 <div className={styles.circle} />

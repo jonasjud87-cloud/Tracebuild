@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAuthUser } from "@/lib/auth";
 import "@/components/admin/shell/admin-theme.css";
+import "@/components/admin/slice-motion.css";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const user = await getAuthUser();

@@ -3,24 +3,27 @@
    Abstände und Überschriften zurück, deshalb wird hier alles explizit gesetzt. */
 
 .page {
-  --bg: #ffffff;
-  --surface: #f5f7fb;
-  --ink: #172033;
-  --muted: #5b6478;
-  --line: #e2e7ef;
-  --accent: #2862d7;
-  --accent-soft: #eaf0fc;
+  --bg: #f6f3ee;
+  --card: #ffffff;
+  --surface: #efeae1;
+  --ink: #151414;
+  --body: #46464a;
+  --muted: #5a5a5f;
+  --line: rgba(21, 20, 20, 0.1);
+  --line-strong: rgba(156, 143, 123, 0.55);
+  --accent: #6b6153;
+  --accent-soft: rgba(203, 191, 174, 0.28);
   --ok: #157a4a;
-  --warn: #9a6200;
+  --warn: #8a5a00;
   --bad: #b42318;
   --bar-h: 56px;
 
   min-height: 100vh;
   background: var(--bg);
-  color: var(--ink);
+  color: var(--body);
   font-family: var(--hb-body), "Helvetica Neue", Arial, sans-serif;
-  font-size: 16px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.7;
   -webkit-font-smoothing: antialiased;
   color-scheme: light;
 }
@@ -58,7 +61,7 @@
   color: var(--ink);
 }
 .brand img {
-  width: 40px;
+  width: 28px;
   height: 40px;
   display: block;
 }
@@ -66,14 +69,14 @@
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 700;
   font-size: 19px;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 .brandName b {
-  color: var(--accent);
   font-weight: 700;
 }
 .meta {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 
@@ -83,13 +86,14 @@
 }
 .page .eyebrow {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
   margin: 0 0 12px;
 }
 .page h1 {
+  color: var(--ink);
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 700;
   font-size: clamp(32px, 5vw, 44px);
@@ -99,8 +103,9 @@
   text-wrap: balance;
 }
 .page .lead {
-  font-size: 18px;
-  color: var(--muted);
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--body);
   max-width: 62ch;
   margin: 0;
 }
@@ -108,7 +113,7 @@
 /* Inhaltsverzeichnis */
 .page .tocTitle {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -124,27 +129,36 @@
 }
 .tocCard {
   border: 1px solid var(--line);
-  border-radius: 10px;
-  padding: 6px;
+  border-radius: 20px;
+  padding: 8px;
+  background: var(--card);
+  box-shadow: 0 1px 2px rgba(21, 20, 20, 0.04), 0 10px 30px rgba(21, 20, 20, 0.07);
   display: flex;
   flex-direction: column;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.tocCard:hover,
+.tocCard:focus-within {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: 0 18px 44px rgba(21, 20, 20, 0.14);
 }
 .tocChapter {
   display: flex;
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px 12px;
-  border-radius: 7px;
+  border-radius: 10px;
   text-decoration: none;
   color: var(--ink);
-  transition: background 0.15s;
+  transition: background-color 0.2s ease;
 }
 .tocChapter:hover {
   background: var(--accent-soft);
 }
 .tocN {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
 }
 .tocT {
@@ -153,7 +167,7 @@
   font-size: 17px;
 }
 .tocD {
-  font-size: 14px;
+  font-size: 15px;
   color: var(--muted);
   line-height: 1.45;
 }
@@ -168,27 +182,28 @@
   grid-template-columns: 30px minmax(0, 1fr);
   gap: 4px;
   padding: 6px 12px;
-  border-radius: 7px;
-  font-size: 14px;
+  border-radius: 8px;
+  font-size: 15px;
   line-height: 1.4;
   color: var(--ink);
   text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 .tocSections a:hover {
   background: var(--surface);
-  color: var(--accent);
+  color: var(--ink);
 }
 .tocSectionNum {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   padding-top: 1px;
 }
 
 .page a:focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--ink);
   outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(203, 191, 174, 0.55);
 }
 
 /* Kapitelleiste: erscheint, sobald das Inhaltsverzeichnis aus dem Bild ist */
@@ -197,7 +212,7 @@
   inset: 0 0 auto 0;
   z-index: 20;
   height: var(--bar-h);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(246, 243, 238, 0.92);
   backdrop-filter: saturate(1.4) blur(10px);
   -webkit-backdrop-filter: saturate(1.4) blur(10px);
   border-bottom: 1px solid var(--line);
@@ -222,13 +237,13 @@
   gap: 6px;
   padding: 6px 10px;
   border-radius: 7px;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--muted);
   text-decoration: none;
 }
 .barTop:hover {
-  color: var(--accent);
+  color: var(--ink);
   background: var(--surface);
 }
 .barChapters {
@@ -261,19 +276,22 @@
   background: var(--surface);
 }
 .barChapters a[aria-current="true"] {
-  background: var(--accent-soft);
-  color: var(--accent);
+  background: var(--ink);
+  color: #fff;
+}
+.barChapters a[aria-current="true"] .barNum {
+  color: #cbbfae;
 }
 .barNum {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
 }
 .barCurrent {
   margin-left: auto;
   flex-shrink: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
@@ -285,7 +303,7 @@
   bottom: -1px;
   height: 2px;
   width: 100%;
-  background: var(--accent);
+  background: #151414;
   transform-origin: 0 50%;
   transform: scaleX(0);
 }
@@ -297,12 +315,13 @@
   scroll-margin-top: var(--bar-h);
 }
 .page h2 {
+  color: var(--ink);
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 700;
-  font-size: 28px;
+  font-size: 30px;
   line-height: 1.2;
   letter-spacing: -0.015em;
-  margin: 0 0 12px;
+  margin: 0 0 14px;
   text-wrap: balance;
 }
 .num {
@@ -310,21 +329,22 @@
   margin-right: 10px;
 }
 .page h3 {
+  color: var(--ink);
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 600;
-  font-size: 20px;
+  font-size: 21px;
   line-height: 1.3;
-  margin: 40px 0 12px;
+  margin: 44px 0 12px;
   text-wrap: balance;
   scroll-margin-top: calc(var(--bar-h) + 16px);
 }
 .page p {
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   max-width: 68ch;
 }
 .chapterLead {
-  color: var(--muted);
-  font-size: 17px;
+  color: var(--body);
+  font-size: 18px;
 }
 
 /* UI-Begriffe so, wie sie in der App stehen */
@@ -332,8 +352,9 @@
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
   font-size: 0.86em;
   font-weight: 500;
+  color: var(--ink);
   padding: 1px 6px;
-  border-radius: 5px;
+  border-radius: 6px;
   background: var(--surface);
   border: 1px solid var(--line);
   white-space: nowrap;
@@ -362,8 +383,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--accent);
-  color: #ffffff;
+  background: #151414;
+  color: #cbbfae;
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
   font-size: 13px;
   margin-top: 1px;
@@ -390,16 +411,16 @@
   width: 100%;
   max-width: 100%;
   height: auto;
-  border-radius: 10px;
+  border-radius: 14px;
   border: 1px solid var(--line);
-  box-shadow: 0 1px 2px rgba(23, 32, 51, 0.06), 0 8px 24px rgba(23, 32, 51, 0.06);
-  background: #0b0f1a;
+  box-shadow: 0 1px 2px rgba(21, 20, 20, 0.06), 0 12px 32px -12px rgba(21, 20, 20, 0.22);
+  background: #151414;
 }
 .narrow img {
   max-width: 520px;
 }
 .figure figcaption {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   margin-top: 10px;
 }
@@ -409,13 +430,14 @@
   overflow-x: auto;
   margin: 20px 0;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 14px;
+  background: var(--card);
 }
 .tableWrap table {
   border-collapse: collapse;
   width: 100%;
   min-width: 560px;
-  font-size: 15px;
+  font-size: 16px;
 }
 .tableWrap th,
 .tableWrap td {
@@ -426,7 +448,7 @@
 }
 .tableWrap th {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -452,12 +474,14 @@
 .note {
   margin: 20px 0;
   padding: 14px 18px;
-  border-radius: 10px;
-  background: var(--surface);
+  border-radius: 14px;
+  background: var(--card);
   border: 1px solid var(--line);
-  font-size: 15px;
+  border-left: 3px solid var(--line-strong);
+  font-size: 16px;
 }
 .note strong {
+  color: var(--ink);
   display: block;
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 600;
@@ -477,8 +501,9 @@
 .legend > div {
   padding: 14px 16px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  font-size: 14px;
+  border-radius: 14px;
+  background: var(--card);
+  font-size: 15px;
   color: var(--muted);
 }
 .legend b {
@@ -512,7 +537,7 @@
 }
 .footerInner {
   padding-block: 24px 40px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
   display: flex;
   justify-content: space-between;
@@ -531,6 +556,14 @@
   .bar {
     transition: none !important;
   }
+  .tocCard:hover,
+  .tocCard:focus-within,
+  .quickSteps a:hover,
+  .quickSteps a:focus-visible,
+  .sources > li:hover,
+  .testphaseCta:hover {
+    transform: none !important;
+  }
 }
 
 .tocNav {
@@ -538,7 +571,7 @@
 }
 
 .note a {
-  color: var(--accent);
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -546,31 +579,33 @@
 /* Testphase: Begrüssung und Weg zum Feedback-Formular, ganz oben */
 .testphase {
   margin: 0 0 48px;
-  padding: 20px 22px;
-  border-radius: 12px;
-  background: var(--accent-soft);
-  border: 1px solid #cddbf7;
+  padding: 24px 26px;
+  border-radius: 18px;
+  background: var(--card);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 14px 36px -22px rgba(21, 20, 20, 0.3);
 }
 .page .testphaseLabel {
   display: inline-block;
   margin: 0 0 10px;
   padding: 2px 8px;
   border-radius: 999px;
-  background: var(--accent);
-  color: #ffffff;
+  background: #151414;
+  color: #cbbfae;
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 .page .testphaseTitle {
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 700;
-  font-size: 20px;
+  font-size: 22px;
+  color: var(--ink);
   margin: 0 0 8px;
 }
 .page .testphase p:not(.testphaseLabel):not(.testphaseTitle) {
-  font-size: 15px;
+  font-size: 16px;
   margin: 0 0 10px;
 }
 .testphaseCta {
@@ -578,21 +613,26 @@
   align-items: center;
   gap: 6px;
   margin-top: 6px;
-  padding: 10px 16px;
-  border-radius: 8px;
-  background: var(--accent);
+  padding: 12px 18px;
+  border-radius: 12px;
+  background: #151414;
   color: #ffffff;
   font-weight: 600;
-  font-size: 15px;
+  font-size: 16px;
   text-decoration: none;
-  transition: background 0.15s;
+  transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 .testphaseCta:hover {
-  background: #1f4fb3;
+  background: #2e2e30;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -12px rgba(21, 20, 20, 0.5);
+}
+.testphaseCta:active {
+  transform: translateY(0);
 }
 
 .chapterLead a {
-  color: var(--accent);
+  color: var(--ink);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
@@ -604,9 +644,10 @@
 .page .quickTitle {
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
   font-weight: 600;
-  font-size: 20px;
+  font-size: 22px;
   letter-spacing: -0.01em;
-  margin: 0 0 14px;
+  color: var(--ink);
+  margin: 0 0 16px;
 }
 .quickSteps {
   list-style: none;
@@ -621,17 +662,22 @@
   flex-direction: column;
   gap: 6px;
   height: 100%;
-  padding: 18px;
-  border-radius: 12px;
-  border: 1px solid var(--accent);
-  background: var(--bg);
+  padding: 20px;
+  border-radius: 16px;
+  border: 1px solid var(--line-strong);
+  background: var(--card);
   color: var(--ink);
   text-decoration: none;
-  transition: background 0.15s, box-shadow 0.15s;
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
 }
-.quickSteps a:hover {
-  background: var(--accent-soft);
-  box-shadow: 0 6px 20px rgba(40, 98, 215, 0.12);
+.quickSteps a:hover,
+.quickSteps a:focus-visible {
+  transform: translateY(-4px);
+  border-color: var(--accent);
+  box-shadow: 0 18px 36px -18px rgba(21, 20, 20, 0.35);
+}
+.quickSteps a:active {
+  transform: translateY(-1px);
 }
 .quickNum {
   width: 30px;
@@ -639,8 +685,8 @@
   border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--accent);
-  color: #ffffff;
+  background: #151414;
+  color: #cbbfae;
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
   font-size: 14px;
   margin-bottom: 4px;
@@ -651,13 +697,13 @@
   font-size: 17px;
 }
 .quickText {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--muted);
   flex: 1;
 }
 .quickMore {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--accent);
 }
@@ -665,7 +711,7 @@
 /* Inhaltsverzeichnis: Hauptkapitel gross, weitere Themen zurückhaltend */
 .tocCardMain {
   grid-column: 1 / -1;
-  border-color: var(--accent);
+  border-color: var(--line-strong);
 }
 .tocCardMain .tocT {
   font-size: 20px;
@@ -675,20 +721,20 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
 }
 .tocMore .tocCard {
-  background: var(--surface);
+  background: transparent;
 }
 .tocMore .tocT {
-  font-size: 15px;
+  font-size: 16px;
 }
 .tocMore .tocSections a {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--muted);
 }
 
 /* Weitere Themen: abgesetzter, ruhigerer Bereich am Schluss */
 .more {
   margin-top: 24px;
-  background: #fafbfd;
+  background: #efeae1;
   border-top: 1px solid var(--line);
 }
 .moreIntro {
@@ -696,7 +742,7 @@
 }
 .page .moreText {
   color: var(--muted);
-  font-size: 15px;
+  font-size: 16px;
   margin: 0;
 }
 .chapterSecondary {
@@ -728,10 +774,16 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding: 16px 18px;
+  padding: 18px 20px;
   border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--bg);
+  border-radius: 16px;
+  background: var(--card);
+  transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.sources > li:hover {
+  transform: translateY(-3px);
+  border-color: var(--line-strong);
+  box-shadow: 0 14px 30px -16px rgba(21, 20, 20, 0.3);
 }
 .sources strong {
   font-family: var(--hb-display), "Helvetica Neue", Arial, sans-serif;
@@ -740,7 +792,7 @@
 }
 .page .sources p {
   margin: 0;
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.5;
   color: var(--muted);
 }
@@ -751,7 +803,7 @@
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 11px;
+  font-size: 13px;
   letter-spacing: 0.04em;
 }
 .sourceTagOwn {
@@ -770,7 +822,7 @@
 .optional {
   display: block;
   margin-top: 4px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 400;
   color: var(--muted);
 }

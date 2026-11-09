@@ -70,7 +70,7 @@ export default function Quality() {
           tabIndex={0}
         >
           {CARDS.map((c) => (
-            <article key={c.t} className={styles.card}>
+            <article key={c.t} className={styles.card} data-card="">
               <div className={styles.media}>
                 <Image src={c.img} alt="" fill sizes="(max-width: 512px) 86vw, 440px" className={styles.cardImage} />
               </div>

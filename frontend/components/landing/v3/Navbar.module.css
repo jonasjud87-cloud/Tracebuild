@@ -49,6 +49,8 @@
   color: var(--sand);
   border-radius: 10px;
   padding: 7px 20px;
+  background: rgba(21, 20, 20, 0.55);
+  transition: background-color 0.2s ease, color 0.2s ease;
   font-weight: var(--fw-btn);
   margin-left: 8px;
 }

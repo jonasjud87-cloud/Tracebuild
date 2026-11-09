@@ -136,7 +136,7 @@ const loadOverview = async () => {
 const loadStatus = () => fetchEnvelope<SystemStatusData>(STATUS_URL, "Systemstatus konnte nicht geladen werden.");
 
 function NoData() {
-  return <p className="py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Keine Daten verfügbar.</p>;
+  return <p className="py-8 text-center text-sm text-[var(--tba-text-2,#46464a)]">Keine Daten verfügbar.</p>;
 }
 
 function PlaceholderCard({ title, state, retry, skeleton }: { title: string; state: Resource<unknown>; retry?: () => void; skeleton: ReactNode }) {
@@ -173,6 +173,7 @@ export default function OverviewDashboard() {
   return (
     <div className="space-y-4">
       <PageHeader
+        variant="hero"
         title="Admin Dashboard"
         subtitle="Systemübersicht, Nutzung und Verwaltung"
         actions={
@@ -195,15 +196,9 @@ export default function OverviewDashboard() {
         {loading ? "Daten werden geladen" : ""}
       </p>
 
-      {data && (missing.size > 0 || data.truncated) && (
-        <div className="tba-glass tba-glass--flat space-y-1 rounded-[20px] px-5 py-3 text-sm text-[var(--tba-text-2,#A7AFBA)]">
-          {missing.size > 0 && <p>Einige Kennzahlen konnten nicht geladen werden.</p>}
-          {data.truncated && <p>Sehr viele Analysen: ältere Werte können ungenau sein.</p>}
-        </div>
-      )}
-
+      <div className="relative z-10 !-mt-20 px-6 sm:px-10">
       {data ? (
-        <div className="grid grid-cols-1 gap-4 min-[701px]:grid-cols-2 min-[1101px]:grid-cols-4">
+        <div className="tba-stagger tba-base-0 grid grid-cols-1 gap-4 min-[701px]:grid-cols-2 min-[1101px]:grid-cols-4">
           <KpiTile label="Analysen (30 Tage)" value={noAnalyses ? "–" : formatInt(data.kpis.analyses30d.value)} icon={icons.analyses} changePct={data.kpis.analyses30d.changePct} hideTrend={noAnalyses} />
           <KpiTile label="Aktive Organisationen" value={noOrgs ? "–" : formatInt(data.kpis.activeOrgs.value)} icon={icons.orgs} changePct={data.kpis.activeOrgs.changePct} hideTrend={noOrgs} />
           <KpiTile label="Aktive Nutzer" value={noUsers ? "–" : formatInt(data.kpis.activeUsers.value)} icon={icons.user} hideTrend />
@@ -221,12 +216,20 @@ export default function OverviewDashboard() {
       ) : (
         <div className="grid grid-cols-1 gap-4 min-[701px]:grid-cols-2 min-[1101px]:grid-cols-4" aria-hidden="true">
           {[0, 1, 2, 3].map(i => (
-            <div key={i} className="tba-skel h-[96px] animate-pulse rounded-[20px] motion-reduce:animate-none" />
+            <div key={i} className="h-[96px] animate-pulse rounded-[20px] bg-white shadow-[0_10px_30px_rgba(21,20,20,.07)] motion-reduce:animate-none" />
           ))}
         </div>
       )}
+      </div>
 
-      <div className="grid grid-cols-1 items-start gap-4 min-[1101px]:grid-cols-3">
+      {data && (missing.size > 0 || data.truncated) && (
+        <div className="tba-glass tba-glass--flat space-y-1 rounded-[20px] px-5 py-3 text-[15px] text-[var(--tba-text-2,#46464a)]">
+          {missing.size > 0 && <p>Einige Kennzahlen konnten nicht geladen werden.</p>}
+          {data.truncated && <p>Sehr viele Analysen: ältere Werte können ungenau sein.</p>}
+        </div>
+      )}
+
+      <div className="tba-stagger tba-base-1 grid pt-2 grid-cols-1 items-start gap-4 min-[1101px]:grid-cols-3">
         <div className="min-w-0 min-[1101px]:col-span-2">
           {data && noSeries ? (
             <Card title="Analysen im Zeitverlauf"><NoData /></Card>
@@ -247,7 +250,7 @@ export default function OverviewDashboard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 min-[1101px]:grid-cols-3">
+      <div className="tba-stagger tba-base-2 grid grid-cols-1 gap-4 min-[1101px]:grid-cols-3">
         <div className="min-w-0 min-[1101px]:col-span-2">
           {data && noLatest ? (
             <Card title="Letzte Analysen"><NoData /></Card>

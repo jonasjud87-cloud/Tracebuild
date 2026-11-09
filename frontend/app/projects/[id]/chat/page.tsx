@@ -33,7 +33,7 @@ function parseInline(text: string): ReactNode {
       parts.push(<strong key={idx++} style={{ fontWeight: 700, color: "var(--ink)" }}>{m[2]}</strong>);
     } else if (m[0].startsWith("`")) {
       parts.push(
-        <code key={idx++} style={{ background: "rgba(176,125,62,0.16)", color: "var(--bronze-deep)", padding: "1px 6px", borderRadius: 6, fontSize: "0.88em", fontFamily: "monospace" }}>
+        <code key={idx++} style={{ background: "rgba(203,191,174,0.32)", color: "#3d372e", padding: "1px 6px", borderRadius: 6, fontSize: "0.88em", fontFamily: "monospace" }}>
           {m[3]}
         </code>
       );
@@ -75,7 +75,7 @@ function MarkdownContent({ text }: { text: string }) {
         i++;
       }
       elements.push(
-        <pre key={`code-${i}`} style={{ background: "#0f1c33", borderRadius: 12, padding: "12px 14px", fontSize: 13, fontFamily: "monospace", overflow: "auto", margin: "10px 0", color: "#e8edf5", whiteSpace: "pre", lineHeight: 1.5 }}>
+        <pre key={`code-${i}`} style={{ background: "#151414", borderRadius: 12, padding: "12px 14px", fontSize: 14, fontFamily: "monospace", overflow: "auto", margin: "10px 0", color: "#f1ece3", whiteSpace: "pre", lineHeight: 1.5 }}>
           {codeLines.join("\n")}
         </pre>
       );
@@ -84,9 +84,9 @@ function MarkdownContent({ text }: { text: string }) {
     }
 
     if (line.startsWith("### ")) {
-      elements.push(<h3 key={i} style={{ fontWeight: 800, color: "var(--bronze-deep)", fontSize: 12, textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 3px" }}>{parseInline(line.slice(4))}</h3>);
+      elements.push(<h3 key={i} style={{ fontWeight: 800, color: "var(--bronze-deep)", fontSize: 13, textTransform: "uppercase", letterSpacing: "0.06em", margin: "14px 0 3px" }}>{parseInline(line.slice(4))}</h3>);
     } else if (line.startsWith("## ")) {
-      elements.push(<h2 key={i} style={{ fontWeight: 700, color: "var(--ink)", fontSize: 16.5, margin: "18px 0 6px" }}>{parseInline(line.slice(3))}</h2>);
+      elements.push(<h2 key={i} style={{ fontWeight: 700, color: "var(--ink)", fontSize: 17, margin: "18px 0 6px" }}>{parseInline(line.slice(3))}</h2>);
     } else if (line.startsWith("# ")) {
       elements.push(<h3 key={i} style={{ fontWeight: 800, color: "var(--ink)", fontSize: 18, margin: "18px 0 8px" }}>{parseInline(line.slice(2))}</h3>);
     } else if (/^[-*] /.test(line)) {
@@ -98,7 +98,7 @@ function MarkdownContent({ text }: { text: string }) {
       elements.push(
         <ul key={`ul-${i}`} style={{ listStyle: "disc", paddingLeft: 22, margin: "8px 0", display: "flex", flexDirection: "column", gap: 4 }}>
           {items.map((item, j) => (
-            <li key={j} style={{ fontSize: 15, lineHeight: 1.6, color: "var(--body)" }}>{parseInline(item)}</li>
+            <li key={j} style={{ fontSize: 16, lineHeight: 1.65, color: "var(--body)" }}>{parseInline(item)}</li>
           ))}
         </ul>
       );
@@ -112,7 +112,7 @@ function MarkdownContent({ text }: { text: string }) {
       elements.push(
         <ol key={`ol-${i}`} style={{ listStyle: "decimal", paddingLeft: 22, margin: "8px 0", display: "flex", flexDirection: "column", gap: 4 }}>
           {items.map((item, j) => (
-            <li key={j} style={{ fontSize: 15, lineHeight: 1.6, color: "var(--body)" }}>{parseInline(item)}</li>
+            <li key={j} style={{ fontSize: 16, lineHeight: 1.65, color: "var(--body)" }}>{parseInline(item)}</li>
           ))}
         </ol>
       );
@@ -124,7 +124,7 @@ function MarkdownContent({ text }: { text: string }) {
         i++;
       }
       elements.push(
-        <blockquote key={`bq-${i}`} style={{ borderLeft: "3px solid var(--bronze)", paddingLeft: 12, margin: "8px 0", color: "var(--muted)", fontStyle: "italic", fontSize: 15, lineHeight: 1.6 }}>
+        <blockquote key={`bq-${i}`} style={{ borderLeft: "3px solid #b5a893", background: "#f6f3ee", borderRadius: 8, padding: "8px 12px", margin: "8px 0", color: "var(--body)", fontStyle: "italic", fontSize: 16, lineHeight: 1.65 }}>
           {quoteLines.map((q, j) => <div key={j}>{parseInline(q)}</div>)}
         </blockquote>
       );
@@ -138,12 +138,12 @@ function MarkdownContent({ text }: { text: string }) {
         i++;
       }
       elements.push(
-        <div key={`table-${i}`} style={{ overflowX: "auto", margin: "10px 0", boxShadow: "inset 0 0 0 1px rgba(176,125,62,0.28)", borderRadius: 12 }}>
-          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 14 }}>
+        <div key={`table-${i}`} style={{ overflowX: "auto", margin: "10px 0", boxShadow: "inset 0 0 0 1px rgba(21,20,20,0.18)", borderRadius: 12 }}>
+          <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 15 }}>
             <thead>
               <tr>
                 {header.map((h, j) => (
-                  <th key={j} style={{ textAlign: "left", padding: "8px 12px", color: "var(--ink)", fontWeight: 800, background: "rgba(240,230,214,0.7)", borderBottom: "1px solid rgba(176,125,62,0.3)", whiteSpace: "nowrap" }}>
+                  <th key={j} style={{ textAlign: "left", padding: "8px 12px", color: "var(--ink)", fontWeight: 800, background: "rgba(203,191,174,0.3)", borderBottom: "1px solid rgba(21,20,20,0.18)", whiteSpace: "nowrap" }}>
                     {parseInline(h)}
                   </th>
                 ))}
@@ -167,7 +167,7 @@ function MarkdownContent({ text }: { text: string }) {
     } else if (line.trim() === "") {
       elements.push(<div key={`sp-${i}`} style={{ height: 6 }} />);
     } else {
-      elements.push(<p key={i} style={{ fontSize: 15, lineHeight: 1.6, color: "var(--body)", margin: 0 }}>{parseInline(line)}</p>);
+      elements.push(<p key={i} style={{ fontSize: 16, lineHeight: 1.65, color: "var(--body)", margin: 0 }}>{parseInline(line)}</p>);
     }
 
     i++;

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Toast from "@/components/admin/Toast";
+import PageHeader from "@/components/admin/shell/PageHeader";
 import type { ToastMessage } from "@/components/admin/types";
 import type { AnalysisRow, AnalysisView, CancelResponse } from "@/lib/admin-analyses/types";
 import AnalysesFilters from "./AnalysesFilters";
@@ -89,21 +90,55 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
       <Toast toasts={toasts} onRemove={(id) => setToasts((prev) => prev.filter((t) => t.id !== id))} />
 
       <div className="space-y-6">
-        <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
+        {!embedded && (
+          <PageHeader
+            variant="hero"
+            photo="hero"
+            overlap={false}
+            title="Analysen-Monitor"
+            subtitle={m.lastUpdated ? `Zuletzt aktualisiert ${formatAgo(new Date(m.lastUpdated).toISOString(), now)}` : "Wird geladen …"}
+            actions={
+              <>
+                <label className="mr-2 flex cursor-pointer select-none items-center gap-2 text-sm text-white">
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    checked={autoRefresh}
+                    onChange={(e) => setAutoRefresh(e.target.checked)}
+                    className="h-4 w-4 accent-[#cbbfae]"
+                  />
+                  Auto-Refresh ({AUTO_REFRESH_MS / 1000} s)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void m.refresh()}
+                  disabled={m.refreshing}
+                  className="tba-pill-btn"
+                >
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" className={m.refreshing ? "animate-spin" : ""}>
+                    <path d="M12 7a5 5 0 1 1-1.6-3.7M12 2v3H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  Aktualisieren
+                </button>
+              </>
+            }
+          />
+        )}
+        {embedded && <header className="flex flex-col items-start justify-between gap-4 sm:flex-row sm:items-center">
           <div>
-            <Title className={embedded ? "text-base font-semibold text-white" : "text-2xl font-bold text-white"}>{embedded ? "Analysen im Überblick" : "Analysen-Monitor"}</Title>
-            <p className="mt-1 text-xs text-[#8E98A6]" aria-live="polite">
+            <Title className={embedded ? "text-base font-semibold text-[#151414]" : "text-2xl font-bold text-[#151414]"}>{embedded ? "Analysen im Überblick" : "Analysen-Monitor"}</Title>
+            <p className="mt-1 text-[13px] text-[#5f5f64]" aria-live="polite">
               {m.lastUpdated ? `Zuletzt aktualisiert ${formatAgo(new Date(m.lastUpdated).toISOString(), now)}` : "Wird geladen …"}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-[#A7AFBA]">
+            <label className="flex cursor-pointer select-none items-center gap-2 text-sm text-[#46464a]">
               <input
                 type="checkbox"
                 role="switch"
                 checked={autoRefresh}
                 onChange={(e) => setAutoRefresh(e.target.checked)}
-                className="h-4 w-4 accent-[#F0C99A]"
+                className="h-4 w-4 accent-[#151414]"
               />
               Auto-Refresh ({AUTO_REFRESH_MS / 1000} s)
             </label>
@@ -111,7 +146,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
               type="button"
               onClick={() => void m.refresh()}
               disabled={m.refreshing}
-              className="flex items-center gap-2 rounded-xl bg-[linear-gradient(135deg,#F0C99A,#B07D3E)] px-4 py-2.5 text-sm font-semibold text-[#07142B] shadow-sm shadow-[#F0C99A]/25 transition-colors hover:bg-[#C79B63] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+              className="flex items-center gap-2 rounded-xl tba-btn bg-[#151414] hover:bg-[#2e2e30] px-4 py-2.5 text-sm font-semibold text-white transition-colors disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
             >
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" className={m.refreshing ? "animate-spin" : ""}>
                 <path d="M12 7a5 5 0 1 1-1.6-3.7M12 2v3H9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -119,7 +154,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
               Aktualisieren
             </button>
           </div>
-        </header>
+        </header>}
 
         <AnalysesSummary
           summary={m.summary}
@@ -147,26 +182,26 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
             onReset={() => patch({ org: "", range: "default", minCost: "" })}
           />
           {highlightOrphans && filters.view === "running" && (
-            <div className="flex items-center gap-2 text-xs text-[#D6A45F]">
+            <div className="flex items-center gap-2 text-[13px] text-[#7a4f00]">
               <span className="rounded-full border border-[#D6A45F]/30 bg-[#D6A45F]/10 px-2.5 py-1 font-semibold">
                 Verwaiste Analysen sind orange hervorgehoben
               </span>
               <button
                 type="button"
                 onClick={() => setHighlightOrphans(false)}
-                className="rounded px-1.5 py-1 text-[#A7AFBA] underline hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+                className="rounded px-1.5 py-1 text-[#46464a] underline hover:text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
               >
                 Hervorhebung entfernen
               </button>
             </div>
           )}
           {autoRefresh && m.autoPaused && (
-            <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[#D6A45F]/30 bg-[#D6A45F]/20 px-4 py-2.5 text-xs text-[#D6A45F]">
+            <div role="status" className="flex flex-wrap items-center gap-3 rounded-xl border border-[#D6A45F]/30 bg-[#D6A45F]/15 px-4 py-2.5 text-[13px] text-[#7a4f00]">
               <span>Auto-Aktualisierung pausiert, weil weitere Seiten geladen sind.</span>
               <button
                 type="button"
                 onClick={() => void m.refresh()}
-                className="rounded-lg border border-[#D6A45F]/40 px-2.5 py-1 font-semibold hover:bg-[#D6A45F]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#F0C99A]"
+                className="rounded-lg border border-[#D6A45F]/40 px-2.5 py-1 font-semibold hover:bg-[#D6A45F]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
               >
                 Zurücksetzen und neu laden
               </button>

@@ -28,9 +28,9 @@ type Status = "loading" | "ready" | "error" | "hidden";
 const REFRESH_MS = 120_000;
 
 const SEVERITY_META: Record<Severity, { label: string; dot: string; badge: string }> = {
-  critical: { label: "Kritisch", dot: "bg-[#D87979]", badge: "bg-[#D87979]" },
-  warning: { label: "Warnung", dot: "bg-[#D6A45F]", badge: "bg-[#D6A45F]" },
-  info: { label: "Info", dot: "bg-[#83A9D0]", badge: "bg-[#83A9D0]" },
+  critical: { label: "Kritisch", dot: "bg-[#c0463d]", badge: "bg-[#D87979]" },
+  warning: { label: "Warnung", dot: "bg-[#b97a0c]", badge: "bg-[#D6A45F]" },
+  info: { label: "Info", dot: "bg-[#8f836f]", badge: "bg-[#CBBFAE]" },
 };
 
 const SEVERITIES: Severity[] = ["critical", "warning", "info"];
@@ -139,7 +139,7 @@ export default function AlertBell() {
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen(o => !o)}
-        className="relative flex h-9 w-9 items-center justify-center rounded-full text-[var(--tba-text-2,#A7AFBA)] transition-colors hover:bg-[rgba(41,57,77,.6)] hover:text-[var(--tba-text,#F4F3F0)]"
+        className="relative flex h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <path
@@ -150,7 +150,7 @@ export default function AlertBell() {
         {showBadge && topSeverity && (
           <span
             aria-hidden="true"
-            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[11px] font-bold leading-4 text-[#0B1220] text-center ${SEVERITY_META[topSeverity].badge}`}
+            className={`absolute -top-0.5 -right-0.5 min-w-[16px] h-4 px-1 rounded-full text-[13px] font-bold leading-4 text-[#151414] text-center ${SEVERITY_META[topSeverity].badge}`}
           >
             {total > 99 ? "99+" : total}
           </span>
@@ -163,12 +163,12 @@ export default function AlertBell() {
           role="dialog"
           aria-label="Benachrichtigungen"
           tabIndex={-1}
-          className="fixed left-3 right-3 top-[68px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] z-50 rounded-2xl border border-[var(--tba-border,#304052)] bg-[var(--tba-slate,#192638)] shadow-2xl shadow-black/40 outline-none overflow-hidden"
+          className="tba-pop tba-light fixed left-3 right-3 top-[68px] sm:absolute sm:left-auto sm:right-0 sm:top-full sm:mt-2 sm:w-[380px] z-50 rounded-2xl border border-[var(--tba-border,#8c8b8e)] bg-[var(--tba-slate,#ffffff)] shadow-2xl outline-none overflow-hidden"
         >
-          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--tba-line,rgba(255,255,255,.08))]">
-            <span className="text-sm font-semibold text-[var(--tba-text,#F4F3F0)]">Benachrichtigungen</span>
+          <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-[var(--tba-line,rgba(21,20,20,.08))]">
+            <span className="text-sm font-semibold text-[var(--tba-text,#151414)]">Benachrichtigungen</span>
             {status === "ready" && total > 0 && (
-              <span className="flex items-center gap-2.5 text-[11px] text-[var(--tba-text-2,#A7AFBA)]">
+              <span className="flex items-center gap-2.5 text-[13px] text-[var(--tba-text-2,#46464a)]">
                 {SEVERITIES.filter(s => counts[s] > 0).map(s => (
                   <span key={s} className="flex items-center gap-1">
                     <span className={`w-1.5 h-1.5 rounded-full ${SEVERITY_META[s].dot}`} />
@@ -181,13 +181,13 @@ export default function AlertBell() {
 
           <div className="max-h-[min(70vh,420px)] overflow-y-auto">
             {status === "loading" && (
-              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Wird geladen…</p>
+              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#46464a)]">Wird geladen…</p>
             )}
             {status === "error" && (
-              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Alerts nicht verfügbar</p>
+              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#46464a)]">Alerts nicht verfügbar</p>
             )}
             {status === "ready" && total === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#A7AFBA)]">Alles in Ordnung</p>
+              <p className="px-4 py-8 text-center text-sm text-[var(--tba-text-2,#46464a)]">Alles in Ordnung</p>
             )}
             {status === "ready" && total > 0 && data && SEVERITIES.map(sev => {
               const items = data.alerts.filter(a => a.severity === sev);
@@ -196,7 +196,7 @@ export default function AlertBell() {
                 <div key={sev} className="py-1">
                   <div className="flex items-center gap-2 px-4 pt-2 pb-1">
                     <span className={`w-2 h-2 rounded-full ${SEVERITY_META[sev].dot}`} />
-                    <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--tba-text-2,#A7AFBA)]">
+                    <span className="text-[13px] font-bold uppercase tracking-widest text-[var(--tba-text-2,#46464a)]">
                       {SEVERITY_META[sev].label}
                     </span>
                   </div>
@@ -206,11 +206,11 @@ export default function AlertBell() {
                         <Link
                           href={a.href}
                           onClick={() => setOpen(false)}
-                          className="block px-4 py-2.5 hover:bg-[var(--tba-hover,#29394D)] focus:bg-[var(--tba-hover,#29394D)] outline-none transition-colors"
+                          className="block px-4 py-2.5 hover:bg-[var(--tba-hover,#f6f3ee)] focus:bg-[var(--tba-hover,#f6f3ee)] outline-none transition-colors"
                         >
-                          <span className="block text-sm font-medium text-[var(--tba-text,#F4F3F0)]">{a.title}</span>
-                          <span className="block text-xs text-[var(--tba-text-2,#A7AFBA)] mt-0.5">{a.message}</span>
-                          <span className="flex items-center gap-1.5 mt-1 text-[11px] text-[var(--tba-text-2,#A7AFBA)]">
+                          <span className="block text-sm font-medium text-[var(--tba-text,#151414)]">{a.title}</span>
+                          <span className="block text-[13px] text-[var(--tba-text-2,#46464a)] mt-0.5">{a.message}</span>
+                          <span className="flex items-center gap-1.5 mt-1 text-[13px] text-[var(--tba-text-2,#46464a)]">
                             {a.orgName && <span className="truncate max-w-[200px]">{a.orgName}</span>}
                             {a.orgName && <span aria-hidden="true">·</span>}
                             <span>{relativeTime(a.createdAt)}</span>

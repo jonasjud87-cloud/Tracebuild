@@ -139,7 +139,7 @@ interface ThemeGroup {
 }
 
 const GROUPS = [
-  { label: "Bund",          layers: [1, 2], dot: "var(--navy)",   chip: p.chipNavy },
+  { label: "Bund",          layers: [1, 2], dot: "#151414",      chip: p.chipNavy },
   { label: "Kanton",        layers: [3],    dot: "var(--info)",   chip: p.chipInfo },
   { label: "Gemeinde",      layers: [4],    dot: "var(--ok)",     chip: p.chipOk },
   { label: "Spezialnormen", layers: [5],    dot: "var(--bronze)", chip: p.chipSand },
@@ -786,7 +786,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
               </p>
               <div style={{ marginTop: 12 }}>
                 {isAdmin ? (
-                  <ZoneEditor projectId={params.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(176,125,62,0.55)" proposal={zoneUnsure} />
+                  <ZoneEditor projectId={params.id} initial={bauzone ?? ""} onSaved={handleZoneSaved} accent="rgba(217,154,31,0.55)" proposal={zoneUnsure} />
                 ) : (
                   <p className={`${n.noticeText} ${p.muted}`} style={{ margin: 0 }}>Die Zone kann ein Organisations-Admin eintragen.</p>
                 )}

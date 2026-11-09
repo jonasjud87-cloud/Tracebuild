@@ -13,6 +13,7 @@ export default function Problem() {
       <Image
         src="/landing/problem-plan.png"
         alt="Bauplan mit rot markierter Abweichung"
+        data-card=""
         width={970}
         height={517}
         sizes="(max-width: 1100px) 100vw, 970px"

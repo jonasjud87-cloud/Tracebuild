@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import css from "./AnnouncementBanner.module.css";
 
 export type BannerType = "info" | "warning" | "maintenance" | "critical";
 
@@ -19,10 +20,10 @@ const MIN_GAP_MS = 60 * 1000;
 const STORAGE_PREFIX = "tb-announcement-dismissed:";
 
 const STYLES: Record<BannerType, { box: string; icon: string; title: string; label: string }> = {
-  info: { box: "border-l-[#83A9D0]", icon: "text-[#2C5F8F]", title: "text-[#1E4A73]", label: "Information" },
-  warning: { box: "border-l-[#D6A45F]", icon: "text-[#8A5F26]", title: "text-[#6E4A14]", label: "Warnung" },
-  maintenance: { box: "border-l-[#83A9D0]", icon: "text-[#2C5F8F]", title: "text-[#1E4A73]", label: "Wartung" },
-  critical: { box: "border-l-[#D87979]", icon: "text-[#A83A3A]", title: "text-[#8C2A2A]", label: "Kritisch" },
+  info: { box: "border-l-[#cbbfae]", icon: "text-[#151414]", title: "text-[#151414]", label: "Information" },
+  warning: { box: "border-l-[#d9a441]", icon: "text-[#7a4f00]", title: "text-[#151414]", label: "Warnung" },
+  maintenance: { box: "border-l-[#cbbfae]", icon: "text-[#151414]", title: "text-[#151414]", label: "Wartung" },
+  critical: { box: "border-l-[#b42318]", icon: "text-[#b42318]", title: "text-[#151414]", label: "Kritisch" },
 };
 
 function TypeIcon({ type }: { type: BannerType }) {
@@ -79,17 +80,17 @@ export function AnnouncementBannerView({
           <div
             key={item.id}
             role={item.type === "critical" ? "alert" : "status"}
-            className={`flex items-start gap-3 rounded-xl border border-l-4 border-[#B07D3E]/25 bg-[#F4EBDD]/90 px-4 py-3 shadow-[0_10px_28px_-16px_rgba(7,20,43,0.45)] backdrop-blur-md ${s.box}`}
+            className={`${css.item} flex items-start gap-3 rounded-2xl border border-l-[5px] border-[rgba(21,20,20,0.08)] bg-white px-5 py-4 shadow-[0_1px_2px_rgba(21,20,20,0.04),0_10px_30px_rgba(21,20,20,0.07)] ${s.box}`}
           >
             <span className={`mt-0.5 flex-shrink-0 ${s.icon}`}>
               <TypeIcon type={item.type} />
             </span>
             <div className="min-w-0 flex-1">
-              <p className={`text-sm font-semibold leading-snug ${s.title}`} style={{ overflowWrap: "anywhere" }}>
+              <p className={`text-[15px] font-semibold leading-snug ${s.title}`} style={{ overflowWrap: "anywhere" }}>
                 <span className="sr-only">{s.label}: </span>
                 {item.title}
               </p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-relaxed text-[#2E3847]" style={{ overflowWrap: "anywhere" }}>
+              <p className="mt-0.5 whitespace-pre-line text-sm leading-relaxed text-[#46464a]" style={{ overflowWrap: "anywhere" }}>
                 {item.message}
               </p>
             </div>
@@ -98,7 +99,7 @@ export function AnnouncementBannerView({
                 type="button"
                 onClick={() => onDismiss(item)}
                 aria-label="Schliessen"
-                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#07142B] ${s.icon}`}
+                className={`mt-0.5 flex-shrink-0 rounded-md p-1 opacity-80 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414] ${s.icon}`}
               >
                 <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
                   <path d="M2 2l10 10M12 2L2 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -109,7 +110,7 @@ export function AnnouncementBannerView({
         );
       })}
       {rest > 0 && (
-        <p className="inline-block rounded-md bg-[#F4EBDD]/90 px-2 py-0.5 text-xs font-medium text-[#54493D]">
+        <p className="inline-block rounded-full bg-[rgba(203,191,174,0.32)] px-3 py-1 text-[13px] font-medium text-[#3d372e]">
           und {rest} weitere {rest === 1 ? "Hinweis" : "Hinweise"}
         </p>
       )}
@@ -207,5 +208,5 @@ export default function AnnouncementBanner() {
   const visible = items.filter(i => !dismissedNow.has(storageKey(i)) && !isDismissed(i));
   if (visible.length === 0) return null;
 
-  return <AnnouncementBannerView items={visible} onDismiss={handleDismiss} className="mb-6" />;
+  return <AnnouncementBannerView items={visible} onDismiss={handleDismiss} className="mb-1" />;
 }

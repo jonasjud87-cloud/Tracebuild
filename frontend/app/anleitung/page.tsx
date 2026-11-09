@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import Image, { type StaticImageData } from "next/image";
 import { plexMono as mono, plexSans as body, instrument as display } from "@/lib/fonts";
 import ChapterNav from "./ChapterNav";
+import RevealOnScroll from "./RevealOnScroll";
 import { CHAPTERS, sectionTitle, type HandbookChapter } from "./chapters";
 import s from "./anleitung.module.css";
 
-import logo from "./img/logo.png";
 import imgMitglieder from "./img/mitglieder.jpg";
 import imgEinladen from "./img/einladen.jpg";
 import imgProjektmitglieder from "./img/projektmitglieder.jpg";
@@ -119,11 +119,12 @@ export default function AnleitungPage() {
   return (
     <div className={`${s.page} ${body.variable} ${mono.variable} ${display.variable}`}>
       <ChapterNav />
+      <RevealOnScroll selector={`.${s.chapter} .${s.wrap} > *, .${s.quickSteps} > li, .${s.toc} > li`} />
 
       <header className={s.masthead}>
         <div className={`${s.wrap} ${s.mastheadInner}`}>
           <a className={s.brand} href="#inhalt" aria-label="TraceBuild, zum Inhaltsverzeichnis">
-            <Image src={logo} alt="" width={40} height={40} priority />
+            <Image src="/landing/logo-tb-dark.svg" alt="" width={28} height={40} unoptimized priority />
             <span className={s.brandName}>
               Trace<b>Build</b>
             </span>

@@ -363,6 +363,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
               <div role="group" aria-label="Grundstück wählen">
                 <p className={s.warnHead}>Mehrere Grundstücke passen. Welches ist gemeint?</p>
                 <CandidateList
+                  tone="light"
                   candidates={candidates}
                   disabled={savingParcel}
                   onPick={(c) => saveParcel({ fields: candidateToFields(c), label: candidateLabel(c) })}
@@ -381,7 +382,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
               <OerebStatusNotice status={extractStatus.status} canton={project?.location?.canton} detail={extractStatus.detail} pdfUrl={extractStatus.pdf} projectId={params.id} isAdmin hideChoose />
             )}
 
-            <ParcelSearch requireComplete onSelect={(selection) => { setParcelError(null); setPendingParcel({ fields: selection.fields, label: selection.label }); }} />
+            <ParcelSearch tone="light" requireComplete onSelect={(selection) => { setParcelError(null); setPendingParcel({ fields: selection.fields, label: selection.label }); }} />
 
             {pendingParcel && (
               <div className={s.picked}>

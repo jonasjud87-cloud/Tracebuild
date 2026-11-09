@@ -45,14 +45,14 @@
   --tb-hairline: rgba(255, 255, 255, 0.08);
   --tb-text: #ffffff;
   --tb-text-tertiary: rgba(255, 255, 255, 0.68);
-  --tb-text-muted: rgba(255, 255, 255, 0.55);
+  --tb-text-muted: rgba(255, 255, 255, 0.66);
   --tb-text-bright: rgba(255, 255, 255, 0.85);
   --tb-accent: #cbbfae;
   --tb-accent-gradient: linear-gradient(135deg, #cbbfae, #b5a893);
   --tb-on-accent: #151414;
   --tb-info: #cbbfae;
   --tb-danger-bright: #d9192b;
-  --tb-warn-bright: #cbbfae;
+  --tb-warn-bright: #e3a948;
   --tb-r-chip: 8px;
   --tb-r-btn: 12px;
   --tb-r-container: 24px;
@@ -86,6 +86,10 @@
   border-radius: var(--tb-r-chip);
   padding: 8px 16px;
   cursor: pointer;
+  transition: color 0.2s ease;
+}
+:global(.tbl) .segment:hover {
+  color: #fff;
 }
 :global(.tbl) .segment[data-active="true"] {
   color: #fff;

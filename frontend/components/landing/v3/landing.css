@@ -78,6 +78,35 @@ body:has(.tbl) {
   transform: none;
 }
 
+.tbl [data-card] {
+  --card-lift: -4px;
+  --card-hover-border: rgba(203, 191, 174, 0.5);
+  --card-hover-shadow: 0 18px 44px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(203, 191, 174, 0.22), 0 0 30px rgba(203, 191, 174, 0.12);
+  transition: opacity 0.7s ease var(--d, 0s), transform 0.7s ease var(--d, 0s), translate 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, background-color 0.25s ease;
+}
+
+.tbl [data-theme="light"] [data-card] {
+  --card-hover-border: #b5a893;
+  --card-hover-shadow: 0 16px 36px rgba(21, 20, 20, 0.12), 0 0 0 3px rgba(203, 191, 174, 0.4);
+}
+
+.tbl [data-theme="light"] [data-card][data-theme="dark"] {
+  --card-lift: -2px;
+  --card-hover-border: rgba(203, 191, 174, 0.5);
+  --card-hover-shadow: 0 28px 64px rgba(21, 20, 20, 0.32), 0 0 0 1px rgba(203, 191, 174, 0.22), 0 0 36px rgba(203, 191, 174, 0.12);
+}
+
+.tbl [data-card]:hover,
+.tbl [data-card]:focus-within {
+  translate: 0 var(--card-lift);
+  border-color: var(--card-hover-border);
+  box-shadow: var(--card-hover-shadow);
+}
+
+.tbl [data-card]:active {
+  translate: 0 calc(var(--card-lift) / 2);
+}
+
 .tbl header.scrolled {
   background: rgba(21, 20, 20, 0.88) !important;
   backdrop-filter: blur(10px);
@@ -137,6 +166,10 @@ body:has(.tbl) {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .tbl [data-card] {
+    translate: none !important;
+  }
+
   .tbl [data-reveal] {
     opacity: 1;
     transform: none;
