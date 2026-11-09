@@ -254,14 +254,14 @@ export default function GlobalSearch() {
         onClick={openPalette}
         aria-haspopup="dialog"
         aria-label="Suchen (Strg K)"
-        className="flex h-9 items-center gap-2 rounded-full border border-[var(--tba-line,rgba(255,255,255,.08))] bg-white/[0.03] px-2.5 text-sm text-[var(--tba-text-2,#D5D5D5)] transition-colors hover:bg-[rgba(58,58,61,.6)] hover:text-[var(--tba-text,#FFFFFF)] sm:px-3.5"
+        className="flex h-9 items-center gap-2 rounded-full border border-white/25 bg-white/[0.08] px-2.5 text-sm text-white/85 transition-colors hover:bg-white/15 hover:text-white sm:px-3.5"
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
           <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3" />
           <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
         <span className="hidden sm:inline">Suchen…</span>
-        <kbd className="hidden rounded px-1 text-xs font-medium text-[#ABABAB] sm:inline">Strg K</kbd>
+        <kbd className="hidden rounded px-1 text-[13px] font-medium text-white/70 sm:inline">Strg K</kbd>
       </button>
 
       {open && createPortal(
@@ -276,10 +276,10 @@ export default function GlobalSearch() {
             aria-modal="true"
             aria-label="Globale Suche"
             onKeyDown={onDialogKeyDown}
-            className="tba-pop tba-glass tba-glass--modal w-full max-w-xl border border-[var(--tba-border,#4A4A4D)] rounded-2xl shadow-2xl overflow-hidden"
+            className="tba-pop tba-glass tba-glass--modal w-full max-w-xl border border-[var(--tba-border,#8c8b8e)] rounded-2xl shadow-2xl overflow-hidden"
           >
-            <div className="tba-ring rounded-t-2xl flex items-center gap-3 px-4 border-b border-[var(--tba-line,rgba(255,255,255,.08))]">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[var(--tba-sand,#CBBFAE)] flex-shrink-0">
+            <div className="tba-ring rounded-t-2xl flex items-center gap-3 px-4 border-b border-[var(--tba-line,rgba(21,20,20,.08))]">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true" className="text-[#6b6153] flex-shrink-0">
                 <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.3" />
                 <path d="M10.5 10.5 14 14" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
               </svg>
@@ -298,9 +298,9 @@ export default function GlobalSearch() {
                 maxLength={80}
                 autoComplete="off"
                 spellCheck={false}
-                className="tba-bare flex-1 h-14 bg-transparent text-sm text-[var(--tba-text,#FFFFFF)] placeholder-[#ABABAB] outline-none"
+                className="tba-bare flex-1 h-14 bg-transparent text-sm text-[var(--tba-text,#151414)] placeholder-[#6e6e73] outline-none"
               />
-              <kbd className="text-xs font-medium text-[var(--tba-text-2,#D5D5D5)] border border-[var(--tba-border,#4A4A4D)] rounded px-1.5 py-0.5">Esc</kbd>
+              <kbd className="text-[13px] font-medium text-[var(--tba-text-2,#46464a)] border border-[var(--tba-border,#8c8b8e)] rounded px-1.5 py-0.5">Esc</kbd>
             </div>
 
             <div ref={listRef} className="max-h-[50vh] overflow-y-auto py-2">
@@ -311,7 +311,7 @@ export default function GlobalSearch() {
                   const headingId = `global-search-group-${group.kind}`;
                   return (
                     <div key={group.kind} role="group" aria-labelledby={headingId}>
-                      <div id={headingId} className="px-4 pt-2 pb-1 text-xs font-bold uppercase tracking-widest text-[var(--tba-text-2,#D5D5D5)]">
+                      <div id={headingId} className="px-4 pt-2 pb-1 text-[13px] font-bold uppercase tracking-widest text-[var(--tba-text-2,#46464a)]">
                         {group.label}
                       </div>
                       {groupItems.map(item => {
@@ -329,14 +329,14 @@ export default function GlobalSearch() {
                             onClick={() => go(item.href)}
                             className={`mx-2 flex items-center gap-3 px-3 py-2 rounded-xl cursor-pointer transition-colors ${selected ? "bg-[rgba(203,191,174,.2)]" : ""}`}
                           >
-                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${selected ? "bg-[var(--tba-bronze,#B5A893)] text-[#151414]" : "bg-[rgba(203,191,174,.1)] text-[var(--tba-sand,#CBBFAE)]"}`}>
+                            <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${selected ? "bg-[var(--tba-bronze,#B5A893)] text-[#151414]" : "bg-[rgba(203,191,174,.1)] text-[#6b6153]"}`}>
                               <KindIcon kind={item.kind} />
                             </span>
                             <span className="min-w-0 flex-1">
-                              <span className="block text-sm text-[var(--tba-text,#FFFFFF)] truncate">{item.title}</span>
-                              {item.sub && <span className="block text-[13px] text-[var(--tba-text-2,#D5D5D5)] truncate">{item.sub}</span>}
+                              <span className="block text-sm text-[var(--tba-text,#151414)] truncate">{item.title}</span>
+                              {item.sub && <span className="block text-[13px] text-[var(--tba-text-2,#46464a)] truncate">{item.sub}</span>}
                             </span>
-                            {selected && <span className="text-xs text-[var(--tba-sand,#CBBFAE)] flex-shrink-0">Enter</span>}
+                            {selected && <span className="text-[13px] text-[#6b6153] flex-shrink-0">Enter</span>}
                           </div>
                         );
                       })}
@@ -349,7 +349,7 @@ export default function GlobalSearch() {
                 <div
                   role="status"
                   aria-live="polite"
-                  className="px-4 py-6 text-center text-sm text-[var(--tba-text-2,#D5D5D5)]"
+                  className="px-4 py-6 text-center text-sm text-[var(--tba-text-2,#46464a)]"
                 >
                   {statusText}
                 </div>
@@ -357,7 +357,7 @@ export default function GlobalSearch() {
               {!statusText && loading && hasResults && <span className="sr-only" role="status">Aktualisiere Ergebnisse</span>}
             </div>
 
-            <div className="hidden sm:flex items-center gap-4 px-4 py-2 border-t border-[var(--tba-line,rgba(255,255,255,.08))] text-[13px] text-[var(--tba-text-2,#D5D5D5)]">
+            <div className="hidden sm:flex items-center gap-4 px-4 py-2 border-t border-[var(--tba-line,rgba(21,20,20,.08))] text-[13px] text-[var(--tba-text-2,#46464a)]">
               <span>↑↓ Navigieren</span>
               <span>Enter Öffnen</span>
               <span>Esc Schließen</span>

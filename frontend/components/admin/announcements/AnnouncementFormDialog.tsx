@@ -31,8 +31,8 @@ interface Props {
   onClose: () => void;
 }
 
-const FIELD = "w-full rounded-xl border border-[rgba(255,255,255,0.08)] bg-[#151414] px-3 py-2.5 text-sm text-white placeholder:text-[#ABABAB] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE] disabled:opacity-60";
-const LABEL = "mb-1.5 block text-xs font-semibold uppercase tracking-wider text-[#ABABAB]";
+const FIELD = "w-full rounded-xl border border-[#8c8b8e] bg-white px-3 py-2.5 text-sm text-[#151414] placeholder:text-[#6e6e73] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414] disabled:opacity-60";
+const LABEL = "mb-1.5 block text-[13px] font-semibold uppercase tracking-wider text-[#5f5f64]";
 const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, saving, serverError, onSubmit, onClose }: Props) {
@@ -143,7 +143,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
         aria-labelledby="ann-form-title"
         className="tba-pop max-h-full w-full max-w-xl overflow-y-auto tba-glass tba-glass--modal rounded-2xl p-6 "
       >
-        <h2 id="ann-form-title" className="mb-5 text-lg font-bold text-white">
+        <h2 id="ann-form-title" className="mb-5 text-lg font-bold text-[#151414]">
           {existing ? "Ankündigung bearbeiten" : "Neue Ankündigung"}
         </h2>
 
@@ -162,8 +162,8 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               className={FIELD}
             />
             <div id="ann-title-help" className="mt-1 flex justify-between text-[13px]">
-              <span className="text-[#EBA1A1]">{showErr("title")}</span>
-              <span className={title.length > TITLE_MAX ? "text-[#EBA1A1]" : "text-[#ABABAB]"}>{title.length}/{TITLE_MAX}</span>
+              <span className="text-[#a3201a]">{showErr("title")}</span>
+              <span className={title.length > TITLE_MAX ? "text-[#a3201a]" : "text-[#5f5f64]"}>{title.length}/{TITLE_MAX}</span>
             </div>
           </div>
 
@@ -180,8 +180,8 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               className={`${FIELD} resize-y`}
             />
             <div id="ann-message-help" className="mt-1 flex justify-between text-[13px]">
-              <span className="text-[#EBA1A1]">{showErr("message")}</span>
-              <span className={message.length > MESSAGE_MAX ? "text-[#EBA1A1]" : "text-[#ABABAB]"}>{message.length}/{MESSAGE_MAX}</span>
+              <span className="text-[#a3201a]">{showErr("message")}</span>
+              <span className={message.length > MESSAGE_MAX ? "text-[#a3201a]" : "text-[#5f5f64]"}>{message.length}/{MESSAGE_MAX}</span>
             </div>
           </div>
 
@@ -201,7 +201,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 )}
                 {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
               </select>
-              {orgsLoading && <p className="mt-1 text-[13px] text-[#ABABAB]">Organisationen werden geladen …</p>}
+              {orgsLoading && <p className="mt-1 text-[13px] text-[#5f5f64]">Organisationen werden geladen …</p>}
             </div>
           </div>
 
@@ -218,7 +218,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 className={FIELD}
               />
               {!existing && (
-                <label className="mt-2 flex items-center gap-2 text-sm text-[#D5D5D5]">
+                <label className="mt-2 flex items-center gap-2 text-sm text-[#46464a]">
                   <input
                     type="checkbox"
                     checked={startNow}
@@ -227,12 +227,12 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                       setStartNow(e.target.checked);
                       if (!e.target.checked && !startsAt) setStartsAt(isoToLocalInput(new Date().toISOString()));
                     }}
-                    className="h-4 w-4 accent-[#CBBFAE]"
+                    className="h-4 w-4 accent-[#151414]"
                   />
                   Sofort
                 </label>
               )}
-              {showErr("startsAt") && <p className="mt-1 text-[13px] text-[#EBA1A1]">{showErr("startsAt")}</p>}
+              {showErr("startsAt") && <p className="mt-1 text-[13px] text-[#a3201a]">{showErr("startsAt")}</p>}
             </div>
             <div>
               <label htmlFor="ann-end" className={LABEL}>Ende (optional, Zürich)</label>
@@ -245,17 +245,17 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
                 aria-invalid={!!showErr("endsAt")}
                 className={FIELD}
               />
-              {showErr("endsAt") && <p className="mt-1 text-[13px] text-[#EBA1A1]">{showErr("endsAt")}</p>}
+              {showErr("endsAt") && <p className="mt-1 text-[13px] text-[#a3201a]">{showErr("endsAt")}</p>}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-x-6 gap-y-2">
-            <label className="flex items-center gap-2 text-sm text-[#D5D5D5]">
-              <input type="checkbox" checked={dismissible} disabled={saving} onChange={e => setDismissible(e.target.checked)} className="h-4 w-4 accent-[#CBBFAE]" />
+            <label className="flex items-center gap-2 text-sm text-[#46464a]">
+              <input type="checkbox" checked={dismissible} disabled={saving} onChange={e => setDismissible(e.target.checked)} className="h-4 w-4 accent-[#151414]" />
               Nutzer dürfen ausblenden
             </label>
-            <label className="flex items-center gap-2 text-sm text-[#D5D5D5]">
-              <input type="checkbox" checked={active} disabled={saving} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#CBBFAE]" />
+            <label className="flex items-center gap-2 text-sm text-[#46464a]">
+              <input type="checkbox" checked={active} disabled={saving} onChange={e => setActive(e.target.checked)} className="h-4 w-4 accent-[#151414]" />
               Aktiv
             </label>
           </div>
@@ -268,7 +268,7 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
           </div>
 
           {serverError && (
-            <p role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/30 px-3 py-2.5 text-sm text-[#EBA1A1]">{serverError}</p>
+            <p role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/10 px-3 py-2.5 text-sm text-[#a3201a]">{serverError}</p>
           )}
 
           <div className="flex gap-3 pt-1">
@@ -276,14 +276,14 @@ export default function AnnouncementFormDialog({ existing, orgs, orgsLoading, sa
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="flex-1 rounded-xl border border-[rgba(255,255,255,0.08)] py-2.5 text-sm font-medium text-[#D5D5D5] hover:bg-[#2E2E30] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+              className="flex-1 rounded-xl border-[1.5px] border-[#151414] py-2.5 text-sm font-medium text-[#151414] hover:bg-[#151414] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
             >
               Abbrechen
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] py-2.5 text-sm font-semibold text-[#151414] disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+              className="flex-1 rounded-xl tba-btn bg-[#151414] hover:bg-[#2e2e30] py-2.5 text-sm font-semibold text-white disabled:opacity-60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
             >
               {saving ? "Speichern …" : existing ? "Änderungen speichern" : "Ankündigung erstellen"}
             </button>

@@ -49,7 +49,7 @@ const LAYER_LABELS: Record<number, string> = {
 };
 
 const LAYER_COLORS: Record<number, { chip: string; dot: string }> = {
-  1: { chip: p.chipNavy, dot: "#ffffff" },
+  1: { chip: p.chipNavy, dot: "#151414" },
   2: { chip: p.chipInfo, dot: "var(--info)" },
   3: { chip: p.chipSand, dot: "var(--bronze)" },
   4: { chip: p.chipOk, dot: "var(--ok)" },

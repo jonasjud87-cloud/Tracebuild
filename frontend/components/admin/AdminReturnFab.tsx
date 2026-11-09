@@ -28,7 +28,7 @@ export default function AdminReturnFab() {
     <button
       onClick={() => router.push("/admin")}
       title="Zurück zur Admin-Übersicht"
-      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#2E2E30] border border-[#B5A893]/50 text-[#CBBFAE] text-xs font-semibold px-3.5 py-2 rounded-full shadow-md hover:bg-[#B5A893] hover:text-[#151414] hover:border-[#B5A893] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#CBBFAE] active:scale-[0.96] transition-all duration-150"
+      className="fixed bottom-6 right-6 z-50 flex items-center gap-2 bg-[#151414] border border-[#151414] text-white text-[13px] font-semibold px-3.5 py-2 rounded-full shadow-md hover:bg-[#cbbfae] hover:text-[#151414] hover:border-[#cbbfae] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#151414] active:scale-[0.96] transition-all duration-150"
     >
       <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
         <path d="M7.5 2L3.5 6L7.5 10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>

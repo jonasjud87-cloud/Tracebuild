@@ -55,7 +55,7 @@ export default function RegisterPage() {
       <div className={styles.head}>
         <Image
           className={styles.mark}
-          src="/landing/logo-tb.svg"
+          src="/landing/logo-tb-dark.svg"
           alt="TraceBuild"
           width={40}
           height={57}

@@ -2,40 +2,26 @@
   position: relative;
   min-height: 100vh;
   min-height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  color: #151414;
+  background:
+    radial-gradient(900px 420px at 50% 0%, #ffffff, transparent 70%),
+    #f6f3ee;
+  overflow-x: clip;
+}
+
+.photo {
+  display: none;
+}
+
+.stage {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 88px 16px 40px;
-  overflow-x: clip;
-  overflow-y: auto;
-  color: #fff;
-  background:
-    radial-gradient(900px 520px at 84% 82%, rgba(203, 191, 174, 0.08), transparent 70%),
-    radial-gradient(1000px 640px at 50% 18%, rgba(46, 46, 48, 0.55), transparent 72%),
-    #151414;
-}
-
-.art {
-  position: fixed;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 0;
-  pointer-events: none;
-}
-
-.glow {
-  animation: arcPulse 9s ease-in-out infinite;
-}
-
-@keyframes arcPulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
+  min-width: 0;
 }
 
 @keyframes cardIn {
@@ -74,7 +60,7 @@
   align-items: center;
   gap: 10px;
   text-decoration: none;
-  color: #fff;
+  color: #151414;
   border-radius: 10px;
   padding: 4px 6px;
   margin: -4px -6px;
@@ -101,57 +87,35 @@
 
 .brandTrace,
 .brandBuild {
-  color: #fff;
+  color: #151414;
   transition: color 0.2s ease;
 }
 
 .brand:hover .brandTrace,
 .brand:hover .brandBuild {
-  color: #cbbfae;
+  color: #6b6153;
 }
 
 .brand:focus-visible {
-  outline: 2px solid #cbbfae;
+  outline: 2px solid #151414;
   outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(203, 191, 174, 0.55);
 }
 
 .glass {
   position: relative;
   z-index: 10;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    radial-gradient(460px 260px at 8% 0%, rgba(203, 191, 174, 0.07), transparent 70%),
-    rgba(34, 33, 34, 0.86);
-  -webkit-backdrop-filter: blur(20px) saturate(110%);
-  backdrop-filter: blur(20px) saturate(110%);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 24px 64px -20px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(21, 20, 20, 0.08);
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(21, 20, 20, 0.04), 0 10px 30px rgba(21, 20, 20, 0.07);
   animation: cardIn 0.6s cubic-bezier(0.22, 0.8, 0.3, 1) both;
   transition: border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .glass:hover,
 .glass:focus-within {
-  border-color: rgba(203, 191, 174, 0.28);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 28px 72px -20px rgba(0, 0, 0, 0.75),
-    0 0 48px -18px rgba(203, 191, 174, 0.25);
-}
-
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass {
-    background: #222122;
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .glass {
-    background: #222122;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
+  border-color: rgba(156, 143, 123, 0.55);
+  box-shadow: 0 1px 2px rgba(21, 20, 20, 0.04), 0 18px 44px rgba(21, 20, 20, 0.14);
 }
 
 .card {
@@ -183,20 +147,20 @@
   line-height: 1.15;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #fff;
+  color: #151414;
 }
 
 .subtitle {
   margin: 8px 0 0;
   font-size: 15px;
   line-height: 1.45;
-  color: rgba(255, 255, 255, 0.72);
+  color: #46464a;
 }
 
 .account {
   margin: 6px 0 0;
   font-size: 14px;
-  color: rgba(255, 255, 255, 0.64);
+  color: #5f5f64;
 }
 
 .form {
@@ -215,7 +179,7 @@
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.82);
+  color: #151414;
 }
 
 .control {
@@ -229,13 +193,13 @@
   width: 18px;
   height: 18px;
   transform: translateY(-50%);
-  color: rgba(255, 255, 255, 0.64);
+  color: #5f5f64;
   pointer-events: none;
   transition: color 0.2s ease;
 }
 
 .control:focus-within .icon {
-  color: #cbbfae;
+  color: #151414;
 }
 
 .input {
@@ -246,9 +210,9 @@
   padding: 0 16px 0 46px;
   font-family: inherit;
   font-size: 16px;
-  color: #fff;
-  background: #151414;
-  border: 1px solid rgba(255, 255, 255, 0.45);
+  color: #151414;
+  background: #ffffff;
+  border: 1px solid #8c8b8e;
   border-radius: 12px;
   outline: none;
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
@@ -268,27 +232,29 @@
 }
 
 .input::placeholder {
-  color: rgba(255, 255, 255, 0.64);
+  color: #6e6e73;
   opacity: 1;
 }
 
 .input:hover {
-  border-color: rgba(203, 191, 174, 0.45);
+  border-color: #151414;
 }
 
 .input:focus,
 .input:focus-visible {
-  border-color: #cbbfae;
-  background: #111010;
-  box-shadow: 0 0 0 3px rgba(203, 191, 174, 0.22), 0 0 24px rgba(203, 191, 174, 0.14);
+  border-color: #151414;
+  background: #ffffff;
+  outline: 2px solid #151414;
+  outline-offset: 0;
+  box-shadow: 0 0 0 6px rgba(203, 191, 174, 0.55);
 }
 
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
-  -webkit-text-fill-color: #fff;
-  caret-color: #fff;
-  -webkit-box-shadow: 0 0 0 1000px #151414 inset;
+  -webkit-text-fill-color: #151414;
+  caret-color: #151414;
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
   transition: background-color 9999s ease-out 0s;
 }
 
@@ -306,18 +272,18 @@
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: rgba(255, 255, 255, 0.72);
+  color: #46464a;
   cursor: pointer;
   transition: color 0.2s ease, background-color 0.2s ease;
 }
 
 .eye:hover {
-  color: #cbbfae;
-  background: rgba(203, 191, 174, 0.12);
+  color: #151414;
+  background: rgba(203, 191, 174, 0.32);
 }
 
 .eye:focus-visible {
-  outline: 2px solid #cbbfae;
+  outline: 2px solid #151414;
   outline-offset: 1px;
 }
 
@@ -337,15 +303,15 @@
 }
 
 .error {
-  color: #f7b0b0;
-  background: rgba(217, 25, 43, 0.14);
-  border: 1px solid rgba(240, 138, 138, 0.4);
+  color: #a3201a;
+  background: #fde7e5;
+  border: 1px solid rgba(163, 32, 26, 0.35);
 }
 
 .info {
-  color: #9be3bf;
-  background: rgba(111, 207, 159, 0.12);
-  border: 1px solid rgba(111, 207, 159, 0.4);
+  color: #136a40;
+  background: #e4f3ea;
+  border: 1px solid rgba(19, 106, 64, 0.35);
 }
 
 .submit {
@@ -358,29 +324,30 @@
   font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.005em;
-  color: #151414;
+  color: #ffffff;
   border: 0;
   border-radius: 12px;
   cursor: pointer;
-  background-image: linear-gradient(135deg, #d8cebf 0%, #b5a893 100%);
-  box-shadow: 0 10px 28px -10px rgba(203, 191, 174, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  background: #151414;
+  box-shadow: 0 10px 24px -10px rgba(21, 20, 20, 0.45);
   transition: filter 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
 }
 
 .submit:hover:not(:disabled) {
-  filter: brightness(1.06);
+  background: #2e2e30;
   transform: translateY(-2px);
-  box-shadow: 0 16px 34px -10px rgba(203, 191, 174, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+  box-shadow: 0 16px 30px -10px rgba(21, 20, 20, 0.5);
 }
 
 .submit:active:not(:disabled) {
   transform: translateY(0) scale(0.99);
-  filter: brightness(0.97);
+  background: #151414;
 }
 
 .submit:focus-visible {
-  outline: 2px solid #cbbfae;
+  outline: 2px solid #151414;
   outline-offset: 3px;
+  box-shadow: 0 0 0 7px rgba(203, 191, 174, 0.55);
 }
 
 .submit:disabled {
@@ -392,25 +359,24 @@
   margin: 24px 0 0;
   text-align: center;
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.72);
+  color: #46464a;
 }
 
 .link {
-  color: #cbbfae;
+  color: #151414;
   font-weight: 600;
-  text-decoration: none;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   border-radius: 4px;
   transition: color 0.2s ease;
 }
 
 .link:hover {
-  color: #fff;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: #6b6153;
 }
 
 .link:focus-visible {
-  outline: 2px solid #cbbfae;
+  outline: 2px solid #151414;
   outline-offset: 3px;
 }
 
@@ -425,8 +391,8 @@
 .spinner {
   width: 28px;
   height: 28px;
-  border: 2px solid rgba(255, 255, 255, 0.18);
-  border-top-color: #cbbfae;
+  border: 2px solid rgba(21, 20, 20, 0.14);
+  border-top-color: #151414;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -438,7 +404,7 @@
 }
 
 @media (max-width: 767px) {
-  .shell {
+  .stage {
     padding: 84px 16px 32px;
   }
   .card {
@@ -470,6 +436,65 @@
   }
 }
 
+@keyframes photoZoom {
+  from {
+    transform: scale(1.06);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+@media (min-width: 960px) {
+  .shell {
+    grid-template-columns: minmax(0, 1.08fr) minmax(0, 1fr);
+    background: #f6f3ee;
+  }
+  .photo {
+    display: block;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+    background: #151414;
+    border-radius: 0 32px 32px 0;
+  }
+  .photoImg {
+    position: absolute;
+    inset: 0;
+    background: url(/landing/hero.png) center / cover no-repeat;
+    opacity: 0.85;
+    animation: photoZoom 1.4s cubic-bezier(0.22, 0.8, 0.3, 1) both;
+  }
+  .photoShade {
+    position: absolute;
+    inset: 0;
+    background:
+      linear-gradient(180deg, rgba(21, 20, 20, 0.72) 0%, rgba(21, 20, 20, 0) 30%),
+      linear-gradient(90deg, rgba(21, 20, 20, 0.5) 0%, rgba(21, 20, 20, 0) 65%);
+  }
+  .stage {
+    padding: 48px;
+  }
+  .brandMark {
+    filter: invert(1) brightness(3);
+  }
+  .brand,
+  .brandTrace,
+  .brandBuild {
+    color: #ffffff;
+  }
+  .brand:hover .brandTrace,
+  .brand:hover .brandBuild {
+    color: #cbbfae;
+  }
+  .brand:focus-visible {
+    outline-color: #cbbfae;
+    box-shadow: none;
+  }
+}
+
 @media (max-height: 720px) {
   .brand {
     position: absolute;
@@ -477,9 +502,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .glow {
-    animation: none;
-  }
+  .photoImg,
   .glass,
   .head,
   .form,
@@ -499,6 +522,6 @@
   .submit:hover:not(:disabled),
   .submit:active:not(:disabled),
   .brand:hover {
-    transform: none;
+    transform: none !important;
   }
 }

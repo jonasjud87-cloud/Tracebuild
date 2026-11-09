@@ -9,8 +9,8 @@
   --ink: #151414;
   --body: #46464a;
   --muted: #5a5a5f;
-  --line: #ded6c9;
-  --line-strong: #cbbfae;
+  --line: rgba(21, 20, 20, 0.1);
+  --line-strong: rgba(156, 143, 123, 0.55);
   --accent: #6b6153;
   --accent-soft: rgba(203, 191, 174, 0.28);
   --ok: #157a4a;
@@ -86,7 +86,7 @@
 }
 .page .eyebrow {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--accent);
@@ -113,7 +113,7 @@
 /* Inhaltsverzeichnis */
 .page .tocTitle {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--muted);
@@ -129,9 +129,10 @@
 }
 .tocCard {
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 20px;
   padding: 8px;
   background: var(--card);
+  box-shadow: 0 1px 2px rgba(21, 20, 20, 0.04), 0 10px 30px rgba(21, 20, 20, 0.07);
   display: flex;
   flex-direction: column;
   transition: transform 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
@@ -140,7 +141,7 @@
 .tocCard:focus-within {
   transform: translateY(-3px);
   border-color: var(--line-strong);
-  box-shadow: 0 14px 32px -16px rgba(21, 20, 20, 0.28);
+  box-shadow: 0 18px 44px rgba(21, 20, 20, 0.14);
 }
 .tocChapter {
   display: flex;
@@ -157,7 +158,7 @@
 }
 .tocN {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
 }
 .tocT {
@@ -194,7 +195,7 @@
 }
 .tocSectionNum {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--muted);
   padding-top: 1px;
 }
@@ -202,6 +203,7 @@
 .page a:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(203, 191, 174, 0.55);
 }
 
 /* Kapitelleiste: erscheint, sobald das Inhaltsverzeichnis aus dem Bild ist */
@@ -282,7 +284,7 @@
 }
 .barNum {
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   color: var(--accent);
 }
 .barCurrent {
@@ -591,7 +593,7 @@
   background: #151414;
   color: #cbbfae;
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -801,7 +803,7 @@
   background: var(--accent-soft);
   color: var(--accent);
   font-family: var(--hb-mono), ui-monospace, Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
   letter-spacing: 0.04em;
 }
 .sourceTagOwn {

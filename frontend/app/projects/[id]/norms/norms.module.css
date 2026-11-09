@@ -54,13 +54,14 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 0 1px var(--line-strong);
+  background: rgba(203, 191, 174, 0.22);
+  box-shadow: inset 0 0 0 1px rgba(156, 143, 123, 0.5);
 }
 
 .flashErr {
   color: var(--err-text);
-  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.5);
+  background: #fde7e5;
+  box-shadow: inset 0 0 0 1px rgba(163, 32, 26, 0.5);
 }
 
 .notice {
@@ -72,28 +73,28 @@
   padding: 14px 20px;
   border-radius: 18px;
   color: var(--body);
-  background: #2e2e30;
-  box-shadow: inset 0 0 0 1px var(--line), 0 12px 26px -22px rgba(0, 0, 0, 0.8);
+  background: #ffffff;
+  box-shadow: inset 0 0 0 1px rgba(21, 20, 20, 0.1), 0 8px 24px rgba(21, 20, 20, 0.06);
 }
 
 .toneWarn {
-  background: linear-gradient(rgba(214, 164, 95, 0.2), rgba(214, 164, 95, 0.2)), #2e2e30;
-  box-shadow: inset 0 0 0 1px rgba(214, 164, 95, 0.6);
+  background: #fff1d6;
+  box-shadow: inset 0 0 0 1px rgba(217, 154, 31, 0.6);
 }
 
 .toneInfo {
-  background: linear-gradient(rgba(203, 191, 174, 0.1), rgba(203, 191, 174, 0.1)), #2e2e30;
-  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.45);
+  background: #f6f3ee;
+  box-shadow: inset 0 0 0 1px rgba(156, 143, 123, 0.5);
 }
 
 .toneSand {
-  background: linear-gradient(rgba(203, 191, 174, 0.14), rgba(203, 191, 174, 0.14)), #2e2e30;
-  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.4);
+  background: rgba(203, 191, 174, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(156, 143, 123, 0.5);
 }
 
 .toneErr {
-  background: linear-gradient(rgba(216, 121, 121, 0.14), rgba(216, 121, 121, 0.14)), #2e2e30;
-  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.5);
+  background: #fde7e5;
+  box-shadow: inset 0 0 0 1px rgba(163, 32, 26, 0.45);
 }
 
 .noticeBody {
@@ -158,7 +159,7 @@
 .plainLink {
   color: var(--ink);
   text-decoration: underline;
-  text-decoration-color: rgba(203, 191, 174, 0.6);
+  text-decoration-color: rgba(107, 97, 83, 0.6);
   text-underline-offset: 2px;
   overflow-wrap: anywhere;
 }
@@ -242,12 +243,12 @@
 
 .iconBtn:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(21, 20, 20, 0.07);
 }
 
 .iconBtnDanger:hover {
   color: var(--err-text);
-  background: rgba(216, 121, 121, 0.18);
+  background: #fde7e5;
 }
 
 .iconBtnSm {
@@ -278,8 +279,8 @@
 .nestedList .norm {
   padding: 14px 16px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: #f6f3ee;
+  box-shadow: inset 0 0 0 1px rgba(21, 20, 20, 0.08);
 }
 
 .nestedList .norm + .norm {
@@ -373,7 +374,7 @@
   padding: 14px clamp(16px, 2vw, 28px);
   border: 0;
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.03);
+  background: #f6f3ee;
   font: inherit;
   text-align: left;
   color: var(--ink);
@@ -382,7 +383,7 @@
 }
 
 .toggle:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: #efece6;
 }
 
 .toggleOpen {
@@ -463,7 +464,7 @@
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(0, 0, 0, 0.65);
+  background: rgba(21, 20, 20, 0.55);
   -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
@@ -476,8 +477,8 @@
   padding: 26px;
   border-radius: 24px;
   color: var(--body);
-  background: #2e2e30;
-  box-shadow: inset 0 0 0 1px var(--line-strong), 0 30px 60px -20px rgba(0, 0, 0, 0.8);
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(21, 20, 20, 0.08), 0 30px 60px -20px rgba(21, 20, 20, 0.4);
 }
 
 .dialogTitle {
@@ -513,8 +514,8 @@
   font-size: 14px;
   font-weight: 600;
   color: var(--err-text);
-  background: rgba(216, 121, 121, 0.16);
-  box-shadow: inset 0 0 0 1px rgba(216, 121, 121, 0.45);
+  background: #fde7e5;
+  box-shadow: inset 0 0 0 1px rgba(163, 32, 26, 0.4);
 }
 
 .progress {
@@ -522,12 +523,12 @@
   margin-top: 10px;
   border-radius: 3px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(21, 20, 20, 0.1);
 }
 
 .progressFill {
   height: 100%;
-  background: linear-gradient(90deg, #b5a893, #d8cebf);
+  background: linear-gradient(90deg, #151414, #46464a);
   transition: width 0.3s;
 }
 
@@ -550,7 +551,7 @@
 
 .dismiss:hover {
   color: var(--ink);
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(21, 20, 20, 0.07);
 }
 
 .panelTitle {
@@ -651,8 +652,8 @@
 }
 
 .toneQuiet {
-  background: rgba(255, 255, 255, 0.04);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+  background: #f6f3ee;
+  box-shadow: inset 0 0 0 1px rgba(21, 20, 20, 0.08);
 }
 
 .page > :first-child {
@@ -728,7 +729,7 @@
 
 .norm:hover,
 .theme:hover {
-  background: rgba(255, 255, 255, 0.035);
+  background: rgba(203, 191, 174, 0.18);
 }
 
 .nestedList .norm {
@@ -737,13 +738,13 @@
 
 .nestedList .norm:hover,
 .nestedList .norm:focus-within {
-  background: rgba(255, 255, 255, 0.06);
+  background: #f6f3ee;
   transform: translateY(-2px);
-  box-shadow: inset 0 0 0 1px rgba(203, 191, 174, 0.45), 0 14px 24px -16px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 0 0 1px rgba(156, 143, 123, 0.55), 0 14px 30px rgba(21, 20, 20, 0.12);
 }
 
 .norm:hover .normTitle {
-  color: #fff;
+  color: var(--ink);
 }
 
 .overlay {

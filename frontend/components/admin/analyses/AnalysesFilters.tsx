@@ -19,7 +19,7 @@ interface Props {
 }
 
 const FIELD =
-  "rounded-xl border border-[rgba(203,191,174,0.25)] bg-[rgba(28,27,27,0.6)] px-3 py-2 text-sm text-white focus:border-[#CBBFAE] focus:outline-none focus:ring-2 focus:ring-[#CBBFAE]/40";
+  "rounded-xl border border-[#8c8b8e] bg-white px-3 py-2 text-sm text-[#151414] focus:border-[#151414] focus:outline-none focus:ring-2 focus:ring-[rgba(203,191,174,.55)]";
 
 export default function AnalysesFilters({
   view, orgs, org, range, minCost, expensiveChf, dirty, onOrg, onRange, onMinCost, onReset,
@@ -39,7 +39,7 @@ export default function AnalysesFilters({
   return (
     <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Filter">
       <label className="flex min-w-[11rem] flex-1 flex-col gap-1 sm:flex-none">
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#D5D5D5]">Organisation</span>
+        <span className="text-[13px] font-semibold uppercase tracking-widest text-[#46464a]">Organisation</span>
         <select value={org} onChange={(e) => onOrg(e.target.value)} className={FIELD}>
           <option value="">Alle Organisationen</option>
           {orgs.map((o) => (
@@ -48,7 +48,7 @@ export default function AnalysesFilters({
         </select>
       </label>
       <label className="flex min-w-[11rem] flex-1 flex-col gap-1 sm:flex-none">
-        <span className="text-xs font-semibold uppercase tracking-widest text-[#D5D5D5]">Zeitraum</span>
+        <span className="text-[13px] font-semibold uppercase tracking-widest text-[#46464a]">Zeitraum</span>
         <select value={range} onChange={(e) => onRange(e.target.value as RangeKey)} className={FIELD}>
           {RANGE_OPTIONS.map((r) => (
             <option key={r.key} value={r.key}>{r.label}</option>
@@ -57,7 +57,7 @@ export default function AnalysesFilters({
       </label>
       {view === "expensive" && (
         <label className="flex w-36 flex-col gap-1">
-          <span className="text-xs font-semibold uppercase tracking-widest text-[#D5D5D5]">Mindestkosten (CHF)</span>
+          <span className="text-[13px] font-semibold uppercase tracking-widest text-[#46464a]">Mindestkosten (CHF)</span>
           <input
             type="number"
             inputMode="decimal"
@@ -76,7 +76,7 @@ export default function AnalysesFilters({
         <button
           type="button"
           onClick={onReset}
-          className="rounded-xl px-3 py-2 text-sm font-medium text-[#CBBFAE] hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+          className="rounded-xl px-3 py-2 text-sm font-medium text-[#6b6153] hover:text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
         >
           Filter zurücksetzen
         </button>

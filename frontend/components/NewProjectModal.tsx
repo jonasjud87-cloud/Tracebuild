@@ -121,7 +121,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
 
         <form onSubmit={handleSubmit} className={css.form}>
 
-          <ParcelSearch tone="dark" onSelect={handleSelect} hint="(füllt die Felder unten)" />
+          <ParcelSearch tone="light" onSelect={handleSelect} hint="(füllt die Felder unten)" />
 
           {pickedLabel && (
             <p className={css.ok}>

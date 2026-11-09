@@ -373,34 +373,33 @@ export default function StandardsPage() {
 
   return (
     <div className={`${jakarta.variable} ${jakarta.className} ${s.shell}`}>
-      <div className={s.backdrop} aria-hidden="true">
-        <div className={s.glowA} />
-        <div className={s.glowB} />
-        <div className={s.plan}>
-          <div className={s.planImg} style={{ backgroundImage: "url(/landing/project-plan.jpg)" }} />
+      <div className={s.hero}>
+        <div className={s.backdrop} aria-hidden="true">
+          <div className={s.photo} style={{ backgroundImage: "url(/landing/dashboard-building.jpg)" }} />
+          <div className={s.shade} />
+        </div>
+        <div className={s.heroInner}>
+          <header className={s.topbar}>
+            <Link href="/dashboard" className={s.back}>
+              <span aria-hidden="true">←</span> Dashboard
+            </Link>
+            <div className={s.userArea}>
+              {email && (
+                <div className={s.userPill}>
+                  <span className={s.avatar} aria-hidden="true">{email.slice(0, 1).toUpperCase()}</span>
+                  <span className={s.email}>{email}</span>
+                </div>
+              )}
+              <LogoutButton className={s.logout} />
+            </div>
+          </header>
+          <h1 className={s.title}>Normen-Datenbank</h1>
+          <p className={s.lead}>Zentrale Sammlung aller relevanten Normen, Gesetze und Regelwerke.</p>
         </div>
       </div>
 
       <div className={s.page}>
-        <header className={s.topbar}>
-          <Link href="/dashboard" className={s.back}>
-            <span aria-hidden="true">←</span> Dashboard
-          </Link>
-          <div className={s.userArea}>
-            {email && (
-              <div className={s.userPill}>
-                <span className={s.avatar} aria-hidden="true">{email.slice(0, 1).toUpperCase()}</span>
-                <span className={s.email}>{email}</span>
-              </div>
-            )}
-            <LogoutButton className={s.logout} />
-          </div>
-        </header>
-
         <main>
-          <h1 className={s.title}>Normen-Datenbank</h1>
-          <p className={s.lead}>Zentrale Sammlung aller relevanten Normen, Gesetze und Regelwerke.</p>
-
           <ul className={s.kpis} aria-label="Kennzahlen">
             {kpis.map((k) => (
               <li key={k.label} className={`${s.kpi} ${s.glass}`}>

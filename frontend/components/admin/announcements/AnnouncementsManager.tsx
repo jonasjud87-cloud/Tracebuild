@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConfirmDialog from "@/components/admin/analyses/ConfirmDialog";
 import Toast from "@/components/admin/Toast";
+import PageHeader from "@/components/admin/shell/PageHeader";
 import type { ToastMessage } from "@/components/admin/types";
 import { organizationService } from "@/lib/services/organizationService";
 import AnnouncementFormDialog, { type AnnouncementPayload, type OrgOption } from "./AnnouncementFormDialog";
@@ -12,20 +13,20 @@ import { formatDateTime } from "./time";
 const API = "/api/v1/admin/announcements";
 
 const TYPE_BADGE: Record<AnnouncementType, string> = {
-  info: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#CBBFAE]",
-  warning: "border-[#D6A45F]/30 bg-[#D6A45F]/10 text-[#D6A45F]",
-  maintenance: "border-[#D6A45F]/35 bg-[#D6A45F]/10 text-[#D6A45F]",
-  critical: "border-[#D87979]/40 bg-[#D87979]/10 text-[#EBA1A1]",
+  info: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#6b6153]",
+  warning: "border-[#D6A45F]/30 bg-[#D6A45F]/10 text-[#7a4f00]",
+  maintenance: "border-[#D6A45F]/35 bg-[#D6A45F]/10 text-[#7a4f00]",
+  critical: "border-[#D87979]/40 bg-[#D87979]/10 text-[#a3201a]",
 };
 
 const STATE_BADGE: Record<AnnouncementState, { label: string; cls: string }> = {
-  scheduled: { label: "Geplant", cls: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#CBBFAE]" },
-  live: { label: "Live", cls: "border-[#65A88A]/30 bg-[#65A88A]/10 text-[#65A88A]" },
-  expired: { label: "Abgelaufen", cls: "border-[#4A4A4D] bg-white/5 text-[#ABABAB]" },
-  disabled: { label: "Deaktiviert", cls: "border-[#4A4A4D] bg-white/5 text-[#ABABAB]" },
+  scheduled: { label: "Geplant", cls: "border-[#CBBFAE]/30 bg-[#CBBFAE]/10 text-[#6b6153]" },
+  live: { label: "Live", cls: "border-[#65A88A]/30 bg-[#65A88A]/10 text-[#136a40]" },
+  expired: { label: "Abgelaufen", cls: "border-[#8c8b8e] bg-[rgba(21,20,20,.05)] text-[#5f5f64]" },
+  disabled: { label: "Deaktiviert", cls: "border-[#8c8b8e] bg-[rgba(21,20,20,.05)] text-[#5f5f64]" },
 };
 
-const ACTION_BTN = "rounded-lg border border-[rgba(255,255,255,0.08)] px-3 py-1.5 text-[13px] font-medium text-[#D5D5D5] transition-colors hover:bg-[#2E2E30] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]";
+const ACTION_BTN = "rounded-lg border border-[#151414] px-3 py-1.5 text-[13px] font-medium text-[#151414] transition-colors hover:bg-[#151414] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]";
 
 function typeLabel(t: AnnouncementType) {
   return TYPE_OPTIONS.find(o => o.value === t)?.label ?? t;
@@ -60,7 +61,7 @@ function Skeleton() {
   return (
     <div className="space-y-3" aria-busy="true" aria-label="Ankündigungen werden geladen">
       {[0, 1, 2].map(i => (
-        <div key={i} className="h-24 animate-pulse rounded-2xl border border-[rgba(255,255,255,0.08)] bg-white/[0.03]" />
+        <div key={i} className="h-24 animate-pulse rounded-2xl border border-[rgba(21,20,20,.08)] bg-[rgba(21,20,20,.05)]" />
       ))}
     </div>
   );
@@ -183,35 +184,52 @@ export default function AnnouncementsManager() {
 
   return (
     <div className="mx-auto max-w-[1680px]">
-      <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Ankündigungen</h1>
-          <p className="mt-1 text-sm text-[#D5D5D5]">Wartungs- und Hinweisbanner für alle Nutzer oder eine einzelne Organisation.</p>
+      <div className="space-y-6">
+      <PageHeader
+        variant="hero"
+        photo="banner"
+        overlap={false}
+        title="Ankündigungen"
+        subtitle="Wartungs- und Hinweisbanner für alle Nutzer oder eine einzelne Organisation."
+        actions={
+          <button type="button" onClick={openCreate} className="tba-pill-btn">
+            Neue Ankündigung
+          </button>
+        }
+      />
+
+      {items.length > 0 && (
+        <div className="tba-glass tba-glass--dark tba-card tba-card--static grid grid-cols-3 gap-4 rounded-[20px] p-5">
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-wider text-white/70">Gesamt</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">{items.length}</p>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-wider text-white/70">Live</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">{items.filter(a => a.state === "live").length}</p>
+          </div>
+          <div>
+            <p className="text-[13px] font-semibold uppercase tracking-wider text-white/70">Geplant</p>
+            <p className="mt-1 text-2xl font-bold tabular-nums text-white">{items.filter(a => a.state === "scheduled").length}</p>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] px-4 py-2.5 text-sm font-semibold text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
-        >
-          Neue Ankündigung
-        </button>
-      </div>
+      )}
 
       {loading && items.length === 0 ? (
         <Skeleton />
       ) : loadError ? (
-        <div role="alert" className="rounded-2xl border border-[#D87979]/30 bg-[#D87979]/20 p-6 text-center">
-          <p className="mb-4 text-sm text-[#EBA1A1]">{loadError}</p>
+        <div role="alert" className="rounded-2xl border border-[#D87979]/30 bg-[#D87979]/10 p-6 text-center">
+          <p className="mb-4 text-sm text-[#a3201a]">{loadError}</p>
           <button type="button" onClick={load} className={ACTION_BTN}>Erneut versuchen</button>
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-[#4A4A4D] bg-white/[0.02] p-10 text-center">
-          <p className="mb-1 text-base font-semibold text-white">Noch keine Ankündigungen</p>
-          <p className="mb-5 text-sm text-[#ABABAB]">Legen Sie die erste Ankündigung an, um Nutzer über Wartungen oder Änderungen zu informieren.</p>
+        <div className="rounded-2xl border border-dashed border-[#8c8b8e] bg-[rgba(21,20,20,.05)] p-10 text-center">
+          <p className="mb-1 text-base font-semibold text-[#151414]">Noch keine Ankündigungen</p>
+          <p className="mb-5 text-sm text-[#5f5f64]">Legen Sie die erste Ankündigung an, um Nutzer über Wartungen oder Änderungen zu informieren.</p>
           <button
             type="button"
             onClick={openCreate}
-            className="rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] px-4 py-2.5 text-sm font-semibold text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+            className="rounded-xl tba-btn bg-[#151414] hover:bg-[#2e2e30] px-4 py-2.5 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
           >
             Neue Ankündigung
           </button>
@@ -222,15 +240,15 @@ export default function AnnouncementsManager() {
             const st = STATE_BADGE[a.state];
             const busy = busyId === a.id;
             return (
-              <li key={a.id} className="tba-card rounded-2xl border border-[rgba(203,191,174,0.12)] bg-[#2E2E30] p-4 sm:p-5">
+              <li key={a.id} className="tba-card tba-card--static rounded-2xl border border-[rgba(21,20,20,.08)] bg-white p-4 sm:p-5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${TYPE_BADGE[a.type]}`}>{typeLabel(a.type)}</span>
-                  <span className={`rounded-md border px-2 py-0.5 text-xs font-bold uppercase tracking-wider ${st.cls}`}>{st.label}</span>
-                  <span className="text-[13px] text-[#ABABAB]">{a.orgId ? (a.orgName ?? "Organisation") : "Alle Nutzer"}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-[13px] font-bold uppercase tracking-wider ${TYPE_BADGE[a.type]}`}>{typeLabel(a.type)}</span>
+                  <span className={`rounded-md border px-2 py-0.5 text-[13px] font-bold uppercase tracking-wider ${st.cls}`}>{st.label}</span>
+                  <span className="text-[13px] text-[#5f5f64]">{a.orgId ? (a.orgName ?? "Organisation") : "Alle Nutzer"}</span>
                 </div>
-                <h2 className="mt-2 text-base font-semibold text-white" style={{ overflowWrap: "anywhere" }}>{a.title}</h2>
-                <p className="mt-1 text-sm text-[#D5D5D5]" style={{ overflowWrap: "anywhere" }}>{excerpt(a.message)}</p>
-                <p className="mt-2 text-[13px] text-[#ABABAB]">
+                <h2 className="mt-2 text-base font-semibold text-[#151414]" style={{ overflowWrap: "anywhere" }}>{a.title}</h2>
+                <p className="mt-1 text-sm text-[#46464a]" style={{ overflowWrap: "anywhere" }}>{excerpt(a.message)}</p>
+                <p className="mt-2 text-[13px] text-[#5f5f64]">
                   {formatDateTime(a.startsAt)} {a.endsAt ? `bis ${formatDateTime(a.endsAt)}` : "· ohne Ende"}
                   {a.createdByEmail ? ` · von ${a.createdByEmail}` : ""}
                 </p>
@@ -243,7 +261,7 @@ export default function AnnouncementsManager() {
                     type="button"
                     onClick={() => setDeleting(a)}
                     disabled={busy}
-                    className="rounded-lg border border-[#D87979]/30 px-3 py-1.5 text-[13px] font-medium text-[#EBA1A1] transition-colors hover:bg-[#D87979]/15 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]"
+                    className="rounded-lg border border-[#a3201a] px-3 py-1.5 text-[13px] font-medium text-[#a3201a] transition-colors hover:bg-[#D87979]/15 disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]"
                   >
                     Löschen
                   </button>
@@ -253,6 +271,7 @@ export default function AnnouncementsManager() {
           })}
         </ul>
       )}
+      </div>
 
       {formOpen && (
         <AnnouncementFormDialog

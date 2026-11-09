@@ -4,8 +4,6 @@ import type { ReactNode } from "react";
 import { jakarta as font } from "@/lib/fonts";
 import p from "@/app/projects/project.module.css";
 
-const BACKDROP_PHOTO = "/landing/dashboard-building.jpg";
-
 function Svg({ children }: { children: ReactNode }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
@@ -47,9 +45,6 @@ export default function ProjectFrame({ projectId, pathname, announcements, child
         <div className={p.glowA} />
         <div className={p.glowB} />
         <div className={p.glowC} />
-        <div className={p.arch}>
-          <div className={p.photo} style={{ backgroundImage: `url(${BACKDROP_PHOTO})` }} />
-        </div>
       </div>
 
       <header className={p.topbar}>

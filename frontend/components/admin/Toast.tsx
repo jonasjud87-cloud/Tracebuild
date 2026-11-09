@@ -9,26 +9,10 @@ interface Props {
 }
 
 const toastConfig = {
-  success: {
-    bg: "bg-[linear-gradient(rgba(101,168,138,.15),rgba(101,168,138,.15))] border-[#65A88A]/40",
-    icon: "text-[#65A88A]",
-    text: "text-[#9BD0B5]",
-  },
-  error: {
-    bg: "bg-[linear-gradient(rgba(216,121,121,.15),rgba(216,121,121,.15))] border-[#D87979]/40",
-    icon: "text-[#D87979]",
-    text: "text-[#EBA5A5]",
-  },
-  warning: {
-    bg: "bg-[linear-gradient(rgba(214,164,95,.15),rgba(214,164,95,.15))] border-[#D6A45F]/40",
-    icon: "text-[#D6A45F]",
-    text: "text-[#E8C48A]",
-  },
-  info: {
-    bg: "bg-[linear-gradient(rgba(203,191,174,.15),rgba(203,191,174,.15))] border-[#CBBFAE]/40",
-    icon: "text-[#CBBFAE]",
-    text: "text-[#E6DFD3]",
-  },
+  success: { bg: "shadow-[inset_5px_0_0_#3f9a6d,0_10px_30px_rgba(21,20,20,.18)]", icon: "text-[#136a40]", text: "text-[#151414]" },
+  error: { bg: "shadow-[inset_5px_0_0_#b42318,0_10px_30px_rgba(21,20,20,.18)]", icon: "text-[#a3201a]", text: "text-[#151414]" },
+  warning: { bg: "shadow-[inset_5px_0_0_#d6a45f,0_10px_30px_rgba(21,20,20,.18)]", icon: "text-[#7a4f00]", text: "text-[#151414]" },
+  info: { bg: "shadow-[inset_5px_0_0_#9c8f7b,0_10px_30px_rgba(21,20,20,.18)]", icon: "text-[#6b6153]", text: "text-[#151414]" },
 } as const;
 
 function ToastIcon({ type }: { type: ToastMessage["type"] }) {
@@ -74,7 +58,7 @@ function SingleToast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: 
 
   return (
     <div
-      className={`tba-pop flex items-start gap-3 px-4 py-3.5 rounded-xl border shadow-lg shadow-black/30 min-w-[280px] max-w-sm backdrop-blur-md bg-[#1C1B1B] ${cfg.bg}`}
+      className={`tba-pop flex items-start gap-3 px-4 py-3.5 rounded-xl border border-[rgba(21,20,20,.08)] min-w-[280px] max-w-sm bg-white ${cfg.bg}`}
       role="alert"
     >
       <span className={`mt-0.5 flex-shrink-0 ${cfg.icon}`}>
@@ -85,7 +69,7 @@ function SingleToast({ toast, onRemove }: { toast: ToastMessage; onRemove: (id: 
       </p>
       <button
         onClick={() => onRemove(toast.id)}
-        className={`flex-shrink-0 mt-0.5 opacity-70 hover:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#CBBFAE] ${cfg.icon}`}
+        className={`flex-shrink-0 mt-0.5 opacity-70 hover:opacity-100 transition-opacity focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#151414] ${cfg.icon}`}
         aria-label="Schließen"
       >
         <svg width="11" height="11" viewBox="0 0 11 11" fill="none">

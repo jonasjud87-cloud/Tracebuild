@@ -7,7 +7,6 @@ import { jakarta as font } from "@/lib/fonts";
 import { roleLabel } from "@/lib/roles";
 import type { OrgInfo } from "@/lib/dashboardContext";
 import AnnouncementBanner from "@/components/announcements/AnnouncementBanner";
-import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import { BookIcon, CloseIcon, HomeIcon, LayersIcon, LogoutIcon, MenuIcon, UsersIcon } from "@/components/dashboard/icons";
 import s from "@/app/dashboard/dashboard.module.css";
 
@@ -140,7 +139,6 @@ export default function DashboardFrame({ pathname, email, userName, role, active
       </aside>
 
       <div ref={mainRef} className={s.main}>
-        <DashboardBackdrop />
         <div className={s.content}>
           {showAdminBanner && (
             <div className={s.banner}>
@@ -152,7 +150,9 @@ export default function DashboardFrame({ pathname, email, userName, role, active
             </div>
           )}
           <main className={s.pad}>
-            <AnnouncementBanner />
+            <div className={s.bannerSlot}>
+              <AnnouncementBanner />
+            </div>
             {children}
           </main>
         </div>

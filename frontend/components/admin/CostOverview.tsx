@@ -44,50 +44,50 @@ export default function CostOverview({
     <div className="space-y-5">
       {/* Header row */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="tba-card bg-[#1c1b1b] border border-[#cbbfae]/30 rounded-2xl p-5 sm:col-span-1">
-          <p className="text-[13px] font-semibold text-[#d6d5d4] uppercase tracking-widest mb-1">
+        <div className="tba-card bg-white border border-[#cbbfae]/30 rounded-2xl p-5 sm:col-span-1">
+          <p className="text-[13px] font-semibold text-[#46464a] uppercase tracking-widest mb-1">
             Gesamtkosten — {fmtMonth(currentMonth)}
           </p>
-          <p className="text-3xl font-bold text-[#cbbfae] tabular-nums">{chf(totalThisMonth)}</p>
+          <p className="text-3xl font-bold text-[#6b6153] tabular-nums">{chf(totalThisMonth)}</p>
           {change && (
-            <p className={`text-sm font-medium mt-1 ${change.positive ? "text-[#65A88A]" : "text-[#EBA1A1]"}`}>
+            <p className={`text-sm font-medium mt-1 ${change.positive ? "text-[#136a40]" : "text-[#a3201a]"}`}>
               {change.pct} vs. Vormonat
             </p>
           )}
-          <p className="text-[13px] text-[#d6d5d4] mt-1 tabular-nums">
+          <p className="text-[13px] text-[#46464a] mt-1 tabular-nums">
             {totalAnalyseCount} Analysen · Ø {chf(avgPerAnalyse)}/Analyse
           </p>
         </div>
 
         <div className="tba-glass rounded-2xl p-5">
-          <p className="text-[13px] font-semibold text-[#d6d5d4] uppercase tracking-widest mb-1">Budget verbleibend</p>
-          <p className={`text-2xl font-bold tabular-nums ${budgetRemaining < 0 ? "text-[#EBA1A1]" : "text-white"}`}>
+          <p className="text-[13px] font-semibold text-[#46464a] uppercase tracking-widest mb-1">Budget verbleibend</p>
+          <p className={`text-2xl font-bold tabular-nums ${budgetRemaining < 0 ? "text-[#a3201a]" : "text-[#151414]"}`}>
             {chf(Math.max(budgetRemaining, 0))}
           </p>
-          <div className="mt-2.5 h-2 bg-[#cbbfae]/10 rounded-full overflow-hidden">
+          <div className="mt-2.5 h-2 bg-[#cbbfae]/30 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full transition-all ${budgetPct >= 90 ? "bg-[#D87979]" : budgetPct >= 70 ? "bg-[#D6A45F]" : "bg-[#cbbfae]"}`}
+              className={`h-full rounded-full transition-all ${budgetPct >= 90 ? "bg-[#D87979]" : budgetPct >= 70 ? "bg-[#D6A45F]" : "bg-[#151414]"}`}
               style={{ width: `${budgetPct}%` }}
             />
           </div>
-          <p className="text-[13px] text-[#d6d5d4] mt-1 tabular-nums">
+          <p className="text-[13px] text-[#46464a] mt-1 tabular-nums">
             {chf(totalThisMonth)} von {chf(monthlyBudget)} ({budgetPct.toFixed(0)} %)
           </p>
         </div>
 
         <div className="tba-glass rounded-2xl p-5">
-          <p className="text-[13px] font-semibold text-[#d6d5d4] uppercase tracking-widest mb-1">Vormonat</p>
-          <p className="text-2xl font-bold text-white tabular-nums">{chf(prevMonthTotal)}</p>
-          <p className="text-[13px] text-[#d6d5d4] mt-1">abgeschlossen (Final)</p>
+          <p className="text-[13px] font-semibold text-[#46464a] uppercase tracking-widest mb-1">Vormonat</p>
+          <p className="text-2xl font-bold text-[#151414] tabular-nums">{chf(prevMonthTotal)}</p>
+          <p className="text-[13px] text-[#46464a] mt-1">abgeschlossen (Final)</p>
           <div className="mt-2.5 flex items-center gap-1.5">
             <span className={`text-[13px] font-semibold px-2 py-0.5 rounded-full ${
               change
-                ? change.positive ? "bg-[#65A88A]/15 text-[#8FD0B1]" : "bg-[#D87979]/15 text-[#EBA1A1]"
-                : "bg-[rgba(255,255,255,0.10)] text-[#adacab]"
+                ? change.positive ? "bg-[#e4f3ea] text-[#136a40]" : "bg-[#fde7e5] text-[#a3201a]"
+                : "bg-[rgba(21,20,20,0.08)] text-[#5f5f64]"
             }`}>
               {change ? change.pct : "—"}
             </span>
-            <span className="text-[13px] text-[#d6d5d4]">Änderung MoM</span>
+            <span className="text-[13px] text-[#46464a]">Änderung MoM</span>
           </div>
         </div>
       </div>
@@ -95,10 +95,10 @@ export default function CostOverview({
       {/* Breakdown cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {breakdownCards.map(card => (
-          <div key={card.key} className="bg-[#1c1b1b] border border-[rgba(255,255,255,0.10)] rounded-xl p-4">
-            <p className="text-[13px] font-semibold text-[#d6d5d4] uppercase tracking-widest mb-1">{card.label}</p>
-            <p className="text-base font-bold text-white tabular-nums">{chf(card.value)}</p>
-            <p className="text-[13px] text-[#d6d5d4] mt-0.5 tabular-nums">
+          <div key={card.key} className="bg-white border border-[rgba(21,20,20,0.08)] rounded-xl p-4">
+            <p className="text-[13px] font-semibold text-[#46464a] uppercase tracking-widest mb-1">{card.label}</p>
+            <p className="text-base font-bold text-[#151414] tabular-nums">{chf(card.value)}</p>
+            <p className="text-[13px] text-[#46464a] mt-0.5 tabular-nums">
               {totalThisMonth > 0 ? ((card.value / totalThisMonth) * 100).toFixed(0) : "0"} %
             </p>
           </div>
@@ -108,42 +108,42 @@ export default function CostOverview({
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
         <div className="lg:col-span-3 tba-glass rounded-2xl p-5">
-          <h4 className="text-sm font-semibold text-white mb-4">6-Monats-Verlauf</h4>
+          <h4 className="text-sm font-semibold text-[#151414] mb-4">6-Monats-Verlauf</h4>
           <div className="space-y-2.5">
             {monthlyTotals.map(mt => {
               const isCurrent = mt.month === currentMonth;
               const barPct = maxTotal > 0 ? (mt.total / maxTotal) * 100 : 0;
               return (
                 <div key={mt.month} className="flex items-center gap-3">
-                  <span className="text-[13px] text-[#d6d5d4] w-16 flex-shrink-0 tabular-nums">
+                  <span className="text-[13px] text-[#46464a] w-16 flex-shrink-0 tabular-nums">
                     {fmtMonth(mt.month)}
                   </span>
-                  <div className="flex-1 h-5 bg-[#cbbfae]/[0.08] rounded-md overflow-hidden">
+                  <div className="flex-1 h-5 bg-[#f6f3ee] rounded-md overflow-hidden">
                     <div
                       className="h-full rounded-md transition-all"
                       style={{
                         width: `${barPct}%`,
-                        backgroundColor: isCurrent ? "#cbbfae" : "rgba(203,191,174,0.35)",
+                        backgroundColor: isCurrent ? "#151414" : "#cbbfae",
                       }}
                     />
                   </div>
                   <span className={`text-[13px] font-medium tabular-nums w-20 text-right flex-shrink-0 ${
-                    isCurrent ? "text-[#cbbfae]" : "text-[#d6d5d4]"
+                    isCurrent ? "text-[#6b6153]" : "text-[#46464a]"
                   }`}>
                     {chf(mt.total)}
-                    {isCurrent && <span className="text-[13px] text-[#d6d5d4] ml-1">*</span>}
+                    {isCurrent && <span className="text-[13px] text-[#46464a] ml-1">*</span>}
                   </span>
                 </div>
               );
             })}
           </div>
-          <p className="text-[13px] text-[#d6d5d4] mt-3">* Laufender Monat (Teildaten)</p>
+          <p className="text-[13px] text-[#46464a] mt-3">* Laufender Monat (Teildaten)</p>
         </div>
 
         <div className="lg:col-span-2 tba-glass rounded-2xl p-5">
-          <h4 className="text-sm font-semibold text-white mb-4">Kosten pro Organisation</h4>
+          <h4 className="text-sm font-semibold text-[#151414] mb-4">Kosten pro Organisation</h4>
           {costs.length === 0 ? (
-            <p className="text-sm text-[#d6d5d4] text-center py-4">Keine Daten</p>
+            <p className="text-sm text-[#46464a] text-center py-4">Keine Daten</p>
           ) : (
             <div className="space-y-3">
               {[...costs].sort((a, b) => b.totalCost - a.totalCost).map(c => {
@@ -153,15 +153,15 @@ export default function CostOverview({
                   <div key={c.orgId} className="space-y-1">
                     <div className="flex items-center gap-2 justify-between">
                       <div className="flex items-center gap-2 min-w-0">
-                        <div className="w-5 h-5 rounded-md bg-[#cbbfae]/10 flex items-center justify-center flex-shrink-0">
-                          <span className="text-[8px] font-bold text-[#cbbfae]">{initials}</span>
+                        <div className="w-5 h-5 rounded-md bg-[#cbbfae]/30 flex items-center justify-center flex-shrink-0">
+                          <span className="text-[8px] font-bold text-[#6b6153]">{initials}</span>
                         </div>
-                        <span className="text-sm font-medium text-white truncate">{c.orgName}</span>
+                        <span className="text-sm font-medium text-[#151414] truncate">{c.orgName}</span>
                       </div>
-                      <span className="text-sm font-semibold text-white tabular-nums flex-shrink-0">{chf(c.totalCost)}</span>
+                      <span className="text-sm font-semibold text-[#151414] tabular-nums flex-shrink-0">{chf(c.totalCost)}</span>
                     </div>
-                    <div className="h-1.5 bg-[#cbbfae]/10 rounded-full overflow-hidden">
-                      <div className="h-full rounded-full" style={{ width: `${barPct}%`, backgroundColor: "#cbbfae" }} />
+                    <div className="h-1.5 bg-[#cbbfae]/30 rounded-full overflow-hidden">
+                      <div className="h-full rounded-full" style={{ width: `${barPct}%`, backgroundColor: "#151414" }} />
                     </div>
                   </div>
                 );

@@ -87,20 +87,20 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
           mainRef.current?.focus();
           mainRef.current?.scrollIntoView();
         }}
-        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-[var(--tba-bronze,#B5A893)] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-[#151414]"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-[#151414] focus:px-4 focus:py-2 focus:text-sm focus:font-semibold focus:text-white"
       >
         Zum Inhalt springen
       </a>
 
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-40 bg-[rgba(21,20,20,.55)] backdrop-blur-[2px] lg:hidden"
           onClick={close}
           aria-hidden="true"
         />
       )}
 
-      <header className="tba-topbar fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 border-b border-[rgba(255,255,255,.08)] px-3 sm:px-5">
+      <header className="tba-topbar tba-onblack fixed inset-x-0 top-0 z-50 flex h-14 items-center gap-2 border-b border-[rgba(255,255,255,.1)] px-3 sm:px-5">
         <button
           ref={menuButtonRef}
           type="button"
@@ -108,7 +108,7 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
           aria-label="Navigation öffnen"
           aria-expanded={open}
           aria-controls="admin-sidebar"
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-[var(--tba-line,rgba(255,255,255,.08))] text-[var(--tba-text-2,#D5D5D5)] hover:bg-[var(--tba-hover,#3A3A3D)] hover:text-[var(--tba-text,#FFFFFF)] lg:hidden"
+          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full border border-white/30 text-white/90 hover:bg-white/10 hover:text-white lg:hidden"
         >
           <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
             <path d="M2.5 5h13M2.5 9h13M2.5 13h13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -123,7 +123,7 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
         >
           <LogoMark className="h-8 w-[23px] flex-shrink-0" />
           <span className="tba-brand truncate">TraceBuild</span>
-          <span className="tba-admin-pill hidden items-center rounded-full px-2.5 py-0.5 text-xs font-bold uppercase tracking-wider text-[var(--tba-sand,#CBBFAE)] sm:inline-flex">
+          <span className="tba-admin-pill hidden items-center rounded-full px-2.5 py-0.5 text-[13px] font-bold uppercase tracking-wider sm:inline-flex">
             Admin
           </span>
         </Link>
@@ -139,10 +139,10 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
               aria-label="Profil bearbeiten"
               className="flex items-center gap-2 rounded-full p-0.5 tba-profile-link transition-colors sm:pr-2"
             >
-              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[linear-gradient(135deg,#D8CEBF,#B5A893)] text-xs font-bold text-[#151414]">
+              <span className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-[#cbbfae] text-[13px] font-bold text-[#151414]">
                 {userEmail.charAt(0).toUpperCase()}
               </span>
-              <span className="hidden max-w-[12rem] truncate text-sm text-[var(--tba-text,#FFFFFF)] md:inline">{userEmail}</span>
+              <span className="hidden max-w-[12rem] truncate text-sm text-white md:inline">{userEmail}</span>
             </Link>
           )}
 
@@ -150,7 +150,7 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
             type="button"
             onClick={handleLogout}
             aria-label="Abmelden"
-            className="flex h-9 items-center gap-1.5 rounded-full border border-[var(--tba-border,#4A4A4D)] px-2.5 text-sm text-[var(--tba-text,#FFFFFF)] transition-colors hover:border-[var(--tba-bronze,#B5A893)] hover:bg-[rgba(58,58,61,.6)] sm:px-3.5"
+            className="flex h-9 items-center gap-1.5 rounded-full border border-white/40 px-2.5 text-sm text-white transition-colors hover:border-[#cbbfae] hover:bg-white/10 sm:px-3.5"
           >
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
               <path
@@ -170,17 +170,17 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
         role={open ? "dialog" : undefined}
         aria-modal={open ? "true" : undefined}
         aria-label={open ? "Admin-Navigation" : undefined}
-        className={`fixed bottom-0 left-0 top-0 z-[55] flex w-[270px] max-w-[85vw] flex-col border-r border-[var(--tba-line,rgba(255,255,255,.08))] bg-[#151414] transition-transform duration-200 motion-reduce:transition-none lg:top-14 lg:z-40 lg:visible lg:translate-x-0 lg:border-r-0 lg:bg-transparent ${
+        className={`tba-onblack fixed bottom-0 left-0 top-0 z-[55] flex w-[270px] max-w-[85vw] flex-col border-r border-white/10 bg-[#151414] transition-transform duration-200 motion-reduce:transition-none lg:top-14 lg:z-40 lg:visible lg:translate-x-0 lg:border-r-0 ${
           open ? "visible translate-x-0" : "invisible -translate-x-full"
         }`}
       >
         <div className="flex h-14 flex-shrink-0 items-center justify-between gap-2 px-4 lg:hidden">
-          <span className="text-sm font-semibold text-[var(--tba-text,#FFFFFF)]">Navigation</span>
+          <span className="text-sm font-semibold text-white">Navigation</span>
           <button
             type="button"
             onClick={close}
             aria-label="Navigation schliessen"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[var(--tba-text-2,#D5D5D5)] hover:bg-[var(--tba-hover,#3A3A3D)] hover:text-[var(--tba-text,#FFFFFF)]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-white/85 hover:bg-white/10 hover:text-white"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
@@ -200,7 +200,7 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
           id="admin-main"
           ref={mainRef}
           tabIndex={-1}
-          className="tba-panel min-h-[calc(100vh-3.5rem)] rounded-t-[20px] px-[clamp(16px,3vw,40px)] py-6 focus:outline-none lg:rounded-tl-[28px] lg:rounded-tr-none lg:py-6"
+          className="tba-panel min-h-[calc(100vh-3.5rem)] px-[clamp(16px,3vw,40px)] py-6 focus:outline-none lg:py-6"
         >
           <div className="mx-auto w-full max-w-[1680px]">{children}</div>
         </main>

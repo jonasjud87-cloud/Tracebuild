@@ -23,17 +23,17 @@ interface Props {
   onRetry: () => void;
 }
 
-const TH = "px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-[#D5D5D5]";
+const TH = "px-4 py-3 text-left text-sm font-semibold uppercase tracking-wider text-[#46464a]";
 const SHELL = "tba-glass tba-glass--flat overflow-hidden rounded-2xl";
 
 function Skeleton() {
   return (
-    <div className={`${SHELL} divide-y divide-[rgba(255,255,255,0.08)]`} aria-busy="true" aria-label="Lade Analysen">
+    <div className={`${SHELL} divide-y divide-[rgba(21,20,20,.08)]`} aria-busy="true" aria-label="Lade Analysen">
       {Array.from({ length: 6 }, (_, i) => (
         <div key={i} className="flex items-center gap-4 px-4 py-4">
-          <div className="h-5 w-24 animate-pulse rounded-full bg-[rgba(203,191,174,0.15)]" />
-          <div className="h-4 flex-1 animate-pulse rounded bg-[rgba(203,191,174,0.1)]" />
-          <div className="h-4 w-16 animate-pulse rounded bg-[rgba(203,191,174,0.1)]" />
+          <div className="h-5 w-24 animate-pulse rounded-full bg-[rgba(21,20,20,.06)]" />
+          <div className="h-4 flex-1 animate-pulse rounded bg-[rgba(21,20,20,.06)]" />
+          <div className="h-4 w-16 animate-pulse rounded bg-[rgba(21,20,20,.06)]" />
         </div>
       ))}
     </div>
@@ -46,12 +46,12 @@ export default function AnalysesTable(p: Props) {
   if (p.error && p.items.length === 0) {
     return (
       <div role="alert" className={`${SHELL} p-10 text-center`}>
-        <p className="text-sm font-semibold text-[#EBA1A1]">Analysen konnten nicht geladen werden</p>
-        <p className="mt-1 text-sm text-[#D5D5D5]">{p.error}</p>
+        <p className="text-sm font-semibold text-[#a3201a]">Analysen konnten nicht geladen werden</p>
+        <p className="mt-1 text-sm text-[#46464a]">{p.error}</p>
         <button
           type="button"
           onClick={p.onRetry}
-          className="mt-4 rounded-xl tba-btn bg-[linear-gradient(135deg,#CBBFAE,#B5A893)] px-4 py-2 text-sm font-semibold text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+          className="mt-4 rounded-xl tba-btn bg-[#151414] hover:bg-[#2e2e30] px-4 py-2 text-sm font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
         >
           Erneut versuchen
         </button>
@@ -62,8 +62,8 @@ export default function AnalysesTable(p: Props) {
   if (p.items.length === 0) {
     return (
       <div className={`${SHELL} p-12 text-center`}>
-        <p className="text-sm font-medium text-[#D5D5D5]">Keine Analysen für diese Auswahl</p>
-        <p className="mt-1 text-sm text-[#ABABAB]">Passe Ansicht, Organisation oder Zeitraum an.</p>
+        <p className="text-sm font-medium text-[#46464a]">Keine Analysen für diese Auswahl</p>
+        <p className="mt-1 text-sm text-[#5f5f64]">Passe Ansicht, Organisation oder Zeitraum an.</p>
       </div>
     );
   }
@@ -71,7 +71,7 @@ export default function AnalysesTable(p: Props) {
   return (
     <div className="space-y-3">
       {p.error && (
-        <div role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/20 px-4 py-2.5 text-sm text-[#EBA1A1]">
+        <div role="alert" className="rounded-xl border border-[#D87979]/30 bg-[#D87979]/10 px-4 py-2.5 text-sm text-[#a3201a]">
           Aktualisierung fehlgeschlagen: {p.error}. Angezeigt werden die zuletzt geladenen Daten.
         </div>
       )}
@@ -80,7 +80,7 @@ export default function AnalysesTable(p: Props) {
           <table className="w-full text-sm">
             <caption className="sr-only">Analysen organisationsübergreifend</caption>
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.08)] bg-[rgba(28,27,27,0.5)]">
+              <tr className="border-b border-[rgba(21,20,20,.08)] bg-[#f6f3ee]">
                 <th scope="col" className={TH}>Status</th>
                 <th scope="col" className={TH}>Organisation / Projekt</th>
                 <th scope="col" className={TH}>Erstellt</th>
@@ -99,7 +99,7 @@ export default function AnalysesTable(p: Props) {
                   <tr
                     key={row.id}
                     onClick={() => p.onSelect(row)}
-                    className={`tba-row cursor-pointer border-b border-[rgba(255,255,255,0.08)] transition-colors last:border-0 ${selected ? "bg-[#2E2E30]" : p.highlightOrphans && orphaned ? "bg-[#D6A45F]/10 tba-row--orphan" : ""}`}
+                    className={`tba-row cursor-pointer border-b border-[rgba(21,20,20,.08)] transition-colors last:border-0 ${selected ? "tba-row--selected" : p.highlightOrphans && orphaned ? "bg-[#D6A45F]/10 tba-row--orphan" : ""}`}
                   >
                     <td className="px-4 py-3 align-top"><StatusBadge status={row.status} orphaned={orphaned} /></td>
                     <td className="max-w-[22rem] px-4 py-3 align-top">
@@ -108,25 +108,25 @@ export default function AnalysesTable(p: Props) {
                         id={`analysis-open-${row.id}`}
                         aria-current={selected ? "true" : undefined}
                         onClick={(e) => { e.stopPropagation(); p.onSelect(row); }}
-                        className="block max-w-full rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+                        className="block max-w-full rounded text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
                         aria-label={`Details öffnen: ${row.orgName}, ${row.projectName}`}
                       >
-                        <span className="block truncate font-medium text-white">{row.orgName}</span>
-                        <span className="block truncate text-sm text-[#D5D5D5]">{row.projectName}</span>
+                        <span className="block truncate font-medium text-[#151414]">{row.orgName}</span>
+                        <span className="block truncate text-sm text-[#46464a]">{row.projectName}</span>
                       </button>
                       {row.errorText && (
-                        <p className="mt-1 line-clamp-2 text-sm text-[#EBA1A1]">{row.errorText}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-[#a3201a]">{row.errorText}</p>
                       )}
                     </td>
                     <td className="whitespace-nowrap px-4 py-3 align-top">
-                      <span className="block text-[#D5D5D5]">{formatAgo(row.createdAt, p.now)}</span>
-                      <span className="block text-sm text-[#D5D5D5]">{formatDateTime(row.createdAt)}</span>
+                      <span className="block text-[#46464a]">{formatAgo(row.createdAt, p.now)}</span>
+                      <span className="block text-sm text-[#46464a]">{formatDateTime(row.createdAt)}</span>
                     </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-[#D5D5D5]">
+                    <td className="whitespace-nowrap px-4 py-3 text-right align-top tabular-nums text-[#46464a]">
                       {dur.text}
-                      {dur.live && <span className="block text-sm text-[#D5D5D5]">seit Start</span>}
+                      {dur.live && <span className="block text-sm text-[#46464a]">seit Start</span>}
                     </td>
-                    <td className={`whitespace-nowrap px-4 py-3 text-right align-top tabular-nums ${expensive ? "font-semibold text-[#D6A45F]" : "text-[#D5D5D5]"}`}>
+                    <td className={`whitespace-nowrap px-4 py-3 text-right align-top tabular-nums ${expensive ? "font-semibold text-[#7a4f00]" : "text-[#46464a]"}`}>
                       {formatCost(row.costChf)}
                       {expensive && <span className="block text-sm font-medium">teuer</span>}
                     </td>
@@ -146,7 +146,7 @@ export default function AnalysesTable(p: Props) {
             type="button"
             onClick={p.onLoadMore}
             disabled={p.loadingMore}
-            className="rounded-xl border border-[rgba(203,191,174,0.25)] px-5 py-2.5 text-sm font-semibold text-[#CBBFAE] hover:bg-[#2E2E30] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#CBBFAE]"
+            className="rounded-xl border-[1.5px] border-[#151414] px-5 py-2.5 text-sm font-semibold text-[#151414] hover:bg-[#151414] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
           >
             {p.loadingMore ? "Lade …" : "Weitere laden"}
           </button>

@@ -35,18 +35,18 @@ interface Props {
 }
 
 const STATUS_STYLE: Record<RowStatus, { label: string; cls: string; dot: string }> = {
-  active: { label: "Aktiv", cls: "bg-[#65A88A]/15 text-[#8FD0B1]", dot: "bg-[#65A88A]" },
-  pending: { label: "Ausstehend", cls: "bg-[#D6A45F]/15 text-[#D6A45F]", dot: "bg-[#D6A45F]" },
-  blocked: { label: "Gesperrt", cls: "bg-[#D87979]/15 text-[#EBA1A1]", dot: "bg-[#D87979]" },
+  active: { label: "Aktiv", cls: "bg-[#e4f3ea] text-[#136a40]", dot: "bg-[#65A88A]" },
+  pending: { label: "Ausstehend", cls: "bg-[#fff1d6] text-[#7a4f00]", dot: "bg-[#D6A45F]" },
+  blocked: { label: "Gesperrt", cls: "bg-[#fde7e5] text-[#a3201a]", dot: "bg-[#D87979]" },
 };
 
 const focusRing =
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#cbbfae] focus-visible:ring-offset-2 focus-visible:ring-offset-[#1c1b1b]";
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#151414] focus-visible:ring-offset-2 focus-visible:ring-offset-white";
 
 const controlCls =
-  "w-full rounded-xl border border-[rgba(203,191,174,0.55)] bg-[rgba(28,27,27,0.6)] px-3 py-2.5 text-sm text-white focus:border-[#cbbfae] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40";
+  "w-full rounded-xl border border-[#8c8b8e] bg-white px-3 py-2.5 text-sm text-[#151414] focus:border-[#151414] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55";
 
-const TH = "py-3.5 px-3 text-left text-[13px] font-semibold uppercase tracking-wider text-[#d6d5d4]";
+const TH = "py-3.5 px-3 text-left text-[13px] font-semibold uppercase tracking-wider text-[#46464a]";
 
 function activityTime(u: Row): number {
   const iso = u.lastActivityAt ?? u.lastSignInAt;
@@ -119,7 +119,7 @@ function RowMenu({
   }
 
   const blockKind: ActionKind = user.blocked ? "unblock" : "block";
-  const itemCls = "block w-full px-3 py-2 text-left text-sm focus:outline-none focus-visible:bg-[#242324] disabled:cursor-not-allowed disabled:opacity-50";
+  const itemCls = "block w-full px-3 py-2 text-left text-sm focus:outline-none focus-visible:bg-[#f6f3ee] disabled:cursor-not-allowed disabled:opacity-50";
   const label = user.name || user.email;
 
   return (
@@ -133,7 +133,7 @@ function RowMenu({
         disabled={disabled}
         onClick={toggle}
         onKeyDown={e => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); toggle(); } }}
-        className={`rounded-lg p-1.5 text-[#d6d5d4] transition-colors hover:bg-[#2e2e30] hover:text-white disabled:opacity-40 ${focusRing}`}
+        className={`rounded-lg p-1.5 text-[#46464a] transition-colors hover:bg-[#f6f3ee] hover:text-[#151414] disabled:opacity-40 ${focusRing}`}
       >
         <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
           <circle cx="3" cy="8" r="1.4" /><circle cx="8" cy="8" r="1.4" /><circle cx="13" cy="8" r="1.4" />
@@ -146,10 +146,10 @@ function RowMenu({
           aria-label={`Aktionen für ${label}`}
           onKeyDown={onMenuKey}
           style={{ position: "fixed", top: pos.top, right: pos.right }}
-          className="z-50 w-64 overflow-hidden rounded-xl border border-[#454444] bg-[#151414] py-1 shadow-2xl"
+          className="z-50 w-64 overflow-hidden rounded-xl border border-[rgba(21,20,20,0.15)] bg-white py-1 shadow-2xl"
         >
           {user.rowStatus === "pending" ? (
-            <p className="px-3 py-2 text-sm text-[#d6d5d4]">Einladung noch nicht angenommen.</p>
+            <p className="px-3 py-2 text-sm text-[#46464a]">Einladung noch nicht angenommen.</p>
           ) : (
             <>
               <button
@@ -157,18 +157,18 @@ function RowMenu({
                 role="menuitem"
                 disabled={isSelf && !user.blocked}
                 onClick={() => { setOpen(false); onSelect(blockKind); }}
-                className={`${itemCls} ${user.blocked ? "text-[#65A88A]" : "text-[#EBA1A1]"}`}
+                className={`${itemCls} ${user.blocked ? "text-[#136a40]" : "text-[#a3201a]"}`}
               >
                 {user.blocked ? "Entsperren" : "Sperren"}
               </button>
               {isSelf && !user.blocked && (
-                <p className="px-3 pb-2 text-[13px] text-[#d6d5d4]">Das eigene Konto kann nicht gesperrt werden.</p>
+                <p className="px-3 pb-2 text-[13px] text-[#46464a]">Das eigene Konto kann nicht gesperrt werden.</p>
               )}
               <button
                 type="button"
                 role="menuitem"
                 onClick={() => { setOpen(false); onSelect("reset"); }}
-                className={`${itemCls} text-white`}
+                className={`${itemCls} text-[#151414]`}
               >
                 Passwort zurücksetzen
               </button>
@@ -345,15 +345,15 @@ export default function AllUsersView({
     <div className="space-y-4">
       <div className="flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
         <div>
-          <h2 className="text-base font-semibold text-white">Alle Nutzer</h2>
-          <p className="mt-0.5 text-sm text-[#adacab]" aria-live="polite">
+          <h2 className="text-base font-semibold text-[#151414]">Alle Nutzer</h2>
+          <p className="mt-0.5 text-sm text-[#5f5f64]" aria-live="polite">
             {loading && total === 0 ? "Wird geladen …" : `${visible.length} von ${total} Nutzern in ${groups.length} ${groups.length === 1 ? "Organisation" : "Organisationen"}`}
           </p>
         </div>
         <button
           type="button"
           onClick={onInvite}
-          className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-[linear-gradient(135deg,#cbbfae,#b5a893)] px-4 py-2.5 text-sm font-semibold text-[#151414] shadow-sm shadow-[#cbbfae]/25 transition-all hover:brightness-110 active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#cbbfae]"
+          className="flex flex-shrink-0 items-center gap-1.5 whitespace-nowrap rounded-xl bg-[#151414] hover:bg-[#2e2e30] px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-[#cbbfae]/25 transition-all active:scale-[0.97] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
         >
           <svg width="11" height="11" viewBox="0 0 11 11" fill="none" aria-hidden="true">
             <path d="M5.5 1V10M1 5.5H10" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
@@ -369,7 +369,7 @@ export default function AllUsersView({
           onChange={e => setSearch(e.target.value)}
           placeholder="Name, E-Mail oder Organisation …"
           aria-label="Nutzer suchen"
-          className={`${controlCls} placeholder:text-[#adacab]`}
+          className={`${controlCls} placeholder:text-[#6e6e73]`}
         />
         <select aria-label="Nach Status filtern" value={statusFilter} onChange={e => setStatusFilter(e.target.value as "all" | RowStatus)} className={controlCls}>
           <option value="all">Alle Status</option>
@@ -391,30 +391,30 @@ export default function AllUsersView({
       {loading && total === 0 && !error ? (
         <div role="status" aria-label="Nutzer werden geladen" className="space-y-px tba-glass tba-glass--flat overflow-hidden rounded-2xl">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-14 animate-pulse border-b border-[rgba(255,255,255,0.10)] bg-[rgba(46,46,48,0.4)] last:border-0" />
+            <div key={i} className="h-14 animate-pulse border-b border-[rgba(21,20,20,0.08)] bg-[#f6f3ee] last:border-0" />
           ))}
         </div>
       ) : error && total === 0 ? (
-        <div role="alert" className="rounded-2xl border border-[#D87979]/30 bg-[#D87979]/10 p-8 text-center">
-          <p className="text-sm font-medium text-[#EBA1A1]">{error}</p>
+        <div role="alert" className="rounded-2xl border border-[#D87979]/30 bg-[#fde7e5] p-8 text-center">
+          <p className="text-sm font-medium text-[#a3201a]">{error}</p>
           <button
             type="button"
             onClick={() => { void onReload(); }}
             disabled={loading}
-            className="mt-3 rounded-xl border border-[rgba(203,191,174,0.55)] px-4 py-2 text-sm font-medium text-[#cbbfae] hover:bg-[#2e2e30] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#cbbfae]"
+            className="mt-3 rounded-xl border border-[#8c8b8e] px-4 py-2 text-sm font-medium text-[#6b6153] hover:bg-[#f6f3ee] disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
           >
             {loading ? "Lädt …" : "Erneut versuchen"}
           </button>
         </div>
       ) : total === 0 ? (
-        <div className="rounded-2xl border border-[rgba(255,255,255,0.10)] bg-[#1c1b1b] p-12 text-center">
-          <p className="text-sm font-medium text-[#d6d5d4]">Noch keine Nutzer vorhanden</p>
+        <div className="rounded-2xl border border-[rgba(21,20,20,0.08)] bg-white p-12 text-center">
+          <p className="text-sm font-medium text-[#46464a]">Noch keine Nutzer vorhanden</p>
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-2xl border border-[rgba(255,255,255,0.10)] bg-[#1c1b1b] p-12 text-center">
-          <p className="text-sm font-medium text-[#d6d5d4]">Keine Nutzer gefunden</p>
+        <div className="rounded-2xl border border-[rgba(21,20,20,0.08)] bg-white p-12 text-center">
+          <p className="text-sm font-medium text-[#46464a]">Keine Nutzer gefunden</p>
           {filtersActive && (
-            <button type="button" onClick={resetFilters} className="mt-2 rounded text-sm text-[#cbbfae] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#cbbfae]">
+            <button type="button" onClick={resetFilters} className="mt-2 rounded text-sm text-[#6b6153] hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]">
               Filter zurücksetzen
             </button>
           )}
@@ -422,7 +422,7 @@ export default function AllUsersView({
       ) : (
         <div className="tba-glass tba-glass--flat overflow-hidden rounded-2xl">
           {error && (
-            <div role="alert" className="flex items-center justify-between gap-3 border-b border-[#D87979]/30 bg-[#D87979]/10 px-5 py-2.5 text-sm text-[#EBA1A1]">
+            <div role="alert" className="flex items-center justify-between gap-3 border-b border-[#D87979]/30 bg-[#fde7e5] px-5 py-2.5 text-sm text-[#a3201a]">
               <span>{error}</span>
               <button type="button" onClick={() => { void onReload(); }} className="rounded font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]">
                 Erneut versuchen
@@ -432,7 +432,7 @@ export default function AllUsersView({
           <div ref={regionRef} role="region" aria-label="Alle Nutzer" tabIndex={0} className={`overflow-x-auto tba-scroll-x ${focusRing}`}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[rgba(255,255,255,0.10)] bg-[rgba(28,27,27,0.5)]">
+                <tr className="border-b border-[rgba(21,20,20,0.08)] bg-[#f6f3ee]">
                   <th scope="col" className={`${TH} px-4`}>Nutzer</th>
                   <th scope="col" className={TH}>Organisation</th>
                   <th scope="col" className={TH}>Rolle</th>
@@ -448,18 +448,18 @@ export default function AllUsersView({
                   const rowBusy = busyId === u.id;
                   const resendKey = `${u.orgId}:${u.email}`;
                   return (
-                    <tr key={`${u.orgId}:${u.id}`} aria-busy={rowBusy} className={`border-b border-[rgba(255,255,255,0.10)] transition-colors last:border-0 tba-row ${rowBusy ? "opacity-60" : ""}`}>
+                    <tr key={`${u.orgId}:${u.id}`} aria-busy={rowBusy} className={`border-b border-[rgba(21,20,20,0.08)] transition-colors last:border-0 tba-row ${rowBusy ? "opacity-60" : ""}`}>
                       <th scope="row" className="max-w-[240px] px-4 py-3 text-left font-normal">
-                        <div className="truncate font-medium text-white" title={u.name ?? undefined}>
+                        <div className="truncate font-medium text-[#151414]" title={u.name ?? undefined}>
                           {u.name ?? "—"}
-                          {isSelf && <span className="ml-2 rounded-full bg-[#cbbfae]/15 px-1.5 py-0.5 text-[13px] font-semibold text-[#cbbfae]">Du</span>}
+                          {isSelf && <span className="ml-2 rounded-full bg-[#cbbfae]/30 px-1.5 py-0.5 text-[13px] font-semibold text-[#6b6153]">Du</span>}
                         </div>
-                        <div className="truncate text-sm text-[#d6d5d4]" title={u.email}>{u.email}</div>
+                        <div className="truncate text-sm text-[#46464a]" title={u.email}>{u.email}</div>
                       </th>
-                      <td className="max-w-[160px] truncate px-3 py-3 text-[#d6d5d4]" title={u.orgName}>{u.orgName}</td>
+                      <td className="max-w-[160px] truncate px-3 py-3 text-[#46464a]" title={u.orgName}>{u.orgName}</td>
                       <td className="px-3 py-3">
                         <span className={`rounded-full px-2 py-0.5 text-[13px] font-semibold ${
-                          u.role === "org_admin" || u.role === "super_admin" ? "bg-[#cbbfae]/10 text-[#cbbfae]" : "bg-[rgba(255,255,255,0.10)] text-[#d6d5d4]"
+                          u.role === "org_admin" || u.role === "super_admin" ? "bg-[#cbbfae]/30 text-[#6b6153]" : "bg-[rgba(21,20,20,0.08)] text-[#46464a]"
                         }`}>
                           {roleLabels[u.role] ?? u.role}
                         </span>
@@ -470,7 +470,7 @@ export default function AllUsersView({
                           {s.label}
                         </span>
                       </td>
-                      <td className="hidden xl:table-cell whitespace-nowrap px-3 py-3 text-[#d6d5d4]">
+                      <td className="hidden xl:table-cell whitespace-nowrap px-3 py-3 text-[#46464a]">
                         <time dateTime={u.lastActivityAt ?? undefined} title={formatFull(u.lastActivityAt)}>
                           {formatRelative(u.lastActivityAt)}
                         </time>
@@ -482,7 +482,7 @@ export default function AllUsersView({
                               type="button"
                               onClick={() => onResendInvite(u.orgId, u.email, u.role, u.name)}
                               disabled={resendingId === resendKey}
-                              className="whitespace-nowrap rounded text-sm font-medium text-[#cbbfae] transition-colors hover:text-white disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#cbbfae]"
+                              className="whitespace-nowrap rounded text-sm font-medium text-[#6b6153] transition-colors hover:text-[#151414] disabled:opacity-40 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]"
                               title="Einladung erneut senden"
                             >
                               {resendingId === resendKey ? "…" : "Erneut einladen"}

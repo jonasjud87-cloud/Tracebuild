@@ -115,21 +115,21 @@ export default function AuthCallbackPage() {
 
   if (error) {
     return (
-      <div style={{ minHeight: "100vh", background: "#151414", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: "#F7B0B0", background: "rgba(217,25,43,0.14)", border: "1px solid rgba(240,138,138,0.4)", borderRadius: 10, padding: "10px 14px", maxWidth: 440, margin: 0 }}>
+      <div style={{ minHeight: "100vh", background: "#f6f3ee", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16, padding: 24, textAlign: "center" }}>
+        <p style={{ fontSize: 15, color: "#a3201a", background: "#fde7e5", border: "1px solid rgba(163,32,26,0.35)", borderRadius: 12, padding: "10px 14px", maxWidth: 440, margin: 0 }}>
           {error}
         </p>
-        <p style={{ fontSize: 14, color: "rgba(255,255,255,0.72)", margin: 0, maxWidth: 440 }}>
+        <p style={{ fontSize: 15, color: "#46464a", margin: 0, maxWidth: 440 }}>
           Bitte fordere bei deinem Administrator eine neue Einladung an.
         </p>
-        <a href="/login" style={{ fontSize: 15, fontWeight: 600, color: "#CBBFAE" }}>Zur Anmeldung →</a>
+        <a href="/login" style={{ fontSize: 15, fontWeight: 600, color: "#151414", textDecoration: "underline", textUnderlineOffset: 3 }}>Zur Anmeldung →</a>
       </div>
     );
   }
 
   return (
-    <div style={{ minHeight: "100vh", background: "#151414", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      <div style={{ width: 28, height: 28, border: "2px solid rgba(255,255,255,.15)", borderTopColor: "#CBBFAE", borderRadius: "50%", animation: "tb-spin 0.8s linear infinite" }} />
+    <div style={{ minHeight: "100vh", background: "#f6f3ee", display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <div style={{ width: 28, height: 28, border: "2px solid rgba(21,20,20,.14)", borderTopColor: "#151414", borderRadius: "50%", animation: "tb-spin 0.8s linear infinite" }} />
       <style>{`@keyframes tb-spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );

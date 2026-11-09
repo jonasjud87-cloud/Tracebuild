@@ -61,7 +61,7 @@ export default function SetPasswordPage() {
       <AuthBackButton />
       <div className={`${styles.glass} ${styles.card}`}>
         <div className={styles.head}>
-          <Image className={styles.mark} src="/landing/logo-tb.svg" alt="TraceBuild" width={40} height={57} unoptimized style={{ width: 40, height: "auto" }} priority />
+          <Image className={styles.mark} src="/landing/logo-tb-dark.svg" alt="TraceBuild" width={40} height={57} unoptimized style={{ width: 40, height: "auto" }} priority />
           <h1 className={styles.title}>
             {account?.name ? `Willkommen, ${account.name}` : "Passwort festlegen"}
           </h1>

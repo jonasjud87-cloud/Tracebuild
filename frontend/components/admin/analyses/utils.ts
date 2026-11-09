@@ -38,19 +38,19 @@ export interface StatusMeta {
 
 export function statusMeta(status: string, orphaned: boolean): StatusMeta {
   if (status === "running" && orphaned) {
-    return { tone: "orphaned", label: "Verwaist", badge: "bg-[#D6A45F]/15 text-[#D6A45F] border-[#D6A45F]/30" };
+    return { tone: "orphaned", label: "Verwaist", badge: "bg-[#D6A45F]/15 text-[#7a4f00] border-[#D6A45F]/30" };
   }
   switch (status) {
     case "running":
-      return { tone: "running", label: "Laufend", badge: "bg-[#CBBFAE]/15 text-[#CBBFAE] border-[#CBBFAE]/30" };
+      return { tone: "running", label: "Laufend", badge: "bg-[#151414] text-white border-[#151414]" };
     case "error":
-      return { tone: "error", label: "Fehlgeschlagen", badge: "bg-[#D87979]/15 text-[#EBA1A1] border-[#D87979]/30" };
+      return { tone: "error", label: "Fehlgeschlagen", badge: "bg-[#D87979]/15 text-[#a3201a] border-[#D87979]/30" };
     case "cancelled":
-      return { tone: "cancelled", label: "Abgebrochen", badge: "bg-white/10 text-[#D5D5D5] border-white/20" };
+      return { tone: "cancelled", label: "Abgebrochen", badge: "bg-[rgba(21,20,20,.05)] text-[#46464a] border-[rgba(21,20,20,.1)]" };
     case "done":
-      return { tone: "done", label: "Abgeschlossen", badge: "bg-[#65A88A]/15 text-[#8FD0B1] border-[#65A88A]/30" };
+      return { tone: "done", label: "Abgeschlossen", badge: "bg-[#65A88A]/15 text-[#136a40] border-[#65A88A]/30" };
     default:
-      return { tone: "neutral", label: status || "Unbekannt", badge: "bg-white/10 text-[#D5D5D5] border-white/20" };
+      return { tone: "neutral", label: status || "Unbekannt", badge: "bg-[rgba(21,20,20,.05)] text-[#46464a] border-[rgba(21,20,20,.1)]" };
   }
 }
 

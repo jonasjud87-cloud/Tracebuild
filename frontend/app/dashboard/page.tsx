@@ -2,13 +2,14 @@
 
 import { useDashboard } from "@/lib/dashboardContext";
 import { AlertCircleIcon, DocumentIcon, LayersIcon, ShieldCheckIcon } from "@/components/dashboard/icons";
+import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import s from "./dashboard.module.css";
 
 const DONUT = [
-  { label: "Abstände",     pct: "42%", color: "#cbbfae", dash: "58.06 80.17",  offset: "0" },
-  { label: "Bemaßung",     pct: "28%", color: "#f1ede6", dash: "38.70 99.53",  offset: "-58.06" },
-  { label: "Konstruktion", pct: "18%", color: "#a39989", dash: "24.88 113.35", offset: "-96.76" },
-  { label: "Sonstige",     pct: "12%", color: "#8a8070", dash: "16.59 121.64", offset: "-121.64" },
+  { label: "Abstände",     pct: "42%", color: "#151414", dash: "58.06 80.17",  offset: "0" },
+  { label: "Bemaßung",     pct: "28%", color: "#6b6153", dash: "38.70 99.53",  offset: "-58.06" },
+  { label: "Konstruktion", pct: "18%", color: "#8c8b8e", dash: "24.88 113.35", offset: "-96.76" },
+  { label: "Sonstige",     pct: "12%", color: "#bdb7aa", dash: "16.59 121.64", offset: "-121.64" },
 ];
 
 function relTime(iso: string): string {
@@ -34,14 +35,20 @@ export default function DashboardOverviewPage() {
 
   return (
     <>
-      <p className={s.eyebrow}>Organisation<i>/</i>{orgName}</p>
-      <h1 className={s.h1}>
-        Willkommen zurück{userName ? <>, <span className={s.accent}>{userName}</span></> : ""}
-      </h1>
-      <p className={s.lead}>
-        Hier findest du eine Übersicht über eure Projekte, Prüfungen und die aktuelle Normkonformität.
-      </p>
+      <section className={s.hero}>
+        <DashboardBackdrop />
+        <div className={s.heroInner}>
+          <p className={s.eyebrow}>Organisation<i>/</i>{orgName}</p>
+          <h1 className={s.h1}>
+            Willkommen zurück{userName ? <>, <span className={s.accent}>{userName}</span></> : ""}
+          </h1>
+          <p className={s.lead}>
+            Hier findest du eine Übersicht über eure Projekte, Prüfungen und die aktuelle Normkonformität.
+          </p>
+        </div>
+      </section>
 
+      <div className={s.body}>
       <section className={`${s.glass} ${s.kpi}`} aria-label="Kennzahlen">
         {kpis.map(k => (
           <div key={k.label} className={s.kpiItem}>
@@ -62,7 +69,7 @@ export default function DashboardOverviewPage() {
               <div className={s.donutWrap}>
                 <div className={s.donut}>
                   <svg viewBox="0 0 60 60" role="img" aria-label="Beispielverteilung der Fehler nach Kategorie als Ringdiagramm">
-                    <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="9" />
+                    <circle cx="30" cy="30" r="22" fill="none" stroke="rgba(21,20,20,0.08)" strokeWidth="9" />
                     {DONUT.map(seg => (
                       <circle key={seg.label} cx="30" cy="30" r="22" fill="none" stroke={seg.color} strokeWidth="9"
                         strokeDasharray={seg.dash} strokeDashoffset={seg.offset} transform="rotate(-90 30 30)" />
@@ -110,6 +117,7 @@ export default function DashboardOverviewPage() {
             </ul>
           )}
         </section>
+      </div>
       </div>
     </>
   );

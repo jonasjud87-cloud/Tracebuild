@@ -11,10 +11,26 @@ export const metadata: Metadata = {
   description: "Datenschutzerklärung von TraceBuild nach Schweizer Datenschutzgesetz.",
 };
 
+const band: React.CSSProperties = {
+  background:
+    "linear-gradient(90deg, rgba(21,20,20,0.86) 0%, rgba(21,20,20,0.5) 70%), url(/landing/hero.png) center / cover no-repeat #151414",
+  padding: "clamp(110px, 16vh, 170px) clamp(20px, 6vw, 96px) 120px",
+};
+const card: React.CSSProperties = {
+  maxWidth: 760,
+  margin: "-64px auto 0",
+  padding: "8px clamp(24px, 4vw, 48px) 48px",
+  background: "#ffffff",
+  color: "#46464a",
+  border: "1px solid rgba(21,20,20,0.08)",
+  borderRadius: 24,
+  boxShadow: "0 1px 2px rgba(21,20,20,0.04), 0 10px 30px rgba(21,20,20,0.07)",
+};
+
 const section: React.CSSProperties = {
   marginTop: 40,
   paddingTop: 28,
-  borderTop: "1px solid rgba(255,255,255,0.1)",
+  borderTop: "1px solid rgba(21,20,20,0.08)",
 };
 const h2: React.CSSProperties = {
   fontFamily: "var(--font)",
@@ -22,17 +38,17 @@ const h2: React.CSSProperties = {
   fontSize: 22,
   lineHeight: 1.3,
   letterSpacing: "-0.01em",
-  color: "#ffffff",
+  color: "#151414",
   margin: "0 0 14px",
 };
 const body: React.CSSProperties = {
   margin: 0,
   fontSize: 17,
   lineHeight: 1.75,
-  color: "rgba(255,255,255,0.86)",
+  color: "#46464a",
 };
 const link: React.CSSProperties = {
-  color: "var(--sand)",
+  color: "#151414",
   textDecoration: "underline",
   textUnderlineOffset: 3,
 };
@@ -48,15 +64,16 @@ export default function DatenschutzPage() {
       <main
         id="tb-main"
         style={{
-          background: "var(--navy)",
+          background: "#f6f3ee",
           minHeight: "100vh",
-          padding: "clamp(110px, 16vh, 170px) clamp(20px, 6vw, 96px) clamp(64px, 10vh, 120px)",
+          paddingBottom: "clamp(64px, 10vh, 120px)",
         }}
       >
-        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+        <div style={band}>
+<div style={{ maxWidth: 680, margin: "0 auto" }}>
           <Link
             href="/"
-            style={{ fontSize: 15, color: "var(--sand)", textDecoration: "none" }}
+            style={{ fontSize: 15, color: "rgba(255,255,255,0.92)", textDecoration: "none" }}
           >
             ← Zurück zur Startseite
           </Link>
@@ -79,6 +96,10 @@ export default function DatenschutzPage() {
             Schweizer Datenschutzgesetzes (DSG). Diese Erklärung fasst zusammen,
             welche Daten wir zu welchem Zweck bearbeiten.
           </p>
+      </div>
+      </div>
+      <div style={{ padding: "0 clamp(16px, 4vw, 48px)" }}>
+      <div style={card}>
 
           <div style={section} data-rv>
             <h2 style={h2}>Verantwortliche Stelle</h2>
@@ -147,10 +168,11 @@ export default function DatenschutzPage() {
             </p>
           </div>
 
-          <p style={{ ...body, marginTop: 40, fontSize: 14, color: "rgba(255,255,255,0.64)" }}>
+          <p style={{ ...body, marginTop: 40, fontSize: 14, color: "#5f5f64" }}>
             Diese Erklärung wird bei Bedarf angepasst.
           </p>
         </div>
+      </div>
       </main>
       <Footer offsite />
     </LandingShell>

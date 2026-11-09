@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import NewProjectModal from "@/components/NewProjectModal";
 import ProjectCard, { isProjectDone } from "@/components/ProjectCard";
 import { AlertCircleIcon, CheckCircleIcon, ClockIcon, GridIcon, LayersIcon, ListIcon, SearchIcon } from "@/components/dashboard/icons";
+import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import { useDashboard } from "@/lib/dashboardContext";
 import s from "../dashboard.module.css";
 
@@ -46,6 +47,9 @@ export default function DashboardProjectsPage() {
 
   return (
     <>
+      <section className={!projectsLoading && projects.length > 0 ? s.hero : `${s.hero} ${s.heroBare}`}>
+      <DashboardBackdrop />
+      <div className={s.heroInner}>
       <div className={s.pHead}>
         <div>
           <p className={`${s.eyebrow} ${s.eyebrowBronze}`}>Projekte</p>
@@ -83,7 +87,10 @@ export default function DashboardProjectsPage() {
           </button>
         </div>
       </div>
+      </div>
+      </section>
 
+      <div className={s.body}>
       {!projectsLoading && projects.length > 0 && (
         <section className={s.pKpi} aria-label="Kennzahlen">
           {kpis.map(k => (
@@ -152,6 +159,8 @@ export default function DashboardProjectsPage() {
           ))}
         </div>
       )}
+
+      </div>
 
       {toast && createPortal(<div className={s.toast} role="status">{toast}</div>, document.body)}
 

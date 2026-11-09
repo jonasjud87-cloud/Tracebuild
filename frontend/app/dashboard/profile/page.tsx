@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import { useDashboard } from "@/lib/dashboardContext";
 import { ROLE_DESCRIPTIONS, roleLabel } from "@/lib/roles";
 import s from "../dashboard.module.css";
@@ -115,12 +116,20 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className={s.profile}>
-      <p className={s.eyebrow}>Konto</p>
-      <h1 className={s.h1}>Profil</h1>
-      <p className={s.lead}>
-        Rolle, Name, E-Mail-Adresse und Passwort Ihres Kontos.
-      </p>
+    <>
+      <section className={`${s.hero} ${s.heroSlim}`}>
+        <DashboardBackdrop />
+        <div className={s.heroInner}>
+          <p className={s.eyebrow}>Konto</p>
+          <h1 className={s.h1}>Profil</h1>
+          <p className={s.lead}>
+            Rolle, Name, E-Mail-Adresse und Passwort Ihres Kontos.
+          </p>
+        </div>
+      </section>
+
+      <div className={`${s.body} ${s.profileBody}`}>
+      <div className={s.profile}>
 
       <section className={`${s.glass} ${s.glassPad} ${s.pCard}`} aria-labelledby="profile-role">
         <h2 id="profile-role" className={s.pTitle}>Rolle</h2>
@@ -188,6 +197,8 @@ export default function ProfilePage() {
         </button>
         <StatusLine status={pwStatus} />
       </form>
-    </div>
+      </div>
+      </div>
+    </>
   );
 }

@@ -45,7 +45,7 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
   return (
     <Card title="Analysen im Zeitverlauf" subtitle="Anzahl Planprüfungen pro Tag, letzte 30 Tage">
       {n === 0 ? (
-        <p className="py-10 text-center text-sm text-[var(--tba-text-2,#D5D5D5)]">Noch keine Analysen im Zeitraum.</p>
+        <p className="py-10 text-center text-sm text-[var(--tba-text-2,#46464a)]">Noch keine Analysen im Zeitraum.</p>
       ) : (
         <>
           <div className="mt-6 flex gap-2">
@@ -53,7 +53,7 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
               {scale.ticks.map(t => (
                 <span
                   key={t}
-                  className="absolute right-0 translate-y-1/2 text-xs tabular-nums text-[var(--tba-text-2,#D5D5D5)]"
+                  className="absolute right-0 translate-y-1/2 text-[13px] tabular-nums text-[var(--tba-text-2,#46464a)]"
                   style={{ bottom: `${(t / scale.top) * 100}%` }}
                 >
                   {t}
@@ -76,7 +76,7 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
                 {scale.ticks.map(t => (
                   <div
                     key={t}
-                    className="absolute inset-x-0 border-t border-white/[0.06]"
+                    className="absolute inset-x-0 border-t border-[rgba(21,20,20,.1)]"
                     style={{ bottom: `${(t / scale.top) * 100}%` }}
                   />
                 ))}
@@ -89,7 +89,7 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
                     >
                       <div
                         className={`w-full rounded-t-[4px] motion-safe:transition-[height,background-color] motion-safe:duration-300 ${
-                          active === i ? "bg-[#FFFFFF]" : "bg-[#CBBFAE]"
+                          active === i ? "bg-[#b5a893]" : "bg-[#151414]"
                         } ${p.count === 0 ? "opacity-20" : ""}`}
                         style={{ height: p.count === 0 ? 2 : `${(p.count / scale.top) * 100}%` }}
                       />
@@ -98,11 +98,11 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
                 </div>
                 {tip && (
                   <div
-                    className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-white/10 bg-[#151414]/90 px-2.5 py-1.5 text-xs text-[var(--tba-text,#FFFFFF)] shadow-lg backdrop-blur"
+                    className="pointer-events-none absolute z-10 whitespace-nowrap rounded-lg border border-[rgba(255,255,255,.12)] bg-[#151414] px-2.5 py-1.5 text-[13px] text-white shadow-lg"
                     style={{ left: `${tipX}%`, bottom: `calc(${tipPct}% + 8px)`, transform: `translateX(${tipShift})` }}
                   >
-                    <span className="text-[var(--tba-text-2,#D5D5D5)]">{formatDayLabel(tip.date)}</span>
-                    <span className="mx-1.5 text-[var(--tba-text-2,#D5D5D5)]">·</span>
+                    <span className="text-white/80">{formatDayLabel(tip.date)}</span>
+                    <span className="mx-1.5 text-white/80">·</span>
                     <span className="font-semibold">{formatInt(tip.count)} {tip.count === 1 ? "Analyse" : "Analysen"}</span>
                   </div>
                 )}
@@ -112,7 +112,7 @@ export default function AnalysesChart({ series }: { series: OverviewSeriesPoint[
                   i % 3 === 0 ? (
                     <span
                       key={p.date + i}
-                      className={`absolute -translate-x-1/2 whitespace-nowrap text-xs text-[var(--tba-text-2,#D5D5D5)] ${i % 6 === 0 ? "" : "hidden sm:inline"}`}
+                      className={`absolute -translate-x-1/2 whitespace-nowrap text-[13px] text-[var(--tba-text-2,#46464a)] ${i % 6 === 0 ? "" : "hidden sm:inline"}`}
                       style={{ left: `${((i + 0.5) / n) * 100}%` }}
                     >
                       {formatDayLabel(p.date)}

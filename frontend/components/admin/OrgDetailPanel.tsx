@@ -83,7 +83,7 @@ function Initials({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
   const init = name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const cls = size === "md" ? "w-9 h-9 text-sm" : "w-7 h-7 text-[13px]";
   return (
-    <div className={`${cls} rounded-lg bg-[#cbbfae]/10 flex items-center justify-center flex-shrink-0 font-bold text-[#cbbfae]`}>
+    <div className={`${cls} rounded-lg bg-[#cbbfae]/30 flex items-center justify-center flex-shrink-0 font-bold text-[#6b6153]`}>
       {init}
     </div>
   );
@@ -91,16 +91,16 @@ function Initials({ name, size = "sm" }: { name: string; size?: "sm" | "md" }) {
 
 const planLabel: Record<PlanTier, string> = { starter: "Starter", business: "Business", enterprise: "Enterprise" };
 const planCls: Record<PlanTier, string> = {
-  starter:    "bg-[rgba(255,255,255,0.10)] text-[#d6d5d4]",
-  business:   "bg-[#d6d5d4]/15 text-[#d6d5d4]",
-  enterprise: "bg-[#cbbfae]/10 text-[#cbbfae]",
+  starter:    "bg-[rgba(21,20,20,0.08)] text-[#46464a]",
+  business:   "bg-[#cbbfae]/30 text-[#46464a]",
+  enterprise: "bg-[#cbbfae]/30 text-[#6b6153]",
 };
 type StatusMeta = { dot: string; text: string; label: string };
 const statusMeta: Record<OrgStatus, StatusMeta> = {
-  active:   { dot: "bg-[#65A88A]", text: "text-[#65A88A]", label: "Aktiv"       },
-  paused:   { dot: "bg-[#D6A45F]",   text: "text-[#D6A45F]",   label: "Pausiert"    },
-  closed:   { dot: "bg-[#8a8a8a]",   text: "text-[#d6d5d4]",   label: "Geschlossen" },
-  archived: { dot: "bg-[#5f5e5e]",   text: "text-[#adacab]",   label: "Archiviert"  },
+  active:   { dot: "bg-[#65A88A]", text: "text-[#136a40]", label: "Aktiv"       },
+  paused:   { dot: "bg-[#D6A45F]",   text: "text-[#7a4f00]",   label: "Pausiert"    },
+  closed:   { dot: "bg-[#8a8a8a]",   text: "text-[#46464a]",   label: "Geschlossen" },
+  archived: { dot: "bg-[#5f5e5e]",   text: "text-[#5f5f64]",   label: "Archiviert"  },
 };
 
 function chf(n: number): string { return `CHF ${n.toFixed(2)}`; }
@@ -128,20 +128,20 @@ function UebersichtTab({ org, costs }: { org: Organization; costs: OrgCost[] }) 
           {planLabel[org.planTier]}
         </span>
         {org.isDefault && (
-          <span className="text-[13px] font-bold text-[#cbbfae] bg-[#cbbfae]/10 px-1.5 py-0.5 rounded uppercase tracking-wider">
+          <span className="text-[13px] font-bold text-[#6b6153] bg-[#cbbfae]/30 px-1.5 py-0.5 rounded uppercase tracking-wider">
             Default
           </span>
         )}
       </div>
 
-      {org.description && <p className="text-sm text-[#d6d5d4]">{org.description}</p>}
+      {org.description && <p className="text-sm text-[#46464a]">{org.description}</p>}
 
       {(org.owner || org.ownerEmail) && (
-        <div className="flex items-center gap-3 bg-[#1c1b1b] rounded-xl px-4 py-3">
+        <div className="flex items-center gap-3 bg-white rounded-xl px-4 py-3">
           <Initials name={org.owner ?? org.name} size="md" />
           <div>
-            {org.owner && <p className="text-sm font-medium text-white">{org.owner}</p>}
-            {org.ownerEmail && <p className="text-sm text-[#adacab]">{org.ownerEmail}</p>}
+            {org.owner && <p className="text-sm font-medium text-[#151414]">{org.owner}</p>}
+            {org.ownerEmail && <p className="text-sm text-[#5f5f64]">{org.ownerEmail}</p>}
           </div>
         </div>
       )}
@@ -155,14 +155,14 @@ function UebersichtTab({ org, costs }: { org: Organization; costs: OrgCost[] }) 
           { label: "Budget/Monat", value: org.monthlyBudget !== undefined ? chf(org.monthlyBudget) : "—" },
           { label: "Kosten/Monat", value: currentCost ? chf(currentCost.totalCost) : "—" },
         ].map(stat => (
-          <div key={stat.label} className="bg-[#1c1b1b] rounded-xl px-4 py-3">
-            <p className="text-[13px] font-semibold text-[#adacab] uppercase tracking-widest">{stat.label}</p>
-            <p className="text-base font-bold text-white mt-0.5">{stat.value}</p>
+          <div key={stat.label} className="bg-white rounded-xl px-4 py-3">
+            <p className="text-[13px] font-semibold text-[#5f5f64] uppercase tracking-widest">{stat.label}</p>
+            <p className="text-base font-bold text-[#151414] mt-0.5">{stat.value}</p>
           </div>
         ))}
       </div>
 
-      <div className="text-sm text-[#adacab] space-y-1">
+      <div className="text-sm text-[#5f5f64] space-y-1">
         <p>Erstellt: {new Date(org.createdAt).toLocaleDateString("de-CH", { day: "numeric", month: "long", year: "numeric" })}</p>
         {currentCost && <p>Aktueller Monat: {fmtMonth(currentCost.month)} ({currentCost.status})</p>}
       </div>
@@ -192,18 +192,18 @@ function ConfirmModal({
       onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div role="dialog" aria-modal="true" aria-label={title} className="tba-glass tba-glass--modal rounded-2xl tbb-rise w-full max-w-sm p-7">
-        <h3 className="text-base font-bold text-white text-center mb-2">{title}</h3>
-        <p className="text-sm text-[#d6d5d4] text-center mb-6">{description}</p>
+        <h3 className="text-base font-bold text-[#151414] text-center mb-2">{title}</h3>
+        <p className="text-sm text-[#46464a] text-center mb-6">{description}</p>
         <div className="flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 border border-[rgba(255,255,255,0.10)] rounded-xl py-2.5 text-sm font-medium text-[#d6d5d4] hover:bg-[#2e2e30] transition-colors"
+            className="flex-1 border border-[rgba(21,20,20,0.08)] rounded-xl py-2.5 text-sm font-medium text-[#46464a] hover:bg-[#f6f3ee] transition-colors"
           >
             Abbrechen
           </button>
           <button
             onClick={onConfirm}
-            className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-[#A94B4B] text-white hover:bg-[#913F3F] active:scale-[0.97] transition-all"
+            className="flex-1 rounded-xl py-2.5 text-sm font-semibold bg-[#b42318] text-white hover:bg-[#8f1c12] active:scale-[0.97] transition-all"
           >
             {confirmLabel}
           </button>
@@ -315,9 +315,9 @@ function MitgliederTab({
   }
 
   const iCls = [
-    "rounded-xl px-3 py-2 text-sm text-white",
-    "bg-[rgba(28,27,27,0.6)] border border-[rgba(203,191,174,0.55)]",
-    "placeholder:text-[#adacab] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 focus:border-[#cbbfae]",
+    "rounded-xl px-3 py-2 text-sm text-[#151414]",
+    "bg-white border border-[#8c8b8e]",
+    "placeholder:text-[#6e6e73] focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 focus:border-[#151414]",
     "transition-colors",
   ].join(" ");
 
@@ -344,25 +344,25 @@ function MitgliederTab({
         </select>
         <button
           type="submit" disabled={adding}
-          className="flex-shrink-0 bg-[linear-gradient(135deg,#cbbfae,#b5a893)] hover:brightness-110 disabled:opacity-50 text-[#151414] text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
+          className="flex-shrink-0 bg-[#151414] hover:bg-[#2e2e30] disabled:opacity-50 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
         >
           {adding ? "..." : "Hinzufügen"}
         </button>
       </form>
 
       {loading ? (
-        <div className="py-8 text-center text-[#adacab] text-sm">Lade Mitglieder…</div>
+        <div className="py-8 text-center text-[#5f5f64] text-sm">Lade Mitglieder…</div>
       ) : members.length === 0 ? (
-        <div className="py-8 text-center text-[#adacab] text-sm">Noch keine Mitglieder.</div>
+        <div className="py-8 text-center text-[#5f5f64] text-sm">Noch keine Mitglieder.</div>
       ) : (
         <div>
-          <p className="text-sm text-[#adacab] mb-3">{members.length} Mitglieder</p>
+          <p className="text-sm text-[#5f5f64] mb-3">{members.length} Mitglieder</p>
           {members.map(m => (
-            <div key={m.id} className="flex items-center gap-3 py-2.5 border-b border-[rgba(255,255,255,0.10)] last:border-0">
+            <div key={m.id} className="flex items-center gap-3 py-2.5 border-b border-[rgba(21,20,20,0.08)] last:border-0">
               <Initials name={m.name || m.email} size="md" />
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-white truncate">{m.name || m.email}</p>
-                <p className="text-sm text-[#adacab] truncate">
+                <p className="text-sm font-medium text-[#151414] truncate">{m.name || m.email}</p>
+                <p className="text-sm text-[#5f5f64] truncate">
                   {m.name ? `${m.email} · ` : ""}{new Date(m.created_at).toLocaleDateString("de-CH")}
                 </p>
               </div>
@@ -371,10 +371,10 @@ function MitgliederTab({
                   value={m.role}
                   onChange={e => handleRoleChange(m, e.target.value)}
                   disabled={savingRoleId === m.id}
-                  className={`text-[13px] font-semibold pl-2 pr-1 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 transition-colors disabled:opacity-50 ${
+                  className={`text-[13px] font-semibold pl-2 pr-1 py-0.5 rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 transition-colors disabled:opacity-50 ${
                     m.role === "org_admin" || m.role === "super_admin"
-                      ? "bg-[#cbbfae]/10 text-[#cbbfae]"
-                      : "bg-[rgba(255,255,255,0.10)] text-[#d6d5d4]"
+                      ? "bg-[#cbbfae]/30 text-[#6b6153]"
+                      : "bg-[rgba(21,20,20,0.08)] text-[#46464a]"
                   }`}
                 >
                   {(["member", "project_manager", "org_admin"] as const).map(r => (
@@ -384,7 +384,7 @@ function MitgliederTab({
                 <button
                   onClick={() => setConfirmRemove(m)}
                   disabled={removingId === m.id}
-                  className="w-6 h-6 flex items-center justify-center text-[#adacab] hover:text-[#EBA1A1] hover:bg-[#D87979]/10 rounded-lg transition-colors disabled:opacity-40"
+                  className="w-6 h-6 flex items-center justify-center text-[#5f5f64] hover:text-[#a3201a] hover:bg-[#fde7e5] rounded-lg transition-colors disabled:opacity-40"
                   title="Entfernen"
                 >
                   <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
@@ -525,21 +525,21 @@ function AuditLogTab({ org }: { org: Organization }) {
     return sort.dir === "asc" ? cmp : -cmp;
   });
 
-  const thCls = "text-left text-[13px] font-semibold text-[#adacab] uppercase tracking-widest px-3 py-2 cursor-pointer select-none whitespace-nowrap";
+  const thCls = "text-left text-[13px] font-semibold text-[#5f5f64] uppercase tracking-widest px-3 py-2 cursor-pointer select-none whitespace-nowrap";
 
   return (
     <div className="space-y-4">
       {loading ? (
-        <div className="py-8 text-center text-[#adacab] text-sm">Lade Einträge…</div>
+        <div className="py-8 text-center text-[#5f5f64] text-sm">Lade Einträge…</div>
       ) : loadError ? (
-        <div className="py-8 text-center text-sm text-[#EBA1A1]">{loadError}</div>
+        <div className="py-8 text-center text-sm text-[#a3201a]">{loadError}</div>
       ) : entries.length === 0 ? (
-        <div className="py-8 text-center text-[#adacab] text-sm">Noch keine Einträge.</div>
+        <div className="py-8 text-center text-[#5f5f64] text-sm">Noch keine Einträge.</div>
       ) : (
-        <div className="overflow-x-auto scrollbar-dark">
+        <div className="overflow-x-auto scrollbar-light">
           <table className="w-full border-collapse">
             <thead>
-              <tr className="border-b border-[rgba(255,255,255,0.10)]">
+              <tr className="bg-[#f6f3ee] border-b border-[rgba(21,20,20,0.08)]">
                 <th className={thCls} onClick={() => toggleSort("created_at")}>
                   Zeitpunkt<SortIndicator active={sort.key === "created_at"} dir={sort.dir} />
                 </th>
@@ -555,14 +555,14 @@ function AuditLogTab({ org }: { org: Organization }) {
             </thead>
             <tbody>
               {sorted.map(e => (
-                <tr key={e.id} className="tba-row transition-colors border-b border-[rgba(255,255,255,0.10)] last:border-0">
-                  <td className="px-3 py-2.5 text-sm text-[#d6d5d4] whitespace-nowrap">
+                <tr key={e.id} className="tba-row transition-colors border-b border-[rgba(21,20,20,0.08)] last:border-0">
+                  <td className="px-3 py-2.5 text-sm text-[#46464a] whitespace-nowrap">
                     {new Date(e.created_at).toLocaleString("de-CH", { dateStyle: "medium", timeStyle: "short" })}
                   </td>
-                  <td className="px-3 py-2.5 text-sm text-white truncate max-w-[160px]">{e.actor_email}</td>
-                  <td className="px-3 py-2.5 text-sm text-white whitespace-nowrap">{auditActionLabel(e)}</td>
-                  <td className="px-3 py-2.5 text-sm text-[#adacab] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
-                  <td className="px-3 py-2.5 text-sm text-[#adacab] whitespace-nowrap">{auditDetails(e)}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#151414] truncate max-w-[160px]">{e.actor_email}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#151414] whitespace-nowrap">{auditActionLabel(e)}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#5f5f64] truncate max-w-[160px]">{e.target_email ?? "—"}</td>
+                  <td className="px-3 py-2.5 text-sm text-[#5f5f64] whitespace-nowrap">{auditDetails(e)}</td>
                 </tr>
               ))}
             </tbody>
@@ -577,17 +577,17 @@ function ProjekteTab({ org }: { org: Organization }) {
   const projects = getProjects(org.id);
   return (
     <div className="space-y-2">
-      <p className="text-sm text-[#adacab] mb-3">{projects.length} Projekte</p>
+      <p className="text-sm text-[#5f5f64] mb-3">{projects.length} Projekte</p>
       {projects.map(p => (
-        <div key={p.name} className="flex items-start gap-3 py-2.5 border-b border-[rgba(255,255,255,0.10)] last:border-0">
-          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${p.status === "active" ? "bg-[#65A88A]" : "bg-[rgba(255,255,255,0.10)]"}`} />
+        <div key={p.name} className="flex items-start gap-3 py-2.5 border-b border-[rgba(21,20,20,0.08)] last:border-0">
+          <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${p.status === "active" ? "bg-[#65A88A]" : "bg-[rgba(21,20,20,0.08)]"}`} />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-white truncate">{p.name}</p>
-            <p className="text-sm text-[#adacab]">Erstellt: {new Date(p.created).toLocaleDateString("de-CH")}</p>
+            <p className="text-sm font-medium text-[#151414] truncate">{p.name}</p>
+            <p className="text-sm text-[#5f5f64]">Erstellt: {new Date(p.created).toLocaleDateString("de-CH")}</p>
           </div>
           <div className="text-right flex-shrink-0">
-            <p className="text-sm font-medium text-[#d6d5d4]">{p.analyses} Analysen</p>
-            <p className={`text-[13px] ${p.status === "active" ? "text-[#65A88A]" : "text-[#adacab]"}`}>
+            <p className="text-sm font-medium text-[#46464a]">{p.analyses} Analysen</p>
+            <p className={`text-[13px] ${p.status === "active" ? "text-[#136a40]" : "text-[#5f5f64]"}`}>
               {p.status === "active" ? "Aktiv" : "Archiviert"}
             </p>
           </div>
@@ -606,11 +606,11 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
   return (
     <div className="space-y-6">
       <div>
-        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">
+        <h5 className="text-sm font-semibold text-[#5f5f64] uppercase tracking-widest mb-3">
           Analysen / Monat (letzte 6 Monate)
         </h5>
         {orgCosts.length === 0 ? (
-          <p className="text-sm text-[#d6d5d4]">Keine Daten</p>
+          <p className="text-sm text-[#46464a]">Keine Daten</p>
         ) : (
           <div className="space-y-2">
             {orgCosts.map(c => {
@@ -618,17 +618,17 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
               const isCurrent = c.status === "laufend";
               return (
                 <div key={c.month} className="flex items-center gap-3">
-                  <span className="text-[13px] text-[#adacab] w-14 flex-shrink-0">{fmtMonth(c.month)}</span>
-                  <div className="flex-1 h-5 bg-[#1c1b1b] rounded-md overflow-hidden">
+                  <span className="text-[13px] text-[#5f5f64] w-14 flex-shrink-0">{fmtMonth(c.month)}</span>
+                  <div className="flex-1 h-5 bg-white rounded-md overflow-hidden">
                     <div
                       className="h-full rounded-md"
                       style={{
                         width: `${barPct}%`,
-                        backgroundColor: isCurrent ? "#cbbfae" : "rgba(203,191,174,0.35)",
+                        backgroundColor: isCurrent ? "#151414" : "#cbbfae",
                       }}
                     />
                   </div>
-                  <span className="text-[13px] font-medium text-[#d6d5d4] tabular-nums w-8 text-right flex-shrink-0">
+                  <span className="text-[13px] font-medium text-[#46464a] tabular-nums w-8 text-right flex-shrink-0">
                     {c.analyseCount}
                   </span>
                 </div>
@@ -639,26 +639,26 @@ function NutzungTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
       </div>
 
       <div>
-        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">
+        <h5 className="text-sm font-semibold text-[#5f5f64] uppercase tracking-widest mb-3">
           Speicherverbrauch
         </h5>
         <div className="flex items-center justify-between mb-1.5">
-          <span className="text-sm font-medium text-white">
+          <span className="text-sm font-medium text-[#151414]">
             {org.storageGB !== undefined ? `${formatGB(org.storageGB)} belegt` : "Verbrauch nicht verfügbar"}
           </span>
-          <span className="text-sm text-[#adacab]">
+          <span className="text-sm text-[#5f5f64]">
             {storageLimit ? `von ${formatGB(storageLimit)}` : "kein Limit gesetzt"}
           </span>
         </div>
         {storagePct !== null && (
           <>
-            <div className="h-3 bg-[#cbbfae]/10 rounded-full overflow-hidden">
+            <div className="h-3 bg-[#cbbfae]/30 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all"
-                style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#D87979" : "#cbbfae" }}
+                style={{ width: `${storagePct}%`, backgroundColor: storagePct >= 85 ? "#D87979" : "#151414" }}
               />
             </div>
-            <p className="text-[13px] text-[#adacab] mt-1">{storagePct.toFixed(0)} % genutzt</p>
+            <p className="text-[13px] text-[#5f5f64] mt-1">{storagePct.toFixed(0)} % genutzt</p>
           </>
         )}
       </div>
@@ -676,48 +676,48 @@ function KostenTab({ org, costs }: { org: Organization; costs: OrgCost[] }) {
   return (
     <div className="space-y-5">
       {org.monthlyBudget && latestCost && (
-        <div className="bg-[#1c1b1b] rounded-xl p-4">
+        <div className="bg-white rounded-xl p-4">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-sm font-semibold text-[#adacab] uppercase tracking-widest">
+            <span className="text-sm font-semibold text-[#5f5f64] uppercase tracking-widest">
               Budget {fmtMonth(latestCost.month)}
             </span>
-            <span className={`text-sm font-semibold ${budgetPct >= 90 ? "text-[#EBA1A1]" : budgetPct >= 70 ? "text-[#D6A45F]" : "text-[#cbbfae]"}`}>
+            <span className={`text-sm font-semibold ${budgetPct >= 90 ? "text-[#a3201a]" : budgetPct >= 70 ? "text-[#7a4f00]" : "text-[#6b6153]"}`}>
               {chf(latestCost.totalCost)} / {chf(org.monthlyBudget)}
             </span>
           </div>
-          <div className="h-2.5 bg-[#cbbfae]/10 rounded-full overflow-hidden">
+          <div className="h-2.5 bg-[#cbbfae]/30 rounded-full overflow-hidden">
             <div
               className="h-full rounded-full"
               style={{
                 width: `${budgetPct}%`,
-                backgroundColor: budgetPct >= 90 ? "#D87979" : budgetPct >= 70 ? "#D6A45F" : "#cbbfae",
+                backgroundColor: budgetPct >= 90 ? "#D87979" : budgetPct >= 70 ? "#D6A45F" : "#151414",
               }}
             />
           </div>
-          <p className="text-[13px] text-[#adacab] mt-1">{budgetPct.toFixed(0)} % verbraucht</p>
+          <p className="text-[13px] text-[#5f5f64] mt-1">{budgetPct.toFixed(0)} % verbraucht</p>
         </div>
       )}
 
       <div>
-        <h5 className="text-sm font-semibold text-[#adacab] uppercase tracking-widest mb-3">Letzte 3 Monate</h5>
+        <h5 className="text-sm font-semibold text-[#5f5f64] uppercase tracking-widest mb-3">Letzte 3 Monate</h5>
         {orgCosts.length === 0 ? (
-          <p className="text-sm text-[#d6d5d4]">Keine Kostendaten vorhanden</p>
+          <p className="text-sm text-[#46464a]">Keine Kostendaten vorhanden</p>
         ) : (
           <div className="space-y-2">
             {orgCosts.map(c => (
-              <div key={c.month} className="bg-[#1c1b1b] rounded-xl px-4 py-3">
+              <div key={c.month} className="bg-white rounded-xl px-4 py-3">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium text-white">{fmtMonth(c.month)}</span>
+                  <span className="text-sm font-medium text-[#151414]">{fmtMonth(c.month)}</span>
                   <div className="flex items-center gap-2">
                     <span className={`text-[13px] font-semibold px-1.5 py-0.5 rounded ${
-                      c.status === "laufend" ? "bg-[#D6A45F]/15 text-[#D6A45F]" : "bg-[#65A88A]/15 text-[#8FD0B1]"
+                      c.status === "laufend" ? "bg-[#fff1d6] text-[#7a4f00]" : "bg-[#e4f3ea] text-[#136a40]"
                     }`}>
                       {c.status === "laufend" ? "Laufend" : "Final"}
                     </span>
-                    <span className="text-sm font-bold text-white tabular-nums">{chf(c.totalCost)}</span>
+                    <span className="text-sm font-bold text-[#151414] tabular-nums">{chf(c.totalCost)}</span>
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-2 text-[13px] text-[#adacab]">
+                <div className="grid grid-cols-3 gap-2 text-[13px] text-[#5f5f64]">
                   <span>Analysen {chf(c.analyseCost)}</span>
                   <span>Chat {chf(c.chatCost)}</span>
                   <span>Normen {chf(c.normCost)}</span>
@@ -757,35 +757,35 @@ function EinstellungenTab({
   }
 
   const iCls = [
-    "w-full rounded-xl px-3.5 py-2.5 text-sm text-white",
-    "bg-[rgba(28,27,27,0.6)] border border-[rgba(203,191,174,0.55)]",
-    "placeholder:text-[#adacab]",
-    "focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/40 focus:border-[#cbbfae]",
+    "w-full rounded-xl px-3.5 py-2.5 text-sm text-[#151414]",
+    "bg-white border border-[#8c8b8e]",
+    "placeholder:text-[#6e6e73]",
+    "focus:outline-none focus:ring-2 focus:ring-[#cbbfae]/55 focus:border-[#151414]",
     "transition-colors",
   ].join(" ");
 
   return (
     <div className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Organisationsname *</label>
+        <label className="block text-sm font-medium text-[#5f5f64] mb-1.5">Organisationsname *</label>
         <input value={name} onChange={e => setName(e.target.value)} className={iCls} />
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Kurzbeschreibung</label>
+        <label className="block text-sm font-medium text-[#5f5f64] mb-1.5">Kurzbeschreibung</label>
         <input value={description} onChange={e => setDesc(e.target.value)} placeholder="Kurze Beschreibung" className={iCls} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="block text-sm font-medium text-[#adacab] mb-1.5">Besitzer</label>
+          <label className="block text-sm font-medium text-[#5f5f64] mb-1.5">Besitzer</label>
           <input value={owner} onChange={e => setOwner(e.target.value)} placeholder="Name" className={iCls} />
         </div>
         <div>
-          <label className="block text-sm font-medium text-[#adacab] mb-1.5">E-Mail</label>
+          <label className="block text-sm font-medium text-[#5f5f64] mb-1.5">E-Mail</label>
           <input type="email" value={ownerEmail} onChange={e => setOwnerEmail(e.target.value)} placeholder="email@beispiel.ch" className={iCls} />
         </div>
       </div>
       <div>
-        <label className="block text-sm font-medium text-[#adacab] mb-1.5">Monatliches Budget (CHF)</label>
+        <label className="block text-sm font-medium text-[#5f5f64] mb-1.5">Monatliches Budget (CHF)</label>
         <input
           type="number"
           min={0}
@@ -798,17 +798,17 @@ function EinstellungenTab({
       <div className="pt-2">
         <button
           onClick={handleSave}
-          className="w-full bg-[linear-gradient(135deg,#cbbfae,#b5a893)] text-[#151414] rounded-xl py-2.5 text-sm font-semibold hover:brightness-110 active:scale-[0.98] transition-all"
+          className="w-full bg-[#151414] hover:bg-[#2e2e30] text-white rounded-xl py-2.5 text-sm font-semibold active:scale-[0.98] transition-all"
         >
           Einstellungen speichern
         </button>
       </div>
       {!org.isDefault && (
-        <div className="pt-2 border-t border-[rgba(255,255,255,0.10)]">
-          <p className="text-[13px] font-semibold text-[#adacab] uppercase tracking-widest mb-2">Gefahrenzone</p>
+        <div className="pt-2 border-t border-[rgba(21,20,20,0.08)]">
+          <p className="text-[13px] font-semibold text-[#5f5f64] uppercase tracking-widest mb-2">Gefahrenzone</p>
           <button
             onClick={() => onToast("Bitte nutze die Aktionsmenü-Optionen zum Löschen.", "warning")}
-            className="w-full border border-[#D87979]/30 text-[#EBA1A1] rounded-xl py-2 text-sm font-medium hover:bg-[#D87979]/10 transition-colors"
+            className="w-full border border-[#D87979]/30 text-[#a3201a] rounded-xl py-2 text-sm font-medium hover:bg-[#fde7e5] transition-colors"
           >
             Organisation löschen
           </button>
@@ -905,29 +905,29 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
         />
         {org && (
           <>
-            <div className="flex-shrink-0 px-6 py-5 border-b border-[rgba(255,255,255,0.10)]">
+            <div className="flex-shrink-0 px-6 py-5 border-b border-[rgba(21,20,20,0.08)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-xl bg-[#cbbfae]/10 flex items-center justify-center flex-shrink-0">
-                    <span className="text-sm font-bold text-[#cbbfae]">
+                  <div className="w-10 h-10 rounded-xl bg-[#cbbfae]/30 flex items-center justify-center flex-shrink-0">
+                    <span className="text-sm font-bold text-[#6b6153]">
                       {org.name.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div className="min-w-0">
-                    <h2 className="text-base font-bold text-white truncate">{org.name}</h2>
-                    <p className="text-sm text-[#adacab] truncate">{org.ownerEmail ?? org.id}</p>
+                    <h2 className="text-base font-bold text-[#151414] truncate">{org.name}</h2>
+                    <p className="text-sm text-[#5f5f64] truncate">{org.ownerEmail ?? org.id}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                   <button
                     onClick={onEdit}
-                    className="text-sm font-semibold text-[#cbbfae] bg-[#cbbfae]/10 hover:bg-[#cbbfae] hover:text-[#151414] px-3 py-1.5 rounded-lg transition-all"
+                    className="text-sm font-semibold text-[#6b6153] bg-[#cbbfae]/30 hover:bg-[#cbbfae] hover:text-[#151414] px-3 py-1.5 rounded-lg transition-all"
                   >
                     Bearbeiten
                   </button>
                   <button
                     onClick={onClose}
-                    className="w-7 h-7 flex items-center justify-center text-[#adacab] hover:text-white hover:bg-[#2e2e30] rounded-lg transition-colors"
+                    className="w-7 h-7 flex items-center justify-center text-[#5f5f64] hover:text-[#151414] hover:bg-[#f6f3ee] rounded-lg transition-colors"
                   >
                     <svg width="11" height="11" viewBox="0 0 11 11" fill="none">
                       <path d="M1.5 1.5L9.5 9.5M9.5 1.5L1.5 9.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
@@ -936,7 +936,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
                 </div>
               </div>
 
-              <div className="flex gap-1 mt-4 overflow-x-auto scrollbar-dark">
+              <div className="flex gap-1 mt-4 overflow-x-auto scrollbar-light">
                 {TAB_LABELS.map(t => (
                   <button
                     key={t.id}
@@ -944,7 +944,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
                     className={`flex-shrink-0 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors whitespace-nowrap ${
                       activeTab === t.id
                         ? "bg-[linear-gradient(135deg,#cbbfae,#b5a893)] text-[#151414]"
-                        : "text-[#adacab] hover:text-white hover:bg-[#1c1b1b]"
+                        : "text-[#5f5f64] hover:text-[#151414] hover:bg-[#f6f3ee]"
                     }`}
                   >
                     {t.label}
@@ -953,7 +953,7 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto px-6 py-5 scrollbar-dark">
+            <div className="flex-1 overflow-y-auto px-6 py-5 scrollbar-light">
               {activeTab === "uebersicht"     && <UebersichtTab    org={org} costs={costs} />}
               {activeTab === "mitglieder"     && <MitgliederTab    org={org} onToast={onToast} />}
               {activeTab === "auditlog"       && <AuditLogTab      org={org} />}

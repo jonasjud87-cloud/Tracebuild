@@ -3,13 +3,13 @@
 @tailwind utilities;
 
 :root {
-  --background: #151414;
-  --foreground: #ffffff;
-  color-scheme: dark;
+  --background: #f6f3ee;
+  --foreground: #151414;
+  color-scheme: light;
 }
 
 html {
-  scrollbar-color: rgba(203, 191, 174, 0.32) #151414;
+  scrollbar-color: rgba(21, 20, 20, 0.32) #f6f3ee;
 }
 
 body {
@@ -23,23 +23,27 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 ::selection {
-  background: rgba(203, 191, 174, 0.35);
-  color: #ffffff;
+  background: rgba(203, 191, 174, 0.55);
+  color: #151414;
 }
 
 :focus-visible {
-  outline: 2px solid #cbbfae;
+  outline: 2px solid #151414;
   outline-offset: 2px;
+  box-shadow: 0 0 0 6px rgba(203, 191, 174, 0.55);
 }
 
-/* ─── Native <select> dropdowns ────────────────────────── */
+:is(.tb-dark, [data-theme="dark"]) :focus-visible {
+  outline-color: #cbbfae;
+  box-shadow: none;
+}
 
 select {
-  color-scheme: dark;
+  color-scheme: light;
 }
 select option {
-  background-color: #2e2e30;
-  color: #ffffff;
+  background-color: #ffffff;
+  color: #151414;
 }
 select option:checked,
 select option:hover,
@@ -48,55 +52,66 @@ select option:focus {
   color: #151414;
 }
 
-
-/* ─── Design tokens ───────────────────────────────────── */
+:is(.tb-dark, [data-theme="dark"]) select {
+  color-scheme: dark;
+}
+:is(.tb-dark, [data-theme="dark"]) select option {
+  background-color: #2e2e30;
+  color: #ffffff;
+}
 
 :root {
-  --tb-canvas: linear-gradient(160deg, #1c1b1b 0%, #151414 55%, #121111 100%);
-  --tb-canvas-solid: #151414;
-  --tb-glass: rgba(255, 255, 255, 0.03);
-  --tb-glass-hover: rgba(255, 255, 255, 0.06);
-  --tb-float: #1c1b1b;
-  --tb-border: rgba(255, 255, 255, 0.1);
-  --tb-border-strong: rgba(255, 255, 255, 0.18);
-  --tb-border-accent: rgba(203, 191, 174, 0.45);
-  --tb-hairline: rgba(255, 255, 255, 0.06);
+  --tb-canvas: linear-gradient(180deg, #ffffff 0%, #f6f3ee 360px);
+  --tb-canvas-solid: #f6f3ee;
+  --tb-glass: #ffffff;
+  --tb-glass-hover: rgba(203, 191, 174, 0.18);
+  --tb-float: #ffffff;
+  --tb-border: rgba(21, 20, 20, 0.08);
+  --tb-border-strong: rgba(21, 20, 20, 0.35);
+  --tb-border-accent: rgba(156, 143, 123, 0.55);
+  --tb-hairline: rgba(21, 20, 20, 0.08);
 
-  --tb-surface-1: #1c1b1b;
-  --tb-surface-2: #2e2e30;
-  --tb-surface-3: #3a3a3d;
+  --tb-surface-1: #ffffff;
+  --tb-surface-2: #f6f3ee;
+  --tb-surface-3: #efece6;
 
-  --tb-text: #ffffff;
-  --tb-text-secondary: rgba(255, 255, 255, 0.82);
-  --tb-text-tertiary: rgba(255, 255, 255, 0.72);
-  --tb-text-muted: rgba(255, 255, 255, 0.64);
-  --tb-text-bright: rgba(255, 255, 255, 0.9);
+  --tb-text: #151414;
+  --tb-text-secondary: #46464a;
+  --tb-text-tertiary: #5f5f64;
+  --tb-text-muted: #5f5f64;
+  --tb-text-bright: #151414;
 
-  --tb-accent: #cbbfae;
-  --tb-accent-hover: #d8cebf;
-  --tb-accent-deep: #b5a893;
-  --tb-accent-subtle: rgba(203, 191, 174, 0.12);
-  --tb-accent-gradient: linear-gradient(135deg, #d8cebf 0%, #b5a893 100%);
-  --tb-on-accent: #151414;
-  --tb-info: #cbbfae;
+  --tb-accent: #151414;
+  --tb-accent-hover: #2e2e30;
+  --tb-accent-deep: #46464a;
+  --tb-accent-subtle: rgba(203, 191, 174, 0.32);
+  --tb-accent-gradient: linear-gradient(135deg, #151414 0%, #2e2e30 100%);
+  --tb-on-accent: #ffffff;
+  --tb-info: #6b6153;
 
-  --tb-danger-bright: #f08a8a;
-  --tb-warn-bright: #e6b95a;
-  --tb-ok-bright: #6fcf9f;
+  --tb-danger-bright: #a3201a;
+  --tb-warn-bright: #7a4f00;
+  --tb-ok-bright: #136a40;
 
   --tb-r-chip: 8px;
   --tb-r-btn: 12px;
   --tb-r-container: 24px;
   --tb-r-pill: 999px;
 
-  --tb-lift: 0 20px 60px -24px rgba(0, 0, 0, 0.6);
-  --tb-glow: 0 12px 32px -14px rgba(203, 191, 174, 0.3);
+  --tb-lift: 0 1px 2px rgba(21, 20, 20, 0.04), 0 10px 30px rgba(21, 20, 20, 0.07);
+  --tb-lift-hover: 0 18px 44px rgba(21, 20, 20, 0.14);
+  --tb-glow: 0 12px 32px -14px rgba(156, 143, 123, 0.45);
 }
 
 /* ─── Utility classes ─────────────────────────────────── */
 
 @layer utilities {
-  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(203,191,174,0.32) transparent; }
+  .scrollbar-dark                                 { scrollbar-width: thin; scrollbar-color: rgba(203,191,174,0.4) transparent; }
+  .scrollbar-light                                { scrollbar-width: thin; scrollbar-color: rgba(21,20,20,0.3) transparent; }
+  .scrollbar-light::-webkit-scrollbar             { width: 6px; height: 6px; }
+  .scrollbar-light::-webkit-scrollbar-track       { background: transparent; }
+  .scrollbar-light::-webkit-scrollbar-thumb       { background: rgba(21,20,20,0.28); border-radius: 3px; }
+  .scrollbar-light::-webkit-scrollbar-thumb:hover { background: rgba(21,20,20,0.5); }
   .scrollbar-dark::-webkit-scrollbar              { width: 5px; height: 5px; }
   .scrollbar-dark::-webkit-scrollbar-track        { background: transparent; }
   .scrollbar-dark::-webkit-scrollbar-thumb        { background: rgba(203,191,174,0.26); border-radius: 3px; }
@@ -112,5 +127,6 @@ select option:focus {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
