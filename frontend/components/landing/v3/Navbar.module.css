@@ -22,7 +22,8 @@
   color: #fff;
   font-size: 22px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 :global(.tbl) .mark {
   height: 34px;
@@ -41,7 +42,7 @@
   color: #fff;
 }
 :global(.tbl) .link:hover {
-  color: #f0c99a;
+  color: #cbbfae;
 }
 :global(.tbl) .login {
   border: 1.5px solid var(--sand);
@@ -52,8 +53,8 @@
   margin-left: 8px;
 }
 :global(.tbl) .login:hover {
-  background: #f0c99a;
-  color: #07142b;
+  background: #cbbfae;
+  color: #151414;
 }
 :global(.tbl) .progress {
   position: absolute;
@@ -61,5 +62,5 @@
   bottom: -1px;
   height: 2px;
   width: 0;
-  background: linear-gradient(90deg, #b07d3e, #f0c99a);
+  background: linear-gradient(90deg, #9c8f7b, #cbbfae);
 }

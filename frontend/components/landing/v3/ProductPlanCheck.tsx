@@ -254,7 +254,7 @@ export default function ProductPlanCheck({ onOpenNorm }: { onOpenNorm: (id: stri
           <div style={{ position: "relative", minWidth: 260, width: "100%", aspectRatio: "400 / 300" }}>
             <svg viewBox="0 0 400 300" style={{ width: "100%", height: "100%", display: "block" }}>
               <rect x="8" y="8" width="384" height="284" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1" strokeDasharray="4 4" />
-              <line x1="8" y1="270" x2="392" y2="270" stroke="rgba(240,201,154,0.5)" strokeWidth="6" />
+              <line x1="8" y1="270" x2="392" y2="270" stroke="rgba(203, 191, 174,0.5)" strokeWidth="6" />
               <text x="12" y="264" fill="var(--tb-text-muted)" fontSize="8">Quartierstrasse</text>
               <rect x="46" y="40" width="300" height="190" fill="none" stroke="var(--tb-accent)" strokeOpacity="0.35" strokeWidth="1" strokeDasharray="2 5" />
               <rect x="78" y="66" width="236" height="140" fill="rgba(255,255,255,0.04)" stroke="rgba(255,255,255,0.85)" strokeWidth="1.4" />
@@ -285,7 +285,7 @@ export default function ProductPlanCheck({ onOpenNorm }: { onOpenNorm: (id: stri
                     right: 0,
                     height: 2,
                     background: "linear-gradient(90deg, transparent, var(--tb-info), transparent)",
-                    boxShadow: "0 0 18px 2px rgba(240,201,154,0.5)",
+                    boxShadow: "0 0 18px 2px rgba(203, 191, 174,0.5)",
                   }}
                 />
               )}

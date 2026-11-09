@@ -1,13 +1,13 @@
 .tbl {
-  --navy: #07142b;
-  --slate: #1b2a41;
+  --navy: #151414;
+  --slate: #2e2e30;
   --glass-line: rgba(255, 255, 255, 0.14);
-  --sand: #f0c99a;
-  --bronze: #b07d3e;
-  --cream: #fdf6ee;
-  --bronze-ink: #8a5f26;
-  --ink: #07142b;
-  --body: #3a4556;
+  --sand: #cbbfae;
+  --bronze: #9c8f7b;
+  --cream: #f6f3ee;
+  --bronze-ink: #6b6153;
+  --ink: #151414;
+  --body: #46464a;
   --font: var(--font-jakarta), "Plus Jakarta Sans", system-ui, sans-serif;
   --fs-h1: clamp(40px, 6vw, 76px);
   --fs-h2: clamp(30px, 4vw, 52px);
@@ -63,7 +63,7 @@ html:has(.tbl)::-webkit-scrollbar,
 
 body:has(.tbl) {
   margin: 0;
-  background: #07142b;
+  background: #151414;
 }
 
 .tbl [data-reveal] {
@@ -79,7 +79,7 @@ body:has(.tbl) {
 }
 
 .tbl header.scrolled {
-  background: rgba(7, 20, 43, 0.88) !important;
+  background: rgba(21, 20, 20, 0.88) !important;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
@@ -119,17 +119,17 @@ body:has(.tbl) {
 .tbl :focus-visible {
   outline: 2px solid var(--bronze);
   outline-offset: 2px;
-  box-shadow: 0 0 0 5px rgba(240, 201, 154, 0.6);
+  box-shadow: 0 0 0 5px rgba(203, 191, 174, 0.6);
 }
 
 .tbl [data-theme="light"] :focus-visible {
   outline-color: var(--navy);
-  box-shadow: 0 0 0 5px rgba(7, 20, 43, 0.25);
+  box-shadow: 0 0 0 5px rgba(21, 20, 20, 0.25);
 }
 
 .tbl [data-theme="light"] [data-theme="dark"] :focus-visible {
   outline-color: var(--bronze);
-  box-shadow: 0 0 0 5px rgba(240, 201, 154, 0.6);
+  box-shadow: 0 0 0 5px rgba(203, 191, 174, 0.6);
 }
 
 .tbl :focus:not(:focus-visible) {

@@ -16,10 +16,10 @@ export default function Navbar({ offsite = false }: { offsite?: boolean }) {
     <header className={styles.header}>
       <AnchorLink href="#top" offsite={offsite} className={styles.brand}>
         <Image
-          src="/landing/logo-mark-small.png"
+          src="/landing/logo-tb.svg"
           alt=""
-          width={40}
-          height={44}
+          width={24}
+          height={34}
           priority
           className={styles.mark}
         />

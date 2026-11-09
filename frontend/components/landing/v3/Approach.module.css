@@ -44,7 +44,7 @@
   gap: 12px 32px;
   align-items: center;
   padding: 36px 0;
-  border-top: 1px solid rgba(7, 20, 43, 0.12);
+  border-top: 1px solid rgba(21, 20, 20, 0.12);
 }
 :global(.tbl) .step:hover {
   padding-left: 12px;

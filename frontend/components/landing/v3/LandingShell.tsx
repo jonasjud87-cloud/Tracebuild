@@ -96,8 +96,8 @@ export default function LandingShell({ children }: { children: React.ReactNode }
       dot.setAttribute("aria-hidden", "true");
       dot.style.cssText =
         "position:fixed;left:0;top:0;pointer-events:none;z-index:9999;mix-blend-mode:difference;" +
-        "width:10px;height:10px;margin:-5px 0 0 -5px;background:#F0C99A;" +
-        "box-shadow:0 0 0 1px rgba(7,20,43,.6);border-radius:50%;opacity:0;" +
+        "width:10px;height:10px;margin:-5px 0 0 -5px;background:#cbbfae;" +
+        "box-shadow:0 0 0 1px rgba(21, 20, 20,.6);border-radius:50%;opacity:0;" +
         "transition:width .2s,height .2s,margin .2s,opacity .2s";
       document.body.appendChild(dot);
 

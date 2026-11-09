@@ -139,7 +139,7 @@ export default function IntroOverlay() {
 
       <div className={`${styles.stack}${logoOut ? ` ${styles.stackOut}` : ""}`}>
         <Image
-          src="/landing/logo-mark.svg"
+          src="/landing/logo-tb.svg"
           alt="TraceBuild"
           width={553}
           height={790}
