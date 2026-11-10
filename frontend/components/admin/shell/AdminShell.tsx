@@ -121,7 +121,7 @@ export default function AdminShell({ userEmail, children }: { userEmail: string;
           aria-label="Zum Admin-Dashboard"
           className="flex min-w-0 items-center gap-2.5 rounded-lg px-1 lg:ml-1"
         >
-          <LogoMark className="h-8 w-[23px] flex-shrink-0" />
+          <LogoMark className="h-8 w-[21px] flex-shrink-0" />
           <span className="tba-brand truncate">TraceBuild</span>
           <span className="tba-admin-pill hidden items-center rounded-full px-2.5 py-0.5 text-[13px] font-bold uppercase tracking-wider sm:inline-flex">
             Admin

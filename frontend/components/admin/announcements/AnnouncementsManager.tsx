@@ -187,7 +187,7 @@ export default function AnnouncementsManager() {
       <div className="space-y-6">
       <PageHeader
         variant="hero"
-        photo="banner"
+        photo="haus3"
         overlap={false}
         title="Ankündigungen"
         subtitle="Wartungs- und Hinweisbanner für alle Nutzer oder eine einzelne Organisation."

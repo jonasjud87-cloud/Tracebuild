@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-type PageHeaderPhoto = "dashboard" | "banner" | "hero";
+type PageHeaderPhoto = "dashboard" | "haus1" | "haus2" | "haus3";
 
 type PageHeaderProps = {
   title: string;
@@ -14,8 +14,9 @@ type PageHeaderProps = {
 
 const PHOTOS: Record<PageHeaderPhoto, { url: string; position: string }> = {
   dashboard: { url: "/landing/dashboard-building.jpg", position: "70% 40%" },
-  banner: { url: "/landing/project-banner.jpg", position: "70% 45%" },
-  hero: { url: "/landing/hero.png", position: "75% 40%" },
+  haus1: { url: "/landing/banner-haus-1.jpg", position: "75% 58%" },
+  haus2: { url: "/landing/banner-haus-2.jpg", position: "70% 62%" },
+  haus3: { url: "/landing/banner-haus-3.jpg", position: "75% 32%" },
 };
 
 export default function PageHeader({ title, subtitle, actions, eyebrow, variant = "compact", photo, overlap = true }: PageHeaderProps) {

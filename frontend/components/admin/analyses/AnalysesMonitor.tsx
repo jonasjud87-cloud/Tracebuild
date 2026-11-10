@@ -93,7 +93,7 @@ export default function AnalysesMonitor({ embedded = false }: { embedded?: boole
         {!embedded && (
           <PageHeader
             variant="hero"
-            photo="hero"
+            photo="haus3"
             overlap={false}
             title="Analysen-Monitor"
             subtitle={m.lastUpdated ? `Zuletzt aktualisiert ${formatAgo(new Date(m.lastUpdated).toISOString(), now)}` : "Wird geladen …"}

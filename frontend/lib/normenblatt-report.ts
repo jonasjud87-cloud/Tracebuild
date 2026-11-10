@@ -81,28 +81,28 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   const wordmarkY = 17;
-  doc.setTextColor(17, 24, 39);
+  doc.setTextColor(21, 20, 20);
   doc.text("Trace", pageWidth - PAGE_MARGIN - doc.getTextWidth("TraceBuild"), wordmarkY);
   const traceWidth = doc.getTextWidth("Trace");
-  doc.setTextColor(40, 98, 215);
+  doc.setTextColor(156, 143, 123);
   doc.text("Build", pageWidth - PAGE_MARGIN - doc.getTextWidth("TraceBuild") + traceWidth, wordmarkY);
 
-  doc.setDrawColor(40, 98, 215);
+  doc.setDrawColor(200, 190, 176);
   doc.setLineWidth(0.6);
   doc.line(PAGE_MARGIN, 24, pageWidth - PAGE_MARGIN, 24);
 
-  doc.setTextColor(17, 24, 39);
+  doc.setTextColor(21, 20, 20);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.text(title, PAGE_MARGIN, 36);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
-  doc.setTextColor(107, 114, 128);
+  doc.setTextColor(110, 106, 100);
   const subtitle = (location || "–") + (rows.length ? ` · ${rows.length} Normen` : "");
   doc.text(subtitle, PAGE_MARGIN, 42);
 
-  doc.setDrawColor(229, 231, 235);
+  doc.setDrawColor(228, 223, 214);
   doc.setLineWidth(0.3);
   doc.line(PAGE_MARGIN, 46, pageWidth - PAGE_MARGIN, 46);
 
@@ -113,13 +113,13 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   // ── Primärer Inhalt: Geltende Werte (ein Kennwert pro Norm, je Kategorie) ───
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
-  doc.setTextColor(17, 24, 39);
+  doc.setTextColor(21, 20, 20);
   doc.text("1. Geltende Werte", PAGE_MARGIN, cursorY);
 
   if (kennwerteGroups.length === 0) {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    doc.setTextColor(107, 114, 128);
+    doc.setTextColor(110, 106, 100);
     doc.text("Keine konkreten Kennwerte aus den zugewiesenen Normen extrahiert.", PAGE_MARGIN, cursorY + 7);
     cursorY += 16;
   } else {
@@ -137,7 +137,7 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
         didParseCell: (data) => {
           if (data.section === "body" && data.column.index === 1) {
             const row = grp.rows[data.row.index];
-            if (row?.referenceUrl) data.cell.styles.textColor = [40, 98, 215];
+            if (row?.referenceUrl) data.cell.styles.textColor = [107, 97, 83];
           }
         },
         didDrawCell: (data) => {
@@ -158,7 +158,7 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   if (groups.length === 0) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.setTextColor(17, 24, 39);
+    doc.setTextColor(21, 20, 20);
     doc.text("2. Quellennormen", PAGE_MARGIN, cursorY);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(11);
@@ -166,7 +166,7 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   } else {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.setTextColor(17, 24, 39);
+    doc.setTextColor(21, 20, 20);
     doc.text("2. Quellennormen", PAGE_MARGIN, cursorY);
     cursorY += 10;
   }
@@ -174,7 +174,7 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   groups.forEach((grp, i) => {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.setTextColor(17, 24, 39);
+    doc.setTextColor(21, 20, 20);
     doc.text(`2.${i + 1} ${grp.label}`, PAGE_MARGIN, cursorY);
 
     autoTable(doc, {
@@ -190,7 +190,7 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
       didParseCell: (data) => {
         if (data.section === "body" && data.column.index === 2) {
           const row = grp.rows[data.row.index];
-          if (row?.referenceUrl) data.cell.styles.textColor = [40, 98, 215];
+          if (row?.referenceUrl) data.cell.styles.textColor = [107, 97, 83];
         }
       },
       didDrawCell: (data) => {
@@ -210,12 +210,12 @@ export async function buildNormenblattPdf(meta: NormenblattMeta, rows: Normenbla
   for (let p = 1; p <= pageCount; p++) {
     doc.setPage(p);
     const footY = doc.internal.pageSize.getHeight() - 10;
-    doc.setDrawColor(229, 231, 235);
+    doc.setDrawColor(228, 223, 214);
     doc.setLineWidth(0.2);
     doc.line(PAGE_MARGIN, footY - 4, pageWidth - PAGE_MARGIN, footY - 4);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8.5);
-    doc.setTextColor(156, 163, 175);
+    doc.setTextColor(150, 146, 140);
     doc.text(String(year), PAGE_MARGIN, footY);
     doc.text(title, pageWidth / 2, footY, { align: "center" });
     doc.text(`Seite ${p} / ${pageCount}`, pageWidth - PAGE_MARGIN, footY, { align: "right" });

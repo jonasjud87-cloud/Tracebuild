@@ -14,10 +14,10 @@ const LOGO_PX = 240;
 
 const MARGIN = 16;
 const FOOT_SPACE = 24;
-const INK: [number, number, number] = [17, 24, 39];
-const MUTED: [number, number, number] = [107, 114, 128];
-const LINE: [number, number, number] = [229, 231, 235];
-const BLUE: [number, number, number] = [40, 98, 215];
+const INK: [number, number, number] = [21, 20, 20];
+const MUTED: [number, number, number] = [110, 106, 100];
+const LINE: [number, number, number] = [228, 223, 214];
+const BLUE: [number, number, number] = [107, 97, 83];
 
 /** Die Standardschrift des PDF kennt nur WinAnsi. Ein Zeichen wie ≥ aus einem Reglement würde sonst die Zeile zerstören. */
 export function pdfText(value: string): string {

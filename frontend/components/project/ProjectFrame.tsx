@@ -49,7 +49,7 @@ export default function ProjectFrame({ projectId, pathname, announcements, child
 
       <header className={p.topbar}>
         <Link href="/dashboard" className={p.logoLink} aria-label="TraceBuild Übersicht">
-          <Image src="/landing/logo-tb.svg" alt="" width={24} height={34} className={p.logoMark} priority />
+          <Image src="/landing/logo-tb.svg" alt="" width={24} height={37} className={p.logoMark} priority />
           <span className={p.wordmark} aria-hidden="true">TraceBuild</span>
         </Link>
         <Link href="/dashboard/projects" className={p.backLink}>

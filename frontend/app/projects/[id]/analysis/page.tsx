@@ -632,6 +632,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     return (
       <div>
         <ProjectBanner
+          variant="analysis"
           title="Plan-Analyse"
           subtitle={allPlanTypes.length === 0
             ? "Alle Pläne eines Projekts werden gemeinsam geprüft"
@@ -861,6 +862,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   return (
     <div>
       <ProjectBanner
+        variant="analysis"
         title={selectedPlanType}
         subtitle={typeAnalyses.length > 0 ? `Plan-Analyse · ${typeAnalyses.length} Version${typeAnalyses.length !== 1 ? "en" : ""}` : "Plan-Analyse"}
         actions={

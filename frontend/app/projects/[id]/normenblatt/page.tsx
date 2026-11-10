@@ -249,6 +249,7 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
   return (
     <>
       <ProjectBanner
+        variant="normenblatt"
         title="Normenblatt"
         subtitle={project ? `${project.location.municipality}, Kanton ${project.location.canton}` : undefined}
         actions={

@@ -672,7 +672,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
   return (
     <div className={n.page}>
-      <ProjectBanner title="Normen" subtitle={bannerSubtitle} actions={bannerActions} />
+      <ProjectBanner variant="norms" title="Normen" subtitle={bannerSubtitle} actions={bannerActions} />
 
       <div role="status">
         {refreshMsg && <p className={n.flash}>{refreshMsg}</p>}

@@ -16,7 +16,7 @@ export default async function AdminAuditPage() {
     <>
       <AdminShell userEmail={user.email}>
       <div className="space-y-6">
-        <PageHeader eyebrow="Administration" title="Audit-Log" subtitle="Alle protokollierten Admin-Aktionen über sämtliche Organisationen." />
+        <PageHeader photo="haus1" eyebrow="Administration" title="Audit-Log" subtitle="Alle protokollierten Admin-Aktionen über sämtliche Organisationen." />
         <AuditLogView />
       </div>
       </AdminShell>

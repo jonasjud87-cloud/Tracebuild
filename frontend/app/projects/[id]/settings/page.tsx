@@ -260,7 +260,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   if (loading || roleLoading) {
     return (
       <>
-        <ProjectBanner title="Einstellungen" />
+        <ProjectBanner variant="settings" title="Einstellungen" />
         <div className={s.stack} role="status" aria-label="Einstellungen werden geladen">
           <div className={`${p.glassFlat} ${p.card} ${s.skelCard}`}>
             <span className={p.skeleton} style={{ width: "30%", height: 20 }} />
@@ -279,7 +279,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   if (!isAdmin) {
     return (
       <>
-        <ProjectBanner title="Einstellungen" subtitle={subtitle} />
+        <ProjectBanner variant="settings" title="Einstellungen" subtitle={subtitle} />
 
         <div className={s.stack}>
           <p className={s.notice}>
@@ -351,6 +351,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   return (
     <>
       <ProjectBanner
+        variant="settings"
         title="Einstellungen"
         subtitle={subtitle}
         actions={
