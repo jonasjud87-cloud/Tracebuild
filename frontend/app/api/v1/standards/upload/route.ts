@@ -80,7 +80,7 @@ async function handleUpload(request: Request) {
       const storagePath = `norms/${user.org_id}/${crypto.randomUUID()}_${file.name}`;
       const { data: uploadData } = await admin.storage
         .from("documents")
-        .upload(storagePath, fileBytes, { contentType: file.type || "application/pdf" });
+        .upload(storagePath, fileBytes, { contentType: "application/pdf" });
       if (uploadData) {
         pdfUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`;
       }
