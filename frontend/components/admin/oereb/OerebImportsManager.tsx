@@ -364,7 +364,7 @@ export default function OerebImportsManager() {
     <div className="mx-auto max-w-[1680px] space-y-6">
       <PageHeader
         variant="hero"
-        photo="dashboard"
+        photo="haus2"
         overlap={false}
         title="ÖREB-Importe"
         subtitle="Reglemente aus den ÖREB-Auszügen je Kanton und Gemeinde. Entscheide bleiben auch bei späteren Abrufen bestehen."

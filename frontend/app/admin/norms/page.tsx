@@ -524,7 +524,7 @@ export default function AdminNormsPage() {
         <div className="space-y-6">
         <PageHeader
           variant="hero"
-          photo="banner"
+          photo="haus1"
           overlap={false}
           title="Normen-Datenbank"
           subtitle="Plattformweit — Normen hier hochgeladen sind für alle Organisationen sichtbar. Du kannst hier ausserdem Normen anderer Organisationen einsehen und für alle Organisationen freigeben."

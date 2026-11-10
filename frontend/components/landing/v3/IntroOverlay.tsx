@@ -141,8 +141,8 @@ export default function IntroOverlay() {
         <Image
           src="/landing/logo-tb.svg"
           alt="TraceBuild"
-          width={553}
-          height={790}
+          width={612}
+          height={934}
           priority
           unoptimized
           className={styles.logo}

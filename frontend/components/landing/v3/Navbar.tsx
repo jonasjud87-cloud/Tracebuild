@@ -19,7 +19,7 @@ export default function Navbar({ offsite = false }: { offsite?: boolean }) {
           src="/landing/logo-tb.svg"
           alt=""
           width={24}
-          height={34}
+          height={37}
           priority
           className={styles.mark}
         />

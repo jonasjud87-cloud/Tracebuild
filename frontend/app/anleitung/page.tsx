@@ -124,7 +124,7 @@ export default function AnleitungPage() {
       <header className={s.masthead}>
         <div className={`${s.wrap} ${s.mastheadInner}`}>
           <a className={s.brand} href="#inhalt" aria-label="TraceBuild, zum Inhaltsverzeichnis">
-            <Image src="/landing/logo-tb-dark.svg" alt="" width={28} height={40} unoptimized priority />
+            <Image src="/landing/logo-tb-graphite.svg" alt="" width={28} height={43} unoptimized priority />
             <span className={s.brandName}>
               Trace<b>Build</b>
             </span>

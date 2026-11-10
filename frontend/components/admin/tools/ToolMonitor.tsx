@@ -37,7 +37,7 @@ export default function ToolMonitor() {
     <div className="space-y-4">
       <PageHeader
         variant="hero"
-        photo="hero"
+        photo="haus2"
         overlap={false}
         title="Tools & Dienste"
         subtitle="Zustand, Nutzung, Kontingente und Kosten der externen Dienste"

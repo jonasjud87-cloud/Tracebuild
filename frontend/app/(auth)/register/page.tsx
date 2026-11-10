@@ -58,7 +58,7 @@ export default function RegisterPage() {
           src="/landing/logo-tb-dark.svg"
           alt="TraceBuild"
           width={40}
-          height={57}
+          height={61}
           unoptimized
           style={{ width: 40, height: "auto" }}
           priority

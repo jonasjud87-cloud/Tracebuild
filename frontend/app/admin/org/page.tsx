@@ -528,7 +528,7 @@ export default function OrgAdminPage() {
                 <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
-            <LogoMark className="h-7 w-[20px] flex-shrink-0" />
+            <LogoMark className="h-7 w-[18px] flex-shrink-0" />
             <span className="tba-brand">TraceBuild</span>
             <span className="hidden text-sm font-semibold text-white/70 sm:inline">· Organisation verwalten</span>
           </div>
