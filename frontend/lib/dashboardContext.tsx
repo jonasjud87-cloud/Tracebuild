@@ -9,6 +9,7 @@ export interface Project {
   location: { canton: string; municipality: string };
   status: string;
   created_at: string;
+  project_number?: string | null;
 }
 
 export interface OrgInfo { id: string; name: string; slug: string }

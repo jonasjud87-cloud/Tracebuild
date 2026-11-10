@@ -11,6 +11,7 @@ interface Project {
   location: { canton: string; municipality: string };
   status: string;
   created_at: string;
+  project_number?: string | null;
 }
 
 interface Props {
@@ -52,6 +53,13 @@ export default function ProjectCard({ project, view = "grid" }: Props) {
   const done = isProjectDone(project.status);
   const domain = project.domain === "bau" ? "Bau / Architektur" : project.domain;
   const place = [project.location?.municipality, project.location?.canton].filter(Boolean).join(", ");
+  const nameTitle = project.project_number ? `${project.project_number} · ${project.name}` : project.name;
+  const nameRow = (
+    <div className={s.pNameRow}>
+      {project.project_number && <span className={s.pNum}>{project.project_number}</span>}
+      <h2 className={s.pName} title={nameTitle}>{project.name}</h2>
+    </div>
+  );
 
   if (view === "list") {
     return (
@@ -60,7 +68,7 @@ export default function ProjectCard({ project, view = "grid" }: Props) {
         <div className={s.pTop}>
           <span className={s.pIcon}><BuildingIcon size={24} /></span>
           <div className={s.rowText}>
-            <h2 className={s.pName} title={project.name}>{project.name}</h2>
+            {nameRow}
             {place && <p className={s.pLoc}><PinIcon size={16} />{place}</p>}
           </div>
         </div>
@@ -81,7 +89,7 @@ export default function ProjectCard({ project, view = "grid" }: Props) {
         <span className={s.pIcon}><BuildingIcon size={26} /></span>
         <StatusChip done={done} />
       </div>
-      <h2 className={s.pName} title={project.name}>{project.name}</h2>
+      {nameRow}
       {place && <p className={s.pLoc}><PinIcon size={17} />{place}</p>}
       <div className={s.pFoot}>
         <span className={s.domPill}><LayersIcon size={16} />{domain}</span>

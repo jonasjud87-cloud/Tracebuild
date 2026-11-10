@@ -7,6 +7,7 @@ import { refreshProjectOereb, type RefreshResult } from "@/lib/oereb/refresh";
 import { countPendingDocuments } from "@/lib/oereb/documents-pending";
 import { mentionsParcelIdentityColumn, PARCEL_IDENTITY_COLUMNS, parseParcelIdentity, parseProjectLocation } from "@/lib/geoadmin/validate";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { isMissingProjectNumberColumn, parseProjectNumber, projectNumberDbError } from "@/lib/project-number";
 
 export const maxDuration = 60;
 
@@ -70,6 +71,11 @@ async function updateProject(request: Request, { params }: { params: { id: strin
     updates.zone_confidence = null;
   }
   if (body.parcel_number !== undefined) updates.parcel_number = body.parcel_number;
+  if (body.project_number !== undefined) {
+    const parsedNumber = parseProjectNumber(body.project_number);
+    if ("error" in parsedNumber) return err(parsedNumber.error);
+    updates.project_number = parsedNumber.value;
+  }
 
   // Parzelle oder Standort gewechselt ohne neue EGRID: Die alte Grundstücks-Identität gilt nicht mehr.
   const identity = parseParcelIdentity(body);
@@ -90,36 +96,47 @@ async function updateProject(request: Request, { params }: { params: { id: strin
     updates.bfs_number = null;
   }
 
-  let { data, error } = await admin
-    .from("projects")
-    .update(updates)
-    .eq("id", params.id)
-    .select()
-    .single();
+  // Update; fehlt die Spalte project_number (Migration 20261111000001), wird die Nummer verworfen.
+  const runUpdate = async () => {
+    const res = await admin
+      .from("projects")
+      .update(updates)
+      .eq("id", params.id)
+      .eq("org_id", user.org_id)
+      .select()
+      .single();
+    if (res.error && "project_number" in updates && isMissingProjectNumberColumn(res.error.message)) {
+      console.warn("project_number fehlt (Migration 20261111000001 nicht eingespielt), Nummer verworfen");
+      delete updates.project_number;
+      if (Object.keys(updates).length === 0) return { data: project, error: null };
+      return admin
+        .from("projects")
+        .update(updates)
+        .eq("id", params.id)
+        .eq("org_id", user.org_id)
+        .select()
+        .single();
+    }
+    return res;
+  };
+
+  let { data, error } = await runUpdate();
 
   // Fallback: Geoportal-Migration noch nicht eingespielt → nur diese Spalten weglassen.
   if (error && mentionsParcelIdentityColumn(error.message)) {
     for (const column of PARCEL_IDENTITY_COLUMNS) delete updates[column];
-    ({ data, error } = await admin
-      .from("projects")
-      .update(updates)
-      .eq("id", params.id)
-      .select()
-      .single());
+    ({ data, error } = await runUpdate());
   }
 
   // Fallback: ÖREB-Migration noch nicht eingespielt → ohne Herkunftsspalten schreiben.
   if (error && "zone_source" in updates && error.message.includes("zone_")) {
     delete updates.zone_source;
     delete updates.zone_confidence;
-    ({ data, error } = await admin
-      .from("projects")
-      .update(updates)
-      .eq("id", params.id)
-      .select()
-      .single());
+    ({ data, error } = await runUpdate());
   }
 
+  const numberErr = projectNumberDbError(error, typeof updates.project_number === "string" ? updates.project_number : null);
+  if (numberErr) return err(numberErr.message, numberErr.status);
   if (error) return err(error.message, 500);
 
   await logAudit(admin, {

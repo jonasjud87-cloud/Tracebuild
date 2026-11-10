@@ -1,7 +1,8 @@
 "use client";
 
 import { useDashboard } from "@/lib/dashboardContext";
-import { AlertCircleIcon, DocumentIcon, LayersIcon, ShieldCheckIcon } from "@/components/dashboard/icons";
+import Link from "next/link";
+import { AlertCircleIcon, ArrowRightIcon, DocumentIcon, LayersIcon, ShieldCheckIcon } from "@/components/dashboard/icons";
 import DashboardBackdrop from "@/components/dashboard/DashboardBackdrop";
 import s from "./dashboard.module.css";
 
@@ -45,6 +46,13 @@ export default function DashboardOverviewPage() {
           <p className={s.lead}>
             Hier findest du eine Übersicht über eure Projekte, Prüfungen und die aktuelle Normkonformität.
           </p>
+          <div className={s.heroCta}>
+            <Link href="/dashboard/projects" className={`${s.btnDark} ${s.btnCta}`}>
+              <LayersIcon size={20} />
+              Zu den Projekten
+              <ArrowRightIcon size={20} />
+            </Link>
+          </div>
         </div>
       </section>
 

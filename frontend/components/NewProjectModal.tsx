@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import ParcelSearch, { type ParcelSelection } from "./ParcelSearch";
 import type { ParcelIdentityFields } from "./geoportal-logic";
+import { PROJECT_NUMBER_MAX } from "@/lib/project-number";
 import css from "./NewProjectModal.module.css";
 
 const CANTONS = [
@@ -36,12 +37,12 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function TextInput({ value, onChange, placeholder, required }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean;
+function TextInput({ value, onChange, placeholder, required, maxLength }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; required?: boolean; maxLength?: number;
 }) {
   return (
     <input
-      type="text" required={required} value={value}
+      type="text" required={required} value={value} maxLength={maxLength}
       onChange={e => onChange(e.target.value)}
       placeholder={placeholder}
       className={css.input}
@@ -52,6 +53,7 @@ function TextInput({ value, onChange, placeholder, required }: {
 export default function NewProjectModal({ onClose, onCreated }: Props) {
   const router = useRouter();
   const [name, setName]                 = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
   const [canton, setCanton]             = useState(CANTONS[0]);
   const [municipality, setMunicipality] = useState("");
   const [parcelNumber, setParcelNumber] = useState("");
@@ -93,6 +95,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
     try {
       const result = await api.post<CreateProjectResponse>("/projects", {
         name: name.trim(),
+        project_number: projectNumber.trim() || null,
         domain: "bau",
         location: { canton, municipality: municipality.trim(), country: "CH" },
         parcel_number: parcelNumber.trim() || null,
@@ -138,6 +141,11 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
 
           <Field label="Projektname">
             <TextInput value={name} onChange={setName} required />
+          </Field>
+
+          <Field label="Projektnummer" hint="(optional)">
+            <TextInput value={projectNumber} onChange={setProjectNumber} placeholder="z.B. 2024-017" maxLength={PROJECT_NUMBER_MAX} />
+            <p className={css.note}>Ihre interne Nummer. Sie muss in Ihrer Organisation eindeutig sein.</p>
           </Field>
 
           <div className={css.grid}>
