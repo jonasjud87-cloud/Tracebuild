@@ -124,6 +124,18 @@ const ADMIN_ITEMS: NavItem[] = [
     ),
   },
   {
+    label: "Tools & Dienste",
+    href: "/admin/tools",
+    path: "/admin/tools",
+    icon: (
+      <svg {...ICON_PROPS}>
+        <rect x="3" y="4" width="18" height="6" rx="2" />
+        <rect x="3" y="14" width="18" height="6" rx="2" />
+        <path d="M7 7h.01M7 17h.01" />
+      </svg>
+    ),
+  },
+  {
     label: "Logs & Monitoring",
     href: "/admin/audit",
     path: "/admin/audit",

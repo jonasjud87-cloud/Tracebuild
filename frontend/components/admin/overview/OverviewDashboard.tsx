@@ -1,11 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import Link from "next/link";
+import type { ReactNode } from "react";
 import type { OverviewData } from "@/lib/admin-overview/types";
 import AnalysesChart from "./AnalysesChart";
 import BudgetDonut from "./BudgetDonut";
 import { Card, CardError, CardSkeleton, focusRing, type Resource } from "./CardFrame";
 import PageHeader from "../shell/PageHeader";
+import { fetchEnvelope, useResource } from "./resource";
 import KpiTile from "./KpiTile";
 import LatestAnalysesTable from "./LatestAnalysesTable";
 import SystemStatusCard, { type SystemStatusData } from "./SystemStatusCard";
@@ -13,25 +15,6 @@ import { formatInt, formatMoney, resolveCurrency } from "./format";
 
 const OVERVIEW_URL = "/api/v1/admin/overview";
 const STATUS_URL = "/api/v1/admin/system-status";
-
-async function fetchEnvelope<T>(url: string, fallback: string): Promise<T> {
-  let res: Response;
-  try {
-    res = await fetch(url, { cache: "no-store" });
-  } catch {
-    throw new Error("Keine Verbindung zum Server.");
-  }
-  let body: { data?: T | null; error?: string | null } | null = null;
-  try {
-    body = await res.json();
-  } catch {
-    body = null;
-  }
-  if (!res.ok || !body || body.error || body.data === null || body.data === undefined) {
-    throw new Error(body?.error && typeof body.error === "string" ? body.error : fallback);
-  }
-  return body.data;
-}
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -90,43 +73,6 @@ const icons = {
   ),
 };
 
-function useResource<T>(load: () => Promise<T>) {
-  const [state, setState] = useState<Resource<T>>({ status: "loading" });
-  const [busy, setBusy] = useState(true);
-  const alive = useRef(true);
-  const seq = useRef(0);
-
-  const run = useCallback(() => {
-    const id = ++seq.current;
-    setBusy(true);
-    setState(prev => (prev.status === "ready" ? prev : { status: "loading" }));
-    load().then(
-      data => {
-        if (alive.current && id === seq.current) {
-          setState({ status: "ready", data });
-          setBusy(false);
-        }
-      },
-      (e: unknown) => {
-        if (alive.current && id === seq.current) {
-          setState({ status: "error", message: e instanceof Error ? e.message : "Unbekannter Fehler." });
-          setBusy(false);
-        }
-      }
-    );
-  }, [load]);
-
-  useEffect(() => {
-    alive.current = true;
-    run();
-    return () => {
-      alive.current = false;
-    };
-  }, [run]);
-
-  return [state, run, busy] as const;
-}
-
 const loadOverview = async () => {
   const d = await fetchEnvelope<OverviewData>(OVERVIEW_URL, "Übersicht konnte nicht geladen werden.");
   if (!isOverview(d)) throw new Error("Unerwartete Antwort der Übersicht.");
@@ -177,6 +123,10 @@ export default function OverviewDashboard() {
         title="Admin Dashboard"
         subtitle="Systemübersicht, Nutzung und Verwaltung"
         actions={
+          <>
+          <Link href="/admin/tools" className={`tba-pill-btn ${focusRing}`}>
+            Tools &amp; Dienste
+          </Link>
           <button
             type="button"
             onClick={refresh}
@@ -189,6 +139,7 @@ export default function OverviewDashboard() {
             </svg>
             Aktualisieren
           </button>
+          </>
         }
       />
 
