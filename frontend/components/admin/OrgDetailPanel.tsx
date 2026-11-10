@@ -885,12 +885,12 @@ export default function OrgDetailPanel({ org, costs, onClose, onEdit, onToast, i
 
   return (
     <>
-      <div
-        className={`tba-scrim fixed inset-0 z-40 transition-opacity duration-300 ${
-          org ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-        }`}
-        onClick={onClose}
-      />
+      {org && (
+        <div
+          className="tba-scrim fixed inset-0 z-40"
+          onClick={onClose}
+        />
+      )}
 
       <div
         className={`fixed inset-y-0 right-0 z-50 w-full sm:w-[var(--tb-panel-w)] rounded-l-[20px] rounded-r-none tba-glass tba-glass--modal flex flex-col transform transition-transform duration-300 ${
