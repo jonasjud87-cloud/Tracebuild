@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { PROJECT_NUMBER_MAX } from "@/lib/project-number";
 import type { ExtractStatus, ParcelCandidate, ProjectRefreshInfo } from "@/lib/geoadmin/contract";
 import ParcelSearch, { CandidateList } from "@/components/ParcelSearch";
 import ProjectGeoPanel from "@/components/ProjectGeoPanel";
@@ -24,6 +25,7 @@ interface Project {
   zone_source?: "oereb" | "manual" | null;
   zone_confidence?: "exact" | "coarse" | "low" | null;
   egrid?: string | null;
+  project_number?: string | null;
 }
 
 interface PendingParcel { fields: ParcelFields; label: string }
@@ -66,6 +68,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const [project, setProject] = useState<Project | null>(null);
   const [name, setName] = useState("");
+  const [projectNumber, setProjectNumber] = useState("");
   const [canton, setCanton] = useState("ZH");
   const [municipality, setMunicipality] = useState("");
   const [parcelNumber, setParcelNumber] = useState("");
@@ -89,10 +92,13 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   const sync = useOerebSync();
 
   const isAdmin = role === "org_admin" || role === "super_admin";
+  // Spalte vorhanden (Migration 20261111000001 eingespielt), sonst Feld ausblenden.
+  const numberSupported = !!project && "project_number" in project;
 
   function applyProject(pr: Project) {
     setProject(pr);
     setName(pr.name);
+    setProjectNumber(pr.project_number ?? "");
     setCanton(pr.location?.canton ?? "ZH");
     setMunicipality(pr.location?.municipality ?? "");
     setParcelNumber(pr.parcel_number ?? "");
@@ -154,15 +160,19 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
       const newZone = bauzone.trim() || null;
       // Angezeigt wird die Antwort des Servers, nicht das Abgeschickte.
       const zoneChanged = newZone !== (project?.bauzone ?? null);
+      const newNumber = projectNumber.trim() || null;
+      const numberChanged = numberSupported && newNumber !== (project?.project_number ?? null);
       const updated = await api.patch<Project & Partial<ProjectRefreshInfo>>(`/projects/${params.id}`, {
         name,
         location: { canton, municipality, country: project?.location?.country ?? "CH" },
         parcel_number: parcelNumber.trim() || null,
         ...(zoneChanged ? { bauzone: newZone } : {}),
+        ...(numberChanged ? { project_number: newNumber } : {}),
       });
       if (updated) {
         setProject((prev) => (prev ? { ...prev, ...updated } : updated));
         setBauzone(updated.bauzone ?? "");
+        setProjectNumber(updated.project_number ?? "");
       }
       if (updated?.oereb) {
         setExtractStatus({ status: updated.oereb.status, detail: updated.oereb.status_detail, pdf: null });
@@ -244,7 +254,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
   }
 
   const subtitle = project
-    ? [project.name, [project.location?.municipality, project.location?.canton].filter(Boolean).join(" ")].filter(Boolean).join(" · ")
+    ? [project.project_number, project.name, [project.location?.municipality, project.location?.canton].filter(Boolean).join(" ")].filter(Boolean).join(" · ")
     : undefined;
 
   if (loading || roleLoading) {
@@ -288,6 +298,13 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
                 <span className={p.label}>Projektname</span>
                 <div className={s.value}>{project?.name}</div>
               </div>
+
+              {numberSupported && (
+                <div>
+                  <span className={p.label}>Projektnummer</span>
+                  <div className={s.value}>{project?.project_number ?? "–"}</div>
+                </div>
+              )}
 
               <div className={s.grid2}>
                 <div>
@@ -433,6 +450,22 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
                 className={p.input}
               />
             </div>
+
+            {numberSupported && (
+              <div>
+                <label htmlFor="set-number" className={p.label}>Projektnummer</label>
+                <input
+                  id="set-number"
+                  type="text"
+                  maxLength={PROJECT_NUMBER_MAX}
+                  value={projectNumber}
+                  onChange={(e) => setProjectNumber(e.target.value)}
+                  className={p.input}
+                  aria-describedby="set-number-help"
+                />
+                <p id="set-number-help" className={s.help}>Optional. Muss in Ihrer Organisation eindeutig sein.</p>
+              </div>
+            )}
 
             <div className={s.grid2}>
               <div>

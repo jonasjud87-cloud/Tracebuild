@@ -4,6 +4,7 @@ import { assignNorms } from "@/lib/norm-assignment";
 import { mentionsParcelIdentityColumn, parseParcelIdentity, parseProjectLocation } from "@/lib/geoadmin/validate";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { logAudit } from "@/lib/auditLog";
+import { isMissingProjectNumberColumn, parseProjectNumber, projectNumberDbError } from "@/lib/project-number";
 
 export const maxDuration = 60;
 
@@ -41,6 +42,9 @@ async function createProject(request: Request) {
   const parsedLocation = parseProjectLocation(rawLocation);
   if ("error" in parsedLocation) return err(parsedLocation.error);
   const { location } = parsedLocation;
+  const parsedNumber = parseProjectNumber(body.project_number);
+  if ("error" in parsedNumber) return err(parsedNumber.error);
+  const projectNumber = parsedNumber.value;
 
   // Die Bauzone kommt aus dem ÖREB-Auszug (unten). Eine im Formular eingegebene Zone
   // wird übernommen, aber nicht als 'manual' markiert, damit ÖREB sie füllen darf;
@@ -51,33 +55,36 @@ async function createProject(request: Request) {
   const admin = createAdminClient();
 
   const baseRow = { name, domain, location, org_id: user.org_id, status: "active" };
+  const numberRow: { project_number?: string } = projectNumber ? { project_number: projectNumber } : {};
   const zoneRow = { parcel_number: parcel_number ?? null, bauzone: inputZone };
 
+  // Insert; fehlt die Spalte project_number (Migration 20261111000001), wird die Nummer verworfen.
+  const insertRow = async (row: Record<string, unknown>) => {
+    const res = await admin.from("projects").insert(row).select().single();
+    if (res.error && "project_number" in row && isMissingProjectNumberColumn(res.error.message)) {
+      console.warn("project_number fehlt (Migration 20261111000001 nicht eingespielt), Nummer verworfen");
+      const rest = { ...row };
+      delete rest.project_number;
+      return admin.from("projects").insert(rest).select().single();
+    }
+    return res;
+  };
+
   // Try full insert (with parcel identity if migration 20261106000001 applied)
-  let { data: project, error: insertErr } = await admin
-    .from("projects")
-    .insert({ ...baseRow, ...zoneRow, ...identity })
-    .select()
-    .single();
+  let { data: project, error: insertErr } = await insertRow({ ...baseRow, ...numberRow, ...zoneRow, ...identity });
 
   // Fallback: Geoportal-Migration noch nicht eingespielt — nur diese Spalten weglassen.
   if (insertErr && mentionsParcelIdentityColumn(insertErr.message)) {
-    ({ data: project, error: insertErr } = await admin
-      .from("projects")
-      .insert({ ...baseRow, ...zoneRow })
-      .select()
-      .single());
+    ({ data: project, error: insertErr } = await insertRow({ ...baseRow, ...numberRow, ...zoneRow }));
   }
 
   // Fallback: columns don't exist yet (migration not run) — insert without them
   if (insertErr?.message?.includes("bauzone") || insertErr?.message?.includes("parcel_number")) {
-    ({ data: project, error: insertErr } = await admin
-      .from("projects")
-      .insert(baseRow)
-      .select()
-      .single());
+    ({ data: project, error: insertErr } = await insertRow({ ...baseRow, ...numberRow }));
   }
 
+  const numberErr = projectNumberDbError(insertErr, projectNumber);
+  if (numberErr) return err(numberErr.message, numberErr.status);
   if (insertErr) return err(insertErr.message, 500);
 
   // ÖREB-Auszug bei Projekt-Erstellung, sobald ein Grundstück bekannt ist (Parzelle oder
@@ -106,7 +113,7 @@ async function createProject(request: Request) {
     action: "project_create",
     targetId: project.id,
     targetEmail: undefined,
-    meta: { name: project.name },
+    meta: { name: project.name, project_number: project.project_number ?? null },
   });
 
   // Assign norms synchronously so the count is in the response

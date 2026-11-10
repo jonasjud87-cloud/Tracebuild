@@ -34,6 +34,7 @@ export default function DashboardProjectsPage() {
   const filteredProjects = q
     ? projects.filter(p =>
         p.name.toLowerCase().includes(q) ||
+        (p.project_number ?? "").toLowerCase().includes(q) ||
         `${p.location?.municipality ?? ""} ${p.location?.canton ?? ""}`.toLowerCase().includes(q))
     : projects;
 

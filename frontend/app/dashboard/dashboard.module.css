@@ -1155,6 +1155,24 @@
   transform: translateY(0);
 }
 
+/* Grosser Einstieg «Zu den Projekten» im Hero */
+.heroCta {
+  display: flex;
+  justify-content: center;
+  margin-top: 34px;
+}
+
+.btnCta {
+  padding: 18px 38px;
+  font-size: 18px;
+  text-decoration: none;
+}
+
+.btnCta:focus-visible {
+  outline: 3px solid #d8cebf;
+  outline-offset: 3px;
+}
+
 .pKpi {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1347,6 +1365,35 @@
   margin: 8px 0 18px;
   font-size: 15px;
   color: var(--body);
+}
+
+/* Projektnummer als Chip vor dem Namen */
+.pNameRow {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pNameRow .pName {
+  min-width: 0;
+}
+
+.pNum {
+  flex-shrink: 0;
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 3px 9px;
+  border-radius: 8px;
+  border: 1px solid rgba(21, 20, 20, 0.14);
+  background: #fff;
+  color: #151414;
 }
 
 .pFoot {
@@ -1758,6 +1805,11 @@
   .pGrid,
   .pKpi {
     grid-template-columns: minmax(0, 1fr);
+  }
+
+  .btnCta {
+    width: 100%;
+    justify-content: center;
   }
 }
 
