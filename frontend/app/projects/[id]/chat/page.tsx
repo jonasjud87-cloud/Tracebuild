@@ -419,6 +419,7 @@ export default function ChatPage() {
   return (
     <>
       <ProjectBanner
+        variant="chat"
         title="KI Chat"
         subtitle={threadsLoading ? undefined : threads.length === 1 ? "1 Konversation" : `${threads.length} Konversationen`}
         actions={

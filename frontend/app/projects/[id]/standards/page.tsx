@@ -196,7 +196,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
   return (
     <div className={n.page}>
-      <ProjectBanner title="Geltende Normen" subtitle={subtitle} actions={bannerActions} />
+      <ProjectBanner variant="standards" title="Geltende Normen" subtitle={subtitle} actions={bannerActions} />
 
       {project && (project.parcel_number || project.bauzone) && (
         <div className={n.chips}>
