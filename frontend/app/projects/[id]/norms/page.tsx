@@ -9,6 +9,8 @@ import type { ExtractStatus } from "@/lib/geoadmin/contract";
 import OerebStatusNotice from "@/components/OerebStatusNotice";
 import OerebDocumentsPanel from "@/components/OerebDocumentsPanel";
 import ZoneEditor from "@/components/ZoneEditor";
+import NormText from "@/components/norm-text/NormText";
+import { safeHref } from "@/lib/norm-structure";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { useOrgRole } from "@/components/useOrgRole";
 import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
@@ -45,6 +47,8 @@ interface Norm {
   source_kind?: string | null;
   text_truncated?: boolean;
   source_checked_at?: string | null;
+  pdf_url?: string | null;
+  auto_scope?: string | null;
 }
 
 interface ProjectNorm {
@@ -186,13 +190,23 @@ function triggerLabel(trigger: string | null | undefined): string {
 function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string) => void }) {
   const [expanded, setExpanded] = useState(false);
   const [fullText, setFullText] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const norm = pn.norms;
   useEffect(() => {
-    if (!expanded || !norm?.text_truncated || fullText !== null) return;
-    api.get<{ text: string }>(`/standards/${norm.id}`).then((res) => setFullText(res.text)).catch(() => {});
-  }, [expanded, norm?.id, norm?.text_truncated, fullText]);
+    if (!expanded || !norm?.text_truncated || fullText !== null || loadError) return;
+    api
+      .get<{ text: string }>(`/standards/${norm.id}`)
+      .then((res) => setFullText(res.text))
+      .catch(() => setLoadError(true));
+  }, [expanded, norm?.id, norm?.text_truncated, fullText, loadError]);
   if (!norm) return null;
   const grp = getGroup(norm.layer);
+  const loadingFull = expanded && !!norm.text_truncated && fullText === null && !loadError;
+  const pdfHref = safeHref(norm.pdf_url);
+  const sourceHref = safeHref(norm.source_url);
+  const sourceLink = sourceHref && sourceHref !== pdfHref ? sourceHref : null;
+  // Ohne gültige Adresse (bei Uploads ein Dateiname) nur als Text, nicht doppelt zu source_doc.
+  const sourceText = !sourceHref && norm.source_url && norm.source_url !== norm.source_doc ? norm.source_url : null;
 
   return (
     <div className={n.norm}>
@@ -217,14 +231,22 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
           <p className={n.normTitle}>{norm.title}</p>
           {expanded && (
             <>
-              <p className={n.normText}>{fullText ?? norm.text}</p>
-              {(norm.source_url || norm.source_doc) && (
+              <NormText
+                normId={norm.id}
+                text={fullText ?? norm.text}
+                wholeDocument={norm.source_kind === "oereb_auto" || !!pdfHref}
+                pdfUrl={norm.pdf_url ?? null}
+                loadingFull={loadingFull}
+                loadError={loadError}
+              />
+              {(sourceLink || sourceText || norm.source_doc) && (
                 <div className={n.normSource}>
-                  {norm.source_url && (
-                    <a href={norm.source_url} target="_blank" rel="noreferrer" className={n.link}>
+                  {sourceLink && (
+                    <a href={sourceLink} target="_blank" rel="noopener noreferrer" className={n.link}>
                       Quelle ansehen →
                     </a>
                   )}
+                  {sourceText && <span>{sourceText}</span>}
                   {norm.source_doc && <span>{norm.source_doc}</span>}
                 </div>
               )}
@@ -234,7 +256,11 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
         <div className={n.normActions}>
           <button
             type="button"
-            onClick={() => setExpanded((v) => !v)}
+            onClick={() => {
+              // Nach einem Ladefehler beim erneuten Aufklappen einmal neu versuchen.
+              if (!expanded && loadError) setLoadError(false);
+              setExpanded(!expanded);
+            }}
             title={expanded ? "Einklappen" : "Volltext anzeigen"}
             aria-label={expanded ? "Einklappen" : "Volltext anzeigen"}
             aria-expanded={expanded}
