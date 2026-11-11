@@ -108,6 +108,8 @@ const OVERRIDES: Readonly<Record<string, Partial<ZoneRule>>> = {
   },
   ZG: { typeCodeExclude: /^6/ },
   ZH: { subTheme: /ch\.ZH\.NutzungsplanungGrundnutzung/ },
+  // Liechtenstein: nur die Grundnutzung; fl.NutzungsplanungOverlay und …Rm sind nie die Zone.
+  FL: { themeCodes: /^fl\.Nutzungsplanung$/ },
 };
 
 export function zoneRuleFor(canton: string): ZoneRule {

@@ -1,5 +1,5 @@
 /**
- * Live geprüfte Eigenheiten der kantonalen ÖREB-Dienste (Stand 4.11.2026). Rein, ohne
+ * Live geprüfte Eigenheiten der kantonalen ÖREB-Dienste (Stand 4.11.2026, FL 11.11.2026). Rein, ohne
  * process.env. Der Normalfall braucht dadurch keinen Request an api3.geo.admin.ch.
  */
 
@@ -17,6 +17,8 @@ export const KNOWN_BASES: Readonly<Record<string, string>> = {
   TI: "https://crdpp.geo.ti.ch/oereb2", UR: "https://prozessor-oereb.ur.ch/oereb",
   VD: "https://www.rdppf.vd.ch/ws/RdppfSVC.svc", VS: "https://rdppf.apps.vs.ch",
   ZG: "https://oereb.zg.ch/oereb", ZH: "https://maps.zh.ch/oereb/v2",
+  // Fürstentum Liechtenstein (live 11.11.2026): extract-2.0, nur de, Gemeinden 7001–7011.
+  FL: "https://oereb.llv.li/oereb_service",
 };
 
 /** Ohne Abruf bekannte Sprachen. LANG=de ergibt dort 400, 500 oder eine WAF-Seite. */

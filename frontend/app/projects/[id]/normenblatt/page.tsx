@@ -8,6 +8,7 @@ import ProjectBanner from "@/components/project/ProjectBanner";
 import p from "@/app/projects/project.module.css";
 import s from "./normenblatt.module.css";
 import { buildNormenblattPdf, downloadNormenblattCsv, type NormenblattRow, type KennwertRow } from "@/lib/normenblatt-report";
+import { cantonLabel } from "@/lib/oereb/cantons";
 
 interface Project {
   id: string;
@@ -251,7 +252,7 @@ export default function NormenblattPage({ params }: { params: { id: string } }) 
       <ProjectBanner
         variant="normenblatt"
         title="Normenblatt"
-        subtitle={project ? `${project.location.municipality}, Kanton ${project.location.canton}` : undefined}
+        subtitle={project ? `${project.location.municipality}, ${cantonLabel(project.location.canton)}` : undefined}
         actions={
           <>
             <button

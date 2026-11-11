@@ -138,6 +138,8 @@ function identifyLayer(layer: string, e: number, n: number, signal?: AbortSignal
 export async function fetchGeodata(input: GeodataInput): Promise<GeodataFetchResult> {
   const { canton, egrid, signal } = input;
   let { e, n } = input;
+  // Nur Schweizer EGRIDs stehen in Suche, ÖREB-Layer und GWR: Für LI keine (langsamen) Leerabfragen.
+  const swissEgrid = !!egrid && egrid.toUpperCase().startsWith("CH");
   const previousData = input.previous?.data ?? EMPTY_GEODATA;
 
   if ((e === null || n === null) && !egrid) {
@@ -174,7 +176,7 @@ export async function fetchGeodata(input: GeodataInput): Promise<GeodataFetchRes
   };
 
   let lookedUp = false;
-  if ((e === null || n === null) && egrid) {
+  if ((e === null || n === null) && swissEgrid) {
     lookedUp = true;
     await part("swisstopo", async () => {
       const hits = await searchLocations(egrid, { origins: "parcel", limit: 5, signal });
@@ -208,13 +210,13 @@ export async function fetchGeodata(input: GeodataInput): Promise<GeodataFetchRes
     await part("BAK ISOS", async () => {
       data.isos = parseIsos(await identifyLayer(ISOS_LAYER, e as number, n as number, signal));
     });
-  } else if (egrid) {
+  } else if (egrid && swissEgrid) {
     await part("swisstopo", async () => {
       stand = (await findByEgrid(egrid, { signal }))[0] ?? null;
     });
   }
 
-  if (egrid) {
+  if (egrid && swissEgrid) {
     await part("BFS GWR", async () => {
       data.buildings = parseGwr(
         await geoAdminGet(

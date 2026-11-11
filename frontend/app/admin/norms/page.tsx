@@ -9,7 +9,7 @@ import { api } from "@/lib/api";
 const CANTONS = [
   "AG", "AI", "AR", "BE", "BL", "BS", "FR", "GE", "GL", "GR",
   "JU", "LU", "NE", "NW", "OW", "SG", "SH", "SO", "SZ", "TG",
-  "TI", "UR", "VD", "VS", "ZG", "ZH",
+  "TI", "UR", "VD", "VS", "ZG", "ZH", "FL",
 ];
 
 const JURISDICTIONS = [
@@ -402,6 +402,8 @@ export default function AdminNormsPage() {
   const [uploadSuccess, setUploadSuccess] = useState<string | null>(null);
   const [jurisdictionType, setJurisdictionType] = useState<"national" | "cantonal" | "municipal">("cantonal");
   const [canton, setCanton] = useState("ZH");
+  // Nur bei Ebene Bund: Land der Norm (Baugesetz FL = LI). Beim Kanton folgt es aus dem Kürzel.
+  const [country, setCountry] = useState<"CH" | "LI" | "all">("CH");
   const [municipality, setMunicipality] = useState("");
   const [zone, setZone] = useState("");
   const [category, setCategory] = useState("");
@@ -462,6 +464,7 @@ export default function AdminNormsPage() {
       form.append("domain", "bau");
       form.append("jurisdiction_type", jurisdictionType);
       form.append("jurisdiction_name", jurisdictionName);
+      if (jurisdictionType === "national") form.append("country", country);
       form.append("category", category.trim());
       form.append("source_name", sourceName.trim());
       form.append("zone", zone.trim());
@@ -572,11 +575,26 @@ export default function AdminNormsPage() {
                 </select>
               </div>
 
+              {jurisdictionType === "national" && (
+                <div>
+                  <label className="block text-sm font-medium text-[#5f5f64] mb-1">Land</label>
+                  <select
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value === "LI" ? "LI" : e.target.value === "all" ? "all" : "CH")}
+                    className={`${inputCls} appearance-none`}
+                  >
+                    <option value="CH">Schweiz</option>
+                    <option value="LI">Liechtenstein</option>
+                    <option value="all">Alle Länder (z. B. SIA, VKF)</option>
+                  </select>
+                </div>
+              )}
+
               {jurisdictionType === "cantonal" && (
                 <div>
                   <label className="block text-sm font-medium text-[#5f5f64] mb-1">Kanton</label>
                   <select value={canton} onChange={(e) => setCanton(e.target.value)} className={`${inputCls} appearance-none`}>
-                    {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                    {CANTONS.map((c) => <option key={c} value={c}>{c === "FL" ? "FL (Liechtenstein)" : c}</option>)}
                   </select>
                 </div>
               )}

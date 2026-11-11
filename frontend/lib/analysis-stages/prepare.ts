@@ -12,6 +12,7 @@ import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
 import type { AnalysisSnapshots, GeodataResponse } from "@/lib/geoadmin/contract";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { countryForCanton } from "@/lib/oereb/cantons";
 import {
   buildReferenceBlock,
   buildSystemPrompt,
@@ -106,11 +107,26 @@ const FALLBACK_NORM: NormInput = {
     "abschliessend beurteilbar ist, markierst du als warn.",
 };
 
+/** Liechtenstein: Schweizer Recht gilt dort nicht, also auch nicht als Ersatz. */
+const FALLBACK_NORM_LI: NormInput = {
+  ...FALLBACK_NORM,
+  title: "Allgemeine Bauvorschriften Liechtenstein",
+  text: FALLBACK_NORM.text.replace(
+    "über Schweizer Bauvorschriften:",
+    "über das Baurecht des Fürstentums Liechtenstein (Baugesetz, Bauverordnung, Bauordnung der Gemeinde):"
+  ),
+};
+
+export function fallbackNormFor(canton: string | null | undefined): NormInput {
+  return countryForCanton(canton) === "LI" ? FALLBACK_NORM_LI : FALLBACK_NORM;
+}
+
 export function selectNorms(
   pnRows: ProjectNormRow[],
   projectZone: string | null,
   zoneConfidence: string | null,
   orgId: string,
+  canton?: string | null,
 ): { norms: NormInput[]; source: "project_norms" | "fallback" } {
   const applicable = pnRows
     .map((r) => r.norms)
@@ -127,7 +143,7 @@ export function selectNorms(
 
   return applicable.length > 0
     ? { norms: applicable, source: "project_norms" }
-    : { norms: [FALLBACK_NORM], source: "fallback" };
+    : { norms: [fallbackNormFor(canton)], source: "fallback" };
 }
 
 // ── ÖREB-Fakten ──────────────────────────────────────────────────────────────
@@ -286,7 +302,9 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   const { rows, error: pnError } = await loadProjectNorms(admin, job.project_id);
   if (pnError) console.error(`Projekt ${job.project_id}: project_norms konnte nicht gelesen werden:`, pnError);
 
-  const { norms: selected, source: normsSource } = selectNorms(rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null, project.org_id);
+  const { norms: selected, source: normsSource } = selectNorms(
+    rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null, project.org_id, fresh.location?.canton ?? null,
+  );
   assertNormsUsable(normsSource, assignError, pnError);
   if (normsSource === "fallback") {
     console.warn(`Projekt ${job.project_id}: keine Normen in project_norms — Analyse läuft auf Fachwissen.`);

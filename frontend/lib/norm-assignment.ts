@@ -39,8 +39,10 @@ async function loadCandidateRows(orgId: string, domain: string): Promise<NormRow
   const query = (select: string) =>
     admin.from("norms").select(select).eq("domain", domain).or(`org_id.eq.${orgId},org_id.is.null`);
   const geoportal = `${base}, source_kind, auto_scope, jurisdiction_canton, jurisdiction_bfs, source_url`;
-  let { data, error } = await query(`${geoportal}, superseded_by_norm_id, org_authoritative`);
-  // Ohne die jeweilige Migration fehlen die neuen Spalten.
+  const extras = `${geoportal}, superseded_by_norm_id, org_authoritative`;
+  let { data, error } = await query(`${extras}, country`);
+  // Ohne die jeweilige Migration fehlen die neuen Spalten; ohne country gilt jede Norm überall (wie bisher).
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(extras));
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(geoportal));
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(base));
   if (error) throw new Error(`Normen konnten nicht gelesen werden: ${error.message}`);

@@ -4,6 +4,7 @@ import { normVisibleToOrg } from "@/lib/analysis-stages/plan";
 import { anthropic } from "@/lib/anthropic";
 import { logAudit } from "@/lib/auditLog";
 import { buildChatNormList, buildDataRules, newDataBoundary } from "@/lib/analysis-reference";
+import { chatLawScope, chatPlace } from "@/lib/chat-prompt";
 
 export const maxDuration = 120;
 
@@ -34,7 +35,7 @@ function buildSystemPrompt(
   lastItems: AnalysisItemRow[],
 ): string {
   const gemeinde = project.location?.municipality ?? "unbekannt";
-  const kanton   = project.location?.canton       ?? "unbekannt";
+  const ort      = chatPlace(project.location?.canton);
   const bauzone  = project.bauzone                ?? "nicht ermittelt";
 
   const boundary = newDataBoundary();
@@ -50,7 +51,7 @@ function buildSystemPrompt(
 
   return `${buildDataRules(boundary)}
 
-Du bist ein Baurechtsassistent für das Projekt "${project.name}" in ${gemeinde}, Kanton ${kanton}, Bauzone ${bauzone}.
+Du bist ein Baurechtsassistent für das Projekt "${project.name}" in ${gemeinde}, ${ort}, Bauzone ${bauzone}.
 
 Projektkontext:
 
@@ -62,7 +63,7 @@ ${analyseSummary}
 
 Du kannst:
 - Fragen zum Projekt und den festgestellten Prüfpunkten beantworten
-- Allgemeine Fragen zu Schweizer Baurecht, SIA-Normen und kantonalen Baugesetzen beantworten
+- ${chatLawScope(project.location?.canton)}
 - Verbesserungsvorschläge bei Norm-Verstössen erläutern
 
 Du kannst nicht:

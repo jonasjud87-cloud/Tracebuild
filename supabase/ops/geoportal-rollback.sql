@@ -43,3 +43,14 @@ ON CONFLICT (project_id, norm_id) DO NOTHING;
 -- Ergebnis prüfen, dann COMMIT von Hand. Im Zweifel ROLLBACK.
 SELECT count(*) AS verbleibend_sollte_0_sein FROM norms WHERE source_kind = 'oereb_auto';
 -- COMMIT;
+
+-- ── Liechtenstein (Migration 20261112000001_oereb_fl.sql) ───────────────────────
+-- Getrennt vom Block oben, nur bei Rücksprung des FL-Codes. Reihenfolge: zuerst FL-Projekte bereinigen,
+-- sonst weist die alte Kantonsliste jede spätere Änderung dieser Projekte mit 22023 ab.
+-- SELECT id, name FROM projects WHERE location->>'canton' = 'FL';
+-- UPDATE projects SET location = location - 'canton' WHERE location->>'canton' = 'FL';
+-- DELETE FROM oereb_import_filters WHERE scope = 'FL';
+-- ALTER TABLE norms DROP CONSTRAINT IF EXISTS norms_country_check;
+-- ALTER TABLE norms DROP COLUMN IF EXISTS country;
+-- Danach protect_project_identity aus 20261106000001_geoportal.sql erneut einspielen und
+-- NOTIFY pgrst, 'reload schema'; ausführen.

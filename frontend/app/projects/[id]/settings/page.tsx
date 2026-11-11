@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { PROJECT_NUMBER_MAX } from "@/lib/project-number";
+import { countryForCanton } from "@/lib/oereb/cantons";
 import type { ExtractStatus, ParcelCandidate, ProjectRefreshInfo } from "@/lib/geoadmin/contract";
 import ParcelSearch, { CandidateList } from "@/components/ParcelSearch";
 import ProjectGeoPanel from "@/components/ProjectGeoPanel";
@@ -39,7 +40,7 @@ function zoneBadgeClass(pr: Project | null): string {
 const CANTONS = [
   "AG","AI","AR","BE","BL","BS","FR","GE","GL","GR",
   "JU","LU","NE","NW","OW","SG","SH","SO","SZ","TG",
-  "TI","UR","VD","VS","ZG","ZH",
+  "TI","UR","VD","VS","ZG","ZH","FL",
 ];
 
 const FORM_ID = "project-settings-form";
@@ -164,7 +165,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
       const numberChanged = numberSupported && newNumber !== (project?.project_number ?? null);
       const updated = await api.patch<Project & Partial<ProjectRefreshInfo>>(`/projects/${params.id}`, {
         name,
-        location: { canton, municipality, country: project?.location?.country ?? "CH" },
+        location: { canton, municipality, country: countryForCanton(canton) },
         parcel_number: parcelNumber.trim() || null,
         ...(zoneChanged ? { bauzone: newZone } : {}),
         ...(numberChanged ? { project_number: newNumber } : {}),
@@ -204,7 +205,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
         location: {
           canton: fields.canton,
           municipality: fields.municipality,
-          country: project?.location?.country ?? "CH",
+          country: countryForCanton(fields.canton),
         },
         parcel_number: fields.parcelNumber,
         ...fields.identity,
@@ -472,7 +473,7 @@ export default function SettingsPage({ params }: { params: { id: string } }) {
               <div>
                 <label htmlFor="set-canton" className={p.label}>Kanton</label>
                 <select id="set-canton" value={canton} onChange={(e) => setCanton(e.target.value)} className={p.select}>
-                  {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                  {CANTONS.map((c) => <option key={c} value={c}>{c === "FL" ? "FL (Liechtenstein)" : c}</option>)}
                 </select>
               </div>
               <div>

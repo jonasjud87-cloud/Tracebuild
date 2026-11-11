@@ -38,6 +38,7 @@ import {
 import { planAutoParts, type AutoPartsSummary } from "@/lib/analysis-plan";
 import { classifyModelError, type ModelErrorClass } from "./analysis-stages/errors";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
+import { cantonLabel, countryForCanton } from "@/lib/oereb/cantons";
 
 // ── Modell & Preise ───────────────────────────────────────────────────────────
 
@@ -379,12 +380,20 @@ FORM:
 - Maximal ${MAX_CHECKS_PER_NORM} Prüfpunkte. Priorisiere fail vor warn vor ok.
 - category aus der vorgegebenen Liste; "andere" nur, wenn nichts passt.`;
 
+/** Rolle im Prompt: Für Liechtenstein gilt liechtensteinisches, nicht Schweizer Baurecht. */
+function systemBaseFor(canton: string): string {
+  if (countryForCanton(canton) !== "LI") return SYSTEM_BASE;
+  return SYSTEM_BASE.replace("Du bist ein Schweizer Baurechtsexperte", "Du bist ein Baurechtsexperte für Liechtenstein");
+}
+
 export function buildSystemPrompt(ctx: ProjectContext, boundary: string = newDataBoundary()): string {
   return (
-    `${SYSTEM_BASE}\n\n${buildDataRules(boundary)}\n\n` +
+    `${systemBaseFor(ctx.canton)}\n\n${buildDataRules(boundary)}\n\n` +
     `PROJEKTKONTEXT (gilt für alle Prüfungen):\n` +
     `- Gemeinde: ${ctx.municipality || "unbekannt"}\n` +
-    `- Kanton: ${ctx.canton || "unbekannt"}\n` +
+    (countryForCanton(ctx.canton) === "LI"
+      ? `- Land: ${cantonLabel(ctx.canton)} (kein Schweizer Kanton)\n`
+      : `- Kanton: ${ctx.canton || "unbekannt"}\n`) +
     `- Bauzone: ${ctx.bauzone || "unbekannt"}${ctx.bauzone ? zoneNote(ctx) : ""}\n` +
     (ctx.parcel ? `- Parzelle: ${ctx.parcel}\n` : "")
   );

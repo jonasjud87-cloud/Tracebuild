@@ -173,7 +173,7 @@ function FileCard({ entry, onDelete, onAuthoritative }: {
 const CANTONS = [
   "AG","AI","AR","BE","BL","BS","FR","GE","GL","GR",
   "JU","LU","NE","NW","OW","SG","SH","SO","SZ","TG",
-  "TI","UR","VD","VS","ZG","ZH",
+  "TI","UR","VD","VS","ZG","ZH","FL",
 ];
 
 interface Standard extends Partial<NormSupersession> {
@@ -443,7 +443,7 @@ export default function StandardsPage() {
               <PinIcon size={20} />
               <select id={`${uid}-canton`} value={filterJurisdiction} onChange={(e) => setFilterJurisdiction(e.target.value)} className={s.bare}>
                 <option value="">Alle Kantone</option>
-                {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CANTONS.map((c) => <option key={c} value={c}>{c === "FL" ? "FL (Liechtenstein)" : c}</option>)}
               </select>
               <span className={s.chev} aria-hidden="true"><ChevronDownIcon size={18} /></span>
             </div>
@@ -505,7 +505,7 @@ export default function StandardsPage() {
                       <div>
                         <label htmlFor={`${uid}-up-canton`} className={s.label}>Kanton</label>
                         <select id={`${uid}-up-canton`} value={canton} onChange={(e) => setCanton(e.target.value)} className={s.input}>
-                          {CANTONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                          {CANTONS.map((c) => <option key={c} value={c}>{c === "FL" ? "FL (Liechtenstein)" : c}</option>)}
                         </select>
                       </div>
                     )}

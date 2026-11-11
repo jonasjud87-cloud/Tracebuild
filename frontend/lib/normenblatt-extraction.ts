@@ -59,7 +59,7 @@ export interface KennwerteRunResult {
   duration_ms: number;
 }
 
-const SYSTEM_PROMPT = `Du liest Schweizer Bau-/Zonennormen und extrahierst für JEDE einzelne Norm
+const SYSTEM_PROMPT = `Du liest Bau-/Zonennormen der Schweiz oder Liechtensteins und extrahierst für JEDE einzelne Norm
 ihren eigenen konkreten Kennwert als ein Satz — z.B. "Kleiner Grenzabstand 3.50 m,
 grosser Grenzabstand 6.00 m; erhöht sich um 1.00 m je zusätzliches Vollgeschoss über
 drei." oder "Maximale Gebäudehöhe 11.50 m, Firsthöhe 14.00 m.".

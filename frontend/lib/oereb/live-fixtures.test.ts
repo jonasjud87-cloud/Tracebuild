@@ -222,3 +222,17 @@ test("Herkunft: Kanton, BFS und Gemeinde stehen im gespeicherten Rohauszug jedes
     assert.ok(officialIdentity({ canton: ex.canton, raw: ex.raw }), file);
   }
 });
+
+// ── Liechtenstein (Live-Stichprobe 11.11.2026, LI10440010050 Vaduz, ohne Logos und Karten) ──
+
+test("FL: Zone W2 exakt, Kanton FL, BFS 7001, amtliche Identität Vaduz", () => {
+  const ex = extractOf("FL");
+  assert.equal(ex.egrid, "LI10440010050");
+  assert.equal(ex.canton, "FL");
+  assert.equal(ex.bfsNumber, 7001);
+  assert.equal(ex.parcelNumber, "100");
+  assert.deepEqual(zoneOf("FL"), { zone: "W2", confidence: "exact" });
+  assert.deepEqual(officialIdentity({ canton: ex.canton, raw: ex.raw }), { canton: "FL", bfs: 7001, municipality: "Vaduz" });
+  const zone = ex.themes.find((t) => t.themeCode === "fl.Nutzungsplanung" && t.concern === "affects");
+  assert.ok(zone?.lawLinks.some((l) => (l.url ?? "").startsWith("https://oereblex.llv.li/api/attachments/")));
+});

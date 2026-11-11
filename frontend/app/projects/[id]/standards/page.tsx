@@ -6,6 +6,7 @@ import p from "@/app/projects/project.module.css";
 import ProjectBanner from "@/components/project/ProjectBanner";
 import n from "../norms/norms.module.css";
 import { Ico, ICON } from "../norms/ProjIcon";
+import { cantonLabel } from "@/lib/oereb/cantons";
 
 interface Project {
   id: string;
@@ -190,7 +191,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   const subtitle = loading
     ? undefined
     : [
-        project ? `${project.location.municipality}, Kanton ${project.location.canton}` : null,
+        project ? `${project.location.municipality}, ${cantonLabel(project.location.canton)}` : null,
         `${validNorms.length} ${validNorms.length === 1 ? "Norm" : "Normen"}`,
       ].filter(Boolean).join(" · ");
 

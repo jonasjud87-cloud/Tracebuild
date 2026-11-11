@@ -252,7 +252,8 @@ async function discover(
   store: OerebServiceStore,
   exclude?: string
 ): Promise<{ baseUrl: string; format: OerebFormat } | null> {
-  if (!opts.egrid) return null;
+  // Der Layer führt nur Schweizer EGRIDs (FL ohne EGRID): find wäre langsam und leer.
+  if (!opts.egrid || !opts.egrid.toUpperCase().startsWith("CH")) return null;
   let rows: StandAttributes[];
   try {
     rows = await findByEgrid(opts.egrid, { signal: opts.signal });

@@ -445,9 +445,12 @@ export function isOcrCandidate(doc: NeutralDocument, rules: ImportFilterRules): 
 
 export function isHostAllowed(host: string, rules: ImportFilterRules, canton: string): boolean {
   const h = host.toLowerCase();
-  if (!h.endsWith(".ch") && !h.endsWith(".swiss")) return false;
-  // Nur echte Kantone: Aus «EVIL» würde sonst *.evil.ch.
-  const kt = isOerebSupportedCanton(canton) ? canton.trim().toLowerCase() : null;
+  const code = canton.trim().toUpperCase();
+  // .li nur für Liechtenstein; welche Hosts, entscheidet allein die Liste (FL-Zeile der Migration).
+  const liAllowed = code === "FL" && h.endsWith(".li");
+  if (!h.endsWith(".ch") && !h.endsWith(".swiss") && !liAllowed) return false;
+  // Nur echte Kantone: Aus «EVIL» würde sonst *.evil.ch. FL ist kein Kanton: kein *.fl.ch.
+  const kt = isOerebSupportedCanton(code) && code !== "FL" ? code.toLowerCase() : null;
   return rules.allowed_hosts.some((pattern) => {
     if (pattern.includes("{kt}") && !kt) return false;
     const p = pattern.toLowerCase().replace("{kt}", kt ?? "");

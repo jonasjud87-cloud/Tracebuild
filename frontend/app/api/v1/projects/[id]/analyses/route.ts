@@ -306,6 +306,7 @@ async function runInRequest(
       fresh.bauzone ?? null,
       fresh.zone_confidence ?? null,
       project.org_id,
+      fresh.location?.canton ?? null,
     );
     // Ohne Zuweisung und ohne Normen sähe ein technischer Fehler aus wie «keine Normen hinterlegt»: lieber
     // abbrechen als eine bezahlte Prüfung nur auf Fachwissen. Mit bestehenden Normen läuft sie auf dem letzten Stand.

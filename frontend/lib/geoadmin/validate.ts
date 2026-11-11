@@ -1,7 +1,8 @@
 /** Prüft die Grundstücksangaben aus Requests. Rein. Ungültiges wird verworfen, nicht gemeldet. */
 import { isOerebSupportedCanton } from "../oereb/cantons";
 
-const EGRID_RE = /^CH\d{12}$/;
+// Schweiz: CH + 12 Ziffern; Liechtenstein: LI + 11 Ziffern (live geprüft 11.11.2026).
+const EGRID_RE = /^(CH\d{12}|LI\d{11})$/;
 const E_MIN = 2_480_000;
 const E_MAX = 2_840_000;
 const N_MIN = 1_070_000;

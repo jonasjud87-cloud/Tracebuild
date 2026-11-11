@@ -1,11 +1,12 @@
 import { OEREB_SUPPORTED_CANTONS } from "./cantons";
 import type { OerebAdapter } from "./types";
 import { ArOerebAdapter } from "./adapters/ar";
+import { FlOerebAdapter } from "./adapters/fl";
 import { RuleBasedOerebAdapter } from "./adapters/rule-based";
 import { SgOerebAdapter } from "./adapters/sg";
 
 /**
- * Kantonskürzel → Adapter. SG und AR haben eigene Klassen, alle übrigen Kantone laufen über
+ * Kantonskürzel → Adapter. SG, AR und FL haben eigene Klassen, alle übrigen Kantone laufen über
  * den regelbasierten Adapter. Die Basis-URL löst lib/oereb/service.ts zur Laufzeit auf.
  */
 function normalizeCanton(canton: string | null | undefined): string {
@@ -21,6 +22,7 @@ export function getAdapter(canton: string | null | undefined): OerebAdapter | nu
   if (!OEREB_SUPPORTED_CANTONS.includes(code)) return null;
   if (code === "AR") return new ArOerebAdapter();
   if (code === "SG") return new SgOerebAdapter();
+  if (code === "FL") return new FlOerebAdapter();
   return new RuleBasedOerebAdapter(code);
 }
 

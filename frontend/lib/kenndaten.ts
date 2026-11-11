@@ -3,6 +3,7 @@
  * und im Browser und kommt ohne Modell aus. Die Berechnung stammt immer von hier, nie vom Modell.
  * Die Prüfung der Modellangaben steht in kenndaten-beleg.ts.
  */
+import { cantonLabel } from "./oereb/cantons";
 
 export const KENNDATEN_FELDER = [
   "vollgeschosse",
@@ -253,7 +254,7 @@ export function baueKenndatenBlatt(input: {
     ? "Stand ÖREB-Auszug: kein Auszug vorhanden"
     : `Stand ÖREB-Auszug: ${stand}${input.oerebStale ? " (letzte Aktualisierung fehlgeschlagen, älterer Stand)" : ""}`;
 
-  const ort = [projekt.municipality, projekt.canton ? `Kanton ${projekt.canton}` : null].filter(Boolean).join(", ");
+  const ort = [projekt.municipality, cantonLabel(projekt.canton) || null].filter(Boolean).join(", ");
   const andereZiffer = w.baumassenziffer ? "Baumassenziffer" : w.ueberbauungsziffer ? "Überbauungsziffer" : null;
 
   return {

@@ -1,5 +1,6 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { lookupParcel } from "@/lib/geoadmin/parcel";
+import { lookupFlParcel } from "@/lib/oereb/fl-parcel";
 import { isValidEgrid, isValidLv95 } from "@/lib/geoadmin/validate";
 import type { GeoParcelResponse } from "@/lib/geoadmin/contract";
 
@@ -18,10 +19,11 @@ export async function GET(request: Request) {
     const hasPosition = isValidLv95(e, n);
     if (egrid) {
       if (!isValidEgrid(egrid)) return err("Ungültige EGRID");
-      return ok<GeoParcelResponse>(await lookupParcel(hasPosition ? { egrid, e, n } : { egrid }));
+      return ok<GeoParcelResponse>(await lookupParcel(hasPosition ? { egrid, e, n } : { egrid }, { fallback: lookupFlParcel }));
     }
     if (!hasPosition) return err("egrid oder gültige LV95-Koordinaten e und n erforderlich");
-    return ok<GeoParcelResponse>(await lookupParcel({ e, n }));
+    // FL: geo.admin.ch kennt dort keine EGRID, der ÖREB-Dienst FL liefert sie (Injektion gegen Zyklus).
+    return ok<GeoParcelResponse>(await lookupParcel({ e, n }, { fallback: lookupFlParcel }));
   } catch (e) {
     console.error("Geo-Parzellenabfrage fehlgeschlagen:", e);
     return err(e instanceof Error ? e.message : String(e), 500);
