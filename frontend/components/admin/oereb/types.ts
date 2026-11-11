@@ -1,5 +1,6 @@
 /** Vertrag der Admin-Routen unter /api/v1/admin/oereb-imports. Client-sicher: reine Typen. */
 import type { ImportFilterRules } from "@/lib/oereb/import-filter";
+import type { CategoryCount } from "@/lib/oereb/rejection-category";
 
 export type DocumentDecision = "force_import" | "exclude" | "recheck";
 
@@ -68,6 +69,8 @@ export interface DocumentsResponse {
   documents: AdminDocument[];
   municipalities: { bfs_number: number; municipality: string; count: number }[];
   reasons: { reason: string; count: number }[];
+  /** Einteilung über den ganzen Kanton (ohne Filter der Abfrage), siehe lib/oereb/rejection-category.ts. */
+  categories: CategoryCount[];
   /** Wirksame Regeln dieses Kantons: Code, dann `default`, dann die Kantonszeile. */
   rules: ImportFilterRules;
 }

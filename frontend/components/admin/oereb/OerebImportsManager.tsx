@@ -9,6 +9,7 @@ import { REVIEW_LABEL, formatDate, rejectReasonLabel, safeExternalUrl } from "@/
 import { AI_READ_LABEL } from "@/lib/oereb/ai-read-label";
 import { api } from "@/lib/api";
 import type { ImportFilterRules } from "@/lib/oereb/import-filter";
+import { CATEGORY_INFO, categorizeDocument, categoryGroup, type CategoryContext, type CategoryCount, type DocumentCategory } from "@/lib/oereb/rejection-category";
 import type {
   AdminDocument,
   CantonOverview,
@@ -32,6 +33,16 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   review: { label: REVIEW_LABEL, cls: "border-[rgba(21,20,20,0.15)] bg-[#cbbfae]/30 text-[#46464a]" },
 };
 const SCAN_STATUS = { label: "Scan", cls: "border-[#D6A45F]/30 bg-[#fff1d6] text-[#7a4f00]" };
+const CHECK_CLS = "border-[#D6A45F]/30 bg-[#fff1d6] text-[#7a4f00]";
+const SKIPPED_CLS = "border-[rgba(21,20,20,0.12)] bg-[#f6f3ee] text-[#5f5f64]";
+
+/** Abzeichen: bewusst ausgelassene neutral mit Kategorie, echte Ablehnungen in Warnfarbe. */
+function statusBadge(doc: AdminDocument, category: DocumentCategory): { label: string; cls: string } {
+  if (doc.status === "rejected" && doc.reject_reason === "scan_or_short") return SCAN_STATUS;
+  if (categoryGroup(category) === "skipped") return { label: `Ausgelassen: ${CATEGORY_INFO[category].label}`, cls: SKIPPED_CLS };
+  if (doc.status === "rejected") return { label: "Abgelehnt, prüfen", cls: CHECK_CLS };
+  return STATUS[doc.status] ?? { label: CATEGORY_INFO.check.label, cls: CHECK_CLS };
+}
 
 const DECISION_BADGE: Record<DocumentDecision, string> = {
   force_import: "Admin: trotzdem importieren",
@@ -200,9 +211,48 @@ function RulesPanel({ canton, rules, filters }: { canton: string; rules: ImportF
   );
 }
 
-function DocumentRow({ doc, busy, onDecide }: { doc: AdminDocument; busy: boolean; onDecide: (doc: AdminDocument, decision: DocumentDecision) => void }) {
-  const isScan = doc.status === "rejected" && doc.reject_reason === "scan_or_short";
-  const status = isScan ? SCAN_STATUS : STATUS[doc.status] ?? STATUS.rejected;
+function CategorySummary({ categories, truncated }: { categories: CategoryCount[]; truncated: boolean }) {
+  const sum = (group: CategoryCount["group"]) => categories.filter((c) => c.group === group).reduce((n, c) => n + c.count, 0);
+  const skipped = categories.filter((c) => c.group === "skipped");
+  const check = sum("check");
+  const open = sum("open");
+  return (
+    <section aria-label="Einteilung der Dokumente" className="space-y-2">
+    <p className="text-sm text-[#5f5f64]">
+      Einteilung über den ganzen Kanton, unabhängig von den Filtern unten.
+      {truncated && " Nicht alle Dokumente wurden gezählt: Die Zahlen sind Untergrenzen."}
+    </p>
+    <div className="grid gap-3 md:grid-cols-3">
+      <div className={`${PANEL} px-4 py-3`}>
+        <p className="text-sm font-medium text-[#46464a]">Importiert</p>
+        <p className="mt-1 text-2xl font-bold tabular-nums text-[#136a40]">{sum("imported")}</p>
+        {open > 0 && <p className="mt-1 text-sm text-[#5f5f64]">{open} noch offen</p>}
+      </div>
+      <div className={`rounded-2xl border px-4 py-3 ${check > 0 ? "border-[#D6A45F]/40 bg-[#fff1d6]" : "border-[rgba(21,20,20,0.08)] bg-white"}`}>
+        <p className={`text-sm font-medium ${check > 0 ? "text-[#7a4f00]" : "text-[#46464a]"}`}>Zu prüfen</p>
+        <p className={`mt-1 text-2xl font-bold tabular-nums ${check > 0 ? "text-[#7a4f00]" : "text-[#151414]"}`}>{check}</p>
+        <p className="mt-1 text-sm text-[#5f5f64]">{CATEGORY_INFO.check.hint}</p>
+      </div>
+      <div className={`${PANEL} px-4 py-3`}>
+        <p className="text-sm font-medium text-[#46464a]">Bewusst ausgelassen</p>
+        <p className="mt-1 text-2xl font-bold tabular-nums text-[#5f5f64]">{sum("skipped")}</p>
+        {skipped.length > 0 && (
+          <ul className="mt-1 space-y-0.5 text-sm text-[#5f5f64]">
+            {skipped.map((c) => (
+              <li key={c.category} title={CATEGORY_INFO[c.category].hint}>
+                <span className="tabular-nums">{c.count}</span> × {c.label}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+    </section>
+  );
+}
+
+function DocumentRow({ doc, category, busy, onDecide }: { doc: AdminDocument; category: DocumentCategory; busy: boolean; onDecide: (doc: AdminDocument, decision: DocumentDecision) => void }) {
+  const status = statusBadge(doc, category);
   const href = safeExternalUrl(doc.url);
   const checked = formatDate(doc.last_checked_at);
   const meta = [
@@ -244,6 +294,13 @@ function DocumentRow({ doc, busy, onDecide }: { doc: AdminDocument; busy: boolea
       </div>
     </li>
   );
+}
+
+/** «3 × Übergeordnetes Recht, 1 × Plan, kein Normtext» in Reihenfolge des ersten Auftretens. */
+function skippedBreakdown(categories: DocumentCategory[]): string {
+  const counts = new Map<DocumentCategory, number>();
+  for (const c of categories) counts.set(c, (counts.get(c) ?? 0) + 1);
+  return Array.from(counts, ([c, n]) => `${n} × ${CATEGORY_INFO[c].label}`).join(", ");
 }
 
 /** Dokumente je Kanton und Gemeinde, mit Entscheiden des Plattform-Admins. */
@@ -348,17 +405,26 @@ export default function OerebImportsManager() {
     }
   }
 
+  const selected = overview?.cantons.find((c) => c.canton === canton);
+  // Gleiche Quelle wie die Zählung der Route: wirksame Regeln des Kantons.
+  const released = docs?.available ? docs.rules.doc_types.length > 0 : selected ? selected.release.released : null;
+
+  // Je Gemeinde: zu prüfende und importierte offen, bewusst ausgelassene eingeklappt.
   const groups = useMemo(() => {
-    const out: { key: number; name: string; docs: AdminDocument[] }[] = [];
+    const ctx: CategoryContext = { cantonReleased: released };
+    type Entry = { doc: AdminDocument; category: DocumentCategory };
+    const out: { key: number; name: string; shown: Entry[]; skipped: Entry[] }[] = [];
     for (const doc of docs?.documents ?? []) {
-      const last = out[out.length - 1];
-      if (last?.key === doc.bfs_number) last.docs.push(doc);
-      else out.push({ key: doc.bfs_number, name: doc.municipality, docs: [doc] });
+      const entry: Entry = { doc, category: categorizeDocument(doc, ctx) };
+      let last = out[out.length - 1];
+      if (last?.key !== doc.bfs_number) {
+        last = { key: doc.bfs_number, name: doc.municipality, shown: [], skipped: [] };
+        out.push(last);
+      }
+      (categoryGroup(entry.category) === "skipped" ? last.skipped : last.shown).push(entry);
     }
     return out;
-  }, [docs]);
-
-  const selected = overview?.cantons.find((c) => c.canton === canton);
+  }, [docs, released]);
 
   return (
     <div className="mx-auto max-w-[1680px] space-y-6">
@@ -415,6 +481,8 @@ export default function OerebImportsManager() {
             </p>
           )}
 
+          {docs?.available && docs.categories.length > 0 && <CategorySummary categories={docs.categories} truncated={docs.truncated} />}
+
           {docs?.available && <RulesPanel canton={canton} rules={docs.rules} filters={overview.filters} />}
 
           <div className="flex flex-wrap items-end gap-3">
@@ -457,11 +525,25 @@ export default function OerebImportsManager() {
                   <h2 className="border-b border-[rgba(21,20,20,0.08)] px-4 py-2 text-sm font-semibold text-[#151414]">
                     {group.name} <span className="font-normal text-[#5f5f64]">BFS {group.key}</span>
                   </h2>
-                  <ul className="divide-y divide-[rgba(21,20,20,0.08)]">
-                    {group.docs.map((doc) => (
-                      <DocumentRow key={doc.id} doc={doc} busy={busy} onDecide={(d, decision) => setPending({ doc: d, decision })} />
-                    ))}
-                  </ul>
+                  {group.shown.length > 0 && (
+                    <ul className="divide-y divide-[rgba(21,20,20,0.08)]">
+                      {group.shown.map(({ doc, category }) => (
+                        <DocumentRow key={doc.id} doc={doc} category={category} busy={busy} onDecide={(d, decision) => setPending({ doc: d, decision })} />
+                      ))}
+                    </ul>
+                  )}
+                  {group.skipped.length > 0 && (
+                    <details className={group.shown.length > 0 ? "border-t border-[rgba(21,20,20,0.08)]" : ""}>
+                      <summary className="cursor-pointer px-4 py-2 text-sm text-[#5f5f64] hover:text-[#151414] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]">
+                        {group.skipped.length} bewusst ausgelassen ({skippedBreakdown(group.skipped.map((e) => e.category))})
+                      </summary>
+                      <ul className="divide-y divide-[rgba(21,20,20,0.08)] border-t border-[rgba(21,20,20,0.08)]">
+                        {group.skipped.map(({ doc, category }) => (
+                          <DocumentRow key={doc.id} doc={doc} category={category} busy={busy} onDecide={(d, decision) => setPending({ doc: d, decision })} />
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </section>
               ))}
             </div>
