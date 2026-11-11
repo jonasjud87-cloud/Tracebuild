@@ -5,14 +5,14 @@ const TEAM = [
     name: "Jonas Jud",
     initials: "JJ",
     text: "TraceBuild ist das Ergebnis vieler kleiner Schritte, gemeinsamer Entscheidungen und einer Idee, an die wir von Anfang an geglaubt haben.",
-    mail: "jonas@tracebuild.ch",
+    mail: "jonas.jud@tracebuild.ch",
     reverse: false,
   },
   {
     name: "Livio Thoma",
     initials: "LT",
     text: "Wir haben TraceBuild von Grund auf selbst aufgebaut – mit dem Anspruch, eine Lösung zu entwickeln, die im echten Arbeitsalltag einen Unterschied macht.",
-    mail: "livio@tracebuild.ch",
+    mail: "livio.thoma@tracebuild.ch",
     reverse: true,
   },
 ];
@@ -43,7 +43,6 @@ export default function Team() {
                   <a href={`mailto:${p.mail}`} className={styles.mail}>
                     {p.mail}
                   </a>
-                  <span className={styles.soon}>bald verfügbar</span>
                 </div>
               </div>
             </div>
@@ -51,8 +50,8 @@ export default function Team() {
         </div>
         <p className={styles.general}>
           TraceBuild:{" "}
-          <a href="mailto:tracebuild.info@gmail.com" className={styles.generalMail}>
-            tracebuild.info@gmail.com
+          <a href="mailto:info@tracebuild.ch" className={styles.generalMail}>
+            info@tracebuild.ch
           </a>
         </p>
       </div>

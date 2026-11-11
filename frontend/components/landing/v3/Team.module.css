@@ -118,12 +118,6 @@
 :global(.tbl) .mail:hover {
   color: var(--bronze-ink);
 }
-:global(.tbl) .soon {
-  border: 1px solid var(--body);
-  border-radius: 999px;
-  padding: 3px 14px;
-  font-size: 14px;
-}
 :global(.tbl) .general {
   margin-top: 56px;
   color: var(--body);

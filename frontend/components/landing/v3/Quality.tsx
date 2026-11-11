@@ -77,7 +77,6 @@ export default function Quality() {
               <div className={styles.fade} />
               <div className={styles.cardBody}>
                 <h3 className={styles.cardTitle}>{c.t}</h3>
-                <p className={styles.soon}>Coming soon.</p>
                 <div className={styles.cardFoot}>{c.d}</div>
               </div>
             </article>

@@ -63,13 +63,6 @@
 :global(.tbl) .secondary:hover {
   background: rgba(156, 143, 123, 0.2);
 }
-:global(.tbl) .soon {
-  border: 1px solid var(--glass-line);
-  color: rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
-  padding: 4px 16px;
-  font-size: 14px;
-}
 :global(.tbl) .columns {
   margin-top: 72px;
   display: grid;
@@ -113,19 +106,6 @@
 }
 :global(.tbl) .link:hover {
   color: #cbbfae;
-}
-:global(.tbl) .inline {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  flex-wrap: wrap;
-}
-:global(.tbl) .soonSmall {
-  border: 1px solid var(--glass-line);
-  color: rgba(255, 255, 255, 0.75);
-  border-radius: 999px;
-  padding: 2px 14px;
-  font-size: 14px;
 }
 :global(.tbl) .legal {
   margin-top: 40px;
