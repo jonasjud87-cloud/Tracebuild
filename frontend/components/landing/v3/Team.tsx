@@ -1,16 +1,17 @@
+import Image from "next/image";
 import styles from "./Team.module.css";
 
 const TEAM = [
   {
     name: "Jonas Jud",
-    initials: "JJ",
+    photo: "/landing/team-jonas-jud.jpg",
     text: "TraceBuild ist das Ergebnis vieler kleiner Schritte, gemeinsamer Entscheidungen und einer Idee, an die wir von Anfang an geglaubt haben.",
     mail: "jonas.jud@tracebuild.ch",
     reverse: false,
   },
   {
     name: "Livio Thoma",
-    initials: "LT",
+    photo: "/landing/team-livio-thoma.jpg",
     text: "Wir haben TraceBuild von Grund auf selbst aufgebaut – mit dem Anspruch, eine Lösung zu entwickeln, die im echten Arbeitsalltag einen Unterschied macht.",
     mail: "livio.thoma@tracebuild.ch",
     reverse: true,
@@ -31,9 +32,8 @@ export default function Team() {
         <div className={styles.list}>
           {TEAM.map((p) => (
             <div key={p.mail} data-card="" className={p.reverse ? `${styles.person} ${styles.reverse}` : styles.person}>
-              <div className={styles.avatar} aria-hidden="true">
-                <div className={styles.monogram}>{p.initials}</div>
-                <div className={styles.circle} />
+              <div className={styles.avatar}>
+                <Image src={p.photo} alt={`Porträt ${p.name}`} fill sizes="200px" className={styles.photo} />
               </div>
               <div className={styles.info}>
                 <h3 className={styles.name}>{p.name}</h3>

@@ -56,33 +56,10 @@
   border-radius: 22px;
   position: relative;
   overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
-:global(.tbl) .monogram {
-  width: 112px;
-  height: 112px;
-  border-radius: 50%;
-  border: 1.5px solid var(--bronze);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 40px;
-  font-weight: 800;
-  color: var(--bronze-ink);
-  margin-top: -20px;
-  box-shadow: 0 0 0 12px #fff, 0 0 0 13px var(--bronze);
-}
-:global(.tbl) .circle {
-  position: absolute;
-  bottom: -34px;
-  left: 50%;
-  margin-left: -32px;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  border: 1.5px solid var(--bronze);
+:global(.tbl) .photo {
+  object-fit: cover;
+  object-position: center 30%;
 }
 :global(.tbl) .info {
   flex: 1 1 320px;
