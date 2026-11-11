@@ -2,14 +2,12 @@
   position: relative;
   overflow: hidden;
   background: #151414;
-  padding: clamp(28px, 5vw, 56px) 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: clamp(24px, 4vw, 48px) 0 clamp(8px, 1.5vw, 16px);
 }
 :global(.tbl) .track {
   display: flex;
   width: max-content;
-  animation: marquee 60s linear infinite;
+  animation: marquee 130s linear infinite;
   will-change: transform;
 }
 :global(.tbl) .row {
@@ -18,11 +16,11 @@
 }
 :global(.tbl) .word {
   flex-shrink: 0;
-  padding-right: clamp(40px, 6vw, 96px);
-  font-size: clamp(34px, 6vw, 84px);
+  padding-right: clamp(120px, 20vw, 360px);
+  font-size: clamp(40px, 7vw, 104px);
   font-weight: 700;
   letter-spacing: -0.03em;
-  line-height: 1.1;
+  line-height: 1.25;
   white-space: nowrap;
   color: rgba(255, 255, 255, 0.92);
 }
