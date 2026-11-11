@@ -13,9 +13,12 @@ interface Props {
   cancelError?: string | null;
   onCancel: () => void;
   onOpen?: () => void;
+  /** Nur bei unterbrochenem oder festgefahrenem Lauf sichtbar (view.retryable). */
+  onRetry?: () => void;
+  retrying?: boolean;
 }
 
-export default function AnalysisRunProgress({ view, variant, title, notes, cancelling, cancelError, onCancel, onOpen }: Props) {
+export default function AnalysisRunProgress({ view, variant, title, notes, cancelling, cancelError, onCancel, onOpen, onRetry, retrying }: Props) {
   const full = variant === "full";
   const shownNotes = (notes ?? []).filter((n): n is string => !!n);
 
@@ -58,6 +61,11 @@ export default function AnalysisRunProgress({ view, variant, title, notes, cance
         {onOpen && (
           <button type="button" onClick={onOpen} className={`${p.btnGhost} ${p.btnSm}`}>
             Prüfung öffnen
+          </button>
+        )}
+        {onRetry && view.retryable && (
+          <button type="button" onClick={onRetry} disabled={retrying || cancelling} className={`${p.btnNavy} ${p.btnSm}`}>
+            {retrying ? "Wird gestartet…" : "Erneut versuchen"}
           </button>
         )}
         <button type="button" onClick={onCancel} disabled={cancelling} className={`${p.btnGhost} ${p.btnSm} ${g.cancelBtn}`}>

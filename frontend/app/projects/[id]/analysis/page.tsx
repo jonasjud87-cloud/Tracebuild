@@ -21,6 +21,7 @@ import {
   sortAnalysisItems,
   type PreflightInput,
 } from "@/components/analysis-run-view";
+import { NOT_RETRYABLE_HINT, analysisFailure, failureReference } from "@/components/analysis-error-logic";
 import type { AnalysisPreflight } from "@/lib/analysis-stages/contract";
 import {
   MAX_PLAN_FILES,
@@ -75,8 +76,10 @@ interface AnalysisWithDoc {
   /** Dateien des Plansatzes in Upload-Reihenfolge (ältere Analysen: eine Datei). */
   files: PlanFileRef[];
   items: AnalysisItem[];
-  /** Fehlertext aus result_json bei status "error". */
+  /** Nutzertext zum Fehlergrund bei status "error", nie der technische Grund selbst. */
   errorMessage: string | null;
+  /** false: Kein «Erneut versuchen» (Kostengrenze, Konto gesperrt, Prüfung abgelehnt). */
+  errorRetryable: boolean;
   /** Normen/Teile, die nicht geprüft werden konnten — das Ergebnis ist dann unvollständig. */
   failedNorms: { norm_title: string; error: string }[];
   /** Normteile ohne Prüfpunkte. Fehlt bei älteren Analysen. */
@@ -126,7 +129,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; failed_norms?: { norm_title: string; error: string }[] | null; empty_parts?: string[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
+  result_json?: { error?: string | null; timed_out?: boolean | null; failed_norms?: { norm_title: string; error: string }[] | null; empty_parts?: string[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -138,7 +141,8 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     planType: planType ?? a.documents?.doc_type ?? DEFAULT_CHECK_NAME,
     files: a.files ?? (a.documents?.file_url ? [{ name: "Plan", url: a.documents.file_url }] : []),
     items: sortAnalysisItems(a.items ?? a.analysis_items ?? [], a.result_json?.norm_versions),
-    errorMessage: a.status === "error" ? (a.result_json?.error ?? null) : null,
+    errorMessage: a.status === "error" ? analysisFailure(a.result_json?.error, a.result_json?.timed_out === true).text : null,
+    errorRetryable: a.status !== "error" || analysisFailure(a.result_json?.error, a.result_json?.timed_out === true).retryable,
     failedNorms: a.failed_norms ?? a.result_json?.failed_norms ?? [],
     emptyParts: a.result_json?.empty_parts ?? [],
     snapshots: a.result_json
@@ -428,12 +432,18 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     return result;
   }
 
-  async function runAnalysis() {
-    const files = pendingFiles;
+  /**
+   * Startet eine Analyse. Mit `retryOf` («Erneut versuchen») übernimmt der Server Pläne und Prüfung der
+   * fehlgeschlagenen Analyse; Upload und Aktualisierung entfallen, der Start bleibt derselbe.
+   * Während der Anfrage ist `uploading` gesetzt, das sperrt beide Knöpfe gegen Doppelklick.
+   */
+  async function runAnalysis(retryOf?: AnalysisWithDoc) {
+    const files = retryOf ? [] : pendingFiles;
     // Prüfung beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
     // wechseln — das Ergebnis gehört trotzdem zur Prüfung, unter der es gestartet wurde.
-    const planType = selectedPlanType;
-    if (files.length === 0 || uploading || lockingRun) return;
+    const planType = retryOf?.planType ?? selectedPlanType;
+    if (uploading) return;
+    if (retryOf ? lockingRun && lockingRun.id !== retryOf.id : files.length === 0 || lockingRun) return;
     setError(null);
     setInfo(null);
     setCancelError(null);
@@ -448,36 +458,40 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     abortRef.current = controller;
 
     try {
-      // 1. Dateien direkt in Storage laden — nicht durch die API-Route, deren Request-Body
-      //    bei Vercel auf 4.5 MB begrenzt ist (daran scheiterten grössere Pläne mit HTTP 413).
-      uploadPhaseRef.current = true;
-      setUploadProgress(`0 von ${files.length}`);
-      const slots = await api.post<{ name: string; path: string; token: string }[]>(
-        `/projects/${params.id}/analyses/uploads`,
-        { files: files.map((f) => ({ name: f.name, type: f.type, size: f.size })) },
-      );
-      const storage = createClient().storage.from("documents");
-      const uploaded: UploadedPlanFile[] = [];
-      for (let i = 0; i < files.length; i++) {
-        if (controller.signal.aborted) throw new DOMException("Abgebrochen", "AbortError");
-        const f = files[i];
-        const type = planMimeType(f.name, f.type)!;
-        const { error: upErr } = await storage.uploadToSignedUrl(slots[i].path, slots[i].token, f, { contentType: type });
-        if (upErr) throw new Error(`${f.name} konnte nicht hochgeladen werden: ${upErr.message}`);
-        uploaded.push({ path: slots[i].path, name: f.name, type, size: f.size });
-        setUploadProgress(`${i + 1} von ${files.length}`);
-      }
-      setUploadProgress(null);
+      let startBody: Record<string, unknown> = { retry_of: retryOf?.id };
+      if (!retryOf) {
+        // 1. Dateien direkt in Storage laden — nicht durch die API-Route, deren Request-Body
+        //    bei Vercel auf 4.5 MB begrenzt ist (daran scheiterten grössere Pläne mit HTTP 413).
+        uploadPhaseRef.current = true;
+        setUploadProgress(`0 von ${files.length}`);
+        const slots = await api.post<{ name: string; path: string; token: string }[]>(
+          `/projects/${params.id}/analyses/uploads`,
+          { files: files.map((f) => ({ name: f.name, type: f.type, size: f.size })) },
+        );
+        const storage = createClient().storage.from("documents");
+        const uploaded: UploadedPlanFile[] = [];
+        for (let i = 0; i < files.length; i++) {
+          if (controller.signal.aborted) throw new DOMException("Abgebrochen", "AbortError");
+          const f = files[i];
+          const type = planMimeType(f.name, f.type)!;
+          const { error: upErr } = await storage.uploadToSignedUrl(slots[i].path, slots[i].token, f, { contentType: type });
+          if (upErr) throw new Error(`${f.name} konnte nicht hochgeladen werden: ${upErr.message}`);
+          uploaded.push({ path: slots[i].path, name: f.name, type, size: f.size });
+          setUploadProgress(`${i + 1} von ${files.length}`);
+        }
+        setUploadProgress(null);
 
-      // 2. ÖREB und Reglemente auffrischen. Serverseitig läuft noch nichts, Abbrechen bleibt lokal.
-      const preflightResult = await refreshBeforeAnalysis(controller.signal);
-      uploadPhaseRef.current = false;
+        // 2. ÖREB und Reglemente auffrischen. Serverseitig läuft noch nichts, Abbrechen bleibt lokal.
+        const preflightResult = await refreshBeforeAnalysis(controller.signal);
+        uploadPhaseRef.current = false;
+        startBody = { files: uploaded, doc_type: planType, preflight: preflightResult };
+      }
 
       // 3. Analyse über den ganzen Plansatz. Der Server antwortet sofort und rechnet im Hintergrund
       //    weiter (status "running"); ohne eingespielte Migration wartet diese Anfrage wie bisher.
       const raw = await api.post<RawGetAnalysis>(
         `/projects/${params.id}/analyses`,
-        { files: uploaded, doc_type: planType, run_id: runId, preflight: preflightResult },
+        { ...startBody, run_id: runId },
         controller.signal,
       );
       const analysis = normalizeAnalysis(raw, planType);
@@ -488,7 +502,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         setSelectedAnalysis(analysis);
         setDetailFilter("all");
       }
-      setPendingFiles([]);
+      if (!retryOf) setPendingFiles([]);
       // Die POST-Antwort enthält nicht sicher result_json; der Bericht braucht dessen Stände.
       loadAnalyses().catch(() => {});
     } catch (e: unknown) {
@@ -898,7 +912,10 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                         <span className={a.versionNr}>{vLabel}</span>
                         <span className={a.versionDate}>{shortDate(v.created_at)}</span>
                         {v.status !== "done" && (
-                          <span className={`${badge.chip} ${a.chipXs}`}>{badge.label}</span>
+                          <span title={v.errorMessage ?? undefined} className={`${badge.chip} ${a.chipXs}`}>
+                            {badge.label}
+                            {v.errorMessage && <span className={p.srOnly}>: {v.errorMessage}</span>}
+                          </span>
                         )}
                         {v.status === "done" && (v.failedNorms.length > 0 || !!autoPartsWarning(v.autoParts)) && (
                           <span title={[...v.failedNorms.map((fn) => fn.norm_title), autoPartsWarning(v.autoParts)].filter(Boolean).join(", ")} className={`${p.chipWarn} ${a.chipXs}`}>
@@ -962,6 +979,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   cancelling={cancelling}
                   cancelError={cancelError}
                   onCancel={cancelActiveRun}
+                  onRetry={() => runAnalysis(lockingRun)}
+                  retrying={uploading}
                 />
               ) : (
               <div
@@ -1137,6 +1156,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       cancelling={cancelling}
                       cancelError={cancelError}
                       onCancel={cancelActiveRun}
+                      onRetry={() => runAnalysis(activeRun)}
+                      retrying={uploading}
                     />
                   )}
                   {error && (
@@ -1196,7 +1217,27 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                           : "Diese Analyse ist fehlgeschlagen. Es liegen keine Prüfergebnisse vor."}
                       </p>
                       {selectedAnalysis.errorMessage && (
-                        <p className={a.alertBody}>{selectedAnalysis.errorMessage}</p>
+                        <p className={a.alertBody}>Grund: {selectedAnalysis.errorMessage}</p>
+                      )}
+                      {selectedAnalysis.status === "error" && (
+                        <>
+                          <p className={a.alertBody}>Referenz für den Support: {failureReference(selectedAnalysis.id)}</p>
+                          {selectedAnalysis.errorRetryable ? (
+                            <div className={a.alertActions}>
+                              <button
+                                type="button"
+                                onClick={() => runAnalysis(selectedAnalysis)}
+                                disabled={uploading || !!lockingRun}
+                                title={lockingRun ? RUN_LOCK_HINT : "Startet eine neue Analyse mit denselben Plänen"}
+                                className={`${p.btnNavy} ${p.btnSm}`}
+                              >
+                                {uploading ? "Wird gestartet…" : "Erneut versuchen"}
+                              </button>
+                            </div>
+                          ) : (
+                            <p className={a.alertBody}>{NOT_RETRYABLE_HINT}</p>
+                          )}
+                        </>
                       )}
                     </div>
                   )}

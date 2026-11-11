@@ -15,6 +15,7 @@ import base64
 import json
 import logging
 import uuid
+from datetime import datetime, timezone
 from uuid import UUID
 
 import anthropic
@@ -84,6 +85,16 @@ def _build_norm_context(norms: list[dict], project_zone: str | None) -> str:
             f"    Inhalt: {norm.get('text', '')}"
         )
     return "\n\n".join(lines)
+
+
+def _error_fields(reason: object) -> dict[str, object]:
+    """Fehlerabschluss immer mit Grund und Endzeit, sonst zeigt die Seite keinen Grund."""
+    text = str(reason).strip()[:300] or type(reason).__name__ or "Unbekannter Fehler"
+    return {
+        "status": "error",
+        "finished_at": datetime.now(timezone.utc).isoformat(),
+        "result_json": {"error": text},
+    }
 
 
 def _parse_items(raw: str) -> list[AnalysisCheckItem]:
@@ -224,7 +235,9 @@ class AnalysisService:
                 try:
                     items = _parse_items(raw_text)
                 except Exception:
-                    self.db.table("analyses").update({"status": "error"}).eq("id", analysis_id).execute()
+                    self.db.table("analyses").update(
+                        _error_fields("Antwort des Modells nicht lesbar")
+                    ).eq("id", analysis_id).execute()
                     raise
 
             # 5. Cost
@@ -255,7 +268,7 @@ class AnalysisService:
             return await self._get_analysis(UUID(analysis_id))
 
         except Exception as e:
-            self.db.table("analyses").update({"status": "error"}).eq("id", analysis_id).execute()
+            self.db.table("analyses").update(_error_fields(e)).eq("id", analysis_id).execute()
             raise e
 
     async def _get_analysis(self, analysis_id: UUID) -> AnalysisOut:

@@ -202,6 +202,8 @@ export interface RunProgressView {
   hints: string[];
   /** Läuft nicht mehr, Balken entfällt. */
   interrupted: boolean;
+  /** Unterbrochen oder festgefahren: «Erneut versuchen» anbieten. Ob es geht, entscheidet der Server. */
+  retryable: boolean;
 }
 
 export function runProgressView(state: RunPollState, createdAt: string | null, now: number): RunProgressView {
@@ -209,8 +211,9 @@ export function runProgressView(state: RunPollState, createdAt: string | null, n
     return {
       label: "Diese Analyse wurde unterbrochen und läuft nicht weiter.",
       percent: null,
-      hints: ["Sie können sie entfernen und eine neue Analyse starten."],
+      hints: ["Sie können sie erneut versuchen oder entfernen."],
       interrupted: true,
+      retryable: true,
     };
   }
   const hints: string[] = [];
@@ -227,7 +230,7 @@ export function runProgressView(state: RunPollState, createdAt: string | null, n
   if (state.progress?.background && !stuck) {
     hints.push("Sie können diese Seite schliessen, die Analyse läuft weiter.");
   }
-  return { label: progressLabel(state.progress), percent: state.percent, hints, interrupted: false };
+  return { label: progressLabel(state.progress), percent: state.percent, hints, interrupted: false, retryable: stuck };
 }
 
 // ── Aktualisierung vor der Analyse ───────────────────────────────────────────
