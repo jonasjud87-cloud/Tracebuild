@@ -3,7 +3,7 @@ import Link from "next/link";
 import AnchorLink from "./AnchorLink";
 import styles from "./Footer.module.css";
 
-const MAIL = "tracebuild.info@gmail.com";
+const MAIL = "info@tracebuild.ch";
 
 export default function Footer({ offsite = false }: { offsite?: boolean }) {
   return (
@@ -26,7 +26,6 @@ export default function Footer({ offsite = false }: { offsite?: boolean }) {
             <a href={`mailto:${MAIL}`} className={styles.secondary}>
               Mit uns sprechen
             </a>
-            <span className={styles.soon}>bald verfügbar</span>
           </div>
         </div>
         <div className={styles.columns}>
@@ -57,12 +56,9 @@ export default function Footer({ offsite = false }: { offsite?: boolean }) {
               <AnchorLink href="#team" offsite={offsite} className={styles.link}>
                 Team
               </AnchorLink>
-              <div className={styles.inline}>
-                <a href={`mailto:${MAIL}`} className={styles.link}>
-                  Kontakt
-                </a>
-                <span className={styles.soonSmall}>bald verfügbar</span>
-              </div>
+              <a href={`mailto:${MAIL}`} className={styles.link}>
+                Kontakt
+              </a>
               <Link href="/impressum" className={styles.link}>
                 Impressum
               </Link>

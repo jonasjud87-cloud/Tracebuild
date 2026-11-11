@@ -110,12 +110,12 @@ export default function DatenschutzPage() {
               <br />
               Mels SG, Schweiz
               <br />
-              <a href="mailto:jonas@tracebuild.ch" style={link}>
-                jonas@tracebuild.ch
+              <a href="mailto:jonas.jud@tracebuild.ch" style={link}>
+                jonas.jud@tracebuild.ch
               </a>
               <br />
-              <a href="mailto:livio@tracebuild.ch" style={link}>
-                livio@tracebuild.ch
+              <a href="mailto:livio.thoma@tracebuild.ch" style={link}>
+                livio.thoma@tracebuild.ch
               </a>
             </p>
           </div>

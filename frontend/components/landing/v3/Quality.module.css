@@ -123,11 +123,6 @@
   font-weight: var(--fw-title);
   letter-spacing: -0.02em;
 }
-:global(.tbl) .soon {
-  margin-top: 16px;
-  font-size: var(--fs-sub);
-  color: rgba(255, 255, 255, 0.68);
-}
 :global(.tbl) .cardFoot {
   margin-top: auto;
   padding-top: 18px;
