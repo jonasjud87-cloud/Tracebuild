@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { isOerebSupportedCanton } from "@/lib/oereb/cantons";
 import { DEFAULT_IMPORT_FILTER, resolveFilterRules } from "@/lib/oereb/import-filter";
+import { countCategories, type CategorizableDocument } from "@/lib/oereb/rejection-category";
 import type { AdminDocument, DocumentsResponse } from "@/components/admin/oereb/types";
 
 export const dynamic = "force-dynamic";
@@ -52,7 +53,7 @@ export async function GET(request: Request) {
 
   const admin = createAdminClient();
   const unavailable: DocumentsResponse = {
-    available: false, truncated: false, total: 0, documents: [], municipalities: [], reasons: [], rules: DEFAULT_IMPORT_FILTER,
+    available: false, truncated: false, total: 0, documents: [], municipalities: [], reasons: [], categories: [], rules: DEFAULT_IMPORT_FILTER,
   };
 
   const { data: filterRows, error: filterError } = await admin.from("oereb_import_filters").select("scope, rules, active");
@@ -62,15 +63,18 @@ export async function GET(request: Request) {
     return err("Die Filterregeln konnten nicht geladen werden.", 500);
   }
   const rules = resolveFilterRules(filterRows ?? [], canton);
+  // Leerer Filter ist der Stopp (wie in der Übersicht).
+  const categoryContext = { cantonReleased: rules.doc_types.length > 0 };
 
   // Auswahllisten: über den ganzen Kanton, unabhängig von den gesetzten Filtern.
   const municipalities = new Map<number, { bfs_number: number; municipality: string; count: number }>();
   const reasons = new Map<string, number>();
+  const scanned: CategorizableDocument[] = [];
   let truncated = true;
   for (let page = 0; page < SCAN_MAX_PAGES; page++) {
     const { data, error } = await admin
       .from("oereb_documents")
-      .select("bfs_number, municipality, reject_reason")
+      .select("bfs_number, municipality, status, doc_type, reject_reason, reject_detail")
       .eq("canton", canton)
       .order("id", { ascending: true })
       .range(page * SCAN_PAGE, (page + 1) * SCAN_PAGE - 1);
@@ -79,7 +83,8 @@ export async function GET(request: Request) {
       console.error("oereb-imports Auswahl", error.code);
       return err("Die Dokumente konnten nicht geladen werden.", 500);
     }
-    for (const row of (data ?? []) as { bfs_number: number; municipality: string; reject_reason: string | null }[]) {
+    for (const row of (data ?? []) as ({ bfs_number: number; municipality: string } & CategorizableDocument)[]) {
+      scanned.push({ status: row.status, reject_reason: row.reject_reason, doc_type: row.doc_type, reject_detail: row.reject_detail });
       const entry = municipalities.get(row.bfs_number);
       if (entry) entry.count++;
       else municipalities.set(row.bfs_number, { bfs_number: row.bfs_number, municipality: row.municipality, count: 1 });
@@ -128,6 +133,7 @@ export async function GET(request: Request) {
     documents,
     municipalities: Array.from(municipalities.values()).sort((a, b) => a.municipality.localeCompare(b.municipality, "de-CH")),
     reasons: Array.from(reasons, ([key, value]) => ({ reason: key, count: value })),
+    categories: countCategories(scanned, categoryContext),
     rules,
   });
 }

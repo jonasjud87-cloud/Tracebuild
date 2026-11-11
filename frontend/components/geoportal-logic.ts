@@ -9,6 +9,7 @@ import type {
   OerebDocumentItem,
   ParcelCandidate,
 } from "../lib/geoadmin/contract";
+import { CATEGORY_INFO, CATEGORY_ORDER, categorizeDocument, categoryGroup, type DocumentCategory } from "../lib/oereb/rejection-category";
 
 // ── Treffer und Parzelle ─────────────────────────────────────────────────────
 
@@ -309,16 +310,21 @@ export interface DocumentNotices<T> {
   scans: T[];
   /** Status `review`: Ein Mensch soll den Erlass ansehen. */
   review: T[];
+  /** Echte Ablehnungen je Grund: zu prüfen. */
   rejected: { reason: string; label: string; items: T[] }[];
+  /** Bewusst ausgelassen je Kategorie (lib/oereb/rejection-category.ts). */
+  skipped: { category: DocumentCategory; label: string; hint: string; items: T[] }[];
   bothKept: T[];
 }
 
-type NoticeItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "norm_id" | "version_note">;
+type NoticeItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "norm_id" | "version_note"> &
+  Partial<Pick<OerebDocumentItem, "kind" | "reject_detail" | "manual_decision">>;
 
 /** Scan-Hinweis nur, solange kein Text vorliegt: Mit Texterkennung wechselt das Dokument den Status. */
 export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotices<T> {
-  const out: DocumentNotices<T> = { scans: [], review: [], rejected: [], bothKept: [] };
+  const out: DocumentNotices<T> = { scans: [], review: [], rejected: [], skipped: [], bothKept: [] };
   const groups = new Map<string, T[]>();
+  const skipped = new Map<DocumentCategory, T[]>();
   for (const item of items) {
     if (item.version_note) out.bothKept.push(item);
     if (item.status === "review") out.review.push(item);
@@ -327,10 +333,22 @@ export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotic
       if (!item.norm_id) out.scans.push(item);
       continue;
     }
+    // Freigabe des Kantons ist hier unbekannt: LegalProvision per Dokumentart gilt als nicht freigegeben.
+    const category = categorizeDocument({
+      status: item.status, reject_reason: item.reject_reason, doc_type: item.kind ?? null,
+      reject_detail: item.reject_detail ?? null, manual_decision: item.manual_decision ?? null,
+    });
+    if (categoryGroup(category) === "skipped") {
+      skipped.set(category, [...(skipped.get(category) ?? []), item]);
+      continue;
+    }
     const key = item.reject_reason ?? "";
     groups.set(key, [...(groups.get(key) ?? []), item]);
   }
   out.rejected = Array.from(groups, ([reason, group]) => ({ reason, label: rejectReasonLabel(reason || null), items: group }));
+  out.skipped = CATEGORY_ORDER.filter((c) => skipped.has(c)).map((c) => ({
+    category: c, label: CATEGORY_INFO[c].label, hint: CATEGORY_INFO[c].hint, items: skipped.get(c) ?? [],
+  }));
   return out;
 }
 

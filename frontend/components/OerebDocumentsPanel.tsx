@@ -89,11 +89,12 @@ function DocumentActions({ item }: { item: OerebDocumentItem }) {
 }
 
 /** Gründe, die Nutzer eher überraschen: Hier stehen die Titel gleich offen da. */
-const OPEN_REASONS = new Set(["older_version", "decision_document"]);
+const OPEN_REASONS = new Set(["decision_document"]);
 
 function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
-  const { scans, review, rejected, bothKept } = documentNotices(items);
+  const { scans, review, rejected, skipped, bothKept } = documentNotices(items);
   const rejectedCount = rejected.reduce((sum, group) => sum + group.items.length, 0);
+  const skippedCount = skipped.reduce((sum, group) => sum + group.items.length, 0);
   return (
     <>
       {scans.length > 0 && (
@@ -147,16 +148,42 @@ function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
         </div>
       )}
       {rejectedCount > 0 && (
-        <div className={`${n.inlineNotice} ${n.toneQuiet}`}>
+        <div className={`${n.inlineNotice} ${n.toneWarn}`}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <p className={n.noticeTitle}>
-              {rejectedCount === 1 ? "1 Dokument nicht übernommen" : `${rejectedCount} Dokumente nicht übernommen`}
+              {rejectedCount === 1 ? "1 Dokument abgelehnt, bitte prüfen" : `${rejectedCount} Dokumente abgelehnt, bitte prüfen`}
             </p>
             {rejected.map((group) => (
               <details key={group.reason} open={OPEN_REASONS.has(group.reason)} style={{ marginTop: 6 }}>
                 <summary className={n.summaryLine}>
                   {group.items.length} × {group.label}
                 </summary>
+                <ul className={n.noticeList} style={{ marginLeft: 12 }}>
+                  {group.items.map((item) => (
+                    <li key={item.id}>
+                      <DocumentLink item={item} />
+                      {item.reject_detail && <span className={n.noticeDetail}>{item.reject_detail}</span>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
+            ))}
+          </div>
+        </div>
+      )}
+      {skippedCount > 0 && (
+        <div className={`${n.inlineNotice} ${n.toneQuiet}`}>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <p className={n.noticeTitle}>
+              {skippedCount === 1 ? "1 Dokument bewusst ausgelassen" : `${skippedCount} Dokumente bewusst ausgelassen`}
+            </p>
+            <p className={n.noticeText}>Kein Fehler: Diese Dokumente gehören nicht in den automatischen Import.</p>
+            {skipped.map((group) => (
+              <details key={group.category} style={{ marginTop: 6 }}>
+                <summary className={n.summaryLine}>
+                  {group.items.length} × {group.label}
+                </summary>
+                <p className={n.noticeDetail} style={{ marginLeft: 12 }}>{group.hint}</p>
                 <ul className={n.noticeList} style={{ marginLeft: 12 }}>
                   {group.items.map((item) => (
                     <li key={item.id}>

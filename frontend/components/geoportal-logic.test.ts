@@ -257,9 +257,27 @@ test("Hinweise: Scan ohne Norm, Ablehnungen je Grund, beide Fassungen", () => {
     { status: "imported", reject_reason: null, norm_id: "n2", version_note: "Mögliche weitere Fassung, beide übernommen" },
   ]);
   assert.equal(notices.scans.length, 1);
-  assert.deepEqual(notices.rejected.map((g) => [g.reason, g.items.length]), [["older_version", 2], ["decision_document", 1]]);
+  assert.deepEqual(notices.rejected.map((g) => [g.reason, g.items.length]), [["decision_document", 1]]);
+  assert.deepEqual(notices.skipped.map((g) => [g.category, g.items.length]), [["older_version", 2]]);
   assert.doesNotMatch(notices.rejected.map((g) => g.label).join(), /_/);
   assert.equal(notices.bothKept.length, 1);
+});
+
+test("Hinweise: bewusst ausgelassene getrennt von echten Ablehnungen", () => {
+  const item = (reject_reason: string, kind: string | null, reject_detail: string | null = null) =>
+    ({ status: "rejected" as const, reject_reason, kind, reject_detail, norm_id: null, version_note: null });
+  const notices = documentNotices([
+    item("doc_type", "Law", "Dokumentart Law wird nicht importiert"),
+    item("doc_type", "Law"),
+    item("doc_type", "LegalProvision", "Dokumentart LegalProvision wird nicht importiert"),
+    item("title_negative", "LegalProvision", "Titel enthält «=zonenplan»"),
+    item("no_articles", "LegalProvision"),
+    item("unbekannter_grund", "LegalProvision"),
+    { status: "duplicate_manual" as const, reject_reason: null, kind: "LegalProvision", norm_id: null, version_note: null },
+  ]);
+  assert.deepEqual(notices.skipped.map((g) => [g.category, g.items.length]), [["superior_law", 2], ["canton_stopped", 1], ["plan", 1]]);
+  assert.deepEqual(notices.rejected.map((g) => [g.reason, g.items.length]), [["no_articles", 1], ["unbekannter_grund", 1]]);
+  assert.doesNotMatch(notices.skipped.map((g) => g.label).join(), /_/);
 });
 
 test("Externe Links nur über http und https", () => {
@@ -292,4 +310,29 @@ test("review: eigene Zeile, nicht unter herausgefiltert, und eigener Hinweis", (
   assert.match(documentSummaryLine(summary), /1 zur Prüfung vorgemerkt/);
   assert.equal(documentNotices(items).review.length, 1);
   assert.equal(documentNotices(items).rejected.length, 0);
+});
+
+test("Hinweise: Sicherheits- und Inhaltsgründe bleiben echte Ablehnungen, Summe vollständig", () => {
+  const item = (reject_reason: string, kind: string | null = "LegalProvision", extra: Record<string, unknown> = {}) =>
+    ({ status: "rejected" as const, reject_reason, kind, reject_detail: null, norm_id: null, version_note: null, ...extra });
+  const items = [
+    item("host_not_allowed"), item("private_address"), item("too_many_redirects"), item("kept_old"), item("cap_reached"),
+    item("decision_document"), item("doc_type", "Law"), item("older_version"), item("duplicate_content"),
+    item("no_articles", "LegalProvision", { manual_decision: "exclude" }),
+    item("scan_or_short"),
+  ];
+  const notices = documentNotices(items);
+  const rejectedReasons = notices.rejected.map((g) => g.reason);
+  for (const r of ["host_not_allowed", "private_address", "too_many_redirects", "kept_old", "cap_reached", "decision_document"]) {
+    assert.ok(rejectedReasons.includes(r), r);
+  }
+  const counted = notices.rejected.reduce((n, g) => n + g.items.length, 0) + notices.skipped.reduce((n, g) => n + g.items.length, 0) + notices.scans.length;
+  assert.equal(counted, items.length);
+  assert.deepEqual(notices.skipped.map((g) => g.category), ["superior_law", "older_version", "manual_exclude", "filter_rule"]);
+});
+
+test("Hinweise: leere Liste und nur importierte ergeben keine Gruppen", () => {
+  assert.deepEqual(documentNotices([]).skipped, []);
+  const notices = documentNotices([{ status: "imported" as const, reject_reason: null, norm_id: "n", version_note: null }]);
+  assert.equal(notices.rejected.length + notices.skipped.length, 0);
 });
