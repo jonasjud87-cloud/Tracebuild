@@ -23,6 +23,8 @@ const CANTON_BY_NAME: Readonly<Record<string, string>> = {
   "graubuenden": "GR", "grischun": "GR", "grigioni": "GR", "aargau": "AG", "thurgau": "TG", "ticino": "TI",
   "tessin": "TI", "vaud": "VD", "waadt": "VD", "valais": "VS", "wallis": "VS", "neuchatel": "NE",
   "neuenburg": "NE", "geneve": "GE", "genf": "GE", "jura": "JU",
+  // Der Layer führt FL nur als Gemeindezeile ohne EGRID (live 11.11.2026).
+  "fuerstentum liechtenstein": "FL", "liechtenstein": "FL",
 };
 
 /** geo.admin.ch und amtliche Namen sind uneinheitlich: Umlaute umschreiben, Akzente entfernen. */
@@ -107,8 +109,46 @@ export async function findByEgrid(egrid: string, opts: { signal?: AbortSignal } 
   return parseStandResults(json).filter((a) => a.egris_egrid === egrid.toUpperCase());
 }
 
+/** Gebiet am Punkt, auch aus Zeilen ohne EGRID: Kanton (bzw. FL), Gemeinde und BFS der ersten Zeile mit Kanton. */
+export interface StandTerritory {
+  canton: string;
+  municipality: string | null;
+  bfs: number | null;
+}
+
+export function parseStandTerritory(json: unknown): StandTerritory | null {
+  const results = (json as { results?: unknown } | null)?.results;
+  if (!Array.isArray(results)) return null;
+  for (const r of results) {
+    const attrs = (r as { attributes?: StandAttributes } | null)?.attributes;
+    const canton = cantonFromName(attrs?.kanton);
+    if (!attrs || !canton) continue;
+    const bfs = Number(attrs.bfs_nr);
+    return {
+      canton,
+      municipality: attrs.gemeindename ?? null,
+      bfs: attrs.bfs_nr !== null && attrs.bfs_nr !== undefined && Number.isInteger(bfs) ? bfs : null,
+    };
+  }
+  return null;
+}
+
+/** identify mit Gebiet: Grundstückszeilen (mit EGRID) und das Gebiet am Punkt. */
+export async function identifyStand(
+  e: number,
+  n: number,
+  opts: { signal?: AbortSignal } = {}
+): Promise<{ rows: StandAttributes[]; territory: StandTerritory | null }> {
+  const json = await identifyJson(e, n, opts);
+  return { rows: parseStandResults(json), territory: parseStandTerritory(json) };
+}
+
 export async function identifyAt(e: number, n: number, opts: { signal?: AbortSignal } = {}): Promise<StandAttributes[]> {
-  const json = await geoAdminGet(
+  return parseStandResults(await identifyJson(e, n, opts));
+}
+
+async function identifyJson(e: number, n: number, opts: { signal?: AbortSignal }): Promise<unknown> {
+  return geoAdminGet(
     "all/MapServer/identify",
     {
       geometry: `${e},${n}`,
@@ -120,7 +160,6 @@ export async function identifyAt(e: number, n: number, opts: { signal?: AbortSig
     },
     opts
   );
-  return parseStandResults(json);
 }
 
 /**
@@ -239,17 +278,62 @@ export async function resolveParcel(input: ResolveParcelInput): Promise<ResolveP
   }
 }
 
+/**
+ * Grundstücke an einem Punkt ausserhalb des Layers mit EGRID (bisher nur FL). Wird von der Route
+ * eingereicht, damit lib/geoadmin nicht von lib/oereb abhängt. Fehler gelten als «unavailable».
+ */
+export type ParcelFallback = (
+  e: number,
+  n: number,
+  place: StandTerritory,
+  signal: AbortSignal
+) => Promise<ParcelCandidate[]>;
+
+/** Das Budget gilt auch, wenn der Rückfall das Signal nicht beachtet. */
+function untilAborted<T>(work: Promise<T>, signal: AbortSignal): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener("abort", onAbort, { once: true });
+    work.then(
+      (v) => { signal.removeEventListener("abort", onAbort); resolve(v); },
+      (e) => { signal.removeEventListener("abort", onAbort); reject(e); }
+    );
+  });
+}
+
+/** Gebiete, deren Grundstücke der Layer nur als Gemeindezeile ohne EGRID führt. */
+const FALLBACK_TERRITORIES: ReadonlySet<string> = new Set(["FL"]);
+
 /** Für die Route: EGRID und/oder Koordinate → Kandidaten; Ausfall → unavailable. */
 export async function lookupParcel(
   query: { egrid?: string; e?: number; n?: number },
-  { budgetMs = LOOKUP_BUDGET_MS }: { budgetMs?: number } = {}
+  { budgetMs = LOOKUP_BUDGET_MS, fallback }: { budgetMs?: number; fallback?: ParcelFallback } = {}
 ): Promise<GeoParcelResponse> {
   const signal = AbortSignal.timeout(budgetMs);
   try {
     const position = query.e !== undefined && query.n !== undefined ? { e: query.e, n: query.n } : null;
+    // FL-EGRIDs kennt der Layer nicht: kein langsames find, nur über den Punkt.
+    const foreignEgrid = !!query.egrid && !query.egrid.toUpperCase().startsWith("CH");
     let rows: StandAttributes[] = [];
-    if (query.egrid) rows = await standOfEgrid(query.egrid, position, { signal });
-    else if (position) rows = await identifyAt(position.e, position.n, { signal });
+    let territory: StandTerritory | null = null;
+    if (query.egrid && !foreignEgrid) rows = await standOfEgrid(query.egrid, position, { signal });
+    else if (position) ({ rows, territory } = await identifyStand(position.e, position.n, { signal }));
+    // Mit EGRID zählt nur genau dieses Grundstück, nie ein anderes am selben Punkt (CH-Parzelle bei LI-EGRID).
+    if (foreignEgrid) rows = rows.filter((r) => r.egris_egrid === query.egrid?.toUpperCase());
+
+    if (!rows.length && position && territory && fallback && FALLBACK_TERRITORIES.has(territory.canton)) {
+      let found: ParcelCandidate[];
+      try {
+        found = await untilAborted(fallback(position.e, position.n, territory, signal), signal);
+      } catch (e) {
+        console.warn(`Parzellenabfrage ${territory.canton} nicht verfügbar:`, e instanceof Error ? e.message : String(e));
+        return { candidates: [], unavailable: true };
+      }
+      const wanted = query.egrid?.toUpperCase();
+      return { candidates: wanted ? found.filter((c) => c.egrid === wanted) : found, unavailable: false };
+    }
+
     const candidates = rows.map((attrs) => candidateFromAttributes(attrs, position ?? undefined));
     return { candidates: preferRealEstate(candidates), unavailable: false };
   } catch (e) {

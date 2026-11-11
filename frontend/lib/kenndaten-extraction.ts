@@ -126,7 +126,7 @@ export function kenndatenCacheKey(
 
 // ── Prompt und Schema ────────────────────────────────────────────────────────
 
-const SYSTEM_PROMPT = `Du liest Schweizer Baureglemente und Baugesetze (de, fr, it) und suchst die Grundmasse EINER Bauzone für ein
+const SYSTEM_PROMPT = `Du liest Baureglemente und Baugesetze der Schweiz oder Liechtensteins (de, fr, it) und suchst die Grundmasse EINER Bauzone für ein
 Kenndatenblatt. Ein Architekt verlässt sich auf das Blatt. Ein fehlender Wert ist in Ordnung, ein falscher nicht.
 
 Felder (feld), mit den Begriffen, unter denen sie vorkommen:

@@ -32,6 +32,7 @@ import {
   OerebUnreachableError,
 } from "../errors";
 import { normalizeParcel, resolveParcel } from "../../geoadmin/parcel";
+import { isValidEgrid } from "../../geoadmin/validate";
 import { oerebRequest } from "../http";
 import { normalizeExtract } from "../normalize";
 import {
@@ -333,8 +334,6 @@ export interface EgridCandidate {
   typeCode: string | null; // 'RealEstate' | 'Distinct_and_permanent_rights.BuildingRight' | …
 }
 
-const EGRID_PATTERN = /^CH\d{12}$/i;
-
 function egridTypeCode(type: unknown): string | null {
   const code = asString(getKey(type, "Code")) ?? asString(type);
   // .NET-Dienste (GE, VD) liefern den Code als Zahl.
@@ -348,7 +347,7 @@ function parseOrderedItems(items: unknown[]): EgridCandidate[] {
   let position = 0;
   for (const item of items) {
     const value = asString(getKey(item, "Value"));
-    if (value && EGRID_PATTERN.test(value)) {
+    if (value && isValidEgrid(value.toUpperCase())) {
       current = { egrid: value.toUpperCase(), number: null, identDn: null, typeCode: null };
       out.push(current);
       position = 0;
@@ -559,7 +558,7 @@ export class GenericOerebAdapter implements OerebAdapter {
 
   async getExtract(egrid: string, opts: { signal?: AbortSignal } = {}): Promise<OerebExtract> {
     const id = egrid.trim().toUpperCase();
-    if (!/^CH\d{12}$/.test(id)) throw new OerebNoEgridError(`Ungültige EGRID: ${egrid}`);
+    if (!isValidEgrid(id)) throw new OerebNoEgridError(`Ungültige EGRID: ${egrid}`);
     const { signal } = opts;
     return this.withService({ egrid: id, signal }, async (service) => {
       const query = `EGRID=${id}&LANG=${encodeURIComponent(service.language)}&GEOMETRY=false`;

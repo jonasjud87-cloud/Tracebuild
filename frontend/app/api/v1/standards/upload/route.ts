@@ -6,6 +6,8 @@ import { loadImportFilter } from "@/lib/oereb/documents";
 import { linkUploadToOfficial } from "@/lib/oereb/upload-supersede";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
+import { uploadCountry } from "@/lib/norm-applies";
+import { insertNormWithCountry, type NormInsertClient } from "@/lib/norm-country";
 
 const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
@@ -89,9 +91,9 @@ async function handleUpload(request: Request) {
     }
   }
 
-  const { data, error } = await admin
-    .from("norms")
-    .insert({
+  const { data, error } = await insertNormWithCountry(
+    admin as unknown as NormInsertClient,
+    {
       title,
       domain,
       layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3,
@@ -103,11 +105,11 @@ async function handleUpload(request: Request) {
       source_url: sourceName || file.name,
       zone: zone?.trim() || null,
       pdf_url: pdfUrl,
-    })
-    .select()
-    .single();
+    },
+    uploadCountry(jurisdictionType, jurisdictionName, formData.get("country") as string | null)
+  );
 
-  if (error) return err(error.message, 500);
+  if (error || !data) return err(error?.message ?? "Norm konnte nicht gespeichert werden", 500);
 
   await logAudit(admin, {
     orgId: user.org_id,

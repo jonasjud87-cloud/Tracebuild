@@ -1,3 +1,4 @@
+import { countryForCanton } from "./oereb/cantons";
 import { titleKey } from "./oereb/title-key";
 
 /**
@@ -19,6 +20,8 @@ export interface ApplicableNorm {
   superseded_by_norm_id?: string | null;
   /** Die Org hat ihre Fassung als massgebend festgelegt. */
   org_authoritative?: boolean | null;
+  /** 'CH' | 'LI'; NULL = gilt in allen Ländern. Fehlt die Spalte (Migration fehlt), wie NULL. */
+  country?: string | null;
 }
 
 export interface ProjectPlace {
@@ -35,15 +38,43 @@ export function isAutoNorm(n: ApplicableNorm): boolean {
 }
 
 /**
+ * Land einer hochgeladenen Norm. Bund: gewähltes Land (Standard CH, "all" = alle Länder → NULL);
+ * Kanton: FL → LI, sonst CH.
+ * Gemeinde und Org: NULL, sie gelten ohnehin nur über Name/BFS bzw. die eigene Org, und eine
+ * FL-Gemeinde ohne Kanton im Upload darf nicht als CH enden.
+ */
+export function uploadCountry(
+  jurisdictionType: string,
+  jurisdictionName: string | null,
+  requested?: string | null
+): "CH" | "LI" | null {
+  if (jurisdictionType === "national") {
+    const wanted = (requested ?? "").trim().toUpperCase();
+    // «Alle Länder» (z. B. SIA, VKF): NULL gilt in CH und LI.
+    if (wanted === "ALL") return null;
+    return wanted === "LI" ? "LI" : "CH";
+  }
+  if (jurisdictionType === "cantonal") return countryForCanton(jurisdictionName);
+  return null;
+}
+
+/** Land der Norm passt zum Projekt: Projekte ohne Kanton gelten als CH, Normen ohne Land überall. */
+export function countryMatches(n: ApplicableNorm, place: Pick<ProjectPlace, "canton">): boolean {
+  return !n.country || n.country === countryForCanton(place.canton);
+}
+
+/**
  *   Bund      — gilt für jedes Projekt
  *   Kanton    — über den Kanton des Projekts
  *   Gemeinde  — über die BFS-Nummer, wenn beide sie kennen; sonst Name und Kanton
  *   Org       — Spezialnormen der eigenen Org
+ * Alle Ebenen nur im Land der Norm (`country`, NULL = überall): Schweizer Recht nie für FL.
  * Automatisch importierte Vorschriften mit `auto_scope='parcel'` gelten nie über die
  * Jurisdiktion, nur für Grundstücke mit dem Dokument im Auszug. Abgelöste Fassungen gelten gar nicht.
  */
 export function applies(n: ApplicableNorm, place: ProjectPlace): boolean {
   if (isAutoNorm(n) && (n.auto_scope === "parcel" || n.auto_scope === SUPERSEDED_SCOPE)) return false;
+  if (!countryMatches(n, place)) return false;
   if (n.layer === 1) return true;
   if (n.jurisdiction_type === "cantonal" && n.jurisdiction_name === place.canton) return true;
   if (n.jurisdiction_type === "municipal") {
@@ -109,5 +140,7 @@ export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[], p
  * importierte. Importierte parcel-Normen laufen separat über das Dokument im Auszug.
  */
 export function normsForThemeMapping<T extends ApplicableNorm>(norms: T[], place: ProjectPlace): T[] {
-  return norms.filter((n) => (n.jurisdiction_type !== "municipal" && !isAutoNorm(n)) || applies(n, place));
+  return norms.filter(
+    (n) => countryMatches(n, place) && ((n.jurisdiction_type !== "municipal" && !isAutoNorm(n)) || applies(n, place))
+  );
 }

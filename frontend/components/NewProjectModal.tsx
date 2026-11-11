@@ -6,12 +6,13 @@ import { api } from "@/lib/api";
 import ParcelSearch, { type ParcelSelection } from "./ParcelSearch";
 import type { ParcelIdentityFields } from "./geoportal-logic";
 import { PROJECT_NUMBER_MAX } from "@/lib/project-number";
+import { countryForCanton } from "@/lib/oereb/cantons";
 import css from "./NewProjectModal.module.css";
 
 const CANTONS = [
   "AG","AI","AR","BE","BL","BS","FR","GE","GL","GR",
   "JU","LU","NE","NW","OW","SG","SH","SO","SZ","TG",
-  "TI","UR","VD","VS","ZG","ZH",
+  "TI","UR","VD","VS","ZG","ZH","FL",
 ];
 
 interface Props {
@@ -97,7 +98,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
         name: name.trim(),
         project_number: projectNumber.trim() || null,
         domain: "bau",
-        location: { canton, municipality: municipality.trim(), country: "CH" },
+        location: { canton, municipality: municipality.trim(), country: countryForCanton(canton) },
         parcel_number: parcelNumber.trim() || null,
         // Die Route nimmt diese Zone nur, wenn der ÖREB-Auszug keine sichere liefert.
         bauzone: bauzone.trim() || null,
@@ -154,7 +155,7 @@ export default function NewProjectModal({ onClose, onCreated }: Props) {
                 value={canton} onChange={e => { setCanton(e.target.value); dropIdentity(); }}
                 className={`${css.input} ${css.select}`}
               >
-                {CANTONS.map(c => <option key={c} value={c}>{c}</option>)}
+                {CANTONS.map(c => <option key={c} value={c}>{c === "FL" ? "FL (Liechtenstein)" : c}</option>)}
               </select>
             </Field>
             <Field label="Gemeinde">

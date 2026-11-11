@@ -119,3 +119,43 @@ test("Zonenfilter: bei low nicht anwenden, sonst wie bisher", () => {
   assert.equal(normAppliesToZone("W2", "W2", null), true);
   assert.equal(normAppliesToZone(null, "K", "coarse"), true);
 });
+
+// ── Länderspalte (Liechtenstein) ─────────────────────────────────────────────
+
+const vaduz = { canton: "FL", municipality: "Vaduz", bfs: 7001 };
+const national = (country?: string | null): ApplicableNorm => ({ id: "b", layer: 1, jurisdiction_type: "national", jurisdiction_name: null, country });
+
+test("Länderspalte: CH-Projekt bekommt CH- und NULL-Normen, nicht LI", () => {
+  assert.equal(applies(national("CH"), here), true);
+  assert.equal(applies(national(null), here), true);
+  assert.equal(applies(national("LI"), here), false);
+  assert.equal(applies({ id: "o", layer: 5, jurisdiction_type: "org", jurisdiction_name: null, country: "LI" }, here), false);
+});
+
+test("Länderspalte: FL-Projekt bekommt LI- und NULL-Normen, nicht CH (alle Ebenen)", () => {
+  assert.equal(applies(national("LI"), vaduz), true);
+  assert.equal(applies(national(null), vaduz), true);
+  assert.equal(applies(national("CH"), vaduz), false);
+  assert.equal(applies({ id: "k", layer: 3, jurisdiction_type: "cantonal", jurisdiction_name: "FL", country: "LI" }, vaduz), true);
+  assert.equal(applies(municipal({ jurisdiction_name: "Vaduz", jurisdiction_bfs: 7001, country: "CH" }), vaduz), false);
+  assert.equal(applies(municipal({ jurisdiction_name: "Vaduz", jurisdiction_bfs: 7001, country: null }), vaduz), true);
+  assert.equal(applies({ id: "o", layer: 5, jurisdiction_type: "org", jurisdiction_name: null, country: "CH" }, vaduz), false);
+});
+
+test("Länderspalte: fehlt (Migration nicht eingespielt) → wie bisher; Projekt ohne Kanton gilt als CH", () => {
+  assert.equal(applies(national(undefined), vaduz), true);
+  assert.equal(applies(national(undefined), here), true);
+  const noCanton = { canton: "", municipality: "", bfs: null };
+  assert.equal(applies(national("CH"), noCanton), true);
+  assert.equal(applies(national("LI"), noCanton), false);
+});
+
+test("Länderspalte: Themen-Mapping nur mit Normen des Projektlands", () => {
+  const norms: ApplicableNorm[] = [
+    { id: "ch", layer: 1, jurisdiction_type: "national", jurisdiction_name: null, country: "CH" },
+    { id: "li", layer: 1, jurisdiction_type: "national", jurisdiction_name: null, country: "LI" },
+    { id: "all", layer: 1, jurisdiction_type: "international", jurisdiction_name: null, country: null },
+  ];
+  assert.deepEqual(normsForThemeMapping(norms, vaduz).map((n) => n.id), ["li", "all"]);
+  assert.deepEqual(normsForThemeMapping(norms, here).map((n) => n.id), ["ch", "all"]);
+});

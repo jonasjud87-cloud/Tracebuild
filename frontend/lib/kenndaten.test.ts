@@ -188,3 +188,8 @@ test("Dateiname behält Umlaute und ersetzt alles Heikle", () => {
   assert.equal(kenndatenDateiname("../.."), "Kenndatenblatt_.._...pdf");
   assert.equal(kenndatenDateiname("  "), "Kenndatenblatt_Projekt.pdf");
 });
+
+test("Blatt: Liechtenstein heisst nicht «Kanton FL»", () => {
+  const b = blattVon(auswertung(), { projekt: { ...projekt, municipality: "Vaduz", canton: "FL" } });
+  assert.equal(b.ort, "Vaduz, Fürstentum Liechtenstein");
+});

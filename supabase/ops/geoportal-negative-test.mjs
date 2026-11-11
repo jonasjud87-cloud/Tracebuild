@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Negativtest der Migrationen 20261106 bis 20261109 mit echtem Nutzer-JWT: Was darf ein Client über PostgREST?
+ * Negativtest der Migrationen 20261106 bis 20261112 mit echtem Nutzer-JWT: Was darf ein Client über PostgREST?
  * Nicht automatisch ausführen. Von Hand starten, nachdem die Migrationen eingespielt sind.
  *
  *   SUPABASE_URL=...  SUPABASE_ANON_KEY=...  USER_JWT=...  \
@@ -154,6 +154,19 @@ async function main() {
     const after = await readOwn();
     const kept = JSON.stringify(after?.location) === JSON.stringify(own.location);
     report("c) PATCH location.canton='EVIL': 400, Code 22023", r.status === 400 && r.code === "22023" && kept, brief(r));
+    if (!kept) await call("PATCH", `projects?id=eq.${OWN}`, { body: { location: own.location } });
+  }
+
+  // c2) Liechtenstein (nach 20261112000001): FL gilt, ein anderes Kürzel wie XX weiterhin nicht. Danach zurücksetzen.
+  {
+    const fl = await call("PATCH", `projects?id=eq.${OWN}`, { body: { location: { ...own.location, canton: "FL" } }, prefer: REP });
+    const afterFl = await readOwn();
+    report("c2) PATCH location.canton='FL': 200, gespeichert", fl.status === 200 && afterFl?.location?.canton === "FL", brief(fl));
+    await call("PATCH", `projects?id=eq.${OWN}`, { body: { location: own.location } });
+    const xx = await call("PATCH", `projects?id=eq.${OWN}`, { body: { location: { ...own.location, canton: "XX" } } });
+    const afterXx = await readOwn();
+    const kept = JSON.stringify(afterXx?.location) === JSON.stringify(own.location);
+    report("c2) PATCH location.canton='XX': 400, Code 22023", xx.status === 400 && xx.code === "22023" && kept, brief(xx));
     if (!kept) await call("PATCH", `projects?id=eq.${OWN}`, { body: { location: own.location } });
   }
 
