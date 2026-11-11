@@ -3,7 +3,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { motion } from "framer-motion";
-import IntroText from "./IntroText";
 import { useLenis } from "./SmoothScrollProvider";
 import styles from "./intro.module.css";
 
@@ -11,8 +10,7 @@ const slideEase: [number, number, number, number] = [0.7, 0, 0.2, 1];
 const useIsoEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 const PHASE_B_MS = 1900;
-const PHASE_C_MS = 2500;
-const PHASE_D_MS = 8800;
+const PHASE_D_MS = 2500;
 const REDUCED_HOLD_MS = 1500;
 
 export default function IntroOverlay() {
@@ -23,7 +21,6 @@ export default function IntroOverlay() {
   const [inDom, setInDom] = useState(true);
   const [leaving, setLeaving] = useState(false);
   const [logoOut, setLogoOut] = useState(false);
-  const [showText, setShowText] = useState(false);
 
   useIsoEffect(() => {
     rootRef.current?.classList.add(styles.js);
@@ -83,11 +80,9 @@ export default function IntroOverlay() {
       return () => window.clearTimeout(t);
     }
     const tB = window.setTimeout(() => setLogoOut(true), PHASE_B_MS);
-    const tC = window.setTimeout(() => setShowText(true), PHASE_C_MS);
     const tD = window.setTimeout(() => setLeaving(true), PHASE_D_MS);
     return () => {
       window.clearTimeout(tB);
-      window.clearTimeout(tC);
       window.clearTimeout(tD);
     };
   }, [leaving, prefersReduced]);
@@ -134,8 +129,6 @@ export default function IntroOverlay() {
         <span className={`${styles.glow} ${styles.glowC}`} />
         <span className={styles.sweep} />
       </div>
-
-      {!prefersReduced && showText && <IntroText />}
 
       <div className={`${styles.stack}${logoOut ? ` ${styles.stackOut}` : ""}`}>
         <Image

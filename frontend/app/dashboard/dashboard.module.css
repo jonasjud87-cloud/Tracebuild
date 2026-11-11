@@ -1310,10 +1310,10 @@
   background-position: 70% 38%;
   filter: grayscale(1);
   mix-blend-mode: multiply;
-  opacity: 0.09;
+  opacity: 0.26;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom left, #000 20%, transparent 92%);
-  mask-image: linear-gradient(to bottom left, #000 20%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to bottom left, #000 30%, transparent 100%);
+  mask-image: linear-gradient(to bottom left, #000 30%, transparent 100%);
 }
 
 .pTop,

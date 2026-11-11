@@ -5,6 +5,7 @@ import LandingShell from "@/components/landing/v3/LandingShell";
 import IntroOverlay from "@/components/landing/v3/IntroOverlay";
 import Navbar from "@/components/landing/v3/Navbar";
 import Hero from "@/components/landing/v3/Hero";
+import Marquee from "@/components/landing/v3/Marquee";
 import Problem from "@/components/landing/v3/Problem";
 import Approach from "@/components/landing/v3/Approach";
 import Product from "@/components/landing/v3/Product";
@@ -24,6 +25,7 @@ export default function LandingPage() {
         <Navbar />
         <main id="tb-main">
           <Hero />
+          <Marquee />
           <Problem />
           <Approach />
           <Product />

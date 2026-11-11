@@ -23,8 +23,8 @@
   background-size: cover;
   background-position: right center;
   background-repeat: no-repeat;
-  filter: grayscale(1) brightness(0.7);
-  opacity: 0.12;
+  filter: grayscale(1) brightness(0.85);
+  opacity: 0.24;
   -webkit-mask-image: linear-gradient(to left, #000 15%, transparent 95%);
   mask-image: linear-gradient(to left, #000 15%, transparent 95%);
 }
