@@ -27,8 +27,14 @@ import {
   validatePlanFiles,
 } from "@/lib/analysis-stages/prepare";
 import { createJob, startStage } from "@/lib/analysis-stages/runtime";
+import { failureFields, failureReason, updateClosing } from "@/lib/analysis-failure";
+import { closeOrphan, isUuid, planRetry, supabaseRetryDeps } from "@/lib/analysis-retry";
+import { supabaseOrphanDeps } from "@/lib/analysis-retry-close";
+import { TIMEOUT_ERROR_TEXT } from "@/lib/admin-analyses/constants";
 
 export const maxDuration = 300;
+
+const RETRY_FAILED = "Die Analyse konnte nicht erneut gestartet werden. Bitte laden Sie die Seite neu.";
 
 /** Zeitdeckel für die Modell-Phase, gemessen ab Beginn der Route (Vercel killt bei 300 s). */
 const ROUTE_MODEL_BUDGET_MS = 265_000;
@@ -115,40 +121,81 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // Die Dateien liegen bereits in Storage (Upload direkt aus dem Browser über
   // …/analyses/uploads); hier kommen nur Pfade an — kein Request-Body-Limit für Pläne.
   const body = await request.json().catch(() => null) as
-    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown } | null;
+    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown; retry_of?: unknown } | null;
   if (!body) return err("Ungültige Anfrage");
-  const docType = (typeof body.doc_type === "string" && body.doc_type.trim()) || "Plansatz";
   // Vom Client vergebene Lauf-ID: darüber kann er den Lauf per POST …/analyses/cancel abbrechen.
   const runId = (typeof body.run_id === "string" ? body.run_id.trim() : "") || null;
 
-  const checked = await validatePlanFiles(admin, params.id, body.files);
-  if ("error" in checked) {
-    // Hochgeladene, aber nie geprüfte Dateien nicht im Speicher liegen lassen.
-    const stray = (Array.isArray(body.files) ? body.files : [])
-      .map((f: { path?: unknown }) => (typeof f?.path === "string" ? f.path : ""));
-    await removeUnreferencedPlanFiles(admin, params.id, stray, publicFileUrl);
-    return err(checked.error);
-  }
-  const planFiles = checked.files;
+  // «Erneut versuchen»: gleicher Plansatz (Dokument und Dateien) wie die fehlgeschlagene Analyse,
+  // danach derselbe Start wie bei einer neuen Analyse.
+  const retryOf = typeof body.retry_of === "string" ? body.retry_of.trim() : "";
+  let doc: { id: string };
+  let planFiles: UploadedPlanFile[];
+  if (retryOf) {
+    if (!isUuid(retryOf)) return err("Analyse nicht gefunden", 404);
+    let plan;
+    try {
+      plan = await planRetry(supabaseRetryDeps(admin), { projectId: params.id, analysisId: retryOf, user }, Date.now());
+    } catch (e) {
+      console.error(`Wiederholung von Analyse ${retryOf} nicht möglich:`, e instanceof Error ? e.message : e);
+      return err(RETRY_FAILED, 500);
+    }
+    if (!plan.ok) return err(plan.error, plan.status);
+    const checked = await validatePlanFiles(admin, params.id, plan.files);
+    if ("error" in checked) return err(`${checked.error} Bitte laden Sie die Pläne neu hoch.`, 409);
+    if (plan.closeOld) {
+      // Verwaister Lauf: erst den Job atomar übernehmen, dann als Zeitüberschreitung schliessen.
+      let closed;
+      try {
+        closed = await closeOrphan(supabaseOrphanDeps(admin, plan.resultJson), retryOf, crypto.randomUUID(), TIMEOUT_ERROR_TEXT, Date.now());
+      } catch (e) {
+        console.error(`Verwaiste Analyse ${retryOf} nicht geschlossen:`, e instanceof Error ? e.message : e);
+        return err(RETRY_FAILED, 500);
+      }
+      if (!closed.ok) return err(closed.error, closed.status);
+      await logAudit(admin, {
+        orgId: user.org_id,
+        actorId: user.id,
+        actorEmail: user.email,
+        action: "analysis_run",
+        targetId: retryOf,
+        meta: { op: "retry_timeout", previousStatus: "running", newStatus: "error", projectId: params.id, retry_of: retryOf },
+      });
+    }
+    doc = { id: plan.documentId };
+    planFiles = checked.files;
+  } else {
+    const docType = (typeof body.doc_type === "string" && body.doc_type.trim()) || "Plansatz";
+    const checked = await validatePlanFiles(admin, params.id, body.files);
+    if ("error" in checked) {
+      // Hochgeladene, aber nie geprüfte Dateien nicht im Speicher liegen lassen.
+      const stray = (Array.isArray(body.files) ? body.files : [])
+        .map((f: { path?: unknown }) => (typeof f?.path === "string" ? f.path : ""));
+      await removeUnreferencedPlanFiles(admin, params.id, stray, publicFileUrl);
+      return err(checked.error);
+    }
+    planFiles = checked.files;
 
-  // Die Analyse-Zeile muss so früh wie möglich existieren, damit ein Abbruch
-  // (POST …/cancel sucht sie über run_id) sie findet.
-  const { data: doc, error: docError } = await admin
-    .from("documents")
-    .insert({ project_id: params.id, file_url: publicFileUrl(planFiles[0].path), doc_type: docType })
-    .select()
-    .single();
-  if (docError) return err(docError.message, 500);
+    // Die Analyse-Zeile muss so früh wie möglich existieren, damit ein Abbruch
+    // (POST …/cancel sucht sie über run_id) sie findet.
+    const { data: newDoc, error: docError } = await admin
+      .from("documents")
+      .insert({ project_id: params.id, file_url: publicFileUrl(planFiles[0].path), doc_type: docType })
+      .select()
+      .single();
+    if (docError) return err(docError.message, 500);
+    doc = newDoc;
 
-  const { error: filesError } = await admin.from("document_files").insert(
-    planFiles.map((f, i) => ({
-      document_id: doc.id, storage_path: f.path, file_name: f.name, mime_type: f.type, size_bytes: f.size, position: i,
-    })),
-  );
-  if (filesError) {
-    await admin.from("documents").delete().eq("id", doc.id);
-    await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
-    return err(filesError.message, 500);
+    const { error: filesError } = await admin.from("document_files").insert(
+      planFiles.map((f, i) => ({
+        document_id: newDoc.id, storage_path: f.path, file_name: f.name, mime_type: f.type, size_bytes: f.size, position: i,
+      })),
+    );
+    if (filesError) {
+      await admin.from("documents").delete().eq("id", newDoc.id);
+      await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
+      return err(filesError.message, 500);
+    }
   }
 
   const { data: analysis, error: analysisError } = await admin
@@ -156,7 +203,12 @@ export async function POST(request: Request, { params }: { params: { id: string 
     .insert({ document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null })
     .select()
     .single();
-  if (analysisError) return err(analysisError.message, 500);
+  if (analysisError) {
+    if (!retryOf) return err(analysisError.message, 500);
+    // Wiederholung: Dokument kann inzwischen gelöscht sein (FK). Rohtext nur ins Log.
+    console.error(`Wiederholung von Analyse ${retryOf}: Anlegen fehlgeschlagen:`, analysisError.message);
+    return err(RETRY_FAILED, 409);
+  }
 
   // Weiche: Mit eingespielter Migration läuft die Analyse in Etappen, sonst wie bisher in dieser Anfrage.
   let mode: "created" | "missing_schema" | "conflict";
@@ -174,14 +226,18 @@ export async function POST(request: Request, { params }: { params: { id: string 
   } catch (e) {
     const message = e instanceof Error ? e.message : "Analyse konnte nicht gestartet werden";
     console.error(`Job für Analyse ${analysis.id} konnte nicht angelegt werden:`, message);
-    await admin.from("analyses").update({ status: "error", result_json: { run_id: runId, error: message } }).eq("id", analysis.id);
+    await updateClosing(failureFields(message, Date.now(), { run_id: runId }), (f) =>
+      admin.from("analyses").update(f).eq("id", analysis.id).eq("status", "running"));
     return err(message, 500);
   }
 
   if (mode === "conflict") {
     await admin.from("analyses").delete().eq("id", analysis.id);
-    await admin.from("documents").delete().eq("id", doc.id);
-    await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
+    // Bei der Wiederholung gehören Dokument und Dateien weiter zur fehlgeschlagenen Analyse.
+    if (!retryOf) {
+      await admin.from("documents").delete().eq("id", doc.id);
+      await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
+    }
     return err("Für dieses Projekt läuft bereits eine Analyse. Bitte warten Sie, bis sie abgeschlossen ist.", 409);
   }
 
@@ -395,10 +451,11 @@ async function runInRequest(
     //    verhindert, dass ein Abbruch, der während des Speicherns eintraf, von "done"
     //    überschrieben wird — dann räumen wir die Prüfpunkte wieder weg.
     const status = savedCount > 0 ? "done" : "error";
-    const { data: finalAnalysis, error: updateError } = await admin
-      .from("analyses")
-      .update({
+    // Ohne Prüfpunkte gehört der Grund in result_json.error, sonst zeigt die Seite keinen.
+    const noResultReason = run.failed_norms[0]?.error ?? insertErrors[0] ?? "Keine Prüfpunkte erzeugt";
+    const { data: finalAnalysis, error: updateError } = await updateClosing({
         status,
+        finished_at: new Date().toISOString(),
         cost_usd: run.cost_usd,
         result_json: {
           run_id: runId,
@@ -419,12 +476,15 @@ async function runInRequest(
           calls: run.calls,
           failed_norms: run.failed_norms,
           insert_errors: insertErrors,
+          ...(status === "error" ? { error: `Analyse ohne Ergebnis: ${noResultReason}` } : {}),
         },
-      })
-      .eq("id", analysis.id)
-      .eq("status", "running")
-      .select(`*, ${ANALYSIS_DOC_SELECT}`)
-      .maybeSingle();
+      }, (f) => admin
+        .from("analyses")
+        .update(f)
+        .eq("id", analysis.id)
+        .eq("status", "running")
+        .select(`*, ${ANALYSIS_DOC_SELECT}`)
+        .maybeSingle());
 
     if (updateError) return err(updateError.message, 500);
     if (!finalAnalysis) {
@@ -433,8 +493,7 @@ async function runInRequest(
     }
 
     if (savedCount === 0) {
-      const reason = run.failed_norms[0]?.error ?? insertErrors[0] ?? "Keine Prüfpunkte erzeugt";
-      return err(`Analyse ohne Ergebnis: ${reason}`, 502);
+      return err(`Analyse ohne Ergebnis: ${noResultReason}`, 502);
     }
 
     // 7. Zurückgelesenes Ergebnis an den Client — nicht die In-Memory-Items.
@@ -466,25 +525,26 @@ async function runInRequest(
     const message = e instanceof Error ? e.message : "Analyse fehlgeschlagen";
     // Sonst taucht ein 500 nur in result_json auf, nicht in den Vercel-Logs.
     console.error(`Analyse ${analysis.id} (Projekt ${params.id}) fehlgeschlagen:`, e);
-    await admin
-      .from("analyses")
-      .update({
+    await updateClosing({
         status: cancel.signal.aborted ? "cancelled" : "error",
+        finished_at: new Date().toISOString(),
         // Auch wenn es schiefging: was das Modell gekostet hat, wird verbucht.
         cost_usd: run?.cost_usd ?? 0,
         result_json: {
           run_id: runId,
-          error: message,
+          error: failureReason(message),
           model: run?.model ?? null,
           usage: run?.usage ?? null,
           calls: run?.calls ?? [],
           failed_norms: run?.failed_norms ?? [],
         },
-      })
-      .eq("id", analysis.id)
-      // Ein bereits gesetztes 'cancelled' (Cancel-Route war schneller als der Poll)
-      // bleibt bestehen — nur ein laufender Datensatz wird zum Fehler.
-      .in("status", cancel.signal.aborted ? ["running", "cancelled"] : ["running"]);
+      }, (f) => admin
+        .from("analyses")
+        .update(f)
+        .eq("id", analysis.id)
+        // Ein bereits gesetztes 'cancelled' (Cancel-Route war schneller als der Poll)
+        // bleibt bestehen — nur ein laufender Datensatz wird zum Fehler.
+        .in("status", cancel.signal.aborted ? ["running", "cancelled"] : ["running"]));
 
     await logAudit(admin, {
       orgId: user.org_id,

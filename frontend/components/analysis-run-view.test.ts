@@ -170,6 +170,9 @@ test("runProgressView: Hinweise nur, wenn sie stimmen", () => {
   const interrupted = runProgressView(old, created, Date.parse(created) + 10 * 60_000);
   assert.equal(interrupted.interrupted, true);
   assert.equal(interrupted.percent, null);
+  assert.equal(interrupted.retryable, true, "Unterbrochen: «Erneut versuchen» anbieten");
+  assert.equal(runProgressView(background, created, now).retryable, false, "Gesunder Lauf: kein Retry");
+  assert.equal(runProgressView(stalled, created, now).retryable, false, "Nur langsam: kein Retry");
 });
 
 test("Texte nennen nie die interne Aufteilung", () => {
@@ -264,6 +267,7 @@ test("Scheitert die Wiederaufnahme dauerhaft, verspricht die Anzeige nichts Auto
   const hints = runProgressView(state, null, 0).hints.join(" ");
   assert.doesNotMatch(hints, /automatisch fortgesetzt|schliessen/);
   assert.match(hints, /kommt zurzeit nicht weiter/);
+  assert.equal(runProgressView(state, null, 0).retryable, true, "Festgefahren: «Erneut versuchen» anbieten");
   // Der Zustand überlebt weitere Abfragen, solange der Server wartet, und verschwindet, wenn es weitergeht.
   state = applyPoll(state, { kind: "status", status: { id: "a", status: "running", progress, error_message: null } });
   assert.equal(state.resumeFailures, 3);
