@@ -939,3 +939,34 @@ button.row:hover .rowChevron {
     transform: none;
   }
 }
+
+.projectBadge {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: min(46vw, 520px);
+  padding: 6px 16px;
+  border-left: 2px solid #cbbfae;
+}
+
+.projectBadgeLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #cbbfae;
+}
+
+.projectBadgeName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 17px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.tabEnd {
+  margin-left: auto;
+}

@@ -25,19 +25,21 @@ export function projectTabs(id: string) {
     { key: "analysis", href: `/projects/${id}/analysis`, label: "Plan-Analyse" },
     { key: "norms", href: `/projects/${id}/norms`, label: "Normen" },
     { key: "chat", href: `/projects/${id}/chat`, label: "KI Chat" },
-    { key: "settings", href: `/projects/${id}/settings`, label: "Einstellungen" },
     { key: "normenblatt", href: `/projects/${id}/normenblatt`, label: "Normenblatt" },
+    { key: "settings", href: `/projects/${id}/settings`, label: "Einstellungen" },
   ];
 }
 
 export interface ProjectFrameProps {
   projectId: string;
   pathname: string;
+  projectName?: string | null;
+  projectNumber?: string | null;
   announcements?: ReactNode;
   children: ReactNode;
 }
 
-export default function ProjectFrame({ projectId, pathname, announcements, children }: ProjectFrameProps) {
+export default function ProjectFrame({ projectId, pathname, projectName, projectNumber, announcements, children }: ProjectFrameProps) {
   const tabs = projectTabs(projectId);
   return (
     <div className={`${font.variable} ${p.shell}`}>
@@ -56,6 +58,15 @@ export default function ProjectFrame({ projectId, pathname, announcements, child
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><path d="M19 12H5M11 6l-6 6 6 6" /></svg>
           Projekte
         </Link>
+        {projectName && (
+          <div className={p.projectBadge} title={projectName}>
+            <span className={p.projectBadgeLabel}>Projekt</span>
+            <span className={p.projectBadgeName}>
+              {projectNumber ? `${projectNumber} · ` : ""}
+              {projectName}
+            </span>
+          </div>
+        )}
         <span className={p.topSpacer} />
         <Link href="/dashboard/profile" className={p.avatar} aria-label="Profil">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="8.5" r="3.5" /><path d="M5 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /></svg>
@@ -67,7 +78,7 @@ export default function ProjectFrame({ projectId, pathname, announcements, child
           {tabs.map((tab) => {
             const active = pathname.startsWith(tab.href);
             return (
-              <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined} className={`${p.tab} ${active ? p.tabActive : ""}`}>
+              <Link key={tab.href} href={tab.href} aria-current={active ? "page" : undefined} className={`${p.tab} ${active ? p.tabActive : ""} ${tab.key === "settings" ? p.tabEnd : ""}`}>
                 {ICONS[tab.key]}
                 {tab.label}
               </Link>

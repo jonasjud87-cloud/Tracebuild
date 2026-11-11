@@ -1308,12 +1308,12 @@
   background-repeat: no-repeat;
   background-size: 150% auto;
   background-position: 70% 38%;
-  filter: grayscale(1);
+  filter: grayscale(1) contrast(2.6) brightness(0.85);
   mix-blend-mode: multiply;
-  opacity: 0.09;
+  opacity: 0.6;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom left, #000 20%, transparent 92%);
-  mask-image: linear-gradient(to bottom left, #000 20%, transparent 92%);
+  -webkit-mask-image: linear-gradient(to bottom left, #000 30%, transparent 100%);
+  mask-image: linear-gradient(to bottom left, #000 30%, transparent 100%);
 }
 
 .pTop,
