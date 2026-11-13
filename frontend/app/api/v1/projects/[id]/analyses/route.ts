@@ -6,6 +6,8 @@ import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { AnalysisSnapshots } from "@/lib/geoadmin/contract";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { hashStoredFiles } from "@/lib/plan-hash";
+import { nextVersionFields, planHashOf, storedPlanHash } from "@/lib/analysis-versions";
 import {
   runNormAnalysis,
   type AnalysisRunResult,
@@ -121,7 +123,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // Die Dateien liegen bereits in Storage (Upload direkt aus dem Browser über
   // …/analyses/uploads); hier kommen nur Pfade an — kein Request-Body-Limit für Pläne.
   const body = await request.json().catch(() => null) as
-    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown; retry_of?: unknown } | null;
+    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown; retry_of?: unknown; mode?: unknown } | null;
   if (!body) return err("Ungültige Anfrage");
   // Vom Client vergebene Lauf-ID: darüber kann er den Lauf per POST …/analyses/cancel abbrechen.
   const runId = (typeof body.run_id === "string" ? body.run_id.trim() : "") || null;
@@ -131,6 +133,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const retryOf = typeof body.retry_of === "string" ? body.retry_of.trim() : "";
   let doc: { id: string };
   let planFiles: UploadedPlanFile[];
+  let planHash: string | null = null;
+  let fileHashes: (string | null)[] = [];
+  let docTypeName = "Plansatz";
   if (retryOf) {
     if (!isUuid(retryOf)) return err("Analyse nicht gefunden", 404);
     let plan;
@@ -164,6 +169,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
     doc = { id: plan.documentId };
     planFiles = checked.files;
+    planHash = await storedPlanHash(admin, plan.documentId);
+    const { data: retryDoc } = await admin.from("documents").select("doc_type").eq("id", plan.documentId).maybeSingle();
+    docTypeName = (retryDoc as { doc_type?: string | null } | null)?.doc_type?.trim() || "Plansatz";
   } else {
     const docType = (typeof body.doc_type === "string" && body.doc_type.trim()) || "Plansatz";
     const checked = await validatePlanFiles(admin, params.id, body.files);
@@ -175,6 +183,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
       return err(checked.error);
     }
     planFiles = checked.files;
+    docTypeName = docType;
+    fileHashes = await hashStoredFiles(admin, planFiles.map((f) => f.path));
+    planHash = planHashOf(fileHashes);
 
     // Die Analyse-Zeile muss so früh wie möglich existieren, damit ein Abbruch
     // (POST …/cancel sucht sie über run_id) sie findet.
@@ -186,11 +197,11 @@ export async function POST(request: Request, { params }: { params: { id: string 
     if (docError) return err(docError.message, 500);
     doc = newDoc;
 
-    const { error: filesError } = await admin.from("document_files").insert(
-      planFiles.map((f, i) => ({
-        document_id: newDoc.id, storage_path: f.path, file_name: f.name, mime_type: f.type, size_bytes: f.size, position: i,
-      })),
-    );
+    const fileRows = planFiles.map((f, i) => ({
+      document_id: newDoc.id, storage_path: f.path, file_name: f.name, mime_type: f.type, size_bytes: f.size, position: i,
+    }));
+    let { error: filesError } = await admin.from("document_files").insert(fileRows.map((r, i) => ({ ...r, sha256: fileHashes[i] })));
+    if (filesError && isMissingSchema(filesError.message)) ({ error: filesError } = await admin.from("document_files").insert(fileRows));
     if (filesError) {
       await admin.from("documents").delete().eq("id", newDoc.id);
       await removeUnreferencedPlanFiles(admin, params.id, planFiles.map((f) => f.path), publicFileUrl);
@@ -198,15 +209,33 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
   }
 
-  const { data: analysis, error: analysisError } = await admin
+  const versionFields = await nextVersionFields(admin, params.id, docTypeName, planHash).catch((e) => {
+    console.error("Versionsnummer nicht ermittelbar:", e instanceof Error ? e.message : e);
+    return null;
+  });
+  const analysisRow = { document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null };
+  let retryMode: string | null = null;
+  if (retryOf) {
+    const { data: retried } = await admin.from("analyses").select("analysis_mode").eq("id", retryOf).maybeSingle();
+    retryMode = (retried as { analysis_mode?: string | null } | null)?.analysis_mode ?? null;
+  }
+  const wantsDelta = (body.mode === "delta" || retryMode === "delta") && !!versionFields?.based_on_analysis_id;
+  const modeFields = wantsDelta ? { analysis_mode: "delta" } : {};
+  let { data: analysis, error: analysisError } = await admin
     .from("analyses")
-    .insert({ document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null })
+    .insert(versionFields ? { ...analysisRow, ...versionFields, ...modeFields } : analysisRow)
     .select()
     .single();
-  if (analysisError) {
-    if (!retryOf) return err(analysisError.message, 500);
+  if (analysisError && versionFields && isMissingSchema(analysisError.message)) {
+    ({ data: analysis, error: analysisError } = await admin.from("analyses").insert({ ...analysisRow, ...versionFields }).select().single());
+  }
+  if (analysisError && isMissingSchema(analysisError.message)) {
+    ({ data: analysis, error: analysisError } = await admin.from("analyses").insert(analysisRow).select().single());
+  }
+  if (analysisError || !analysis) {
+    if (!retryOf) return err(analysisError?.message ?? "Analyse konnte nicht angelegt werden", 500);
     // Wiederholung: Dokument kann inzwischen gelöscht sein (FK). Rohtext nur ins Log.
-    console.error(`Wiederholung von Analyse ${retryOf}: Anlegen fehlgeschlagen:`, analysisError.message);
+    console.error(`Wiederholung von Analyse ${retryOf}: Anlegen fehlgeschlagen:`, analysisError?.message);
     return err(RETRY_FAILED, 409);
   }
 

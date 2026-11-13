@@ -10,6 +10,9 @@ import { normTextHash } from "@/lib/norm-hash";
 import { companyNormApplies } from "@/lib/company-norms";
 import { applyDigests } from "@/lib/norm-digest/rules";
 import { loadActiveDigests } from "@/lib/norm-digest/store";
+import { inputFingerprint } from "@/lib/analysis-fingerprint";
+import { buildDeltaUnits, loadDeltaPlan, type DeltaLoad } from "./delta-units";
+import { companyNormInstruction, normLevelLabel } from "@/lib/company-norm-prompt";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
@@ -341,7 +344,28 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   const system = buildSystemPrompt(ctx, boundary);
   const reference = buildReferenceBlock(ctx, norms.filter(isReferenceNorm), boundary);
   const { units: planned, summary: autoParts } = planStagedParts(toNormParts(norms), maxStagedAutoParts());
-  const units = buildStageUnits(planned, partLabel);
+  const deltaLoad: DeltaLoad = await loadDeltaPlan(admin, job.analysis_id).catch((e) => {
+    console.error(`Vorversion für Änderungsprüfung ${job.analysis_id} nicht ladbar:`, e instanceof Error ? e.message : e);
+    return { requested: true, plan: null, fallback: "Die Vorversion konnte nicht gelesen werden." };
+  });
+  const normById = new Map(norms.map((n) => [n.id, n]));
+  const deltaPlan = deltaLoad.plan
+    ? {
+        ...deltaLoad.plan,
+        items: deltaLoad.plan.items.map((item) => {
+          const meta = item.norm_id ? normById.get(item.norm_id) : undefined;
+          return { ...item, jurisdiction_type: meta?.jurisdiction_type ?? null, priority: meta?.priority ?? null };
+        }),
+      }
+    : null;
+  const units = deltaPlan
+    ? buildDeltaUnits(
+        deltaPlan,
+        planned
+          .filter((p) => !isReferenceNorm(p.norm))
+          .map((p) => ({ title: partLabel(p), text: p.text, header: `Ebene: ${normLevelLabel(p.norm)}\n${companyNormInstruction(p.norm)}`.trim() })),
+      )
+    : buildStageUnits(planned, partLabel);
 
   const snapshots: AnalysisSnapshots = {
     oereb_snapshot: oerebSnapshot,
@@ -363,7 +387,14 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
     reference_norms: norms.filter(isReferenceNorm).map((n) => n.title),
     oereb_context: !!oereb,
     auto_parts: autoParts,
+    ...(deltaPlan ? { delta: { baseline_id: deltaPlan.baselineId, version_no: deltaPlan.versionNo, baseline_count: deltaPlan.items.length } } : {}),
+    ...(deltaLoad.requested && !deltaPlan ? { delta_fallback: deltaLoad.fallback ?? "Die Vorversion war nicht verfügbar." } : {}),
     digests: norms.filter((n) => n.digest).map((n) => ({ norm_id: n.id, sha256: normTextHash(n.text) })),
+    input_fingerprint: inputFingerprint(fullNorms.map((n) => ({ id: n.id, text: n.text, digest: norms.find((m) => m.id === n.id)?.digest ?? false })), {
+      canton: ctx.canton,
+      municipality: ctx.municipality,
+      bauzone: ctx.bauzone,
+    }),
   };
 
   // 3. Plansatz: Claude holt jede Datei selbst über eine signierte URL.

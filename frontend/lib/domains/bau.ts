@@ -13,6 +13,8 @@ export interface AnalysisItem {
   page_reference: number | null;
   /** Datei im Plansatz, auf die sich page_reference bezieht. */
   source_file?: string | null;
+  /** Nur bei Änderungsprüfungen: Entwicklung gegenüber der Vorversion. */
+  change_status?: string | null;
 }
 
 export const CATEGORY_LABELS: Record<Category, string> = {

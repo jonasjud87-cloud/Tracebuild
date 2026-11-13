@@ -30,7 +30,7 @@ test("digestEligible: nur plattformweite, aktuelle Schweizer Bundesnormen mit ge
   const base = { jurisdiction_type: "national", country: "CH", org_id: null, text: SOURCE.repeat(3) };
   assert.equal(digestEligible(base), true);
   assert.equal(digestEligible({ ...base, text: "kurz" }), false);
-  assert.equal(digestEligible({ ...base, jurisdiction_type: "cantonal" }), false);
+  assert.equal(digestEligible({ ...base, jurisdiction_type: "municipal" }), false);
   assert.equal(digestEligible({ ...base, org_id: "o1" }), false);
   assert.equal(digestEligible({ ...base, country: "LI" }), false);
   assert.equal(digestEligible({ ...base, country: null }), false);
@@ -140,6 +140,7 @@ function fakeAdmin(initial: Row[] = []) {
       select: () => api,
       eq: (k: string, v: unknown) => (filters.push([k, v]), api),
       in: () => api,
+      limit: () => api,
       order: () => api,
       maybeSingle: async () => ({ data: rows.find((r) => filters.every(([k, v]) => r[k] === v)) ?? null, error: null }),
       upsert: async (row: Row) => (upserts.push(row), { error: null }),
@@ -261,4 +262,32 @@ test("Fussnotenziffer hinter dem Buchstaben und an Jahreszahlen stört nicht", (
   const source = SOURCE.replace("betrifft Bauten und Anlagen. wort7x0", "betrifft Bauten und Anlagen vom 7. Oktober 19831 und wort7x0");
   const digest = GOOD.replace("betrifft Bauten und Anlagen. wort7x0", "betrifft Bauten und Anlagen vom 7. Oktober 1983 und wort7x0");
   assert.equal(verifyDigest(source, digest).ok, true);
+});
+
+const CANTONAL = { ...NORM, id: "k1", jurisdiction_type: "cantonal", jurisdiction_name: "SG", layer: 3 };
+
+test("kantonale Gesetze kommen erst ab 40'000 Zeichen in Frage, Gemeinde-Reglemente nie", () => {
+  assert.equal(digestEligible({ ...CANTONAL, text: SOURCE }), true);
+  assert.equal(digestEligible({ ...CANTONAL, text: SOURCE.slice(0, 30000) }), false);
+  assert.equal(digestEligible({ ...CANTONAL, jurisdiction_type: "municipal" }), false);
+  assert.equal(digestEligible({ ...CANTONAL, country: "LI" }), false);
+});
+
+test("im Automatikbetrieb entsteht der erste kantonale Auszug nicht von selbst", async () => {
+  const { admin, upserts } = fakeAdmin();
+  const outcome = await ensureDigest(admin, CANTONAL, {
+    auto: true,
+    complete: async () => { throw new Error("darf nicht aufgerufen werden"); },
+  });
+  assert.equal(outcome.status, "skipped");
+  assert.equal(upserts.length, 0);
+});
+
+test("von Hand erstellt, hält sich ein kantonaler Auszug danach im Automatikbetrieb aktuell", async () => {
+  const manual = fakeAdmin();
+  assert.equal((await ensureDigest(manual.admin, CANTONAL, { complete: async () => ok(GOOD) })).status, "created");
+
+  const opted = fakeAdmin([{ norm_id: "k1", text_sha256: "alte-fassung", extractor_version: 1, status: "ok", digest: "x" }]);
+  const outcome = await ensureDigest(opted.admin, CANTONAL, { auto: true, complete: async () => ok(GOOD) });
+  assert.equal(outcome.status, "created");
 });

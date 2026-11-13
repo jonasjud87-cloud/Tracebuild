@@ -21,6 +21,14 @@ export interface DigestNorm extends DigestCandidate {
   text: string;
 }
 
+const OPT_IN_REASON = "Kantonale Gesetze werden zuerst von Hand erstellt, danach hält sich der Auszug von selbst aktuell.";
+
+async function hasAnyDigest(admin: SupabaseClient, normId: string): Promise<boolean> {
+  const { data, error } = await admin.from("norm_digests").select("id").eq("norm_id", normId).limit(1);
+  if (error) return false;
+  return (data ?? []).length > 0;
+}
+
 export type DigestOutcome =
   | { status: "created"; digestChars: number; sourceChars: number; costUsd: number }
   | { status: "exists" }
@@ -37,9 +45,12 @@ interface ExistingRow {
 export async function ensureDigest(
   admin: SupabaseClient,
   norm: DigestNorm,
-  options: { force?: boolean; complete?: CompleteFn; deadlineAt?: number; now?: () => number } = {},
+  options: { force?: boolean; complete?: CompleteFn; deadlineAt?: number; now?: () => number; auto?: boolean } = {},
 ): Promise<DigestOutcome> {
   if (!digestEligible(norm)) return { status: "skipped", reason: "Norm kommt für einen Prüfauszug nicht in Frage." };
+  if (options.auto && norm.jurisdiction_type === "cantonal" && !(await hasAnyDigest(admin, norm.id))) {
+    return { status: "skipped", reason: OPT_IN_REASON };
+  }
   const sha = normTextHash(norm.text);
   const now = options.now ?? Date.now;
 
@@ -164,6 +175,7 @@ export async function loadActiveDigests(admin: SupabaseClient, normIds: string[]
 export interface DigestStatusRow {
   normId: string;
   title: string;
+  level: string;
   sourceChars: number;
   state: "ok" | "failed" | "missing" | "outdated";
   digestChars: number | null;
@@ -173,15 +185,15 @@ export interface DigestStatusRow {
 }
 
 const COLUMN_SETS = [
-  "id, title, text, layer, org_id, jurisdiction_type, country, auto_scope, archived_at, approval_status",
-  "id, title, text, layer, org_id, jurisdiction_type, country, auto_scope",
-  "id, title, text, layer, org_id, jurisdiction_type",
+  "id, title, text, layer, org_id, jurisdiction_type, jurisdiction_name, country, auto_scope, archived_at, approval_status",
+  "id, title, text, layer, org_id, jurisdiction_type, jurisdiction_name, country, auto_scope",
+  "id, title, text, layer, org_id, jurisdiction_type, jurisdiction_name",
 ];
 
 async function loadEligible(admin: SupabaseClient): Promise<DigestNorm[]> {
   let last = "";
   for (const columns of COLUMN_SETS) {
-    const { data, error } = await admin.from("norms").select(columns).is("org_id", null).eq("jurisdiction_type", "national");
+    const { data, error } = await admin.from("norms").select(columns).is("org_id", null).in("jurisdiction_type", ["national", "cantonal"]);
     if (!error) return ((data ?? []) as unknown as DigestNorm[]).filter((n) => digestEligible(n));
     last = error.message;
     if (!isMissingSchema(error.message)) break;
@@ -223,7 +235,8 @@ export async function digestOverview(admin: SupabaseClient): Promise<{ available
     const sha = normTextHash(n.text);
     const own = loaded.rows.filter((d) => d.norm_id === n.id);
     const current = own.find((d) => d.text_sha256 === sha && d.extractor_version === DIGEST_VERSION);
-    const base = { normId: n.id, title: n.title, sourceChars: n.text.length };
+    const level = n.jurisdiction_type === "cantonal" ? `Kanton ${n.jurisdiction_name ?? ""}`.trim() : "Bund";
+    const base = { normId: n.id, title: n.title, level, sourceChars: n.text.length };
     if (current) {
       return {
         ...base,
@@ -242,7 +255,7 @@ export async function digestOverview(admin: SupabaseClient): Promise<{ available
 
 export async function ensureAllDigests(
   admin: SupabaseClient,
-  options: { deadlineAt: number; force?: boolean; onlyIds?: string[]; complete?: CompleteFn },
+  options: { deadlineAt: number; force?: boolean; onlyIds?: string[]; complete?: CompleteFn; auto?: boolean },
 ): Promise<{ created: number; failed: number; skipped: number; costUsd: number }> {
   const eligible = (await loadEligible(admin)).filter((n) => !options.onlyIds || options.onlyIds.includes(n.id));
   const loaded = await loadRows(admin, eligible.map((n) => n.id));
@@ -255,7 +268,7 @@ export async function ensureAllDigests(
       summary.skipped += 1;
       continue;
     }
-    const outcome = await ensureDigest(admin, norm, { force: options.force, complete: options.complete, deadlineAt: options.deadlineAt });
+    const outcome = await ensureDigest(admin, norm, { force: options.force, complete: options.complete, deadlineAt: options.deadlineAt, auto: options.auto });
     if (outcome.status === "created") {
       summary.created += 1;
       summary.costUsd += outcome.costUsd;

@@ -14,6 +14,7 @@ import {
   type UnwatchedNorm,
 } from "./norm-watch-groups";
 import { PROVIDER_LABEL, STATUS_META, callApi, formatDateTime } from "./norm-watch-meta";
+import { groupTone } from "./library-filter";
 
 type Banner = { tone: "ok" | "error"; text: string } | null;
 
@@ -410,11 +411,7 @@ export default function NormWatchPanel() {
               <div className="space-y-6" aria-busy={loading}>
                 {groups.map((g) => {
                   const counts = groupCounts(g.items);
-                  const tone = g.label === "Bund"
-                    ? { bar: "bg-[#151414] text-white", sub: "text-white/80", edge: "border-[#151414]" }
-                    : g.label.startsWith("Kanton")
-                      ? { bar: "bg-[#CBBFAE] text-[#151414]", sub: "text-[#3b352c]", edge: "border-[#CBBFAE]" }
-                      : { bar: "bg-[rgba(21,20,20,.1)] text-[#151414]", sub: "text-[#46464a]", edge: "border-[rgba(21,20,20,.25)]" };
+                  const tone = groupTone(g.label);
                   return (
                     <section key={g.key} aria-label={g.label} className={`overflow-hidden rounded-xl border-2 ${tone.edge}`}>
                       <header className={`flex flex-wrap items-center gap-2 px-4 py-2.5 ${tone.bar}`}>

@@ -130,7 +130,7 @@ async function handleUpload(request: Request) {
   try {
     const remaining = startedAt + 270_000 - Date.now();
     if (remaining > 60_000) {
-      await ensureDigest(admin, { id: data.id, title, text, layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3, org_id: null, jurisdiction_type: jurisdictionType, country: uploadCountry(jurisdictionType, jurisdictionName, formData.get("country") as string | null) }, { deadlineAt: startedAt + 270_000 });
+      await ensureDigest(admin, { id: data.id, title, text, layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3, org_id: null, jurisdiction_type: jurisdictionType, country: uploadCountry(jurisdictionType, jurisdictionName, formData.get("country") as string | null) }, { deadlineAt: startedAt + 270_000, auto: true });
     }
   } catch (e) {
     console.error("Prüfauszug nach Upload:", e instanceof Error ? e.message : "unbekannt");

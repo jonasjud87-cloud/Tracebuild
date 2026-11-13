@@ -6,6 +6,7 @@
  * gerufen. Prompts und URLs kommen aus dem Snapshot, damit der Cache-Prefix byte-identisch bleibt.
  */
 import type { CallOutcome, CheckItem, ConsolidationResult, NormCallResult, PlanFile, UsageTotals } from "../analysis-engine";
+import { DELTA_NEW_KIND } from "../analysis-delta";
 import {
   CANCEL_POLL_MS,
   DEFAULT_OVERLOAD_WAIT_MS,
@@ -438,7 +439,12 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
         : {};
 
       // Leer ist erlaubt, aber ohne Denken nicht glaubhaft: einmal wiederholen. Bleibt es leer, nennt es der Bericht.
-      const hollow = r.ok && outcome.items.length === 0 && r.output_tokens < EMPTY_ANSWER_MAX_OUTPUT_TOKENS && part.attempts < 2;
+      const hollow =
+        r.ok &&
+        outcome.items.length === 0 &&
+        r.output_tokens < EMPTY_ANSWER_MAX_OUTPUT_TOKENS &&
+        part.attempts < 2 &&
+        part.unit.norm.source_kind !== DELTA_NEW_KIND;
 
       if (hollow) {
         // Als Fehlversuch festhalten: Scheitert auch die Wiederholung, nennt der Bericht den Grund.
@@ -602,6 +608,15 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
   async function runConsolidation(): Promise<"ok" | "handoff" | "cancelled"> {
     const snapshot = job!.snapshot!;
     const raw = rawItems(parts);
+    if (snapshot.delta) {
+      await update({
+        final_items: raw,
+        consolidation: null,
+        phase: "finalize",
+        last_progress_at: new Date(clock.now()).toISOString(),
+      });
+      return "ok";
+    }
     const { callMs, maxTokens } = consolidationBudget(raw.length);
 
     while (true) {

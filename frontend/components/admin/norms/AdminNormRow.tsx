@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { api } from "@/lib/api";
 import type { AdminNorm } from "./admin-norm-types";
 
@@ -26,9 +26,10 @@ interface Props {
   promoting?: boolean;
   onPromote?: (id: string) => void;
   onDelete: (id: string) => void;
+  extra?: ReactNode;
 }
 
-export default function AdminNormRow({ norm, watched = false, showOwner = false, promoting = false, onPromote, onDelete }: Props) {
+export default function AdminNormRow({ norm, watched = false, showOwner = false, promoting = false, onPromote, onDelete, extra }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [normText, setNormText] = useState<string | null>(null);
 
@@ -71,6 +72,7 @@ export default function AdminNormRow({ norm, watched = false, showOwner = false,
               </span>
             )}
           </div>
+          {extra}
           {expanded && (
             <>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[#46464a]">{normText ?? "Text wird geladen …"}</p>

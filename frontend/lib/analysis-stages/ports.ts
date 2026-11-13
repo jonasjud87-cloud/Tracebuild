@@ -43,6 +43,9 @@ export interface RunSnapshot extends AnalysisSnapshots {
   oereb_context: boolean;
   auto_parts: AutoPartsSummary;
   digests?: { norm_id: string; sha256: string }[];
+  input_fingerprint?: string;
+  delta?: { baseline_id: string; version_no: number | null; baseline_count: number };
+  delta_fallback?: string;
 }
 
 export interface StageJob {
@@ -109,6 +112,7 @@ export interface ItemRow {
   confidence: string;
   page_reference: number | null;
   source_file: string | null;
+  change_status?: string | null;
 }
 
 export interface ClaimResult {
