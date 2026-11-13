@@ -10,11 +10,14 @@ import PageHeader from "../shell/PageHeader";
 import { fetchEnvelope, useResource } from "./resource";
 import KpiTile from "./KpiTile";
 import LatestAnalysesTable from "./LatestAnalysesTable";
+import NormWatchCard from "./NormWatchCard";
 import SystemStatusCard, { type SystemStatusData } from "./SystemStatusCard";
+import type { NormWatchOverview } from "@/lib/norm-watch/types";
 import { formatInt, formatMoney, resolveCurrency } from "./format";
 
 const OVERVIEW_URL = "/api/v1/admin/overview";
 const STATUS_URL = "/api/v1/admin/system-status";
+const NORM_WATCH_URL = "/api/v1/admin/norm-watch";
 
 const isObj = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
@@ -81,6 +84,8 @@ const loadOverview = async () => {
 
 const loadStatus = () => fetchEnvelope<SystemStatusData>(STATUS_URL, "Systemstatus konnte nicht geladen werden.");
 
+const loadNormWatch = () => fetchEnvelope<NormWatchOverview>(NORM_WATCH_URL, "Normabgleich konnte nicht geladen werden.");
+
 function NoData() {
   return <p className="py-8 text-center text-sm text-[var(--tba-text-2,#46464a)]">Keine Daten verfügbar.</p>;
 }
@@ -96,12 +101,14 @@ function PlaceholderCard({ title, state, retry, skeleton }: { title: string; sta
 export default function OverviewDashboard() {
   const [overview, reloadOverview, overviewBusy] = useResource(loadOverview);
   const [status, reloadStatus, statusBusy] = useResource(loadStatus);
+  const [normWatch, reloadNormWatch, normWatchBusy] = useResource(loadNormWatch);
 
-  const loading = overviewBusy || statusBusy;
+  const loading = overviewBusy || statusBusy || normWatchBusy;
   const refresh = () => {
     if (loading) return;
     reloadOverview();
     reloadStatus();
+    reloadNormWatch();
   };
 
   const data = overview.status === "ready" ? overview.data : null;
@@ -218,6 +225,10 @@ export default function OverviewDashboard() {
             <PlaceholderCard title="Systemstatus" state={status} retry={reloadStatus} skeleton={<CardSkeleton rows={4} />} />
           )}
         </div>
+      </div>
+
+      <div className="tba-stagger tba-base-2 pt-2">
+        <NormWatchCard state={normWatch} retry={reloadNormWatch} />
       </div>
     </div>
   );

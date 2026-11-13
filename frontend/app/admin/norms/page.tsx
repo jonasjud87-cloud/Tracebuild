@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AdminShell from "@/components/admin/shell/AdminShell";
 import PageHeader from "@/components/admin/shell/PageHeader";
+import NormWatchPanel from "@/components/admin/norms/NormWatchPanel";
 import { api } from "@/lib/api";
 
 const CANTONS = [
@@ -532,6 +533,8 @@ export default function AdminNormsPage() {
           title="Normen-Datenbank"
           subtitle="Plattformweit — Normen hier hochgeladen sind für alle Organisationen sichtbar. Du kannst hier ausserdem Normen anderer Organisationen einsehen und für alle Organisationen freigeben."
         />
+
+        <NormWatchPanel />
 
         <div className="flex gap-8 items-start">
           {/* Upload-Panel */}
