@@ -27,7 +27,7 @@ const SEVERITY_LABEL: Record<Severity, string> = { critical: "Kritisch", warning
 const SEVERITY_DOT: Record<Severity, string> = { critical: "bg-[#c0463d]", warning: "bg-[#b97a0c]", info: "bg-[#8f836f]" };
 
 const CARD = "tba-glass rounded-2xl";
-const BTN = "rounded-full border border-white/20 px-3.5 py-1.5 text-sm font-medium text-white/90 transition-colors hover:bg-white/10 disabled:opacity-40 disabled:hover:bg-transparent";
+const BTN = "rounded-full border border-[#8c8b8e] bg-white px-3.5 py-1.5 text-sm font-medium text-[#151414] transition-colors hover:bg-[#f6f3ee] disabled:opacity-40 disabled:hover:bg-white";
 
 function formatDate(iso: string): string {
   const d = new Date(iso);
@@ -132,18 +132,18 @@ export default function AlertsView() {
               role="tab"
               aria-selected={view === key}
               onClick={() => switchView(key)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${view === key ? "bg-white/90 text-[#151414]" : "text-white/80 hover:bg-white/10"}`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${view === key ? "bg-[#151414] text-white" : "text-[#46464a] hover:bg-[#f6f3ee]"}`}
             >
               {label}
             </button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-white/80">
+        <label className="flex items-center gap-2 text-sm text-[#46464a]">
           Dringlichkeit
           <select
             value={severity}
             onChange={e => setSeverity(e.target.value as Severity | "all")}
-            className="rounded-lg border border-white/20 bg-transparent px-2 py-1 text-sm text-white"
+            className="rounded-lg border border-[#8c8b8e] bg-white px-2 py-1 text-sm text-[#151414]"
           >
             <option value="all" className="text-black">Alle</option>
             {SEVERITIES.map(s => <option key={s} value={s} className="text-black">{SEVERITY_LABEL[s]}</option>)}
@@ -153,7 +153,7 @@ export default function AlertsView() {
 
       {list.length > 0 && (
         <div className="flex flex-wrap items-center gap-2.5 px-1">
-          <label className="flex items-center gap-2 text-sm text-white/80">
+          <label className="flex items-center gap-2 text-sm text-[#46464a]">
             <input type="checkbox" checked={allSelected} onChange={toggleAll} />
             Alle auswählen
           </label>
@@ -172,17 +172,17 @@ export default function AlertsView() {
         </div>
       )}
 
-      {notice && <p role="alert" className="px-1 text-sm text-[#e8b4ae]">{notice}</p>}
-      {error && <p role="alert" className="px-1 text-sm text-[#e8b4ae]">{error}</p>}
-      {!data && !error && <p className="px-1 text-sm text-white/70">Wird geladen…</p>}
+      {notice && <p role="alert" className="px-1 text-sm text-[#c0463d]">{notice}</p>}
+      {error && <p role="alert" className="px-1 text-sm text-[#c0463d]">{error}</p>}
+      {!data && !error && <p className="px-1 text-sm text-[#46464a]">Wird geladen…</p>}
       {data && list.length === 0 && (
-        <div className={`${CARD} p-8 text-center text-sm text-white/75`}>
+        <div className={`${CARD} p-8 text-center text-sm text-[#46464a]`}>
           {view === "open" ? "Keine offenen Meldungen." : "Das Archiv ist leer."}
         </div>
       )}
 
       {list.length > 0 && (
-        <ul className={`${CARD} divide-y divide-white/10 overflow-hidden`}>
+        <ul className={`${CARD} divide-y divide-[rgba(21,20,20,.08)] overflow-hidden`}>
           {list.map(a => (
             <li key={a.id} className="flex items-start gap-3 px-4 py-3.5">
               <input
@@ -194,9 +194,9 @@ export default function AlertsView() {
               />
               <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${SEVERITY_DOT[a.severity]}`} title={SEVERITY_LABEL[a.severity]} />
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-white">{a.title}</p>
-                <p className="mt-0.5 text-sm text-white/80">{a.message}</p>
-                <p className="mt-1 text-[13px] text-white/60">
+                <p className="text-sm font-semibold text-[#151414]">{a.title}</p>
+                <p className="mt-0.5 text-sm text-[#46464a]">{a.message}</p>
+                <p className="mt-1 text-[13px] text-[#5f5f64]">
                   {a.orgName ? `${a.orgName} · ` : ""}{SEVERITY_LABEL[a.severity]} · {formatDate(a.createdAt)}
                 </p>
               </div>
