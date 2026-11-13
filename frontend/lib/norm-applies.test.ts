@@ -41,14 +41,15 @@ test("applies: parcel nie über die Jurisdiktion, municipal schon", () => {
   assert.equal(applies(municipal({ ...auto, auto_scope: "superseded" }), here), false);
 });
 
-test("Themen-Mapping: Gemeindenormen fremder Gemeinden fallen weg, manuelle wie importierte", () => {
+test("Themen-Mapping: Normen fremder Gemeinden und fremder Kantone fallen weg, manuelle wie importierte", () => {
   const norms = [
     municipal({ id: "fremd", source_kind: "oereb_auto", auto_scope: "municipal", jurisdiction_name: "Herisau", jurisdiction_bfs: 3001 }),
     municipal({ id: "eigen", source_kind: "oereb_auto", auto_scope: "municipal", jurisdiction_bfs: 3024 }),
     municipal({ id: "objekt", source_kind: "oereb_auto", auto_scope: "parcel", jurisdiction_bfs: 3024 }),
     municipal({ id: "manuell-fremd", jurisdiction_name: "Herisau" }),
     municipal({ id: "manuell-eigen" }),
-    { id: "kanton", layer: 3, jurisdiction_type: "cantonal", jurisdiction_name: "SG" },
+    { id: "kanton", layer: 3, jurisdiction_type: "cantonal", jurisdiction_name: "AR" },
+    { id: "fremder-kanton", layer: 3, jurisdiction_type: "cantonal", jurisdiction_name: "SG" },
     { id: "org", layer: 5, jurisdiction_type: "org", jurisdiction_name: null },
   ];
   assert.deepEqual(normsForThemeMapping(norms, here).map((n) => n.id), ["eigen", "manuell-eigen", "kanton", "org"]);
