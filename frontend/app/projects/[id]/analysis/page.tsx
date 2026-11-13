@@ -32,7 +32,7 @@ import {
 import { autoPartsWarning, downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import { coverageGaps, type CoverageNorm } from "@/lib/norm-coverage";
 import { hashFiles } from "@/lib/plan-hash-client";
-import { DELTA_CHANGE_LABEL, type DeltaChange } from "@/lib/analysis-delta";
+import { DELTA_CHANGE_LABEL, type DeltaChange } from "@/lib/analysis-delta-labels";
 import {
   type AnalysisItem,
   type Category,

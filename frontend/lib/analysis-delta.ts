@@ -1,6 +1,7 @@
 import type { CheckItem, Confidence, Status } from "@/lib/analysis-engine";
 import { dataBlock, inlineData } from "@/lib/analysis-reference";
 import { clampCompanyStatus } from "@/lib/company-norm-prompt";
+import { DELTA_CHANGE_LABEL, type DeltaChange } from "@/lib/analysis-delta-labels";
 
 export const DELTA_CHECK_KIND = "delta_check";
 export const DELTA_NEW_KIND = "delta_new";
@@ -8,17 +9,7 @@ export const DELTA_CHUNK_ITEMS = 30;
 export const DELTA_RECOMMEND_FULL_RATIO = 0.5;
 
 export type DeltaKind = typeof DELTA_CHECK_KIND | typeof DELTA_NEW_KIND;
-export type DeltaChange = "unchanged" | "resolved" | "improved" | "worse" | "updated" | "not_checkable" | "new";
-
-export const DELTA_CHANGE_LABEL: Record<DeltaChange, string> = {
-  unchanged: "Unverändert",
-  resolved: "Behoben",
-  improved: "Verbessert",
-  worse: "Verschlechtert",
-  updated: "Angepasst",
-  not_checkable: "Nicht mehr prüfbar",
-  new: "Neu",
-};
+export { DELTA_CHANGE_LABEL, type DeltaChange };
 
 export interface BaselineItem {
   ref: string;
