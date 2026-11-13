@@ -4,13 +4,16 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { CheckSummary, DraftDetail, NormWatchOverview, SourceView } from "@/lib/norm-watch/types";
 import { Card, CardError, CardSkeleton, focusRing } from "../overview/CardFrame";
 import { fetchEnvelope, useResource } from "../overview/resource";
+import {
+  findUnwatched,
+  groupByJurisdiction,
+  groupCounts,
+  groupLabel,
+  supportedProvider,
+  type PlatformNorm,
+  type UnwatchedNorm,
+} from "./norm-watch-groups";
 import { PROVIDER_LABEL, STATUS_META, callApi, formatDateTime } from "./norm-watch-meta";
-
-interface PlatformNorm {
-  id: string;
-  title: string | null;
-  layer: number;
-}
 
 type Banner = { tone: "ok" | "error"; text: string } | null;
 
@@ -213,6 +216,7 @@ export default function NormWatchPanel() {
   const [drafts, setDrafts] = useState<Record<string, DraftState>>({});
   const openTokens = useRef<Record<string, number>>({});
   const tokenCounter = useRef(0);
+  const formRef = useRef<HTMLFormElement>(null);
   const [norms, setNorms] = useState<PlatformNorm[]>([]);
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ provider: "fedlex", identifier: "", label: "", normId: "" });
@@ -293,6 +297,17 @@ export default function NormWatchPanel() {
   const checkAll = () =>
     void run(async () => checkMessage(await callApi<CheckSummary>(`${OVERVIEW_URL}/check`, "POST", {})));
 
+  const startWatch = (norm: UnwatchedNorm) => {
+    setForm({
+      provider: supportedProvider(norm.jurisdictionType, norm.jurisdictionName) ?? "fedlex",
+      identifier: "",
+      label: norm.title,
+      normId: norm.id,
+    });
+    setShowAdd(true);
+    window.setTimeout(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 50);
+  };
+
   const addSource = (e: React.FormEvent) => {
     e.preventDefault();
     void run(async () => {
@@ -307,6 +322,10 @@ export default function NormWatchPanel() {
       return "Quelle hinzugefügt. Sie wird beim nächsten Abgleich geprüft.";
     });
   };
+
+  const groups = overview.status === "ready" ? groupByJurisdiction(overview.data.sources) : [];
+  const unwatched = overview.status === "ready" ? groupByJurisdiction(findUnwatched(norms, overview.data.sources)) : [];
+  const unwatchedCount = unwatched.reduce((sum, g) => sum + g.items.length, 0);
 
   return (
     <section id="norm-watch" className="scroll-mt-24">
@@ -334,7 +353,7 @@ export default function NormWatchPanel() {
         )}
 
         {showAdd && (
-          <form onSubmit={addSource} className="mb-4 grid gap-3 rounded-xl border border-[rgba(21,20,20,.12)] bg-white/70 p-4 sm:grid-cols-2">
+          <form ref={formRef} onSubmit={addSource} className="mb-4 grid gap-3 rounded-xl border border-[rgba(21,20,20,.12)] bg-white/70 p-4 sm:grid-cols-2">
             <label className="text-[13px] font-semibold text-[#151414]">
               Quelle
               <select className={`${inputCls} mt-1`} value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
@@ -388,8 +407,32 @@ export default function NormWatchPanel() {
             {overview.data.sources.length === 0 ? (
               <p className="text-sm text-[var(--tba-text-2,#46464a)]">Noch keine Quellen eingerichtet.</p>
             ) : (
-              <ul className="divide-y divide-[rgba(21,20,20,.08)]" aria-busy={loading}>
-                {overview.data.sources.map((s) => (
+              <div className="space-y-6" aria-busy={loading}>
+                {groups.map((g) => {
+                  const counts = groupCounts(g.items);
+                  return (
+                    <section key={g.key} aria-label={g.label}>
+                      <header className="mb-1 flex flex-wrap items-center gap-2 border-b border-[rgba(21,20,20,.12)] pb-2">
+                        <h3 className="text-[15px] font-bold text-[#151414]">{g.label}</h3>
+                        <span className="text-[13px] text-[var(--tba-text-2,#46464a)]">
+                          {g.items.length} {g.items.length === 1 ? "Quelle" : "Quellen"}
+                        </span>
+                        {counts.update > 0 && (
+                          <span className={`rounded-full px-2 py-0.5 text-[13px] font-medium ${STATUS_META.update_available.pill}`}>
+                            {counts.update} zur Freigabe
+                          </span>
+                        )}
+                        {counts.error > 0 && (
+                          <span className={`rounded-full px-2 py-0.5 text-[13px] font-medium ${STATUS_META.error.pill}`}>{counts.error} Fehler</span>
+                        )}
+                        {counts.missing > 0 && (
+                          <span className={`rounded-full px-2 py-0.5 text-[13px] font-medium ${STATUS_META.missing.pill}`}>
+                            {counts.missing} ohne Norm
+                          </span>
+                        )}
+                      </header>
+                      <ul className="divide-y divide-[rgba(21,20,20,.08)]">
+                {g.items.map((s) => (
                   <SourceRow
                     key={s.id}
                     source={s}
@@ -420,7 +463,48 @@ export default function NormWatchPanel() {
                     }
                   />
                 ))}
-              </ul>
+                      </ul>
+                    </section>
+                  );
+                })}
+              </div>
+            )}
+            {unwatchedCount > 0 && (
+              <details className="mt-5 rounded-xl border border-[rgba(21,20,20,.12)] bg-white/60 p-4">
+                <summary className={`cursor-pointer text-sm font-semibold text-[#151414] ${focusRing}`}>
+                  Manuell hinterlegt, ohne Abgleich ({unwatchedCount})
+                </summary>
+                <p className="mt-2 text-[13px] text-[var(--tba-text-2,#46464a)]">
+                  Diese Bundes- und Kantonsnormen wurden von Hand hochgeladen und werden nicht auf neue Fassungen geprüft. Mit «Abgleich einrichten» legst du eine Quelle dafür an.
+                </p>
+                <div className="mt-3 space-y-4">
+                  {unwatched.map((g) => (
+                    <div key={g.key}>
+                      <h4 className="text-[13px] font-bold uppercase tracking-wide text-[var(--tba-text-2,#46464a)]">{g.label}</h4>
+                      <ul className="divide-y divide-[rgba(21,20,20,.08)]">
+                        {g.items.map((n) => {
+                          const provider = supportedProvider(n.jurisdictionType, n.jurisdictionName);
+                          return (
+                            <li key={n.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium text-[#151414]">{n.title}</p>
+                                <p className="text-[13px] text-[var(--tba-text-2,#46464a)]">{groupLabel(n.jurisdictionType, n.jurisdictionName)}</p>
+                              </div>
+                              {provider ? (
+                                <button type="button" className={btn} disabled={working} onClick={() => startWatch(n)}>
+                                  Abgleich einrichten
+                                </button>
+                              ) : (
+                                <span className="text-[13px] text-[var(--tba-text-2,#46464a)]">Für diesen Kanton gibt es noch keine Quelle</span>
+                              )}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </details>
             )}
             <p className="mt-3 text-[13px] text-[var(--tba-text-2,#46464a)]">
               {overview.data.summary.lastCheckedAt

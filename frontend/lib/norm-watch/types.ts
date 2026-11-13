@@ -60,6 +60,8 @@ export interface SourceView {
   label: string;
   provider: NormProvider;
   identifier: string;
+  jurisdictionType: "national" | "cantonal";
+  jurisdictionName: string | null;
   enabled: boolean;
   normId: string | null;
   normTitle: string | null;

@@ -59,6 +59,8 @@ test("buildOverview: zählt, sortiert nach Dringlichkeit und nimmt die neueste P
   const overview = buildOverview(sources, new Map([["b", "draft-1"]]), new Map([["n1", "USG Titel"]]), NOW);
   assert.deepEqual(overview.sources.map((s) => s.id), ["b", "c", "d", "a"]);
   assert.equal(overview.sources[0].draftId, "draft-1");
+  assert.equal(overview.sources[0].jurisdictionType, "national");
+  assert.equal(overview.sources[0].jurisdictionName, null);
   assert.equal(overview.sources[0].normTitle, "USG Titel");
   assert.equal(overview.summary.total, 4);
   assert.equal(overview.summary.updateAvailable, 1);

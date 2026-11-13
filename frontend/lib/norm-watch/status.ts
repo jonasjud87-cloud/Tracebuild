@@ -39,6 +39,8 @@ export function buildOverview(
     label: s.label,
     provider: s.provider,
     identifier: s.identifier,
+    jurisdictionType: s.jurisdiction_type,
+    jurisdictionName: s.jurisdiction_name,
     enabled: s.enabled,
     normId: s.norm_id,
     normTitle: s.norm_id ? normTitles.get(s.norm_id) ?? null : null,
