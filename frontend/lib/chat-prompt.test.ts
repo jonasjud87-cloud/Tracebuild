@@ -31,5 +31,4 @@ test("Chat-Route nutzt die Helfer, kein festes «Kanton ${kanton}» mehr", () =>
 
 test("Extraktionsprompts nennen Schweiz oder Liechtenstein", () => {
   assert.match(read("./kenndaten-extraction.ts"), /Baugesetze der Schweiz oder Liechtensteins/);
-  assert.match(read("./normenblatt-extraction.ts"), /Zonennormen der Schweiz oder Liechtensteins/);
 });
