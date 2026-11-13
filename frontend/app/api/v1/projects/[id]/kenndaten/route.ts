@@ -15,7 +15,7 @@ import {
   runKenndatenExtraction,
   waehleTextstellen,
 } from "@/lib/kenndaten-extraction";
-import { KenndatenBesetzt, holeAuswertung, type KenndatenCacheZeile, type KenndatenSpeicher } from "@/lib/kenndaten-lauf";
+import { KenndatenBesetzt, holeAuswertung, istTreffer, type KenndatenCacheZeile, type KenndatenSpeicher } from "@/lib/kenndaten-lauf";
 import { ladeGemeindePdfs, uploadPfad, type PdfQuelle } from "@/lib/kenndaten-quelle";
 
 export const maxDuration = 300;
@@ -80,8 +80,117 @@ async function ladeNormQuellen(admin: Admin, ids: string[]): Promise<Map<string,
   return new Map(rows.map((r) => [r.id, { pdf_url: r.pdf_url, source_url: r.source_url }]));
 }
 
+type ProjektZeile = {
+  id: string;
+  name: string;
+  location: unknown;
+  parcel_number: string | null;
+  bauzone: string | null;
+  zone_source: string | null;
+  zone_confidence: string | null;
+};
+type Ort = { municipality?: string | null; canton?: string | null };
+type NormListe = ReturnType<typeof selectNorms>["norms"];
+
+interface Kontext {
+  project: ProjektZeile;
+  zone: string;
+  location: Ort;
+  norms: NormListe;
+  quellen: Map<string, Pick<PdfQuelle, "pdf_url" | "source_url">>;
+  hash: string;
+}
+
+/** Projekt, Zone, auswertbare Normen und Normstand-Hash. Gibt bei einem Fehler die fertige Antwort zurück. */
+async function ladeKontext(admin: Admin, orgId: string, projectId: string): Promise<Kontext | Response> {
+  const { data } = await admin
+    .from("projects")
+    .select("id, name, location, parcel_number, bauzone, zone_source, zone_confidence")
+    .eq("id", projectId)
+    .eq("org_id", orgId)
+    .single();
+  const project = data as ProjektZeile | null;
+  if (!project) return err("Projekt nicht gefunden", 404);
+
+  const zone = (project.bauzone ?? "").trim();
+  if (!zone) {
+    return err("Für dieses Projekt ist keine Zone erfasst. Bitte zuerst den ÖREB-Auszug abrufen oder die Zone eintragen.", 422);
+  }
+  const location = (project.location ?? {}) as Ort;
+
+  const { rows, error: normError } = await loadProjectNorms(admin, projectId);
+  if (normError) {
+    console.error("kenndaten: Normen nicht ladbar", normError.message);
+    return err("Die Normen des Projekts konnten nicht geladen werden. Bitte später erneut versuchen.", 500);
+  }
+  // Auch bei unsicherer Zone: Eine Norm, die nur für andere Zonen gilt, darf hier keinen Wert liefern.
+  const zoneRows = rows.filter((r) => r.norms && normMatchesZone(r.norms.zone, zone));
+  const { norms, source } = selectNorms(zoneRows, zone, project.zone_confidence ?? null, orgId);
+  if (source !== "project_norms" || waehleTextstellen(norms, zone).length === 0) {
+    return err("Diesem Projekt sind für seine Zone keine auswertbaren Normen zugewiesen. Bitte zuerst die Normen laden.", 422);
+  }
+
+  const quellen = await ladeNormQuellen(admin, norms.map((n) => n.id));
+  const hash = kenndatenCacheKey(
+    norms.map((n) => ({ id: n.id, title: n.title, layer: n.layer, text: n.text, quelle: quellen.get(n.id)?.pdf_url ?? quellen.get(n.id)?.source_url })),
+    zone,
+  );
+  return { project, zone, location, norms, quellen, hash };
+}
+
 /**
- * Daten des Kenndatenblatts. Nur POST: Ein Aufruf kann ein Modell bezahlen, das darf kein Prefetch auslösen.
+ * Zuletzt erstelltes Blatt aus dem Cache, ohne Modellaufruf. `veraltet` heisst: Normen oder Zone haben sich
+ * seither geändert, das Blatt zeigt den alten Stand. Ohne Cache ist `blatt` null.
+ */
+export async function GET(_request: Request, { params }: { params: { id: string } }) {
+  const user = await getAuthUser();
+  if (!user) return unauthorized();
+
+  const admin = createAdminClient();
+  try {
+    const { data: projekt } = await admin
+      .from("projects")
+      .select("id, name, location, parcel_number, bauzone, zone_source, zone_confidence")
+      .eq("id", params.id)
+      .eq("org_id", user.org_id)
+      .single();
+    const project = projekt as ProjektZeile | null;
+    if (!project) return err("Projekt nicht gefunden", 404);
+
+    const zeile = await speicherFuer(admin, params.id).lesen();
+    if (!zeile?.items) return ok({ blatt: null, veraltet: false, erstellt: null });
+
+    const location = (project.location ?? {}) as Ort;
+    const { facts, snapshot } = await loadOerebFacts(admin, params.id);
+    const blatt = baueKenndatenBlatt({
+      projekt: {
+        name: project.name,
+        municipality: location.municipality ?? null,
+        canton: location.canton ?? null,
+        parcel: project.parcel_number ?? null,
+        bauzone: (project.bauzone ?? "").trim(),
+        zoneSource: project.zone_source ?? null,
+        zoneConfidence: project.zone_confidence ?? null,
+      },
+      landflaeche: facts?.parcelAreaM2 ?? null,
+      oerebFetchedAt: snapshot.fetched_at,
+      oerebStale: snapshot.stale,
+      auswertung: zeile.items,
+      jetzt: new Date(zeile.created_at ?? Date.now()),
+    });
+
+    const kontext = await ladeKontext(admin, user.org_id, params.id);
+    const veraltet = kontext instanceof Response ? true : !istTreffer(zeile, kontext.hash, Date.now());
+    return ok({ blatt, veraltet, erstellt: zeile.created_at });
+  } catch (e) {
+    if (e instanceof MigrationFehlt) return ok({ blatt: null, veraltet: false, erstellt: null });
+    console.error("kenndaten: Blatt nicht ladbar", e);
+    return err("Das Normenblatt konnte nicht geladen werden.", 500);
+  }
+}
+
+/**
+ * Erstellt das Blatt neu. Ein Aufruf kann ein Modell bezahlen, daher nur per POST und nie als Prefetch.
  * Das Modell läuft höchstens einmal je Normstand und Zone (Cache in project_kenndaten), Landfläche und
  * ÖREB-Stand werden bei jedem Klick frisch gelesen.
  */
@@ -91,38 +200,11 @@ export async function POST(_request: Request, { params }: { params: { id: string
   if (!user) return unauthorized();
 
   const admin = createAdminClient();
-  const { data: project } = await admin
-    .from("projects")
-    .select("id, name, location, parcel_number, bauzone, zone_source, zone_confidence")
-    .eq("id", params.id)
-    .eq("org_id", user.org_id)
-    .single();
-  if (!project) return err("Projekt nicht gefunden", 404);
-
-  const zone = (project.bauzone ?? "").trim();
-  if (!zone) {
-    return err("Für dieses Projekt ist keine Zone erfasst. Bitte zuerst den ÖREB-Auszug abrufen oder die Zone eintragen.", 422);
-  }
-  const location = (project.location ?? {}) as { municipality?: string | null; canton?: string | null };
 
   try {
-    const { rows, error: normError } = await loadProjectNorms(admin, params.id);
-    if (normError) {
-      console.error("kenndaten: Normen nicht ladbar", normError.message);
-      return err("Die Normen des Projekts konnten nicht geladen werden. Bitte später erneut versuchen.", 500);
-    }
-    // Auch bei unsicherer Zone: Eine Norm, die nur für andere Zonen gilt, darf hier keinen Wert liefern.
-    const zoneRows = rows.filter((r) => r.norms && normMatchesZone(r.norms.zone, zone));
-    const { norms, source } = selectNorms(zoneRows, zone, project.zone_confidence ?? null, user.org_id);
-    if (source !== "project_norms" || waehleTextstellen(norms, zone).length === 0) {
-      return err("Diesem Projekt sind für seine Zone keine auswertbaren Normen zugewiesen. Bitte zuerst die Normen laden.", 422);
-    }
-
-    const quellen = await ladeNormQuellen(admin, norms.map((n) => n.id));
-    const hash = kenndatenCacheKey(
-      norms.map((n) => ({ id: n.id, title: n.title, layer: n.layer, text: n.text, quelle: quellen.get(n.id)?.pdf_url ?? quellen.get(n.id)?.source_url })),
-      zone,
-    );
+    const kontext = await ladeKontext(admin, user.org_id, params.id);
+    if (kontext instanceof Response) return kontext;
+    const { project, zone, location, norms, quellen, hash } = kontext;
 
     const { auswertung, model, cached } = await holeAuswertung({
       speicher: speicherFuer(admin, params.id),

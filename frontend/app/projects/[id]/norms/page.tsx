@@ -14,7 +14,6 @@ import { safeHref } from "@/lib/norm-structure";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { useOrgRole } from "@/components/useOrgRole";
 import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
-import type { KenndatenBlatt } from "@/lib/kenndaten";
 import p from "@/app/projects/project.module.css";
 import ProjectBanner from "@/components/project/ProjectBanner";
 import n from "./norms.module.css";
@@ -458,8 +457,6 @@ export default function NormenPage({ params }: { params: { id: string } }) {
   const [showOtherZones, setShowOtherZones] = useState(false);
   const [showNoData, setShowNoData] = useState(false);
   const [editingZone, setEditingZone] = useState(false);
-  const [kenndatenBusy, setKenndatenBusy] = useState(false);
-  const [kenndatenError, setKenndatenError] = useState<string | null>(null);
   const { isAdmin } = useOrgRole();
   const sync = useOerebSync();
 
@@ -547,21 +544,6 @@ export default function NormenPage({ params }: { params: { id: string } }) {
       flash(e instanceof Error ? e.message : "ÖREB-Abruf fehlgeschlagen.");
     } finally {
       setFetchingOereb(false);
-    }
-  }
-
-  async function handleKenndatenblatt() {
-    setKenndatenBusy(true);
-    setKenndatenError(null);
-    try {
-      const { blatt } = await api.post<{ blatt: KenndatenBlatt }>(`/projects/${params.id}/kenndaten`, {});
-      // jsPDF erst laden, wenn jemand das Blatt wirklich will.
-      const { downloadKenndatenPdf } = await import("@/lib/kenndaten-report");
-      await downloadKenndatenPdf(blatt);
-    } catch (e: unknown) {
-      setKenndatenError(e instanceof Error ? e.message : "Das Kenndatenblatt konnte nicht erstellt werden.");
-    } finally {
-      setKenndatenBusy(false);
     }
   }
 
@@ -655,10 +637,6 @@ export default function NormenPage({ params }: { params: { id: string } }) {
 
   const bannerActions = (
     <>
-      <button type="button" onClick={handleKenndatenblatt} disabled={kenndatenBusy} aria-busy={kenndatenBusy} className={p.btnGhost}>
-        <Ico d={kenndatenBusy ? ICON.refresh : ICON.download} size={16} className={kenndatenBusy ? "motion-safe:animate-spin" : undefined} />
-        {kenndatenBusy ? "Wird erstellt…" : "Kenndatenblatt erstellen"}
-      </button>
       <button type="button" onClick={handleRefresh} disabled={refreshing} className={p.btnGhost}>
         <Ico d={ICON.refresh} size={16} className={refreshing ? "motion-safe:animate-spin" : undefined} />
         Normen neu laden
@@ -677,7 +655,6 @@ export default function NormenPage({ params }: { params: { id: string } }) {
       <div role="status">
         {refreshMsg && <p className={n.flash}>{refreshMsg}</p>}
       </div>
-      {kenndatenError && <p role="alert" className={`${n.flash} ${n.flashErr}`}>{kenndatenError}</p>}
 
       {loading && !project && (
         <section className={`${p.glass} ${p.card}`} aria-hidden="true">
