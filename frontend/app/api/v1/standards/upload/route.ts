@@ -13,7 +13,10 @@ const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
   cantonal: 3,
   municipal: 4,
+  org: 5,
 };
+
+const NAMELESS_TYPES = new Set(["national", "org"]);
 
 export async function POST(request: Request) {
   // Any uncaught throw here would be rendered by Next as an HTML error page, which
@@ -42,7 +45,8 @@ async function handleUpload(request: Request) {
 
   if (!file) return err("Keine Datei hochgeladen");
   if (!category) return err("Kategorie fehlt");
-  if (jurisdictionType !== "national" && !jurisdictionName) return err("Kanton/Gemeinde fehlt");
+  if (!(jurisdictionType in LAYER_BY_JURISDICTION)) return err("Unbekannte Ebene");
+  if (!NAMELESS_TYPES.has(jurisdictionType) && !jurisdictionName) return err("Kanton/Gemeinde fehlt");
 
   const fileBytes = Buffer.from(await file.arrayBuffer());
   let text = "";
@@ -98,7 +102,7 @@ async function handleUpload(request: Request) {
       domain,
       layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3,
       jurisdiction_type: jurisdictionType,
-      jurisdiction_name: jurisdictionType === "national" ? null : jurisdictionName,
+      jurisdiction_name: NAMELESS_TYPES.has(jurisdictionType) ? null : jurisdictionName,
       org_id: user.org_id,
       category: category.trim(),
       text,

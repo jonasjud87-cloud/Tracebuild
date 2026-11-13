@@ -30,6 +30,18 @@ test("groupLabel: Bund, Kanton mit Namen und unbekannter Code", () => {
   assert.equal(groupLabel("cantonal", "AR"), "Kanton Appenzell Ausserrhoden (AR)");
   assert.equal(groupLabel("cantonal", "XX"), "Kanton XX");
   assert.equal(groupLabel("cantonal", null), "Kanton");
+  assert.equal(groupLabel("municipal", "Mels"), "Gemeinde Mels");
+  assert.equal(groupLabel("org", null), "Unternehmen");
+});
+
+test("groupByJurisdiction: Reihenfolge Bund, Kanton, Gemeinde, Unternehmen", () => {
+  const items = [
+    { id: "a", jurisdictionType: "org", jurisdictionName: null },
+    { id: "b", jurisdictionType: "municipal", jurisdictionName: "Mels" },
+    { id: "c", jurisdictionType: "cantonal", jurisdictionName: "SG" },
+    { id: "d", jurisdictionType: "national", jurisdictionName: null },
+  ];
+  assert.deepEqual(groupByJurisdiction(items).map((g) => g.label), ["Bund", "Kanton St. Gallen (SG)", "Gemeinde Mels", "Unternehmen"]);
 });
 
 test("groupByJurisdiction: Bund zuerst, dann Kantone alphabetisch, Reihenfolge innerhalb bleibt", () => {
