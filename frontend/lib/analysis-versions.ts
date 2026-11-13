@@ -71,12 +71,18 @@ export async function storedPlanHash(admin: SupabaseClient, documentId: string):
 export async function findReuseCandidates(admin: SupabaseClient, projectId: string, docType: string, planHash: string): Promise<ReuseCandidate[]> {
   const ids = await documentIds(admin, projectId, docType);
   if (!ids.length) return [];
-  const { data, error } = await admin
-    .from("analyses")
-    .select("id, version_no, created_at, status, plan_sha256, input_fingerprint:result_json->>input_fingerprint")
-    .in("document_id", ids)
-    .eq("plan_sha256", planHash)
-    .eq("status", "done");
+  const query = (excludeDelta: boolean) => {
+    let q = admin
+      .from("analyses")
+      .select("id, version_no, created_at, status, plan_sha256, input_fingerprint:result_json->>input_fingerprint")
+      .in("document_id", ids)
+      .eq("plan_sha256", planHash)
+      .eq("status", "done");
+    if (excludeDelta) q = q.neq("analysis_mode", "delta");
+    return q;
+  };
+  let { data, error } = await query(true);
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(false));
   if (error) {
     if (isMissingSchema(error.message)) return [];
     throw new Error(error.message);

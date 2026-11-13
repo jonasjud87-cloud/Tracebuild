@@ -123,7 +123,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
   // Die Dateien liegen bereits in Storage (Upload direkt aus dem Browser über
   // …/analyses/uploads); hier kommen nur Pfade an — kein Request-Body-Limit für Pläne.
   const body = await request.json().catch(() => null) as
-    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown; retry_of?: unknown } | null;
+    { files?: unknown; doc_type?: unknown; run_id?: unknown; preflight?: unknown; retry_of?: unknown; mode?: unknown } | null;
   if (!body) return err("Ungültige Anfrage");
   // Vom Client vergebene Lauf-ID: darüber kann er den Lauf per POST …/analyses/cancel abbrechen.
   const runId = (typeof body.run_id === "string" ? body.run_id.trim() : "") || null;
@@ -214,12 +214,22 @@ export async function POST(request: Request, { params }: { params: { id: string 
     return null;
   });
   const analysisRow = { document_id: doc.id, status: "running", result_json: runId ? { run_id: runId } : null };
+  let retryMode: string | null = null;
+  if (retryOf) {
+    const { data: retried } = await admin.from("analyses").select("analysis_mode").eq("id", retryOf).maybeSingle();
+    retryMode = (retried as { analysis_mode?: string | null } | null)?.analysis_mode ?? null;
+  }
+  const wantsDelta = (body.mode === "delta" || retryMode === "delta") && !!versionFields?.based_on_analysis_id;
+  const modeFields = wantsDelta ? { analysis_mode: "delta" } : {};
   let { data: analysis, error: analysisError } = await admin
     .from("analyses")
-    .insert(versionFields ? { ...analysisRow, ...versionFields } : analysisRow)
+    .insert(versionFields ? { ...analysisRow, ...versionFields, ...modeFields } : analysisRow)
     .select()
     .single();
   if (analysisError && versionFields && isMissingSchema(analysisError.message)) {
+    ({ data: analysis, error: analysisError } = await admin.from("analyses").insert({ ...analysisRow, ...versionFields }).select().single());
+  }
+  if (analysisError && isMissingSchema(analysisError.message)) {
     ({ data: analysis, error: analysisError } = await admin.from("analyses").insert(analysisRow).select().single());
   }
   if (analysisError || !analysis) {

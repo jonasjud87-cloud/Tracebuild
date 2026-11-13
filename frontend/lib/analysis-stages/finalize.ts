@@ -4,6 +4,7 @@
  */
 import type { CheckItem, NormCallResult, UsageTotals } from "../analysis-engine";
 import type { ItemRow, StageDeps, StageJob, StagePart } from "./ports";
+import { DELTA_CHECK_KIND, DELTA_NEW_KIND, carryFailedPart, summarizeDelta } from "../analysis-delta";
 
 export function totalUsage(parts: StagePart[], consolidation: UsageTotals | null): UsageTotals {
   const u: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
@@ -27,7 +28,11 @@ export function byPosition(parts: StagePart[]): StagePart[] {
 }
 
 export function rawItems(parts: StagePart[]): CheckItem[] {
-  return byPosition(parts).flatMap((p) => p.items ?? []);
+  return byPosition(parts).flatMap((p) => {
+    if (p.items && p.items.length > 0) return p.items;
+    if (p.unit.norm.source_kind === DELTA_CHECK_KIND) return carryFailedPart(p.unit.text, () => crypto.randomUUID());
+    return p.items ?? [];
+  });
 }
 
 export function callsOf(parts: StagePart[]): NormCallResult[] {
@@ -43,7 +48,7 @@ export function failedNormsOf(parts: StagePart[]): { norm_id: string; norm_title
 /** Normteile ohne Prüfpunkte. Kann korrekt sein, darf aber nicht wie geprüft und in Ordnung aussehen. */
 export function emptyPartsOf(parts: StagePart[]): string[] {
   return byPosition(parts)
-    .filter((p) => p.status === "done" && (p.items?.length ?? 0) === 0)
+    .filter((p) => p.status === "done" && (p.items?.length ?? 0) === 0 && p.unit.norm.source_kind !== DELTA_NEW_KIND)
     .map((p) => p.unit.label);
 }
 
@@ -88,6 +93,7 @@ export async function finalizeRun(
     confidence: item.confidence,
     page_reference: item.page_reference,
     source_file: item.source_file,
+    ...(item.change ? { change_status: item.change } : {}),
   }));
 
   await store.deleteItems(job.analysis_id);
@@ -126,6 +132,8 @@ export async function finalizeRun(
     norm_versions: snapshot?.norm_versions,
     auto_parts: snapshot?.auto_parts,
     input_fingerprint: snapshot?.input_fingerprint ?? null,
+    ...(snapshot?.delta ? { delta: { ...snapshot.delta, ...summarizeDelta(items, callsOf(parts)) } } : {}),
+    ...(snapshot?.delta_fallback ? { delta_fallback: snapshot.delta_fallback } : {}),
     item_count: items.length,
     raw_item_count: job.consolidation?.raw_count ?? items.length,
     consolidation: job.consolidation,

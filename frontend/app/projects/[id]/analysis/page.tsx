@@ -32,6 +32,7 @@ import {
 import { autoPartsWarning, downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import { coverageGaps, type CoverageNorm } from "@/lib/norm-coverage";
 import { hashFiles } from "@/lib/plan-hash-client";
+import { DELTA_CHANGE_LABEL, type DeltaChange } from "@/lib/analysis-delta";
 import {
   type AnalysisItem,
   type Category,
@@ -75,6 +76,8 @@ interface AnalysisWithDoc {
   status: string;
   created_at: string;
   versionNo: number | null;
+  delta: DeltaMeta | null;
+  deltaFallback: string | null;
   planType: string;
   /** Dateien des Plansatzes in Upload-Reihenfolge (ältere Analysen: eine Datei). */
   files: PlanFileRef[];
@@ -101,6 +104,16 @@ interface AnalysisWithDoc {
 const PREFLIGHT_MAX_MS = 90_000;
 
 interface PlanFileRef { name: string; url: string }
+
+interface DeltaMeta {
+  baseline_id: string;
+  version_no: number | null;
+  baseline_count: number;
+  counts: Partial<Record<DeltaChange, number>>;
+  same_project: boolean | null;
+  mismatch_reason: string | null;
+  recommend_full: boolean;
+}
 
 /** Name einer neuen Prüfung, wenn der Nutzer direkt Pläne hochlädt, ohne sie zu benennen. */
 const DEFAULT_CHECK_NAME = "Baugesuch";
@@ -133,7 +146,7 @@ interface RawGetAnalysis {
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
   items?: AnalysisItem[];
-  result_json?: { error?: string | null; timed_out?: boolean | null; failed_norms?: { norm_title: string; error: string }[] | null; empty_parts?: string[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown } & Partial<AnalysisSnapshots> | null;
+  result_json?: { error?: string | null; timed_out?: boolean | null; failed_norms?: { norm_title: string; error: string }[] | null; empty_parts?: string[] | null; auto_parts?: AnalysisAutoParts | null; preflight?: unknown; consolidation?: unknown; delta?: DeltaMeta | null; delta_fallback?: string | null } & Partial<AnalysisSnapshots> | null;
   failed_norms?: { norm_title: string; error: string }[];
 }
 
@@ -143,6 +156,8 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     status: a.status,
     created_at: a.created_at,
     versionNo: typeof a.version_no === "number" ? a.version_no : null,
+    delta: a.result_json?.delta ?? null,
+    deltaFallback: a.result_json?.delta_fallback ?? null,
     planType: planType ?? a.documents?.doc_type ?? DEFAULT_CHECK_NAME,
     files: a.files ?? (a.documents?.file_url ? [{ name: "Plan", url: a.documents.file_url }] : []),
     items: sortAnalysisItems(a.items ?? a.analysis_items ?? [], a.result_json?.norm_versions),
@@ -178,6 +193,9 @@ function CheckCard({ item }: { item: AnalysisItem }) {
           {cfg.label}
         </span>
         <span className={a.checkTitle}>{title}</span>
+        {item.change_status && item.change_status !== "unchanged" && (
+          <span className={`${p.chip} ${a.chipSm}`}>{DELTA_CHANGE_LABEL[item.change_status as DeltaChange] ?? item.change_status}</span>
+        )}
         <svg className={a.checkChevron} style={{ transform: expanded ? "rotate(180deg)" : "none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
           <path d="M19 9l-7 7-7-7" />
         </svg>
@@ -342,6 +360,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   }
 
   const typeAnalyses = analyses.filter((a) => planKey(a.planType) === planKey(selectedPlanType));
+  const hasBaseline = !!latestByType[planKey(selectedPlanType)];
 
   function openPlanType(name: string) {
     setSelectedPlanType(name);
@@ -452,7 +471,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
    * fehlgeschlagenen Analyse; Upload und Aktualisierung entfallen, der Start bleibt derselbe.
    * Während der Anfrage ist `uploading` gesetzt, das sperrt beide Knöpfe gegen Doppelklick.
    */
-  async function runAnalysis(retryOf?: AnalysisWithDoc) {
+  async function runAnalysis(retryOf?: AnalysisWithDoc, mode: "full" | "delta" = "full") {
     const files = retryOf ? [] : pendingFiles;
     // Prüfung beim Start einfrieren: der Nutzer kann während der Minuten des Laufs
     // wechseln — das Ergebnis gehört trotzdem zur Prüfung, unter der es gestartet wurde.
@@ -520,7 +539,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
         // 2. ÖREB und Reglemente auffrischen. Serverseitig läuft noch nichts, Abbrechen bleibt lokal.
         const preflightResult = await refreshBeforeAnalysis(controller.signal);
         uploadPhaseRef.current = false;
-        startBody = { files: uploaded, doc_type: planType, preflight: preflightResult };
+        startBody = { files: uploaded, doc_type: planType, preflight: preflightResult, mode };
       }
 
       // 3. Analyse über den ganzen Plansatz. Der Server antwortet sofort und rechnet im Hintergrund
@@ -1056,7 +1075,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       <button
                         type="button"
                         className={p.btnGhost}
-                        onClick={() => { skipReuseRef.current = true; setReuseOffer(null); void runAnalysis(); }}
+                        onClick={() => { skipReuseRef.current = true; setReuseOffer(null); void runAnalysis(undefined, "full"); }}
                       >
                         Trotzdem neu prüfen
                       </button>
@@ -1128,14 +1147,36 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       >
                         + Weitere Dateien
                       </button>
-                      <button
-                        type="button"
-                        onClick={(e) => { e.stopPropagation(); runAnalysis(); }}
-                        className={p.btnNavy}
-                      >
-                        <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
-                        Analyse starten
-                      </button>
+                      {hasBaseline ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); runAnalysis(undefined, "delta"); }}
+                            className={p.btnNavy}
+                            title="Prüft die Befunde der letzten Version am neuen Plan nach und sucht Neues. Schneller und günstiger."
+                          >
+                            <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
+                            Änderungsprüfung
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); runAnalysis(undefined, "full"); }}
+                            className={p.btnGhost}
+                            title="Prüft den Plan komplett neu gegen alle Normen."
+                          >
+                            Vollprüfung
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); runAnalysis(); }}
+                          className={p.btnNavy}
+                        >
+                          <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M8 5v14l11-7z" /></svg>
+                          Analyse starten
+                        </button>
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -1328,6 +1369,30 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                       ÖREB-Stand: {formatDate(selectedAnalysis.snapshots.oereb_snapshot.fetched_at) ?? "unbekannt"}
                       {selectedAnalysis.snapshots.oereb_snapshot.stale ? ". Die Aktualisierung war fehlgeschlagen, geprüft wurde dieser ältere Stand." : ""}
                     </p>
+                  )}
+
+                  {selectedAnalysis.deltaFallback && (
+                    <div role="status" className={`${g.alert} ${g.alertWarn}`}>
+                      <p className={a.alertTitle}>Es wurde eine Vollprüfung durchgeführt</p>
+                      <p className={a.alertBody}>Die Änderungsprüfung war nicht möglich: {selectedAnalysis.deltaFallback}</p>
+                    </div>
+                  )}
+
+                  {selectedAnalysis.delta && (
+                    <div role="status" className={`${g.alert} ${selectedAnalysis.delta.recommend_full ? g.alertWarn : ""}`}>
+                      <p className={a.alertTitle}>Änderungsprüfung gegenüber Version {selectedAnalysis.delta.version_no ?? "?"}</p>
+                      <p className={a.alertBody}>
+                        {(["resolved", "improved", "worse", "updated", "unchanged", "not_checkable", "new"] as DeltaChange[])
+                          .filter((k) => (selectedAnalysis.delta?.counts?.[k] ?? 0) > 0)
+                          .map((k) => `${selectedAnalysis.delta?.counts?.[k]} ${DELTA_CHANGE_LABEL[k].toLowerCase()}`)
+                          .join(", ") || "Keine Änderungen festgestellt."}
+                      </p>
+                      {selectedAnalysis.delta.recommend_full && (
+                        <p className={a.alertBody}>
+                          Der Plan weicht stark von der Vorversion ab{selectedAnalysis.delta.mismatch_reason ? `: ${selectedAnalysis.delta.mismatch_reason}` : ""}. Wir empfehlen eine Vollprüfung über «Neue Version».
+                        </p>
+                      )}
+                    </div>
                   )}
 
                   {autoPartsWarning(selectedAnalysis.autoParts) && (

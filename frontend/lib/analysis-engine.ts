@@ -25,6 +25,16 @@
  */
 
 import { clampCompanyStatus, companyNormInstruction, normLevelLabel } from "@/lib/company-norm-prompt";
+import {
+  DELTA_CHECK_KIND,
+  DELTA_CHECK_SCHEMA,
+  DELTA_NEW_KIND,
+  applyDeltaVerdicts,
+  buildDeltaBlock,
+  deltaKindOf,
+  parseBaseline,
+  parseDeltaVerdicts,
+} from "@/lib/analysis-delta";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
 import {
@@ -212,6 +222,8 @@ export interface CheckItem {
   page_reference: number | null;
   /** Dateiname im Plansatz, auf den sich page_reference bezieht. */
   source_file: string | null;
+  /** Nur bei Änderungsprüfungen: Entwicklung gegenüber der Vorversion. */
+  change?: string | null;
 }
 
 export interface NormCallResult {
@@ -231,6 +243,8 @@ export interface NormCallResult {
   cache_read_tokens: number;
   output_tokens: number;
   duration_ms: number;
+  same_project?: boolean | null;
+  mismatch_reason?: string | null;
 }
 
 export interface UsageTotals {
@@ -929,6 +943,7 @@ export async function analyseOneNorm(
   cancelSignal: AbortSignal | null = null,
 ): Promise<CallOutcome> {
   const norm = part.norm;
+  const deltaKind = deltaKindOf(norm);
   const startedAt = Date.now();
   const deadlineAt = Math.min(runDeadlineAt, startedAt + PER_CALL_BUDGET_MS);
   const usage: UsageTotals = { input_tokens: 0, cache_write_tokens: 0, cache_read_tokens: 0, output_tokens: 0 };
@@ -968,7 +983,7 @@ export async function analyseOneNorm(
         content: [
           ...planBlocks(files),
           { type: "text", text: referenceBlock, cache_control: { type: "ephemeral" } },
-          { type: "text", text: buildNormBlock(part, index, total, inReference) },
+          { type: "text", text: deltaKind ? buildDeltaBlock(part.text, deltaKind, part.boundary ?? newDataBoundary()) : buildNormBlock(part, index, total, inReference) },
         ],
       },
     ];
@@ -980,7 +995,7 @@ export async function analyseOneNorm(
         system: [{ type: "text", text: system }],
         messages,
         thinking: { type: "adaptive" },
-        output_config: { effort, format: CHECK_OUTPUT_SCHEMA },
+        output_config: { effort, format: deltaKind === DELTA_CHECK_KIND ? DELTA_CHECK_SCHEMA : CHECK_OUTPUT_SCHEMA },
       },
       { timeout: Math.max(10_000, remaining), signal: controller.signal },
     );
@@ -1053,11 +1068,26 @@ export async function analyseOneNorm(
   // Bergung greift, wenn eine Antwort vollständig ankam, aber nicht sauber parst.
   // Bei Abbruch/Timeout vor finalMessage() ist text leer — dann gibt es nichts zu bergen.
   let items: CheckItem[] = [];
+  let sameProject: boolean | null = null;
+  let mismatchReason: string | null = null;
   if (text.trim().length > 0) {
-    items = parseChecks(text)
-      .map((raw) => toCheckItem(raw, norm, files.map((f) => f.name)))
-      .filter((it) => it.finding.length > 0)
-      .slice(0, MAX_CHECKS_PER_NORM);
+    if (deltaKind === DELTA_CHECK_KIND) {
+      const parsed = parseDeltaVerdicts(text);
+      sameProject = parsed.same_project;
+      mismatchReason = parsed.mismatch_reason;
+      items = applyDeltaVerdicts(parseBaseline(part.text), parsed.verdicts, files.map((f) => f.name), () => crypto.randomUUID());
+      if (parsed.verdicts.length === 0 && !error) {
+        error = "Nachkontrolle ohne verwertbare Antwort";
+        errorClass = "other";
+        items = [];
+      }
+    } else {
+      items = parseChecks(text)
+        .map((raw) => toCheckItem(raw, norm, files.map((f) => f.name)))
+        .filter((it) => it.finding.length > 0)
+        .slice(0, MAX_CHECKS_PER_NORM);
+      if (deltaKind === DELTA_NEW_KIND) items = items.map((it) => ({ ...it, change: "new" }));
+    }
   }
   // 0 Prüfpunkte bei sauberem end_turn sind ein gültiges Ergebnis: Die Norm hat für
   // diesen Plan nichts Relevantes (der Prompt erlaubt die leere Liste ausdrücklich).
@@ -1081,6 +1111,7 @@ export async function analyseOneNorm(
       cache_read_tokens: usage.cache_read_tokens,
       output_tokens: usage.output_tokens,
       duration_ms: Date.now() - startedAt,
+      ...(deltaKind === DELTA_CHECK_KIND ? { same_project: sameProject, mismatch_reason: mismatchReason } : {}),
     },
   };
 }
