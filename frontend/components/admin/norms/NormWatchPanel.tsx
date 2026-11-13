@@ -410,11 +410,16 @@ export default function NormWatchPanel() {
               <div className="space-y-6" aria-busy={loading}>
                 {groups.map((g) => {
                   const counts = groupCounts(g.items);
+                  const tone = g.label === "Bund"
+                    ? { bar: "bg-[#151414] text-white", sub: "text-white/80", edge: "border-[#151414]" }
+                    : g.label.startsWith("Kanton")
+                      ? { bar: "bg-[#CBBFAE] text-[#151414]", sub: "text-[#3b352c]", edge: "border-[#CBBFAE]" }
+                      : { bar: "bg-[rgba(21,20,20,.1)] text-[#151414]", sub: "text-[#46464a]", edge: "border-[rgba(21,20,20,.25)]" };
                   return (
-                    <section key={g.key} aria-label={g.label}>
-                      <header className="mb-1 flex flex-wrap items-center gap-2 border-b border-[rgba(21,20,20,.12)] pb-2">
-                        <h3 className="text-[15px] font-bold text-[#151414]">{g.label}</h3>
-                        <span className="text-[13px] text-[var(--tba-text-2,#46464a)]">
+                    <section key={g.key} aria-label={g.label} className={`overflow-hidden rounded-xl border-2 ${tone.edge}`}>
+                      <header className={`flex flex-wrap items-center gap-2 px-4 py-2.5 ${tone.bar}`}>
+                        <h3 className="text-[15px] font-bold">{g.label}</h3>
+                        <span className={`text-[13px] ${tone.sub}`}>
                           {g.items.length} {g.items.length === 1 ? "Quelle" : "Quellen"}
                         </span>
                         {counts.update > 0 && (
@@ -431,7 +436,7 @@ export default function NormWatchPanel() {
                           </span>
                         )}
                       </header>
-                      <ul className="divide-y divide-[rgba(21,20,20,.08)]">
+                      <ul className="divide-y divide-[rgba(21,20,20,.08)] bg-white px-4">
                 {g.items.map((s) => (
                   <SourceRow
                     key={s.id}
