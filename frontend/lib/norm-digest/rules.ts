@@ -5,7 +5,7 @@ export const DIGEST_MIN_SOURCE_CHARS = 15_000;
 export const DIGEST_MIN_RATIO = 0.02;
 export const DIGEST_MAX_RATIO = 0.6;
 export const DIGEST_MIN_REFS = 3;
-export const DIGEST_MIN_REF_COVERAGE = 0.9;
+export const DIGEST_MIN_REF_COVERAGE = 0.6;
 export const DIGEST_MIN_VERBATIM = 0.85;
 export const DIGEST_NONE_MARKER = "KEINE";
 export const SHINGLE_WORDS = 6;
@@ -81,10 +81,11 @@ export interface DigestCheck {
   coverage: number;
   verbatim: number;
   omitted: string[];
+  unknown: string[];
 }
 
 function fail(reason: string, extra: Partial<DigestCheck> = {}): DigestCheck {
-  return { ok: false, reason, refs: 0, coverage: 0, verbatim: 0, omitted: [], ...extra };
+  return { ok: false, reason, refs: 0, coverage: 0, verbatim: 0, omitted: [], unknown: [], ...extra };
 }
 
 export function verifyDigest(source: string, digest: string): DigestCheck {
@@ -98,26 +99,25 @@ export function verifyDigest(source: string, digest: string): DigestCheck {
   if (wanted.size < DIGEST_MIN_REFS) return fail("Zu wenige Artikel im Auszug.", { refs: wanted.size });
 
   const known = articleRefs(source);
-  let found = 0;
-  wanted.forEach((ref) => {
-    if (known.has(ref)) found += 1;
-  });
-  const coverage = found / wanted.size;
-  if (coverage < DIGEST_MIN_REF_COVERAGE) {
-    return fail("Der Auszug nennt Artikel, die im Gesetz nicht vorkommen.", { refs: wanted.size, coverage });
-  }
-
+  const unknown = Array.from(wanted).filter((ref) => !known.has(ref));
+  const coverage = (wanted.size - unknown.length) / wanted.size;
   const verbatim = verbatimRatio(source, text);
-  if (verbatim < DIGEST_MIN_VERBATIM) {
-    return fail("Der Auszug weicht zu stark vom Wortlaut des Gesetzes ab.", { refs: wanted.size, coverage, verbatim });
-  }
+  const detail = { refs: wanted.size, coverage, verbatim, unknown };
+
+  if (verbatim < DIGEST_MIN_VERBATIM) return fail("Der Auszug weicht zu stark vom Wortlaut des Gesetzes ab.", detail);
+  if (coverage < DIGEST_MIN_REF_COVERAGE) return fail("Der Auszug nennt zu viele Artikel, die im Gesetz nicht vorkommen.", detail);
 
   const omitted = Array.from(known).filter((ref) => !wanted.has(ref));
-  return { ok: true, reason: null, refs: wanted.size, coverage, verbatim, omitted };
+  return { ok: true, reason: null, refs: wanted.size, coverage, verbatim, omitted, unknown };
 }
 
 export function digestNote(check: DigestCheck, sourceRefs: number): string {
-  if (!check.ok) return check.reason ?? "Prüfung fehlgeschlagen";
+  if (!check.ok) {
+    const parts = [check.reason ?? "Prüfung fehlgeschlagen"];
+    if (check.verbatim) parts.push(`Wortlaut ${Math.round(check.verbatim * 100)} %`);
+    if (check.unknown.length) parts.push(`unbekannte Artikel: ${check.unknown.slice(0, 12).join(", ")}${check.unknown.length > 12 ? " …" : ""}`);
+    return parts.join(", ");
+  }
   return `${check.refs} von ${sourceRefs} Artikeln übernommen, ${Math.round(check.verbatim * 100)} % Wortlaut`;
 }
 

@@ -59,14 +59,25 @@ export default function DigestPanel() {
   }, [load]);
 
   async function run(force: boolean, normId?: string) {
+    if (!data) return;
+    const targets = normId ? data.rows.filter((r) => r.normId === normId) : data.rows.filter((r) => force || r.state !== "ok");
     setBusy(true);
     setMessage(null);
+    const total: RunSummary = { created: 0, failed: 0, skipped: 0, costUsd: 0 };
     try {
-      const result = await api.post<RunSummary>("/admin/norm-digests", normId ? { force, normId } : { force });
-      setMessage(`${result.created} erstellt, ${result.failed} fehlgeschlagen, ${result.skipped} übersprungen. Kosten ${result.costUsd.toFixed(2)} USD.`);
-      await load();
+      for (let i = 0; i < targets.length; i++) {
+        const row = targets[i];
+        setMessage(`Erstelle ${i + 1} von ${targets.length}: ${row.title}`);
+        const result = await api.post<RunSummary>("/admin/norm-digests", { force: force || row.state === "failed", normId: row.normId });
+        total.created += result.created;
+        total.failed += result.failed;
+        total.skipped += result.skipped;
+        total.costUsd += result.costUsd;
+        await load();
+      }
+      setMessage(`${total.created} erstellt, ${total.failed} fehlgeschlagen, ${total.skipped} übersprungen. Kosten ${total.costUsd.toFixed(2)} USD.`);
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Erstellung fehlgeschlagen.");
+      setMessage(`${e instanceof Error ? e.message : "Erstellung fehlgeschlagen."} Bisher: ${total.created} erstellt, ${total.failed} fehlgeschlagen, Kosten ${total.costUsd.toFixed(2)} USD.`);
     } finally {
       setBusy(false);
     }

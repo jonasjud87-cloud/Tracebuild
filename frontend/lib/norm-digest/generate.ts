@@ -3,8 +3,8 @@ import { anthropic } from "@/lib/anthropic";
 import { ANALYSIS_MODEL, computeCost, splitNormText, type UsageTotals } from "@/lib/analysis-engine";
 import { DIGEST_NONE_MARKER } from "./rules";
 
-const PART_CHARS = 45_000;
-const MAX_TOKENS = 12_000;
+const PART_CHARS = 30_000;
+const MAX_TOKENS = 16_000;
 const CONCURRENCY = 3;
 
 export const DIGEST_SYSTEM_PROMPT = `Du erstellst den Prüfauszug eines Schweizer Bundeserlasses (Gesetz oder Verordnung) für die automatische Prüfung von Bauplänen und Baugesuchen.

@@ -170,7 +170,26 @@ test("ensureDigest speichert einen unbrauchbaren Auszug als fehlgeschlagen", asy
   const outcome = await ensureDigest(admin, NORM, { complete: async () => ok("Art. 1 erfunden") });
   assert.equal(outcome.status, "failed");
   assert.equal(upserts[0].status, "failed");
-  assert.equal(upserts[0].digest, null);
+  assert.match(String(upserts[0].note), /Wortlaut|Zu wenige|kürzt|kurz/);
+});
+
+test("scheitert die Erstellung selbst, wird der Grund gespeichert und nicht erneut bezahlt", async () => {
+  const { admin, upserts } = fakeAdmin();
+  const outcome = await ensureDigest(admin, NORM, { complete: async () => ({ ...ok("Art. 1: x"), truncated: true }) });
+  assert.equal(outcome.status, "failed");
+  assert.equal(upserts.length, 1);
+  assert.equal(upserts[0].status, "failed");
+  assert.match(String(upserts[0].note), /abgeschnitten/);
+  assert.ok(Number(upserts[0].cost_usd) > 0);
+});
+
+test("Verweise auf andere Erlasse lassen einen wörtlichen Auszug nicht durchfallen", () => {
+  const withCrossRefs = `${GOOD}
+
+Art. 77 (Verweis): ${Array.from({ length: 30 }, (_, i) => `wort77x${i}`).join(" ")} gemäss Art. 150 BV und Art. 151 des Bundesgesetzes.`;
+  const check = verifyDigest(SOURCE, withCrossRefs);
+  assert.equal(check.ok, true);
+  assert.ok(check.unknown.includes("150"));
 });
 
 test("ein fehlgeschlagener Versuch überschreibt nie einen aktiven Auszug", async () => {

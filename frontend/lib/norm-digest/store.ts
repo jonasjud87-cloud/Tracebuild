@@ -58,41 +58,48 @@ export async function ensureDigest(
     if (existing.status === "ok" || !(age > RETRY_FAILED_AFTER_MS)) return { status: "exists" };
   }
 
+  const base = {
+    norm_id: norm.id,
+    text_sha256: sha,
+    extractor_version: DIGEST_VERSION,
+    source_chars: norm.text.length,
+    created_at: new Date(now()).toISOString(),
+  };
+  const saveFailure = async (reason: string, costUsd: number, digestText: string | null, model: string | null): Promise<DigestOutcome> => {
+    if (existing?.status === "ok") return { status: "failed", reason: `${reason} Der bisherige Auszug bleibt aktiv.`, costUsd };
+    const { error } = await admin.from("norm_digests").upsert(
+      { ...base, status: "failed", digest: digestText, digest_chars: null, model, cost_usd: costUsd, note: reason.slice(0, 2000) },
+      { onConflict: "norm_id,text_sha256,extractor_version" },
+    );
+    if (error) throw new Error(error.message);
+    return { status: "failed", reason, costUsd };
+  };
+
   let generated;
   try {
     generated = await generateDigest({ title: norm.title, text: norm.text }, options.complete, { deadlineAt: options.deadlineAt });
   } catch (e) {
-    return {
-      status: "failed",
-      reason: e instanceof Error ? e.message : "Erstellung fehlgeschlagen",
-      costUsd: e instanceof DigestError ? e.costUsd : 0,
-    };
+    return saveFailure(e instanceof Error ? e.message : "Erstellung fehlgeschlagen", e instanceof DigestError ? e.costUsd : 0, null, null);
   }
 
   const check = verifyDigest(norm.text, generated.digest);
-  if (!check.ok && existing?.status === "ok") {
-    return { status: "failed", reason: `${check.reason} Der bisherige Auszug bleibt aktiv.`, costUsd: generated.costUsd };
+  if (!check.ok) {
+    return saveFailure(digestNote(check, articleRefs(norm.text).size), generated.costUsd, generated.digest, generated.model);
   }
 
-  const note = digestNote(check, articleRefs(norm.text).size);
-  const omitted = check.ok && check.omitted.length ? ` Ausgelassen: ${check.omitted.slice(0, 80).join(", ")}${check.omitted.length > 80 ? " …" : ""}` : "";
+  const omitted = check.omitted.length ? ` Ausgelassen: ${check.omitted.slice(0, 80).join(", ")}${check.omitted.length > 80 ? " …" : ""}` : "";
   const row = {
-    norm_id: norm.id,
-    text_sha256: sha,
-    extractor_version: DIGEST_VERSION,
-    status: check.ok ? "ok" : "failed",
-    digest: check.ok ? generated.digest : null,
-    source_chars: norm.text.length,
-    digest_chars: check.ok ? generated.digest.length : null,
+    ...base,
+    status: "ok",
+    digest: generated.digest,
+    digest_chars: generated.digest.length,
     model: generated.model,
     cost_usd: generated.costUsd,
-    note: `${note}.${omitted}`.slice(0, 2000),
-    created_at: new Date(now()).toISOString(),
+    note: `${digestNote(check, articleRefs(norm.text).size)}.${omitted}`.slice(0, 2000),
   };
   const { error } = await admin.from("norm_digests").upsert(row, { onConflict: "norm_id,text_sha256,extractor_version" });
   if (error) throw new Error(error.message);
 
-  if (!check.ok) return { status: "failed", reason: check.reason ?? "Prüfung fehlgeschlagen", costUsd: generated.costUsd };
   return { status: "created", digestChars: generated.digest.length, sourceChars: norm.text.length, costUsd: generated.costUsd };
 }
 
