@@ -174,6 +174,7 @@ export interface NormInput {
   source_kind?: string | null;
   auto_scope?: string | null;
   priority?: string | null;
+  digest?: boolean | null;
 }
 
 /** Fakten aus dem ÖREB-Auszug der Parzelle — der Prüfer soll wissen, was nachweislich (nicht) gilt. */
@@ -535,7 +536,7 @@ export function buildNormBlock(p: NormPart, index: number, total: number, inRefe
   }
   return (
     head + scope +
-    `Normtext:\n${dataBlock(boundary, "Normtext", p.text)}\n\n` +
+    `${norm.digest ? "Prüfauszug" : "Normtext"}:\n${dataBlock(boundary, norm.digest ? "Prüfauszug" : "Normtext", p.text)}\n\n` +
     `Prüfe den beigefügten Bauplan gegen ${p.parts > 1 ? "diesen Abschnitt" : "diese Norm"}.`
   );
 }

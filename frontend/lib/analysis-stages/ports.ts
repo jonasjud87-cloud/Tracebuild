@@ -42,6 +42,7 @@ export interface RunSnapshot extends AnalysisSnapshots {
   reference_norms: string[];
   oereb_context: boolean;
   auto_parts: AutoPartsSummary;
+  digests?: { norm_id: string; sha256: string }[];
 }
 
 export interface StageJob {

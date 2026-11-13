@@ -32,7 +32,8 @@ export async function GET(_req: Request, { params }: { params: { id: string } })
 
   const query = (columns: string) =>
     admin.from("project_norms").select(`*, norms(${columns})`).eq("project_id", params.id).order("added_at", { ascending: true });
-  let { data, error } = await query(`${NORM_COLUMNS}, source_kind, auto_scope, source_checked_at`);
+  let { data, error } = await query(`${NORM_COLUMNS}, source_kind, auto_scope, source_checked_at, approval_status, archived_at`);
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(`${NORM_COLUMNS}, source_kind, auto_scope, source_checked_at`));
   // Ohne Geoportal-Migration fehlen die Spalten.
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(NORM_COLUMNS));
   if (error) return err(error.message, 500);

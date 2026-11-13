@@ -30,6 +30,7 @@ import {
   type UploadedPlanFile,
 } from "@/lib/plan-files";
 import { autoPartsWarning, downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
+import { coverageGaps, type CoverageNorm } from "@/lib/norm-coverage";
 import {
   type AnalysisItem,
   type Category,
@@ -243,6 +244,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [cancelError, setCancelError]       = useState<string | null>(null);
   const [info, setInfo]                     = useState<string | null>(null);
   const [project, setProject]               = useState<ProjectInfo | null>(null);
+  const [assignedNorms, setAssignedNorms]     = useState<CoverageNorm[] | null>(null);
   const [error, setError]                   = useState<string | null>(null);
   const [dragOver, setDragOver]             = useState(false);
   const [menuOpenId, setMenuOpenId]         = useState<string | null>(null);
@@ -291,10 +293,17 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   /** Sperrt neue Analysen. Ein unterbrochener Altlauf rechnet nicht mehr und sperrt deshalb nicht. */
   const lockingRun = activeRun && !runView.interrupted ? activeRun : null;
   const runNote = activeRun?.preflight ? preflightNoteText(activeRun.preflight) : preflightNote;
+  const coverage = project && assignedNorms ? coverageGaps({ canton: project.location?.canton, municipality: project.location?.municipality }, assignedNorms) : [];
 
   useEffect(() => {
     api.get<ProjectInfo>(`/projects/${params.id}`).then(setProject).catch(() => {});
+    let alive = true;
+    api
+      .get<{ norms: CoverageNorm | null }[]>(`/projects/${params.id}/norms`)
+      .then((rows) => { if (alive) setAssignedNorms((rows ?? []).flatMap((r) => (r.norms ? [r.norms] : []))); })
+      .catch(() => { if (alive) setAssignedNorms(null); });
     loadAnalyses().catch(() => {});
+    return () => { alive = false; };
   }, [params.id, loadAnalyses]);
 
   useEffect(() => {
@@ -999,6 +1008,14 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 className={`${a.dropzone} ${dragOver ? a.dropzoneOver : ""} ${pendingFiles.length > 0 && !uploading ? a.dropzoneCompact : ""} ${!uploading && pendingFiles.length === 0 ? a.dropzoneIdle : ""}`}
               >
                 <input ref={fileRef} type="file" multiple accept=".pdf,image/*" hidden onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+                {!uploading && coverage.length > 0 && (
+                  <div role="status" className={`${g.alert} ${g.alertWarn}`} onClick={(e) => e.stopPropagation()} style={{ textAlign: "left", marginBottom: 16 }}>
+                    <strong>Nicht alle Ebenen sind hinterlegt.</strong>
+                    {coverage.map((c) => (
+                      <p key={c.key} style={{ margin: "4px 0 0" }}>{c.text}</p>
+                    ))}
+                  </div>
+                )}
                 {uploading ? (
                   <div>
                     <div className={g.spinner} style={{ width: 44, height: 44, margin: "0 auto 16px" }} />
