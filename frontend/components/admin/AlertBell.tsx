@@ -223,6 +223,15 @@ export default function AlertBell() {
               );
             })}
           </div>
+          <div className="border-t border-[var(--tba-line,rgba(21,20,20,.08))] px-4 py-2.5 text-center">
+            <Link
+              href="/admin/alerts"
+              onClick={() => setOpen(false)}
+              className="text-sm font-medium text-[var(--tba-text,#151414)] underline underline-offset-2"
+            >
+              Alle Meldungen verwalten
+            </Link>
+          </div>
         </div>
       )}
     </div>
