@@ -23,6 +23,8 @@ import { ChevronDownIcon, GridIcon, LayersIcon, PinIcon, SearchIcon } from "@/co
 import { FileIcon, GlobeIcon, PlusIcon } from "./icons";
 import FileCard from "./FileCard";
 import UploadPanel from "./UploadPanel";
+import type { ProjectOption } from "./ScopeFields";
+import { canApproveCompanyNorms } from "@/lib/company-norms";
 import s from "./standards.module.css";
 
 const STANDARDS_PAGE_SIZE = 200;
@@ -31,13 +33,12 @@ const CANTONS = Object.keys(CANTON_NAMES);
 const INTRO: Record<StandardsTab, { title: string; text: string; bullets?: string[]; preview?: boolean }> = {
   company: {
     title: "Normen Ihres Unternehmens",
-    text: "Hier hinterlegen Sie eigene Richtlinien und Standards, zum Beispiel Qualitätsvorgaben, Ausführungsstandards oder interne Brandschutzanforderungen. Sie gelten für alle Projekte Ihrer Organisation und werden bei jeder Prüfung berücksichtigt.",
+    text: "Hier hinterlegen Sie eigene Richtlinien und Standards, zum Beispiel Qualitätsvorgaben, Ausführungsstandards oder interne Brandschutzanforderungen. Eine neue Norm startet als Entwurf und wird erst nach der Freigabe durch eine verantwortliche Person (Organisations-Admin) geprüft.",
     bullets: [
-      "Geltungsbereich pro Projekt oder Kanton",
-      "Rangfolge gegenüber gesetzlichen Normen",
-      "Versionen und Freigabe durch Verantwortliche",
+      "Geltungsbereich: alle Projekte, bestimmte Kantone oder bestimmte Projekte",
+      "Rangfolge: Gesetzliche Normen gehen immer vor. Eine Unternehmensnorm darf sie verschärfen, aber nie lockern. Verbindliche Normen melden Abweichungen als Mangel, Empfehlungen höchstens als Hinweis.",
+      "Versionen: Eine neue Version ersetzt die bisherige erst nach ihrer Freigabe. Frühere Versionen bleiben im Verlauf sichtbar.",
     ],
-    preview: true,
   },
   own: {
     title: "Eigene Fassungen von Gesetzen und Reglementen",
@@ -66,6 +67,8 @@ export default function StandardsPage() {
   const [filterCanton, setFilterCanton] = useState("");
   const [filterCategory, setFilterCategory] = useState("");
   const [query, setQuery] = useState("");
+  const [role, setRole] = useState("");
+  const [projects, setProjects] = useState<ProjectOption[]>([]);
   const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
   useEffect(() => {
@@ -101,6 +104,17 @@ export default function StandardsPage() {
   useEffect(() => {
     loadStandards();
   }, [loadStandards]);
+
+  useEffect(() => {
+    api
+      .get<{ role: string }>("/auth/me")
+      .then((me) => setRole(me.role))
+      .catch(() => setRole(""));
+    api
+      .get<{ id: string; name: string }[]>("/projects")
+      .then((list) => setProjects((list ?? []).map((p) => ({ id: p.id, name: p.name }))))
+      .catch(() => setProjects([]));
+  }, []);
 
   async function handleDelete(ids: string[]) {
     if (!confirm("Diese Norm-Datei löschen?")) return;
@@ -162,7 +176,18 @@ export default function StandardsPage() {
   const empty = EMPTY[tab];
   const groups = tab === "legal" ? groupByJurisdiction(visible.map((en) => ({ jurisdictionType: en.jurisdiction_type, jurisdictionName: en.jurisdiction_name, entry: en }))) : [];
 
-  const renderCard = (entry: FileEntry) => <FileCard key={entry.ids[0]} entry={entry} onDelete={handleDelete} onAuthoritative={handleAuthoritative} />;
+  const canApprove = canApproveCompanyNorms(role);
+  const renderCard = (entry: FileEntry) => (
+    <FileCard
+      key={entry.ids[0]}
+      entry={entry}
+      onDelete={handleDelete}
+      onAuthoritative={handleAuthoritative}
+      projects={projects}
+      canApprove={canApprove}
+      onChanged={loadStandards}
+    />
+  );
 
   return (
     <div className={`${jakarta.variable} ${jakarta.className} ${s.shell}`}>
@@ -251,7 +276,7 @@ export default function StandardsPage() {
               <p className={s.introText}>{intro.text}</p>
               {intro.bullets && (
                 <>
-                  <p className={s.introText}>Noch in Planung:</p>
+                  <p className={s.introText}>So funktioniert es:</p>
                   <ul className={s.introList}>
                     {intro.bullets.map((b) => (
                       <li key={b}>{b}</li>
@@ -340,6 +365,7 @@ export default function StandardsPage() {
               <UploadPanel
                 key={tab}
                 mode={tab === "company" ? "company" : "law"}
+                projects={projects}
                 onClose={() => setUploadOpen(false)}
                 onUploaded={() => {
                   void loadStandards();

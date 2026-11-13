@@ -15,7 +15,8 @@ export type AuditAction =
   | "norm_auto_import" | "norm_auto_update" | "norm_auto_update_rejected"
   | "norm_org_authoritative" | "oereb_document_decision"
   | "norm_watch_check" | "norm_watch_approve" | "norm_watch_reject"
-  | "norm_source_create" | "norm_source_update" | "norm_source_delete";
+  | "norm_source_create" | "norm_source_update" | "norm_source_delete"
+  | "norm_company_update" | "norm_company_approve" | "norm_company_version";
 
 export async function logAudit(
   admin: ReturnType<typeof createAdminClient>,

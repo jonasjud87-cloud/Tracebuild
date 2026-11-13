@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { normVisibleToOrg } from "@/lib/analysis-stages/plan";
+import { normIsCurrent, normVisibleToOrg } from "@/lib/analysis-stages/plan";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { anthropic } from "@/lib/anthropic";
 import { logAudit } from "@/lib/auditLog";
 import { buildChatNormList, buildDataRules, newDataBoundary } from "@/lib/analysis-reference";
@@ -192,10 +193,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
   const { data: historyRows } = await histQuery;
 
   // Load project norms
-  const { data: normRows, error: normError } = await admin
-    .from("project_norms")
-    .select("norms(id, title, category, text, org_id)")
-    .eq("project_id", params.id);
+  const loadNormRows = (columns: string) => admin.from("project_norms").select(`norms(${columns})`).eq("project_id", params.id);
+  let { data: normRows, error: normError } = await loadNormRows("id, title, category, text, org_id, approval_status, archived_at");
+  if (normError && isMissingSchema(normError.message)) ({ data: normRows, error: normError } = await loadNormRows("id, title, category, text, org_id"));
   if (normError) console.error(`Chat Projekt ${params.id}: Normen nicht lesbar:`, normError.message);
 
   // Load last analysis items
@@ -228,9 +228,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
 
   const systemPrompt = buildSystemPrompt(
     project as unknown as ProjectRow,
-    ((normRows ?? []) as unknown as (NormRow & { norms: { org_id?: string | null } | null })[])
+    ((normRows ?? []) as unknown as (NormRow & { norms: { org_id?: string | null; approval_status?: string | null; archived_at?: string | null } | null })[])
       // Eine verknüpfte fremde Privatnorm liest die Service-Role sonst mit.
-      .filter((r) => !r.norms || normVisibleToOrg(r.norms, user.org_id)),
+      .filter((r) => !r.norms || (normVisibleToOrg(r.norms, user.org_id) && normIsCurrent(r.norms))),
     lastItems,
   );
 

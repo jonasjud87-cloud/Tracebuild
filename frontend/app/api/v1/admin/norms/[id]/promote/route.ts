@@ -12,12 +12,13 @@ export async function POST(_req: Request, { params }: { params: { id: string } }
   const admin = createAdminClient();
   const { data: norm, error: fetchError } = await admin
     .from("norms")
-    .select("id, org_id")
+    .select("id, org_id, jurisdiction_type")
     .eq("id", params.id)
     .maybeSingle();
   if (fetchError) return err(fetchError.message, 500);
   if (!norm) return err("Norm nicht gefunden", 404);
   if (!norm.org_id) return err("Norm ist bereits plattformweit", 400);
+  if (norm.jurisdiction_type === "org") return err("Unternehmensnormen sind intern und lassen sich nicht für alle freigeben", 400);
 
   const { data, error } = await admin
     .from("norms")

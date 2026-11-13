@@ -5,6 +5,7 @@ import { api } from "@/lib/api";
 import { ChevronDownIcon } from "@/components/dashboard/icons";
 import { CANTON_NAMES } from "@/lib/norm-groups";
 import { UploadIcon } from "./icons";
+import ScopeFields, { DEFAULT_SCOPE, scopeError, type ProjectOption, type ScopeValue } from "./ScopeFields";
 import s from "./standards.module.css";
 
 export type UploadMode = "company" | "law";
@@ -19,11 +20,12 @@ const JURISDICTIONS = [
 
 interface Props {
   mode: UploadMode;
+  projects?: ProjectOption[];
   onClose: () => void;
   onUploaded: () => void;
 }
 
-export default function UploadPanel({ mode, onClose, onUploaded }: Props) {
+export default function UploadPanel({ mode, projects = [], onClose, onUploaded }: Props) {
   const uid = useId();
   const company = mode === "company";
   const [uploading, setUploading] = useState(false);
@@ -37,6 +39,7 @@ export default function UploadPanel({ mode, onClose, onUploaded }: Props) {
   const [category, setCategory] = useState("");
   const [sourceName, setSourceName] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [scope, setScope] = useState<ScopeValue>(DEFAULT_SCOPE);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
@@ -60,6 +63,11 @@ export default function UploadPanel({ mode, onClose, onUploaded }: Props) {
       setError("Bitte eine Gemeinde eingeben.");
       return;
     }
+    const problem = company ? scopeError(scope) : null;
+    if (problem) {
+      setError(problem);
+      return;
+    }
     setError(null);
     setSuccess(null);
     setUploading(true);
@@ -74,12 +82,19 @@ export default function UploadPanel({ mode, onClose, onUploaded }: Props) {
       form.append("category", category.trim());
       form.append("source_name", sourceName.trim());
       form.append("zone", zone.trim());
+      if (company) {
+        form.append("priority", scope.priority);
+        form.append("scope_mode", scope.mode);
+        form.append("scope_cantons", scope.cantons.join(","));
+        form.append("scope_project_ids", scope.projectIds.join(","));
+      }
       const result = await api.postForm<{ count: number; jurisdiction_name: string; category: string }>("/standards/upload", form);
-      setSuccess(`Gespeichert: ${result.category}${company ? ", gilt für alle Projekte Ihrer Organisation" : ""}`);
+      setSuccess(company ? `Als Entwurf gespeichert: ${result.category}. Erst nach der Freigabe durch eine verantwortliche Person wird die Norm geprüft.` : `Gespeichert: ${result.category}`);
       setFile(null);
       setCategory("");
       setSourceName("");
       setZone("");
+      setScope(DEFAULT_SCOPE);
       if (fileRef.current) fileRef.current.value = "";
       onUploaded();
     } catch (err: unknown) {
@@ -240,6 +255,8 @@ export default function UploadPanel({ mode, onClose, onUploaded }: Props) {
                 className={s.input}
               />
             </div>
+
+            {company && <ScopeFields value={scope} onChange={setScope} projects={projects} disabled={uploading} />}
 
             {error && (
               <p role="alert" className={`${s.notice} ${s.noticeErr} ${s.fieldFull}`}>

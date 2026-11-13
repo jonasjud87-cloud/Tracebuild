@@ -7,6 +7,9 @@ import type { NormSupersession } from "@/lib/geoadmin/contract";
 import type { FileEntry } from "@/lib/standards-model";
 import { CalendarIcon } from "@/components/dashboard/icons";
 import { EyeIcon, EyeOffIcon, FileIcon, TrashIcon } from "./icons";
+import CompanyBlock from "./CompanyBlock";
+import type { ProjectOption } from "./ScopeFields";
+import { priorityLabel } from "@/lib/company-norms";
 import s from "./standards.module.css";
 
 function VersionHint({ info, onChange }: { info: NormSupersession; onChange: (authoritative: boolean) => Promise<void> }) {
@@ -69,9 +72,12 @@ interface Props {
   entry: FileEntry;
   onDelete: (ids: string[]) => void;
   onAuthoritative: (ids: string[], authoritative: boolean) => Promise<void>;
+  projects?: ProjectOption[];
+  canApprove?: boolean;
+  onChanged?: () => Promise<void>;
 }
 
-export default function FileCard({ entry, onDelete, onAuthoritative }: Props) {
+export default function FileCard({ entry, onDelete, onAuthoritative, projects = [], canApprove = false, onChanged }: Props) {
   const [expanded, setExpanded] = useState(false);
   const [text, setText] = useState<string | null>(null);
   const detailId = useId();
@@ -93,6 +99,8 @@ export default function FileCard({ entry, onDelete, onAuthoritative }: Props) {
 
   const label = entry.source_url || entry.category;
   const date = formatDate(entry.createdAt);
+  const company = entry.company;
+  const canDelete = !entry.global && (!company || company.status === "draft" || canApprove);
 
   return (
     <li className={s.row}>
@@ -109,6 +117,15 @@ export default function FileCard({ entry, onDelete, onAuthoritative }: Props) {
           <span className={`${s.chip} ${s.chipLevel}`}>{entry.jurisdiction_name ?? "—"}</span>
           <span className={`${s.chip} ${s.chipCat}`}>{entry.category}</span>
           {entry.zone && <span className={`${s.chip} ${s.chipCat}`}>Zone {entry.zone}</span>}
+          {company && (
+            <>
+              <span className={`${s.chip} ${company.archived ? s.chipAdvisory : company.status === "draft" ? s.chipDraft : s.chipApproved}`}>
+                {company.archived ? "Archiviert" : company.status === "draft" ? "Entwurf" : "Freigegeben"}
+              </span>
+              <span className={`${s.chip} ${s.chipAdvisory}`}>Version {company.versionNo}</span>
+              <span className={`${s.chip} ${company.priority === "binding" ? s.chipBinding : s.chipAdvisory}`}>{priorityLabel(company.priority)}</span>
+            </>
+          )}
         </div>
         <span className={s.name}>{entry.title || entry.source_url || "—"}</span>
         <span className={s.date}>
@@ -128,7 +145,7 @@ export default function FileCard({ entry, onDelete, onAuthoritative }: Props) {
           >
             {expanded ? <EyeOffIcon /> : <EyeIcon />}
           </button>
-          {!entry.global && (
+          {canDelete && (
             <button
               type="button"
               onClick={() => onDelete(entry.ids)}
@@ -141,6 +158,7 @@ export default function FileCard({ entry, onDelete, onAuthoritative }: Props) {
           )}
         </div>
       </div>
+      {company && onChanged && <CompanyBlock entry={entry} projects={projects} canApprove={canApprove} onChanged={onChanged} />}
       {entry.supersession && <VersionHint info={entry.supersession} onChange={(value) => onAuthoritative(entry.ids, value)} />}
       <div id={detailId} hidden={!expanded}>
         {expanded && (

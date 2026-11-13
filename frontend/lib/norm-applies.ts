@@ -1,5 +1,6 @@
 import { countryForCanton } from "./oereb/cantons";
 import { titleKey } from "./oereb/title-key";
+import { companyNormApplies } from "./company-norms";
 
 /**
  * Welche Normen für ein Projekt gelten. Rein, damit es ohne Datenbank testbar ist. Die Zone ist
@@ -22,12 +23,19 @@ export interface ApplicableNorm {
   org_authoritative?: boolean | null;
   /** 'CH' | 'LI'; NULL = gilt in allen Ländern. Fehlt die Spalte (Migration fehlt), wie NULL. */
   country?: string | null;
+  approval_status?: string | null;
+  archived_at?: string | null;
+  scope_mode?: string | null;
+  scope_cantons?: string[] | null;
+  scope_project_ids?: string[] | null;
+  priority?: string | null;
 }
 
 export interface ProjectPlace {
   canton: string;
   municipality: string;
   bfs?: number | null;
+  projectId?: string | null;
 }
 
 /** auto_scope einer abgelösten Fassung: bleibt zum Nachvollzug bestehen, gilt aber nirgends mehr. */
@@ -82,7 +90,7 @@ export function applies(n: ApplicableNorm, place: ProjectPlace): boolean {
     if (n.jurisdiction_name !== place.municipality) return false;
     return !n.jurisdiction_canton || n.jurisdiction_canton === place.canton;
   }
-  if (n.jurisdiction_type === "org") return true;
+  if (n.jurisdiction_type === "org") return companyNormApplies(n, place);
   return false;
 }
 
@@ -141,6 +149,9 @@ export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[], p
  */
 export function normsForThemeMapping<T extends ApplicableNorm>(norms: T[], place: ProjectPlace): T[] {
   return norms.filter(
-    (n) => countryMatches(n, place) && ((n.jurisdiction_type !== "municipal" && !isAutoNorm(n)) || applies(n, place))
+    (n) =>
+      countryMatches(n, place) &&
+      (n.jurisdiction_type !== "org" || applies(n, place)) &&
+      ((n.jurisdiction_type !== "municipal" && !isAutoNorm(n)) || applies(n, place))
   );
 }

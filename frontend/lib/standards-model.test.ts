@@ -67,3 +67,41 @@ test("matchesQuery: sucht in Titel, Quelle, Kategorie und Ort", () => {
   assert.equal(matchesQuery(entry, "sg"), true);
   assert.equal(matchesQuery(entry, "lärm"), false);
 });
+
+function company(over: Partial<Standard>): Standard {
+  return std({ org_id: "o1", jurisdiction_type: "org", layer: 5, version_no: 1, approval_status: "approved", priority: "binding", ...over });
+}
+
+test("Unternehmensnormen mit Versionen werden nicht nach Dateiname zusammengelegt", () => {
+  const entries = buildEntries([
+    company({ id: "a", source_url: "gleich.pdf" }),
+    company({ id: "b", source_url: "gleich.pdf", title: "Andere" }),
+  ]);
+  assert.equal(entries.length, 2);
+});
+
+test("frühere Versionen hängen als Verlauf an der aktuellen Fassung", () => {
+  const entries = buildEntries([
+    company({ id: "v3", version_no: 3, supersedes_norm_id: "v2", approval_status: "draft" }),
+    company({ id: "v2", version_no: 2, supersedes_norm_id: "v1", archived_at: "2026-11-01" }),
+    company({ id: "v1", version_no: 1, archived_at: "2026-10-01" }),
+  ]);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].ids[0], "v3");
+  assert.deepEqual(entries[0].company?.history.map((h) => h.versionNo), [2, 1]);
+  assert.equal(entries[0].company?.status, "draft");
+});
+
+test("archivierte Version ohne Nachfolger bleibt sichtbar", () => {
+  const entries = buildEntries([company({ id: "v1", archived_at: "2026-10-01" })]);
+  assert.equal(entries.length, 1);
+  assert.equal(entries[0].company?.archived, true);
+});
+
+test("Kreisverweise im Verlauf laufen nicht endlos", () => {
+  const entries = buildEntries([
+    company({ id: "a", supersedes_norm_id: "b" }),
+    company({ id: "b", supersedes_norm_id: "a", archived_at: "2026-10-01" }),
+  ]);
+  assert.equal(entries.length, 1);
+});

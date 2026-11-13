@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { normAppliesToZone } from "@/lib/zone-match";
+import { normIsCurrent } from "@/lib/analysis-stages/plan";
 import { hashNormEntries } from "@/lib/norm-hash";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
 import { runKennwerteExtraction, type KennwertItem, type KennwertNormInput } from "@/lib/normenblatt-extraction";
@@ -21,6 +22,8 @@ interface NormRow {
   text: string | null;
   zone: string | null;
   text_sha256?: string | null;
+  approval_status?: string | null;
+  archived_at?: string | null;
 }
 
 interface ProjectNormRow {
@@ -35,14 +38,14 @@ async function loadZoneFilteredNorms(
 ): Promise<(KennwertNormInput & { text_sha256: string | null })[]> {
   const query = (columns: string) =>
     admin.from("project_norms").select(`norms(${columns})`).eq("project_id", projectId);
-  let { data, error } = await query("id, title, category, text, zone, text_sha256");
-  // Ohne Geoportal-Migration fehlt die Spalte.
+  let { data, error } = await query("id, title, category, text, zone, text_sha256, approval_status, archived_at");
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query("id, title, category, text, zone, text_sha256"));
   if (error && isMissingSchema(error.message)) ({ data, error } = await query("id, title, category, text, zone"));
   if (error) throw new Error(error.message);
 
   const rows = (data as unknown as ProjectNormRow[]) ?? [];
   return rows
-    .filter((r) => r.norms !== null && normAppliesToZone(r.norms!.zone, bauzone, zoneConfidence))
+    .filter((r) => r.norms !== null && normIsCurrent(r.norms!) && normAppliesToZone(r.norms!.zone, bauzone, zoneConfidence))
     .map((r) => ({
       id: r.norms!.id,
       title: r.norms!.title,

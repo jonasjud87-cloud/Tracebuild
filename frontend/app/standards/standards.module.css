@@ -1314,3 +1314,117 @@ select.input {
     justify-content: center;
   }
 }
+
+.fieldHint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #46464a;
+}
+
+.checkSet {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.checkGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px;
+}
+
+.checkList {
+  display: grid;
+  gap: 8px;
+  max-height: 220px;
+  overflow: auto;
+  padding: 2px;
+}
+
+.checkItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #8c8b8e;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  color: #151414;
+  cursor: pointer;
+}
+
+.checkItem:has(input:checked) {
+  border-color: #151414;
+  background: #f6f3ee;
+}
+
+.chipDraft {
+  color: #7a4f00;
+  background: #fbefd6;
+}
+
+.chipApproved {
+  color: #136a40;
+  background: #e4f3ea;
+}
+
+.chipBinding {
+  color: #a3201a;
+  background: #fde7e5;
+}
+
+.chipAdvisory {
+  color: #3d372e;
+  background: #efece6;
+}
+
+.company {
+  margin: 12px 0 0 66px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: #f6f3ee;
+  border-left: 4px solid #151414;
+}
+
+.companyDraft {
+  background: #fdf6e7;
+  border-left-color: #d6a45f;
+}
+
+.companyMeta {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--body);
+}
+
+.companyActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.companyForm {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.versionList {
+  margin: 8px 0 0;
+  padding: 0 0 0 18px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--body);
+}
+
+@media (max-width: 720px) {
+  .company {
+    margin-left: 0;
+  }
+}

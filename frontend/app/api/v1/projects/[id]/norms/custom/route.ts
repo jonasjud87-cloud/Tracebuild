@@ -2,6 +2,7 @@ import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
 import { normTextTooLongMessage } from "@/lib/norm-text";
+import { isMissingSchema } from "@/lib/supabase/schema-errors";
 
 export async function POST(
   request: Request,
@@ -27,21 +28,19 @@ export async function POST(
   const tooLong = normTextTooLongMessage(text.trim());
   if (tooLong) return err(tooLong, 413);
 
-  // Create the norm scoped to the org (layer 5, jurisdiction_type='org')
-  const { data: norm, error: normErr } = await admin
-    .from("norms")
-    .insert({
-      title: title.trim(),
-      text: text.trim(),
-      category: category.trim(),
-      domain: project.domain ?? "bau",
-      layer: 5,
-      jurisdiction_type: "org",
-      org_id: user.org_id,
-      zone: typeof zone === "string" && zone.trim() ? zone.trim() : null,
-    })
-    .select()
-    .single();
+  const row = {
+    title: title.trim(),
+    text: text.trim(),
+    category: category.trim(),
+    domain: project.domain ?? "bau",
+    layer: 5,
+    jurisdiction_type: "org",
+    org_id: user.org_id,
+    zone: typeof zone === "string" && zone.trim() ? zone.trim() : null,
+  };
+  const scoped = { ...row, scope_mode: "projects", scope_project_ids: [params.id], priority: "binding" };
+  let { data: norm, error: normErr } = await admin.from("norms").insert(scoped).select().single();
+  if (normErr && isMissingSchema(normErr.message)) ({ data: norm, error: normErr } = await admin.from("norms").insert(row).select().single());
 
   if (normErr) return err(normErr.message, 500);
 

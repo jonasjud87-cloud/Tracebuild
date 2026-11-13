@@ -40,7 +40,9 @@ async function loadCandidateRows(orgId: string, domain: string): Promise<NormRow
     admin.from("norms").select(select).eq("domain", domain).or(`org_id.eq.${orgId},org_id.is.null`);
   const geoportal = `${base}, source_kind, auto_scope, jurisdiction_canton, jurisdiction_bfs, source_url`;
   const extras = `${geoportal}, superseded_by_norm_id, org_authoritative`;
-  let { data, error } = await query(`${extras}, country`);
+  const company = "approval_status, archived_at, scope_mode, scope_cantons, scope_project_ids, priority";
+  let { data, error } = await query(`${extras}, country, ${company}`);
+  if (error && isMissingSchema(error.message)) ({ data, error } = await query(`${extras}, country`));
   // Ohne die jeweilige Migration fehlen die neuen Spalten; ohne country gilt jede Norm überall (wie bisher).
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(extras));
   if (error && isMissingSchema(error.message)) ({ data, error } = await query(geoportal));
@@ -62,6 +64,7 @@ async function loadProjectPlace(projectId: string): Promise<ProjectPlace> {
     canton: location.canton ?? "",
     municipality: location.municipality ?? "",
     bfs: (data?.bfs_number as number | null | undefined) ?? null,
+    projectId,
   };
 }
 
@@ -195,7 +198,7 @@ export async function assignNorms(
 ): Promise<AssignmentResult> {
   const admin = createAdminClient();
   const rows = await loadCandidateRows(orgId, domain);
-  const place: ProjectPlace = { canton, municipality, bfs: (await loadProjectPlace(projectId)).bfs };
+  const place: ProjectPlace = { canton, municipality, bfs: (await loadProjectPlace(projectId)).bfs, projectId };
   const norms = withoutShadowedAutoNorms(rows, place);
 
   // ── 1. Durchgang: Bund / Kanton / Gemeinde / Org ──────────────────────────

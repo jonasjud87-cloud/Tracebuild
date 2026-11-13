@@ -104,7 +104,7 @@ export default function AdminNormRow({ norm, watched = false, showOwner = false,
           </button>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {norm.org_id && onPromote && (
+          {norm.org_id && onPromote && norm.jurisdiction_type !== "org" && (
             <button
               type="button"
               onClick={() => onPromote(norm.id)}

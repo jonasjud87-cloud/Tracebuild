@@ -24,6 +24,7 @@
  * abschliessender Konsolidierungs-Call räumt die Reste weg.
  */
 
+import { clampCompanyStatus, companyNormInstruction, normLevelLabel } from "@/lib/company-norm-prompt";
 import type Anthropic from "@anthropic-ai/sdk";
 import { anthropic } from "@/lib/anthropic";
 import {
@@ -172,6 +173,7 @@ export interface NormInput {
   /** 'oereb_auto' oder null (manuell gepflegt). */
   source_kind?: string | null;
   auto_scope?: string | null;
+  priority?: string | null;
 }
 
 /** Fakten aus dem ÖREB-Auszug der Parzelle — der Prüfer soll wissen, was nachweislich (nicht) gilt. */
@@ -513,8 +515,9 @@ export function buildNormBlock(p: NormPart, index: number, total: number, inRefe
   const head =
     `ZU PRÜFENDE NORM (Auftrag ${index + 1} von ${total}):\n` +
     `Titel: ${title}\n` +
-    `Ebene: ${norm.layer === 4 ? "Gemeinde" : norm.layer === 3 ? "Kanton" : norm.layer === 1 ? "Bund" : "Spezialnorm"}\n` +
-    `Kategorie: ${inlineData(norm.category ?? "unbekannt")}\n`;
+    `Ebene: ${normLevelLabel(norm)}\n` +
+    `Kategorie: ${inlineData(norm.category ?? "unbekannt")}\n` +
+    companyNormInstruction(norm);
   const scope =
     p.parts > 1
       ? `Diese Norm ist in ${p.parts} Teile aufgeteilt; dieser Auftrag umfasst NUR Teil ${p.part}` +
@@ -863,7 +866,7 @@ function toCheckItem(raw: Record<string, unknown>, norm: NormInput, fileNames: s
     norm_id: norm.id ? norm.id : null,
     norm_title: String(raw.norm_title ?? norm.title).slice(0, 500) || norm.title,
     category: normalizeCategory(raw.category),
-    status: (status === "ok" || status === "fail" || status === "warn" ? status : "warn") as Status,
+    status: clampCompanyStatus(norm, status === "ok" || status === "fail" || status === "warn" ? status : "warn") as Status,
     finding: String(raw.finding ?? "").trim(),
     suggestion: suggestion.length > 0 ? suggestion : null,
     confidence: (confidence === "high" || confidence === "low" ? confidence : "medium") as Confidence,

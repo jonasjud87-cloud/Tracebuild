@@ -1,6 +1,10 @@
-import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
+import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { logAudit } from "@/lib/auditLog";
+import { canApproveCompanyNorms } from "@/lib/company-norms";
+import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
+
+export const maxDuration = 60;
 
 /** Volltext einer Norm, die die Organisation sehen darf: eigene oder plattformweite. */
 export async function GET(_req: Request, { params }: { params: { id: string } }) {
@@ -23,6 +27,16 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
   if (!user) return unauthorized();
 
   const admin = createAdminClient();
+  const { data: current } = await admin
+    .from("norms")
+    .select("jurisdiction_type, approval_status")
+    .eq("id", params.id)
+    .eq("org_id", user.org_id)
+    .maybeSingle();
+  const isCompany = current?.jurisdiction_type === "org";
+  const wasApproved = isCompany && current?.approval_status !== "draft";
+  if (wasApproved && !canApproveCompanyNorms(user.role)) return forbidden();
+
   const { data, error } = await admin
     .from("norms")
     .delete()
@@ -39,6 +53,8 @@ export async function DELETE(_req: Request, { params }: { params: { id: string }
     action: "norm_remove",
     targetId: params.id,
   });
+
+  if (wasApproved) await assignNormsToOrgProjects(user.org_id);
 
   return ok({ id: params.id });
 }
