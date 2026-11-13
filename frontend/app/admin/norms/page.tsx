@@ -7,7 +7,7 @@ import AdminShell from "@/components/admin/shell/AdminShell";
 import PageHeader from "@/components/admin/shell/PageHeader";
 import { fetchEnvelope } from "@/components/admin/overview/resource";
 import AdminNormLibrary from "@/components/admin/norms/AdminNormLibrary";
-import DigestPanel from "@/components/admin/norms/DigestPanel";
+import useNormDigests from "@/components/admin/norms/useNormDigests";
 import AdminOrgNorms from "@/components/admin/norms/AdminOrgNorms";
 import NormWatchPanel from "@/components/admin/norms/NormWatchPanel";
 import NormsTabs, { panelId, tabId } from "@/components/admin/norms/NormsTabs";
@@ -32,6 +32,7 @@ export default function AdminNormsPage() {
   const [tab, setTab] = useState<NormsTab>(DEFAULT_TAB);
   const [promotingId, setPromotingId] = useState<string | null>(null);
   const [watch, setWatch] = useState<NormWatchOverview | null>(null);
+  const digests = useNormDigests();
 
   useEffect(() => {
     createClient()
@@ -147,12 +148,12 @@ export default function AdminNormsPage() {
         <NormsTabs active={tab} onChange={changeTab} badges={{ quellen: watch?.summary.updateAvailable ?? 0 }} />
 
         <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)} className="space-y-4">
-          {tab === "bibliothek" && <DigestPanel />}
           {tab === "bibliothek" && (
             <AdminNormLibrary
               norms={platformNorms}
               loading={loading}
               watchedIds={watchedIds}
+              digests={digests}
               onDelete={handleDelete}
               onUploaded={() => {
                 loadNorms();
