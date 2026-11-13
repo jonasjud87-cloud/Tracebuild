@@ -611,7 +611,7 @@ export async function runStage(deps: StageDeps, input: StageInput): Promise<Stag
     if (snapshot.delta) {
       await update({
         final_items: raw,
-        consolidation: { applied: false, raw_count: raw.length, merged: 0, downgraded: 0, error: null, duration_ms: 0 },
+        consolidation: null,
         phase: "finalize",
         last_progress_at: new Date(clock.now()).toISOString(),
       });
