@@ -6,6 +6,9 @@ import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
 import { uploadCountry } from "@/lib/norm-applies";
 import { insertNormWithCountry, type NormInsertClient } from "@/lib/norm-country";
+import { ensureDigest } from "@/lib/norm-digest/store";
+
+export const maxDuration = 300;
 
 const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
@@ -26,6 +29,7 @@ export async function POST(request: Request) {
 }
 
 async function handleUpload(request: Request) {
+  const startedAt = Date.now();
   const user = await getAuthUser();
   if (!user) return unauthorized();
   if (user.role !== "super_admin") return forbidden();
@@ -121,6 +125,15 @@ async function handleUpload(request: Request) {
   let projects_updated = 0;
   for (const org of orgs ?? []) {
     projects_updated += await assignNormsToOrgProjects(org.id);
+  }
+
+  try {
+    const remaining = startedAt + 270_000 - Date.now();
+    if (remaining > 60_000) {
+      await ensureDigest(admin, { id: data.id, title, text, layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3, org_id: null, jurisdiction_type: jurisdictionType, country: uploadCountry(jurisdictionType, jurisdictionName, formData.get("country") as string | null) }, { deadlineAt: startedAt + 270_000 });
+    }
+  } catch (e) {
+    console.error("Prüfauszug nach Upload:", e instanceof Error ? e.message : "unbekannt");
   }
 
   return ok({ count: 1, jurisdiction_name: jurisdictionName, category, id: data.id, projects_updated }, 201);

@@ -26,6 +26,8 @@ export function stageNorm(n: NormInput): StageNorm {
     jurisdiction_type: n.jurisdiction_type ?? null,
     source_kind: n.source_kind ?? null,
     auto_scope: n.auto_scope ?? null,
+    priority: n.priority ?? null,
+    digest: n.digest ?? null,
   };
 }
 

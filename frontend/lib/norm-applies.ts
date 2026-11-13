@@ -148,10 +148,5 @@ export function withoutShadowedAutoNorms<T extends ApplicableNorm>(norms: T[], p
  * importierte. Importierte parcel-Normen laufen separat über das Dokument im Auszug.
  */
 export function normsForThemeMapping<T extends ApplicableNorm>(norms: T[], place: ProjectPlace): T[] {
-  return norms.filter(
-    (n) =>
-      countryMatches(n, place) &&
-      (n.jurisdiction_type !== "org" || applies(n, place)) &&
-      ((n.jurisdiction_type !== "municipal" && !isAutoNorm(n)) || applies(n, place))
-  );
+  return norms.filter((n) => countryMatches(n, place) && applies(n, place));
 }

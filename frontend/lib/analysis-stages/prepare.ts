@@ -8,6 +8,8 @@ import { normAppliesToZone } from "@/lib/zone-match";
 import { assignNorms } from "@/lib/norm-assignment";
 import { normTextHash } from "@/lib/norm-hash";
 import { companyNormApplies } from "@/lib/company-norms";
+import { applyDigests } from "@/lib/norm-digest/rules";
+import { loadActiveDigests } from "@/lib/norm-digest/store";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
@@ -332,7 +334,9 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
     oereb,
     geodata: geodataFacts(geo),
   };
-  const norms = sortNormsForRun(selected);
+  const fullNorms = sortNormsForRun(selected);
+  const digests = await loadActiveDigests(admin, fullNorms.map((n) => n.id));
+  const norms = applyDigests(fullNorms, digests);
   const boundary = newDataBoundary();
   const system = buildSystemPrompt(ctx, boundary);
   const reference = buildReferenceBlock(ctx, norms.filter(isReferenceNorm), boundary);
@@ -342,7 +346,7 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   const snapshots: AnalysisSnapshots = {
     oereb_snapshot: oerebSnapshot,
     geodata_snapshot: { fetched_at: geo.fetched_at, status: geo.status, sources: geo.sources },
-    norm_versions: buildNormVersions(norms, rows),
+    norm_versions: buildNormVersions(fullNorms, rows),
   };
 
   const snapshot: RunSnapshot = {
@@ -359,6 +363,7 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
     reference_norms: norms.filter(isReferenceNorm).map((n) => n.title),
     oereb_context: !!oereb,
     auto_parts: autoParts,
+    digests: norms.filter((n) => n.digest).map((n) => ({ norm_id: n.id, sha256: normTextHash(n.text) })),
   };
 
   // 3. Plansatz: Claude holt jede Datei selbst über eine signierte URL.

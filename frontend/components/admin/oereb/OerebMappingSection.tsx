@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { inputCls } from "./admin-norm-types";
+import { inputCls } from "@/components/admin/norms/admin-norm-types";
 
 const OEREB_FEDERAL_THEMES: { code: string; label: string }[] = [
   { code: "ch.Nutzungsplanung", label: "Nutzungsplanung" },
@@ -113,17 +112,16 @@ export default function OerebMappingSection() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <p className="max-w-3xl text-sm text-[#5f5f64]">
-          Verknüpft Bundes-Pflichtthemen des ÖREB-Katasters mit Normen: Betrifft ein Thema die Parzelle, werden alle Normen zugewiesen, deren Kategorie das
-          Muster enthält (Teilstring, Gross-/Kleinschreibung egal).
+      <div className="max-w-3xl space-y-1 text-sm text-[#5f5f64]">
+        <p>
+          Verknüpft ein ÖREB-Thema mit Normen über deren Kategorie. Betrifft das Thema das Grundstück, gilt eine Norm mit passender Kategorie als Antwort darauf.
+          Fehlt eine solche Norm, meldet das Projekt eine Lücke.
         </p>
-        <Link
-          href="/admin/oereb-imports"
-          className="rounded-xl border border-[#8c8b8e] bg-white px-3 py-1.5 text-sm font-semibold text-[#151414] hover:border-[#151414]"
-        >
-          ÖREB-Importe verwalten
-        </Link>
+        <p>
+          Beispiel: Thema «Lärmempfindlichkeitsstufen» mit Muster «lärm». Eine Norm mit «lärm» in der Kategorie deckt das Thema ab. Verglichen wird als Teilstring,
+          Gross- und Kleinschreibung egal. Berücksichtigt werden nur Normen, die zum Ort des Projekts gehören (Bund, sein Kanton, seine Gemeinde, seine Organisation),
+          und nur Bundes-Pflichtthemen.
+        </p>
       </div>
 
       <div className="flex flex-col gap-8 lg:flex-row lg:items-start">

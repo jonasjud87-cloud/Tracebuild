@@ -1,17 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import AdminShell from "@/components/admin/shell/AdminShell";
 import PageHeader from "@/components/admin/shell/PageHeader";
 import { fetchEnvelope } from "@/components/admin/overview/resource";
 import AdminNormLibrary from "@/components/admin/norms/AdminNormLibrary";
+import DigestPanel from "@/components/admin/norms/DigestPanel";
 import AdminOrgNorms from "@/components/admin/norms/AdminOrgNorms";
 import NormWatchPanel from "@/components/admin/norms/NormWatchPanel";
 import NormsTabs, { panelId, tabId } from "@/components/admin/norms/NormsTabs";
-import OerebMappingSection from "@/components/admin/norms/OerebMappingSection";
 import { NORMS_PAGE_SIZE, type AdminNorm } from "@/components/admin/norms/admin-norm-types";
-import { DEFAULT_TAB, hashForTab, tabFromHash, type NormsTab } from "@/components/admin/norms/norms-tabs";
+import { DEFAULT_TAB, OEREB_ZUORDNUNG_PATH, hashForTab, isLegacyOerebHash, tabFromHash, type NormsTab } from "@/components/admin/norms/norms-tabs";
 import { api } from "@/lib/api";
 import type { NormWatchOverview } from "@/lib/norm-watch/types";
 
@@ -41,7 +42,13 @@ export default function AdminNormsPage() {
   }, []);
 
   useEffect(() => {
-    const sync = () => setTab(tabFromHash(window.location.hash));
+    const sync = () => {
+      if (isLegacyOerebHash(window.location.hash)) {
+        window.location.replace(OEREB_ZUORDNUNG_PATH);
+        return;
+      }
+      setTab(tabFromHash(window.location.hash));
+    };
     sync();
     window.addEventListener("hashchange", sync);
     return () => window.removeEventListener("hashchange", sync);
@@ -122,7 +129,7 @@ export default function AdminNormsPage() {
           photo="haus1"
           overlap={false}
           title="Normen"
-          subtitle="Rechtsgrundlagen verwalten: Bibliothek, Aktualität der amtlichen Quellen, Normen der Organisationen und ÖREB-Zuordnung."
+          subtitle="Rechtsgrundlagen verwalten: Bibliothek, Aktualität der amtlichen Quellen und Normen der Organisationen."
         />
 
         <div className="tba-glass tba-glass--dark tba-card tba-card--static grid grid-cols-2 gap-4 rounded-[20px] p-5 sm:grid-cols-4">
@@ -132,9 +139,15 @@ export default function AdminNormsPage() {
           <Stat label="Zur Freigabe" value={watch?.summary.updateAvailable ?? 0} loading={watch === null} />
         </div>
 
+        <p className="text-sm text-[#5f5f64]">
+          Gemeinde-Reglemente aus den ÖREB-Auszügen und die Zuordnung von ÖREB-Themen zu Normen verwaltest du unter{" "}
+          <Link href="/admin/oereb-imports" className="font-semibold text-[#151414] underline underline-offset-2">ÖREB-Importe</Link>.
+        </p>
+
         <NormsTabs active={tab} onChange={changeTab} badges={{ quellen: watch?.summary.updateAvailable ?? 0 }} />
 
         <div role="tabpanel" id={panelId(tab)} aria-labelledby={tabId(tab)} className="space-y-4">
+          {tab === "bibliothek" && <DigestPanel />}
           {tab === "bibliothek" && (
             <AdminNormLibrary
               norms={platformNorms}
@@ -151,7 +164,6 @@ export default function AdminNormsPage() {
           {tab === "organisationen" && (
             <AdminOrgNorms norms={orgNorms} loading={loading} promotingId={promotingId} onPromote={handlePromote} onDelete={handleDelete} />
           )}
-          {tab === "oereb" && <OerebMappingSection />}
         </div>
       </div>
     </AdminShell>
