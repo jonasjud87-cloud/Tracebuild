@@ -31,6 +31,7 @@ import {
 } from "@/lib/plan-files";
 import { autoPartsWarning, downloadReportCsv, openReportForPrint, type ReportMeta } from "@/lib/analysis-report";
 import { coverageGaps, type CoverageNorm } from "@/lib/norm-coverage";
+import { hashFiles } from "@/lib/plan-hash-client";
 import {
   type AnalysisItem,
   type Category,
@@ -73,6 +74,7 @@ interface AnalysisWithDoc {
   id: string;
   status: string;
   created_at: string;
+  versionNo: number | null;
   planType: string;
   /** Dateien des Plansatzes in Upload-Reihenfolge (ältere Analysen: eine Datei). */
   files: PlanFileRef[];
@@ -126,6 +128,7 @@ interface RawGetAnalysis {
   id: string;
   status: string;
   created_at: string;
+  version_no?: number | null;
   documents?: { doc_type: string | null; file_url?: string | null } | null;
   files?: PlanFileRef[];
   analysis_items?: AnalysisItem[];
@@ -139,6 +142,7 @@ function normalizeAnalysis(a: RawGetAnalysis, planType?: string): AnalysisWithDo
     id: a.id,
     status: a.status,
     created_at: a.created_at,
+    versionNo: typeof a.version_no === "number" ? a.version_no : null,
     planType: planType ?? a.documents?.doc_type ?? DEFAULT_CHECK_NAME,
     files: a.files ?? (a.documents?.file_url ? [{ name: "Plan", url: a.documents.file_url }] : []),
     items: sortAnalysisItems(a.items ?? a.analysis_items ?? [], a.result_json?.norm_versions),
@@ -245,6 +249,8 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
   const [info, setInfo]                     = useState<string | null>(null);
   const [project, setProject]               = useState<ProjectInfo | null>(null);
   const [assignedNorms, setAssignedNorms]     = useState<CoverageNorm[] | null>(null);
+  const [reuseOffer, setReuseOffer]             = useState<{ id: string; versionNo: number | null; createdAt: string } | null>(null);
+  const skipReuseRef                            = useRef(false);
   const [error, setError]                   = useState<string | null>(null);
   const [dragOver, setDragOver]             = useState(false);
   const [menuOpenId, setMenuOpenId]         = useState<string | null>(null);
@@ -456,6 +462,27 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
     setError(null);
     setInfo(null);
     setCancelError(null);
+    setReuseOffer(null);
+
+    if (!retryOf && !skipReuseRef.current) {
+      const hashes = await hashFiles(files);
+      if (hashes) {
+        try {
+          const decision = await api.post<{ reusable: { id: string; version_no: number | null; created_at: string } | null }>(
+            `/projects/${params.id}/analyses/reuse-check`,
+            { doc_type: planType, file_hashes: hashes },
+          );
+          if (decision.reusable) {
+            setReuseOffer({ id: decision.reusable.id, versionNo: decision.reusable.version_no, createdAt: decision.reusable.created_at });
+            return;
+          }
+        } catch {
+          // Die Prüfung ist nur eine Abkürzung: Bei einem Fehler läuft die normale Analyse.
+        }
+      }
+    }
+    skipReuseRef.current = false;
+
     setUploading(true);
     setCancelling(false);
 
@@ -628,7 +655,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
       parcel: project?.parcel_number ?? null,
       bauzone: project?.bauzone ?? null,
       planType: a.planType,
-      version: vIdx >= 0 ? typeAnalyses.length - vIdx : 1,
+      version: a.versionNo ?? (vIdx >= 0 ? typeAnalyses.length - vIdx : 1),
       createdAt: a.created_at,
       snapshots: a.snapshots,
       autoParts: a.autoParts,
@@ -909,7 +936,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                   const w = aItems.filter((i) => i.status === "warn").length;
                   const o = aItems.filter((i) => i.status === "ok").length;
                   const badge = STATUS_BADGE[v.status] ?? STATUS_BADGE.error;
-                  const vLabel = `V${typeAnalyses.length - idx}`;
+                  const vLabel = `V${v.versionNo ?? typeAnalyses.length - idx}`;
                   return (
                     <div key={v.id} className={a.versionWrap}>
                       <button
@@ -1008,6 +1035,34 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
                 className={`${a.dropzone} ${dragOver ? a.dropzoneOver : ""} ${pendingFiles.length > 0 && !uploading ? a.dropzoneCompact : ""} ${!uploading && pendingFiles.length === 0 ? a.dropzoneIdle : ""}`}
               >
                 <input ref={fileRef} type="file" multiple accept=".pdf,image/*" hidden onChange={(e) => { handleFiles(e.target.files); e.target.value = ""; }} />
+                {!uploading && reuseOffer && (
+                  <div role="status" className={`${g.alert} ${g.alertWarn}`} onClick={(e) => e.stopPropagation()} style={{ textAlign: "left", marginBottom: 16 }}>
+                    <strong>Dieser Plan wurde bereits geprüft.</strong>
+                    <p style={{ margin: "4px 0 0" }}>
+                      Gleicher Plan, gleiche Normen: Version {reuseOffer.versionNo ?? "?"} vom {shortDate(reuseOffer.createdAt)} gilt weiter. Das Ergebnis bleibt gleich und kostet nichts.
+                    </p>
+                    <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                      <button
+                        type="button"
+                        className={p.btnNavy}
+                        onClick={() => {
+                          const existing = analyses.find((x) => x.id === reuseOffer.id);
+                          if (existing) { setSelectedAnalysis(existing); setPendingFiles([]); }
+                          setReuseOffer(null);
+                        }}
+                      >
+                        Ergebnis anzeigen
+                      </button>
+                      <button
+                        type="button"
+                        className={p.btnGhost}
+                        onClick={() => { skipReuseRef.current = true; setReuseOffer(null); void runAnalysis(); }}
+                      >
+                        Trotzdem neu prüfen
+                      </button>
+                    </div>
+                  </div>
+                )}
                 {!uploading && coverage.length > 0 && (
                   <div role="status" className={`${g.alert} ${g.alertWarn}`} onClick={(e) => e.stopPropagation()} style={{ textAlign: "left", marginBottom: 16 }}>
                     <strong>Nicht alle Ebenen sind hinterlegt.</strong>
@@ -1108,7 +1163,7 @@ export default function AnalysisPage({ params }: { params: { id: string } }) {
             </>
           ) : (() => {
             const vIdx = typeAnalyses.findIndex((x) => x.id === selectedAnalysis.id);
-            const vNr  = typeAnalyses.length - vIdx;
+            const vNr  = selectedAnalysis.versionNo ?? typeAnalyses.length - vIdx;
             const isRunningVersion = selectedAnalysis.status === "running";
             const persistedNote = selectedAnalysis.preflight ? preflightNoteText(selectedAnalysis.preflight) : null;
             const sessionNote = !selectedAnalysis.preflight && !isRunningVersion && !lockingRun && !uploading ? preflightNote : null;

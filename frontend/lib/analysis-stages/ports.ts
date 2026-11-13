@@ -43,6 +43,7 @@ export interface RunSnapshot extends AnalysisSnapshots {
   oereb_context: boolean;
   auto_parts: AutoPartsSummary;
   digests?: { norm_id: string; sha256: string }[];
+  input_fingerprint?: string;
 }
 
 export interface StageJob {

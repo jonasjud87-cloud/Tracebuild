@@ -10,6 +10,7 @@ import { normTextHash } from "@/lib/norm-hash";
 import { companyNormApplies } from "@/lib/company-norms";
 import { applyDigests } from "@/lib/norm-digest/rules";
 import { loadActiveDigests } from "@/lib/norm-digest/store";
+import { inputFingerprint } from "@/lib/analysis-fingerprint";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
@@ -364,6 +365,11 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
     oereb_context: !!oereb,
     auto_parts: autoParts,
     digests: norms.filter((n) => n.digest).map((n) => ({ norm_id: n.id, sha256: normTextHash(n.text) })),
+    input_fingerprint: inputFingerprint(fullNorms.map((n) => ({ id: n.id, text: n.text, digest: norms.find((m) => m.id === n.id)?.digest ?? false })), {
+      canton: ctx.canton,
+      municipality: ctx.municipality,
+      bauzone: ctx.bauzone,
+    }),
   };
 
   // 3. Plansatz: Claude holt jede Datei selbst über eine signierte URL.

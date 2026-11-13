@@ -125,6 +125,7 @@ export async function finalizeRun(
     geodata_snapshot: snapshot?.geodata_snapshot,
     norm_versions: snapshot?.norm_versions,
     auto_parts: snapshot?.auto_parts,
+    input_fingerprint: snapshot?.input_fingerprint ?? null,
     item_count: items.length,
     raw_item_count: job.consolidation?.raw_count ?? items.length,
     consolidation: job.consolidation,
