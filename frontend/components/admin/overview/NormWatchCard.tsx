@@ -81,8 +81,9 @@ export default function NormWatchCard({ state, retry }: { state: Resource<NormWa
 
           <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px] text-[var(--tba-text-2,#46464a)]">
             <span>
-              Zuletzt geprüft: {formatDateTime(s.lastCheckedAt)}
-              {s.stale ? " (überfällig)" : ""}
+              {s.lastCheckedAt
+                ? `Zuletzt geprüft: ${formatDateTime(s.lastCheckedAt)}${s.stale ? " (überfällig)" : ""}`
+                : "Der Abgleich ist noch nie gelaufen."}
             </span>
             <Link href="/admin/norms#norm-watch" className={`font-semibold text-[var(--tba-text,#151414)] underline-offset-2 hover:underline ${focusRing}`}>
               Zum Normabgleich

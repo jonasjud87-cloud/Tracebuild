@@ -423,8 +423,9 @@ export default function NormWatchPanel() {
               </ul>
             )}
             <p className="mt-3 text-[13px] text-[var(--tba-text-2,#46464a)]">
-              Letzter Abgleich: {formatDateTime(overview.data.summary.lastCheckedAt)}
-              {overview.data.summary.stale ? " (überfällig)" : ""}
+              {overview.data.summary.lastCheckedAt
+                ? `Letzter Abgleich: ${formatDateTime(overview.data.summary.lastCheckedAt)}${overview.data.summary.stale ? " (überfällig)" : ""}`
+                : "Der Abgleich ist noch nie gelaufen."}
             </p>
           </>
         )}

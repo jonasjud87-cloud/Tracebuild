@@ -1,6 +1,7 @@
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { UUID_RE } from "@/lib/norm-watch/deps";
+import { describeChange, similarity } from "@/lib/norm-watch/text";
 import type { DraftDetail, DraftDiff } from "@/lib/norm-watch/types";
 
 export const dynamic = "force-dynamic";
@@ -41,9 +42,20 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     .eq("id", draft.source_id)
     .maybeSingle();
   let normTitle: string | null = null;
+  let diff = draft.diff;
+  let currentSimilarity = draft.similarity;
   if (draft.norm_id) {
-    const { data: norm } = await admin.from("norms").select("title").eq("id", draft.norm_id).maybeSingle();
-    normTitle = (norm as { title: string | null } | null)?.title ?? null;
+    const { data: norm } = await admin.from("norms").select("title, text").eq("id", draft.norm_id).maybeSingle();
+    const row = norm as { title: string | null; text: string | null } | null;
+    normTitle = row?.title ?? null;
+    if (row?.text) {
+      const { data: full } = await admin.from("norm_update_drafts").select("new_text").eq("id", params.id).maybeSingle();
+      const newText = (full as { new_text: string | null } | null)?.new_text;
+      if (newText) {
+        diff = describeChange(row.text, newText).diff;
+        currentSimilarity = similarity(row.text, newText);
+      }
+    }
   }
 
   const detail: DraftDetail = {
@@ -56,8 +68,8 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     appliedLabel: (source as { applied_label: string | null } | null)?.applied_label ?? null,
     newChars: draft.new_chars,
     oldChars: draft.old_chars,
-    similarity: draft.similarity,
-    diff: draft.diff,
+    similarity: currentSimilarity,
+    diff,
     status: draft.status,
     createdAt: draft.created_at,
   };

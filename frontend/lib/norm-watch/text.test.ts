@@ -92,6 +92,14 @@ test("describeChange: nur Reihenfolge geändert führt zu einem Hinweis statt le
   assert.ok(result.diff.note);
 });
 
+test("Seitenmarker der PDF-Extraktion zählen weder im Vergleich noch im gespeicherten Text", () => {
+  const withMarkers = ["-- 1 of 9 --", "Art. 1", "Dieses Gesetz regelt die Planung und das Bauen im Kanton.", "-- 2 of 9 --"].join("\n");
+  const sixteen = ["-- 1 of 16 --", "Art. 1", "Dieses Gesetz regelt die Planung und das Bauen im Kanton."].join("\n");
+  assert.equal(fingerprint(withMarkers), fingerprint(sixteen));
+  assert.equal(describeChange(withMarkers, sixteen).changed, false);
+  assert.equal(cleanPlainText(withMarkers), "Art. 1\nDieses Gesetz regelt die Planung und das Bauen im Kanton.");
+});
+
 test("xmlToText: ungültige Entities brechen nicht ab", () => {
   const text = xmlToText("<a><p>Wert &#99999999; und &#x110000; sowie &amp;lt; bleibt</p></a>");
   assert.ok(text.includes("Wert"));

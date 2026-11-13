@@ -7,6 +7,7 @@ import { normTextHash } from "@/lib/norm-hash";
 import { updateNormRow } from "./norm-write";
 import { SOURCE_COLUMNS } from "./overview";
 import { nextTitle } from "./status";
+import { cleanPlainText } from "./text";
 import type { NormSourceRow } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -162,6 +163,7 @@ async function markSourceApplied(admin: Admin, source: NormSourceRow, draft: Cla
 export async function approveDraft(admin: Admin, actor: Actor, draftId: string): Promise<DecisionResult> {
   const draft = await claimDraft(admin, actor, draftId, "approved");
   if (!draft) return { ok: false, status: 409, message: "Der Entwurf ist nicht mehr offen." };
+  draft.new_text = cleanPlainText(draft.new_text);
 
   let committed = false;
   try {

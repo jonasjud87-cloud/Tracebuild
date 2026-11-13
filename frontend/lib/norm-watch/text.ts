@@ -58,12 +58,14 @@ export function xmlToText(xml: string): string {
     .join("\n");
 }
 
+const PAGE_MARKER_RE = /^--\s*\d+\s+of\s+\d+\s*--$/i;
+
 export function cleanPlainText(input: string): string {
   return input
     .replace(/\r\n?/g, "\n")
     .split("\n")
     .map((line) => line.replace(/\s+/g, " ").trim())
-    .filter(Boolean)
+    .filter((line) => line && !PAGE_MARKER_RE.test(line))
     .join("\n");
 }
 
@@ -78,7 +80,7 @@ export function wordsOf(text: string): string[] {
 const VERSION_LINE_RE = /\(stand am [^)]*\)/i;
 
 function isVersionLine(part: string): boolean {
-  return wordsOf(part).length < 24 && VERSION_LINE_RE.test(part);
+  return PAGE_MARKER_RE.test(part.trim()) || (wordsOf(part).length < 24 && VERSION_LINE_RE.test(part));
 }
 
 export function fingerprint(text: string): string {
