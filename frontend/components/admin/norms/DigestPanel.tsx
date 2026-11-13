@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 interface DigestRow {
   normId: string;
   title: string;
+  level: string;
   sourceChars: number;
   state: "ok" | "failed" | "missing" | "outdated";
   digestChars: number | null;
@@ -113,11 +114,11 @@ export default function DigestPanel() {
     <section aria-label="Prüfauszüge" className="rounded-2xl border border-[rgba(21,20,20,0.08)] bg-white p-4 sm:p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="max-w-3xl">
-          <h2 className="text-base font-bold text-[#151414]">Prüfauszüge der Bundesnormen</h2>
+          <h2 className="text-base font-bold text-[#151414]">Prüfauszüge langer Gesetze</h2>
           <p className="mt-1 text-sm text-[#5f5f64]">
-            Lange Bundesnormen werden einmal pro Fassung auf die Bestimmungen gekürzt, die sich an einem Plan prüfen lassen, im Wortlaut des Gesetzes. Die Analyse
+            Lange Gesetze des Bundes und der Kantone werden einmal pro Fassung auf die Bestimmungen gekürzt, die sich an einem Plan prüfen lassen, im Wortlaut des Gesetzes. Die Analyse
             verwendet dann diesen Auszug statt des ganzen Texts und wird dadurch günstiger. Neue Auszüge werden automatisch aktiv, bei einer neuen Fassung entstehen
-            sie von selbst. Fehlt ein Auszug oder besteht seine Prüfung nicht, gilt weiter der volle Text. «Fehlende erstellen» prüft gespeicherte Auszüge zuerst ohne Kosten erneut. «Neu erstellen» bezahlt einen neuen Versuch und ersetzt nie einen funktionierenden Auszug.
+            sie von selbst. Bei kantonalen Gesetzen erstellst du den ersten Auszug von Hand und liest ihn zuerst durch. Fehlt ein Auszug oder besteht seine Prüfung nicht, gilt weiter der volle Text. «Fehlende erstellen» prüft gespeicherte Auszüge zuerst ohne Kosten erneut. «Neu erstellen» bezahlt einen neuen Versuch und ersetzt nie einen funktionierenden Auszug.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -137,6 +138,7 @@ export default function DigestPanel() {
           return (
             <li key={r.normId} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
               <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-[13px] font-medium ${state.cls}`}>{state.label}</span>
+              <span className="rounded-full bg-[#151414] px-2 py-0.5 text-[13px] font-medium text-white">{r.level}</span>
               <span className="min-w-0 flex-1 text-sm font-medium text-[#151414]" style={{ overflowWrap: "anywhere" }}>{r.title}</span>
               <span className="text-sm tabular-nums text-[#5f5f64]">
                 {chars(r.sourceChars)} Zeichen{r.digestChars ? ` → ${chars(r.digestChars)} (${share} %)` : ""}

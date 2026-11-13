@@ -2,6 +2,7 @@ import { normTextHash } from "@/lib/norm-hash";
 
 export const DIGEST_VERSION = 1;
 export const DIGEST_MIN_SOURCE_CHARS = 15_000;
+export const DIGEST_MIN_SOURCE_CHARS_CANTONAL = 40_000;
 export const DIGEST_MIN_RATIO = 0.02;
 export const DIGEST_MAX_RATIO = 0.6;
 export const DIGEST_MIN_REFS = 3;
@@ -14,6 +15,7 @@ export interface DigestCandidate {
   layer?: number | null;
   org_id?: string | null;
   jurisdiction_type?: string | null;
+  jurisdiction_name?: string | null;
   country?: string | null;
   auto_scope?: string | null;
   archived_at?: string | null;
@@ -23,10 +25,12 @@ export interface DigestCandidate {
 
 export function digestEligible(n: DigestCandidate): boolean {
   if (n.org_id) return false;
-  if (n.jurisdiction_type !== "national") return false;
   if (n.country !== "CH") return false;
   if (n.auto_scope === "superseded" || n.archived_at || n.approval_status === "draft") return false;
-  return (n.text ?? "").length >= DIGEST_MIN_SOURCE_CHARS;
+  const length = (n.text ?? "").length;
+  if (n.jurisdiction_type === "national") return length >= DIGEST_MIN_SOURCE_CHARS;
+  if (n.jurisdiction_type === "cantonal") return length >= DIGEST_MIN_SOURCE_CHARS_CANTONAL;
+  return false;
 }
 
 const REF_RE = /\bArt(?:ikel|\.)\s*(\d+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|[a-z])(?![a-zäöü])|\d+(?![0-9a-zäöü]))/gi;

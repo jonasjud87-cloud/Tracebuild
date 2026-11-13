@@ -7,14 +7,15 @@ const PART_CHARS = 30_000;
 const MAX_TOKENS = 16_000;
 const CONCURRENCY = 3;
 
-export const DIGEST_SYSTEM_PROMPT = `Du erstellst den Prüfauszug eines Schweizer Bundeserlasses (Gesetz oder Verordnung) für die automatische Prüfung von Bauplänen und Baugesuchen.
+export const DIGEST_SYSTEM_PROMPT = `Du erstellst den Prüfauszug eines Schweizer Erlasses (Bundes- oder Kantonsgesetz, Verordnung) für die automatische Prüfung von Bauplänen und Baugesuchen.
 
 Behalte NUR Bestimmungen, die sich an einem Bauprojekt, einem Plan oder einem Baugesuch prüfen lassen, zum Beispiel:
-- Abstände, Höhen, Masse, Grenz- und Richtwerte
+- Abstände, Höhen, Masse, Grenz- und Richtwerte (Grenz-, Gebäude- und Strassenabstände, Gebäude- und Firsthöhe, Geschosszahl, Ausnützung, Baulinien)
 - Pflichten und Anforderungen beim Bauen, Umbauen und Ändern von Bauten und Anlagen
 - Bewilligungspflichten und Voraussetzungen einer Baubewilligung
 - Schutz von Gewässern, Wald, Landschaft, Ortsbild und Objekten, soweit er Bauten betrifft
 - Lärmschutz, Luftreinhaltung, Boden- und Altlastenregeln, soweit sie Bauten betreffen
+- Anforderungen an Erschliessung, Zufahrt, Parkierung, Dach- und Fassadengestaltung, Terrainveränderungen, Brandschutz und Wohnhygiene
 - Anhänge und Tabellen mit Grenz- und Richtwerten, die für Bauten gelten
 
 Lass weg: Zweck- und Zielartikel ohne Prüfwirkung, reine Begriffsbestimmungen, Zuständigkeiten, Organisation, Verfahren, Rechtsschutz, Strafbestimmungen, Finanzierung, Übergangs- und Schlussbestimmungen.

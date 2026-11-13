@@ -41,7 +41,7 @@ export async function GET(request: Request) {
     });
     let digests = { created: 0, failed: 0, skipped: 0, costUsd: 0 };
     try {
-      digests = await ensureAllDigests(deps.admin, { deadlineAt: Math.min(startedAt + 280_000, Date.now() + 200_000) });
+      digests = await ensureAllDigests(deps.admin, { deadlineAt: Math.min(startedAt + 280_000, Date.now() + 200_000), auto: true });
     } catch (e) {
       console.error("Prüfauszüge im Cron:", e instanceof Error ? e.message : "unbekannt");
     }

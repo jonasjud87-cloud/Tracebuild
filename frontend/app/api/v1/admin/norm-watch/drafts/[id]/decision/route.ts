@@ -29,8 +29,8 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   if (!result.ok) return err(result.message, result.status);
   if (decision === "approve" && result.normId) {
     try {
-      const { data: norm } = await admin.from("norms").select("id, title, text, layer, org_id, jurisdiction_type, country, auto_scope").eq("id", result.normId).maybeSingle();
-      if (norm) await ensureDigest(admin, { ...norm, text: (norm.text as string | null) ?? "" }, { deadlineAt: startedAt + 230_000 });
+      const { data: norm } = await admin.from("norms").select("id, title, text, layer, org_id, jurisdiction_type, jurisdiction_name, country, auto_scope").eq("id", result.normId).maybeSingle();
+      if (norm) await ensureDigest(admin, { ...norm, text: (norm.text as string | null) ?? "" }, { deadlineAt: startedAt + 230_000, auto: true });
     } catch (e) {
       console.error("Prüfauszug nach Freigabe:", e instanceof Error ? e.message : "unbekannt");
     }
