@@ -6,7 +6,7 @@ export const DIGEST_MIN_RATIO = 0.02;
 export const DIGEST_MAX_RATIO = 0.6;
 export const DIGEST_MIN_REFS = 3;
 export const DIGEST_MIN_REF_COVERAGE = 0.6;
-export const DIGEST_MIN_VERBATIM = 0.85;
+export const DIGEST_MIN_VERBATIM = 0.8;
 export const DIGEST_NONE_MARKER = "KEINE";
 export const SHINGLE_WORDS = 6;
 
@@ -31,20 +31,29 @@ export function digestEligible(n: DigestCandidate): boolean {
 
 const REF_RE = /\bArt(?:ikel|\.)\s*(\d+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|[a-z])?)(?![a-zäöü0-9])/gi;
 
+const SPACED_SUFFIX_RE = /(\bArt(?:ikel|\.)\s*\d+)\s([a-z])(?![a-zäöü0-9])/gi;
+
 export function articleRefs(text: string): Set<string> {
   const out = new Set<string>();
-  Array.from(text.matchAll(REF_RE)).forEach((m) => out.add(m[1].toLowerCase()));
+  Array.from(text.replace(SPACED_SUFFIX_RE, "$1$2").matchAll(REF_RE)).forEach((m) => out.add(m[1].toLowerCase()));
   return out;
 }
+
+const HYPHEN_BREAK_RE = /([a-zäöüéèêëàâîïôùûçì])-\s*\n\s*([a-zäöüéèêëàâîïôùûçì])/gi;
 
 function words(text: string): string[] {
   return text
     .normalize("NFC")
+    .replace(HYPHEN_BREAK_RE, "$1$2")
     .toLowerCase()
     .replace(/[^a-z0-9äöüéèêëàâîïôùûçì]+/g, " ")
     .trim()
     .split(" ")
     .filter(Boolean);
+}
+
+function contentWords(list: string[]): string[] {
+  return list.filter((w) => !/^\d{1,2}$/.test(w));
 }
 
 function shingles(list: string[], size: number): string[] {
@@ -61,17 +70,40 @@ function digestUnits(digest: string): string[] {
     .map((unit) => unit.replace(HEADER_RE, ""));
 }
 
-export function verbatimRatio(source: string, digest: string): number {
-  const known = new Set(shingles(words(source), SHINGLE_WORDS));
+export function verbatimDetail(source: string, digest: string): { ratio: number; samples: string[] } {
+  const known = new Set(shingles(contentWords(words(source)), SHINGLE_WORDS));
   let total = 0;
   let hit = 0;
+  const samples: string[] = [];
   digestUnits(digest).forEach((unit) => {
-    shingles(words(unit), SHINGLE_WORDS).forEach((s) => {
+    let missed = false;
+    shingles(contentWords(words(unit)), SHINGLE_WORDS).forEach((s) => {
       total += 1;
       if (known.has(s)) hit += 1;
+      else if (!missed && samples.length < 3) {
+        missed = true;
+        samples.push(s);
+      }
     });
   });
-  return total ? hit / total : 0;
+  return { ratio: total ? hit / total : 0, samples };
+}
+
+export function verbatimRatio(source: string, digest: string): number {
+  return verbatimDetail(source, digest).ratio;
+}
+
+const NUMBER_RE = /\d+(?:[.,\u2019']\d+)*/g;
+
+function numberSet(text: string): Set<string> {
+  const out = new Set<string>();
+  (text.match(NUMBER_RE) ?? []).forEach((n) => out.add(n.replace(/[\u2019']/g, "").replace(",", ".")));
+  return out;
+}
+
+export function missingNumbers(source: string, digest: string): string[] {
+  const known = numberSet(source);
+  return Array.from(numberSet(digest)).filter((n) => !known.has(n));
 }
 
 export interface DigestCheck {
@@ -82,10 +114,12 @@ export interface DigestCheck {
   verbatim: number;
   omitted: string[];
   unknown: string[];
+  samples: string[];
+  numbers: string[];
 }
 
 function fail(reason: string, extra: Partial<DigestCheck> = {}): DigestCheck {
-  return { ok: false, reason, refs: 0, coverage: 0, verbatim: 0, omitted: [], unknown: [], ...extra };
+  return { ok: false, reason, refs: 0, coverage: 0, verbatim: 0, omitted: [], unknown: [], samples: [], numbers: [], ...extra };
 }
 
 export function verifyDigest(source: string, digest: string): DigestCheck {
@@ -101,20 +135,24 @@ export function verifyDigest(source: string, digest: string): DigestCheck {
   const known = articleRefs(source);
   const unknown = Array.from(wanted).filter((ref) => !known.has(ref));
   const coverage = (wanted.size - unknown.length) / wanted.size;
-  const verbatim = verbatimRatio(source, text);
-  const detail = { refs: wanted.size, coverage, verbatim, unknown };
+  const { ratio: verbatim, samples } = verbatimDetail(source, text);
+  const numbers = missingNumbers(source, text);
+  const detail = { refs: wanted.size, coverage, verbatim, unknown, samples, numbers };
 
   if (verbatim < DIGEST_MIN_VERBATIM) return fail("Der Auszug weicht zu stark vom Wortlaut des Gesetzes ab.", detail);
+  if (numbers.length) return fail("Der Auszug enthält Zahlen, die im Gesetz nicht vorkommen.", detail);
   if (coverage < DIGEST_MIN_REF_COVERAGE) return fail("Der Auszug nennt zu viele Artikel, die im Gesetz nicht vorkommen.", detail);
 
   const omitted = Array.from(known).filter((ref) => !wanted.has(ref));
-  return { ok: true, reason: null, refs: wanted.size, coverage, verbatim, omitted, unknown };
+  return { ok: true, reason: null, refs: wanted.size, coverage, verbatim, omitted, unknown, samples, numbers };
 }
 
 export function digestNote(check: DigestCheck, sourceRefs: number): string {
   if (!check.ok) {
     const parts = [check.reason ?? "Prüfung fehlgeschlagen"];
     if (check.verbatim) parts.push(`Wortlaut ${Math.round(check.verbatim * 100)} %`);
+    if (check.numbers.length) parts.push(`fremde Zahlen: ${check.numbers.slice(0, 8).join(", ")}`);
+    if (check.samples.length) parts.push(`Beispiele: «${check.samples.join("» «")}»`);
     if (check.unknown.length) parts.push(`unbekannte Artikel: ${check.unknown.slice(0, 12).join(", ")}${check.unknown.length > 12 ? " …" : ""}`);
     return parts.join(", ");
   }

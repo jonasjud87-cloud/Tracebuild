@@ -68,7 +68,7 @@ export default function DigestPanel() {
       for (let i = 0; i < targets.length; i++) {
         const row = targets[i];
         setMessage(`Erstelle ${i + 1} von ${targets.length}: ${row.title}`);
-        const result = await api.post<RunSummary>("/admin/norm-digests", { force: force || row.state === "failed", normId: row.normId });
+        const result = await api.post<RunSummary>("/admin/norm-digests", { force, normId: row.normId });
         total.created += result.created;
         total.failed += result.failed;
         total.skipped += result.skipped;
@@ -100,7 +100,7 @@ export default function DigestPanel() {
           <p className="mt-1 text-sm text-[#5f5f64]">
             Lange Bundesnormen werden einmal pro Fassung auf die Bestimmungen gekürzt, die sich an einem Plan prüfen lassen, im Wortlaut des Gesetzes. Die Analyse
             verwendet dann diesen Auszug statt des ganzen Texts und wird dadurch günstiger. Neue Auszüge werden automatisch aktiv, bei einer neuen Fassung entstehen
-            sie von selbst. Fehlt ein Auszug oder besteht seine Prüfung nicht, gilt weiter der volle Text. Ein neuer Versuch ersetzt nie einen funktionierenden Auszug.
+            sie von selbst. Fehlt ein Auszug oder besteht seine Prüfung nicht, gilt weiter der volle Text. «Fehlende erstellen» prüft gespeicherte Auszüge zuerst ohne Kosten erneut. «Neu erstellen» bezahlt einen neuen Versuch und ersetzt nie einen funktionierenden Auszug.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

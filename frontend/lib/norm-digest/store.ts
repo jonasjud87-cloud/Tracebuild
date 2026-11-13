@@ -30,6 +30,8 @@ export type DigestOutcome =
 interface ExistingRow {
   status: string;
   created_at: string;
+  cost_usd: number | string | null;
+  digest: string | null;
 }
 
 export async function ensureDigest(
@@ -43,7 +45,7 @@ export async function ensureDigest(
 
   const { data, error: readError } = await admin
     .from("norm_digests")
-    .select("status, created_at")
+    .select("status, created_at, cost_usd, digest")
     .eq("norm_id", norm.id)
     .eq("text_sha256", sha)
     .eq("extractor_version", DIGEST_VERSION)
@@ -53,9 +55,43 @@ export async function ensureDigest(
     throw new Error(readError.message);
   }
   const existing = data as ExistingRow | null;
+  const earlierCost = Number(existing?.cost_usd) || 0;
+  const conflict = "norm_id,text_sha256,extractor_version";
+
   if (existing && !options.force) {
+    if (existing.status === "ok") return { status: "exists" };
+    if (existing.digest) {
+      const recheck = verifyDigest(norm.text, existing.digest);
+      const refs = articleRefs(norm.text).size;
+      if (recheck.ok) {
+        const omitted = recheck.omitted.length ? ` Ausgelassen: ${recheck.omitted.slice(0, 80).join(", ")}${recheck.omitted.length > 80 ? " …" : ""}` : "";
+        const { error } = await admin.from("norm_digests").upsert(
+          {
+            norm_id: norm.id,
+            text_sha256: sha,
+            extractor_version: DIGEST_VERSION,
+            status: "ok",
+            digest: existing.digest,
+            source_chars: norm.text.length,
+            digest_chars: existing.digest.length,
+            cost_usd: earlierCost,
+            note: `${digestNote(recheck, refs)}.${omitted} Erneut geprüft.`.slice(0, 2000),
+            created_at: new Date(now()).toISOString(),
+          },
+          { onConflict: conflict },
+        );
+        if (error) throw new Error(error.message);
+        return { status: "created", digestChars: existing.digest.length, sourceChars: norm.text.length, costUsd: 0 };
+      }
+      await admin
+        .from("norm_digests")
+        .update({ note: digestNote(recheck, refs).slice(0, 2000) })
+        .eq("norm_id", norm.id)
+        .eq("text_sha256", sha)
+        .eq("extractor_version", DIGEST_VERSION);
+    }
     const age = now() - Date.parse(existing.created_at);
-    if (existing.status === "ok" || !(age > RETRY_FAILED_AFTER_MS)) return { status: "exists" };
+    if (!(age > RETRY_FAILED_AFTER_MS)) return { status: "exists" };
   }
 
   const base = {
@@ -68,8 +104,8 @@ export async function ensureDigest(
   const saveFailure = async (reason: string, costUsd: number, digestText: string | null, model: string | null): Promise<DigestOutcome> => {
     if (existing?.status === "ok") return { status: "failed", reason: `${reason} Der bisherige Auszug bleibt aktiv.`, costUsd };
     const { error } = await admin.from("norm_digests").upsert(
-      { ...base, status: "failed", digest: digestText, digest_chars: null, model, cost_usd: costUsd, note: reason.slice(0, 2000) },
-      { onConflict: "norm_id,text_sha256,extractor_version" },
+      { ...base, status: "failed", digest: digestText, digest_chars: null, model, cost_usd: earlierCost + costUsd, note: reason.slice(0, 2000) },
+      { onConflict: conflict },
     );
     if (error) throw new Error(error.message);
     return { status: "failed", reason, costUsd };
@@ -94,10 +130,10 @@ export async function ensureDigest(
     digest: generated.digest,
     digest_chars: generated.digest.length,
     model: generated.model,
-    cost_usd: generated.costUsd,
+    cost_usd: earlierCost + generated.costUsd,
     note: `${digestNote(check, articleRefs(norm.text).size)}.${omitted}`.slice(0, 2000),
   };
-  const { error } = await admin.from("norm_digests").upsert(row, { onConflict: "norm_id,text_sha256,extractor_version" });
+  const { error } = await admin.from("norm_digests").upsert(row, { onConflict: conflict });
   if (error) throw new Error(error.message);
 
   return { status: "created", digestChars: generated.digest.length, sourceChars: norm.text.length, costUsd: generated.costUsd };

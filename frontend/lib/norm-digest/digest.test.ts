@@ -184,12 +184,29 @@ test("scheitert die Erstellung selbst, wird der Grund gespeichert und nicht erne
 });
 
 test("Verweise auf andere Erlasse lassen einen wörtlichen Auszug nicht durchfallen", () => {
-  const withCrossRefs = `${GOOD}
-
-Art. 77 (Verweis): ${Array.from({ length: 30 }, (_, i) => `wort77x${i}`).join(" ")} gemäss Art. 150 BV und Art. 151 des Bundesgesetzes.`;
-  const check = verifyDigest(SOURCE, withCrossRefs);
+  const source = `${SOURCE}\nAnhang 130 und 131 enthalten Werte.`;
+  const withCrossRefs = `${GOOD}\n\nArt. 77 (Verweis): ${Array.from({ length: 30 }, (_, i) => `wort77x${i}`).join(" ")}`;
+  const check = verifyDigest(source, withCrossRefs.replace("wort77x29", "wort77x29 gemäss Art. 130 BV"));
   assert.equal(check.ok, true);
-  assert.ok(check.unknown.includes("150"));
+  assert.ok(check.unknown.includes("130"));
+});
+
+test("erfundene Zahlen in einem sonst wörtlichen Auszug fallen durch", () => {
+  const tampered = `${GOOD}\n\nArt. 77 (Grenzwert): ${Array.from({ length: 30 }, (_, i) => `wort77x${i}`).join(" ")} höchstens 9999 Meter.`;
+  const check = verifyDigest(SOURCE, tampered);
+  assert.equal(check.ok, false);
+  assert.match(check.reason ?? "", /Zahlen/);
+  assert.ok(check.numbers.includes("9999"));
+});
+
+test("Silbentrennung und Fussnotenziffern im Original stören den Wortlautvergleich nicht", () => {
+  const source = SOURCE.replace("betrifft Bauten und Anlagen. wort7x0", "betrifft Bau-\nten 3 und Anlagen. wort7x0");
+  const check = verifyDigest(source, GOOD);
+  assert.equal(check.ok, true);
+});
+
+test("Artikel mit abgesetztem Buchstaben werden erkannt", () => {
+  assert.ok(articleRefs("Art. 16 a Landwirtschaftszonen und Art. 24 b").has("16a"));
 });
 
 test("ein fehlgeschlagener Versuch überschreibt nie einen aktiven Auszug", async () => {
@@ -217,4 +234,22 @@ test("loadActiveDigests ohne IDs oder bei Notschalter liefert nichts", async () 
   } finally {
     delete process.env.NORM_DIGEST_DISABLED;
   }
+});
+
+test("ein gespeicherter, fehlgeschlagener Auszug wird ohne neue KI-Kosten erneut geprüft und freigeschaltet", async () => {
+  const stored = { norm_id: "n1", text_sha256: SHA, extractor_version: 1, status: "failed", digest: GOOD, cost_usd: 0.2, created_at: new Date().toISOString() };
+  const { admin, upserts } = fakeAdmin([stored]);
+  const outcome = await ensureDigest(admin, NORM, { complete: async () => { throw new Error("darf nicht aufgerufen werden"); } });
+  assert.equal(outcome.status, "created");
+  assert.equal(outcome.status === "created" ? outcome.costUsd : -1, 0);
+  assert.equal(upserts[0].status, "ok");
+  assert.equal(upserts[0].cost_usd, 0.2);
+});
+
+test("die Kosten früherer Versuche bleiben beim neuen Versuch erhalten", async () => {
+  const stored = { norm_id: "n1", text_sha256: SHA, extractor_version: 1, status: "failed", digest: null, cost_usd: 0.2, created_at: new Date().toISOString() };
+  const { admin, upserts } = fakeAdmin([stored]);
+  const outcome = await ensureDigest(admin, NORM, { force: true, complete: async () => ok(GOOD) });
+  assert.equal(outcome.status, "created");
+  assert.ok(Number(upserts[0].cost_usd) > 0.2);
 });

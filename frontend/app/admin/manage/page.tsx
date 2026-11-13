@@ -17,6 +17,7 @@ import type { OrgUsersGroup } from "@/app/api/v1/admin/all-users/route";
 import ActivityFeed from "@/components/admin/ActivityFeed";
 import CostTable from "@/components/admin/CostTable";
 import CostOverview from "@/components/admin/CostOverview";
+import PlatformCostsCard from "@/components/admin/PlatformCostsCard";
 import SystemStatus from "@/components/admin/SystemStatus";
 import Toast from "@/components/admin/Toast";
 import InvoicesSection from "@/components/admin/InvoicesSection";
@@ -709,6 +710,7 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
             monthlyBudget={kpiData.monthlyBudget}
             fmtMonth={fmtMonth}
           />
+          <PlatformCostsCard />
         </div>}
 
         {show("orgs") && <div className="space-y-4">
