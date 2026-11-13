@@ -118,7 +118,7 @@ export default function DashboardFrame({ pathname, email, userName, role, active
         <nav className={s.nav} aria-label="Hauptnavigation">
           <NavItem href="/dashboard" active={!isProjectsPage && !isProfilePage} icon={<HomeIcon />} label="Übersicht" onNavigate={close} />
           <NavItem href="/dashboard/projects" active={isProjectsPage} icon={<LayersIcon />} label="Projekte" onNavigate={close} />
-          <NavItem href="/standards" active={false} icon={<BookIcon />} label="Normen-DB" onNavigate={close} />
+          <NavItem href="/standards" active={false} icon={<BookIcon />} label="Unternehmensnormen" onNavigate={close} />
           {isOrgAdmin && <NavItem href="/admin/org" active={false} icon={<UsersIcon />} label="Organisation" onNavigate={close} />}
         </nav>
 

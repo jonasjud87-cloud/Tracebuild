@@ -48,8 +48,8 @@ export function normVisibleToOrg(norm: { org_id?: string | null }, orgId: string
 }
 
 /** Abgelöste Fassung: Sie bleibt von Hand zugewiesen sichtbar, wird aber nicht mehr geprüft. */
-export function normIsCurrent(norm: { auto_scope?: string | null }): boolean {
-  return norm.auto_scope !== "superseded";
+export function normIsCurrent(norm: { auto_scope?: string | null; approval_status?: string | null; archived_at?: string | null }): boolean {
+  return norm.auto_scope !== "superseded" && norm.approval_status !== "draft" && !norm.archived_at;
 }
 
 /**

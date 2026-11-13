@@ -3,8 +3,9 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getUsdChf } from "@/lib/admin-currency";
 import { monthKey, periodRange } from "@/lib/admin-billing";
 import { isMissingSchema } from "@/lib/supabase/schema-errors";
+import { loadNormWatchOverview } from "@/lib/norm-watch/overview";
 
-export type AlertRule = "budget" | "service" | "invitation" | "inactive_org";
+export type AlertRule = "budget" | "service" | "invitation" | "inactive_org" | "norm_watch";
 export type AlertSeverity = "critical" | "warning" | "info";
 
 export interface AdminAlert {
@@ -330,6 +331,64 @@ async function inactiveOrgAlerts(admin: SupabaseClient, orgs: OrgInfo[], now: Da
     }));
 }
 
+const NORM_WATCH_HREF = "/admin/norms#norm-watch";
+
+async function normWatchAlerts(admin: SupabaseClient, now: Date): Promise<AdminAlert[]> {
+  const overview = await loadNormWatchOverview(admin as Parameters<typeof loadNormWatchOverview>[0], now);
+  const out: AdminAlert[] = [];
+  const base = { orgId: null, orgName: null, href: NORM_WATCH_HREF };
+
+  for (const s of overview.sources) {
+    const createdAt = s.lastCheckedAt ?? now.toISOString();
+    if (s.status === "update_available") {
+      out.push({
+        ...base,
+        id: `norm_watch:draft:${s.id}`,
+        rule: "norm_watch",
+        severity: "warning",
+        title: "Neue Fassung zur Freigabe",
+        message: `${s.label}: ${s.remoteLabel ?? "neue Fassung"} liegt als Entwurf bereit.`,
+        createdAt,
+      });
+    } else if (s.status === "error") {
+      out.push({
+        ...base,
+        id: `norm_watch:error:${s.id}`,
+        rule: "norm_watch",
+        severity: "warning",
+        title: "Normabgleich fehlgeschlagen",
+        message: `${s.label}: ${s.lastError ?? "Unbekannter Fehler"}`,
+        createdAt,
+      });
+    } else if (s.status === "missing") {
+      out.push({
+        ...base,
+        id: `norm_watch:missing:${s.id}`,
+        rule: "norm_watch",
+        severity: "warning",
+        title: "Norm fehlt",
+        message: `${s.label} ist beobachtet, aber noch keiner Norm zugeordnet.`,
+        createdAt,
+      });
+    }
+  }
+
+  if (overview.summary.stale) {
+    out.push({
+      ...base,
+      id: "norm_watch:stale",
+      rule: "norm_watch",
+      severity: "info",
+      title: "Normabgleich überfällig",
+      message: overview.summary.lastCheckedAt
+        ? "Der wöchentliche Abgleich der Rechtsquellen lief seit mehr als 10 Tagen nicht."
+        : "Der Abgleich der Rechtsquellen ist noch nie gelaufen.",
+      createdAt: overview.summary.lastCheckedAt ?? now.toISOString(),
+    });
+  }
+  return out;
+}
+
 const ORDER: Record<AlertSeverity, number> = { critical: 0, warning: 1, info: 2 };
 
 async function compute(): Promise<AdminAlertsResult> {
@@ -344,6 +403,7 @@ async function compute(): Promise<AdminAlertsResult> {
     serviceAlerts(admin, now).catch(() => [] as AdminAlert[]),
     invitationAlerts(admin, orgs, now).catch(() => [] as AdminAlert[]),
     inactiveOrgAlerts(admin, orgs, now).catch(() => [] as AdminAlert[]),
+    normWatchAlerts(admin, now).catch(() => [] as AdminAlert[]),
   ]);
 
   const alerts = settled.flat().sort((a, b) =>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ConfirmDialog from "@/components/admin/analyses/ConfirmDialog";
 import Toast from "@/components/admin/Toast";
 import PageHeader from "@/components/admin/shell/PageHeader";
@@ -9,6 +9,7 @@ import { organizationService } from "@/lib/services/organizationService";
 import AnnouncementFormDialog, { type AnnouncementPayload, type OrgOption } from "./AnnouncementFormDialog";
 import { TYPE_OPTIONS, type Announcement, type AnnouncementState, type AnnouncementType } from "./types";
 import { formatDateTime } from "./time";
+import { EMPTY_FILTER, audienceOptions, filterAnnouncements, isFiltered, type AnnouncementFilter } from "./filter";
 
 const API = "/api/v1/admin/announcements";
 
@@ -25,6 +26,9 @@ const STATE_BADGE: Record<AnnouncementState, { label: string; cls: string }> = {
   expired: { label: "Abgelaufen", cls: "border-[#8c8b8e] bg-[rgba(21,20,20,.05)] text-[#5f5f64]" },
   disabled: { label: "Deaktiviert", cls: "border-[#8c8b8e] bg-[rgba(21,20,20,.05)] text-[#5f5f64]" },
 };
+
+const FIELD = "rounded-xl border border-[#8c8b8e] bg-white px-3 py-2 text-sm text-[#151414] focus:outline-none focus:ring-2 focus:ring-[rgba(203,191,174,.55)] focus:border-[#151414]";
+const LABEL = "mb-1.5 block text-[13px] font-semibold uppercase tracking-widest text-[#46464a]";
 
 const ACTION_BTN = "rounded-lg border border-[#151414] px-3 py-1.5 text-[13px] font-medium text-[#151414] transition-colors hover:bg-[#151414] hover:text-white disabled:opacity-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#151414]";
 
@@ -83,6 +87,10 @@ export default function AnnouncementsManager() {
   const [deleting, setDeleting] = useState<Announcement | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  const [filter, setFilter] = useState<AnnouncementFilter>(EMPTY_FILTER);
+  const visible = useMemo(() => filterAnnouncements(items, filter), [items, filter]);
+  const audiences = useMemo(() => audienceOptions(items), [items]);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
@@ -235,8 +243,55 @@ export default function AnnouncementsManager() {
           </button>
         </div>
       ) : (
+        <>
+        <div className="tba-glass rounded-2xl p-3 sm:p-4">
+          <div className="flex flex-wrap items-end gap-3">
+            <label className="min-w-[200px] flex-1">
+              <span className={LABEL}>Suche</span>
+              <input
+                type="search"
+                value={filter.query}
+                onChange={e => setFilter(f => ({ ...f, query: e.target.value }))}
+                placeholder="Titel, Text, Organisation oder Autor"
+                className={`${FIELD} w-full`}
+              />
+            </label>
+            <label>
+              <span className={LABEL}>Status</span>
+              <select value={filter.state} onChange={e => setFilter(f => ({ ...f, state: e.target.value as AnnouncementFilter["state"] }))} className={FIELD}>
+                <option value="all">Alle</option>
+                {(Object.keys(STATE_BADGE) as AnnouncementState[]).map(k => <option key={k} value={k}>{STATE_BADGE[k].label}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className={LABEL}>Art</span>
+              <select value={filter.type} onChange={e => setFilter(f => ({ ...f, type: e.target.value as AnnouncementFilter["type"] }))} className={FIELD}>
+                <option value="all">Alle</option>
+                {TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            <label>
+              <span className={LABEL}>Zielgruppe</span>
+              <select value={filter.audience} onChange={e => setFilter(f => ({ ...f, audience: e.target.value }))} className={FIELD}>
+                <option value="all">Alle</option>
+                {audiences.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </label>
+            {isFiltered(filter) && (
+              <button type="button" onClick={() => setFilter(EMPTY_FILTER)} className="px-2 py-2 text-sm font-medium text-[#46464a] hover:text-[#151414]">
+                Zurücksetzen
+              </button>
+            )}
+          </div>
+          <p className="mt-2 text-[13px] text-[#5f5f64]" aria-live="polite">{visible.length} von {items.length} Ankündigungen</p>
+        </div>
+        {visible.length === 0 ? (
+          <div className="rounded-2xl border border-dashed border-[#8c8b8e] bg-[rgba(21,20,20,.05)] p-8 text-center text-sm text-[#46464a]">
+            Keine Ankündigung passt zu diesen Filtern.
+          </div>
+        ) : (
         <ul className="tba-stagger space-y-3" aria-busy={loading}>
-          {items.map(a => {
+          {visible.map(a => {
             const st = STATE_BADGE[a.state];
             const busy = busyId === a.id;
             return (
@@ -270,6 +325,8 @@ export default function AnnouncementsManager() {
             );
           })}
         </ul>
+        )}
+        </>
       )}
       </div>
 

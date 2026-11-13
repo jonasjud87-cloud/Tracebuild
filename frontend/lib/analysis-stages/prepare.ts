@@ -7,6 +7,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { normAppliesToZone } from "@/lib/zone-match";
 import { assignNorms } from "@/lib/norm-assignment";
 import { normTextHash } from "@/lib/norm-hash";
+import { companyNormApplies } from "@/lib/company-norms";
 import { refreshProjectOereb } from "@/lib/oereb/refresh";
 import { refreshGeodata } from "@/lib/geoadmin/refresh";
 import type { GeodataFacts } from "@/lib/geoadmin/geodata";
@@ -58,11 +59,18 @@ export interface ProjectNormRow {
     auto_scope?: string | null;
     source_checked_at?: string | null;
     text_read_by_ai?: boolean | null;
+    approval_status?: string | null;
+    archived_at?: string | null;
+    priority?: string | null;
+    scope_mode?: string | null;
+    scope_cantons?: string[] | null;
+    scope_project_ids?: string[] | null;
   } | null;
 }
 
 /** Spalten je nach eingespielter Migration: vollständig, ohne Import-Extras, ohne Geoportal. */
 const NORM_COLUMN_SETS = [
+  "id, title, category, text, layer, zone, org_id, jurisdiction_type, source_kind, auto_scope, source_checked_at, text_read_by_ai, approval_status, archived_at, priority, scope_mode, scope_cantons, scope_project_ids",
   "id, title, category, text, layer, zone, org_id, jurisdiction_type, source_kind, auto_scope, source_checked_at, text_read_by_ai",
   "id, title, category, text, layer, zone, org_id, jurisdiction_type, source_kind, auto_scope, source_checked_at",
   "id, title, category, text, layer, zone, org_id, jurisdiction_type",
@@ -127,18 +135,20 @@ export function selectNorms(
   zoneConfidence: string | null,
   orgId: string,
   canton?: string | null,
+  projectId?: string | null,
 ): { norms: NormInput[]; source: "project_norms" | "fallback" } {
   const applicable = pnRows
     .map((r) => r.norms)
     .filter((n): n is NonNullable<ProjectNormRow["norms"]> => !!n)
     .filter((n) => normVisibleToOrg(n, orgId))
     .filter(normIsCurrent)
+    .filter((n) => n.jurisdiction_type !== "org" || companyNormApplies(n, { canton: canton ?? "", projectId }))
     .filter((n) => normAppliesToZone(n.zone, projectZone, zoneConfidence))
     .filter((n) => (n.text ?? "").trim().length > 0)
     .map<NormInput>((n) => ({
       id: n.id, title: n.title, category: n.category, text: n.text ?? "",
       layer: n.layer, jurisdiction_type: n.jurisdiction_type ?? null,
-      source_kind: n.source_kind ?? null, auto_scope: n.auto_scope ?? null,
+      source_kind: n.source_kind ?? null, auto_scope: n.auto_scope ?? null, priority: n.priority ?? null,
     }));
 
   return applicable.length > 0
@@ -303,7 +313,7 @@ export async function prepareRun(admin: Admin, job: StageJob, signal: AbortSigna
   if (pnError) console.error(`Projekt ${job.project_id}: project_norms konnte nicht gelesen werden:`, pnError);
 
   const { norms: selected, source: normsSource } = selectNorms(
-    rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null, project.org_id, fresh.location?.canton ?? null,
+    rows, fresh.bauzone ?? null, fresh.zone_confidence ?? null, project.org_id, fresh.location?.canton ?? null, job.project_id,
   );
   assertNormsUsable(normsSource, assignError, pnError);
   if (normsSource === "fallback") {

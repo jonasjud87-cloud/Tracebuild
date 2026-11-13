@@ -1,24 +1,24 @@
 import { getAuthUser, ok, unauthorized, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { extractPdfText } from "@/lib/pdf-text";
-import { normTextTooLongMessage } from "@/lib/norm-text";
 import { loadImportFilter } from "@/lib/oereb/documents";
 import { linkUploadToOfficial } from "@/lib/oereb/upload-supersede";
 import { assignNormsToOrgProjects } from "@/lib/norm-assignment";
 import { logAudit } from "@/lib/auditLog";
 import { uploadCountry } from "@/lib/norm-applies";
 import { insertNormWithCountry, type NormInsertClient } from "@/lib/norm-country";
+import { readNormUpload, storeNormPdf, projectsBelongToOrg } from "@/lib/norm-upload-file";
+import { isPriority, parseScope } from "@/lib/company-norms";
 
 const LAYER_BY_JURISDICTION: Record<string, number> = {
   national: 1,
   cantonal: 3,
   municipal: 4,
+  org: 5,
 };
 
+const NAMELESS_TYPES = new Set(["national", "org"]);
+
 export async function POST(request: Request) {
-  // Any uncaught throw here would be rendered by Next as an HTML error page, which
-  // the client cannot parse — the user then only ever sees "Serverfehler". Convert
-  // it to the normal JSON envelope so the actual cause is visible.
   try {
     return await handleUpload(request);
   } catch (e) {
@@ -42,54 +42,38 @@ async function handleUpload(request: Request) {
 
   if (!file) return err("Keine Datei hochgeladen");
   if (!category) return err("Kategorie fehlt");
-  if (jurisdictionType !== "national" && !jurisdictionName) return err("Kanton/Gemeinde fehlt");
+  if (!(jurisdictionType in LAYER_BY_JURISDICTION)) return err("Unbekannte Ebene");
+  if (!NAMELESS_TYPES.has(jurisdictionType) && !jurisdictionName) return err("Kanton/Gemeinde fehlt");
 
-  const fileBytes = Buffer.from(await file.arrayBuffer());
-  let text = "";
-  const isPdf = file.type === "application/pdf" || file.name.endsWith(".pdf");
-
-  if (isPdf) {
-    try {
-      text = await extractPdfText(fileBytes);
-    } catch (e) {
-      console.error("PDF-Textextraktion fehlgeschlagen:", e);
-      // Surface the real reason — "PDF konnte nicht gelesen werden" alone is
-      // indistinguishable between a broken PDF and a broken deployment.
-      const detail = e instanceof Error ? `${e.name}: ${e.message}` : String(e);
-      return err(`PDF konnte nicht gelesen werden — ${detail}`, 500);
-    }
-    if (!text.trim()) {
-      return err("Aus diesem PDF liess sich kein Text lesen — vermutlich ein Scan ohne Texterkennung (OCR).");
-    }
-  } else {
-    text = fileBytes.toString("utf-8");
+  const company = jurisdictionType === "org";
+  let companyFields: Record<string, unknown> = {};
+  const admin = createAdminClient();
+  if (company) {
+    const priority = (formData.get("priority") as string) || "advisory";
+    if (!isPriority(priority)) return err("Unbekannte Verbindlichkeit");
+    const scope = parseScope({
+      mode: formData.get("scope_mode"),
+      cantons: formData.get("scope_cantons"),
+      projectIds: formData.get("scope_project_ids"),
+    });
+    if ("error" in scope) return err(scope.error);
+    if (!(await projectsBelongToOrg(admin, user.org_id, scope.value.projectIds))) return err("Ungültiges Projekt");
+    companyFields = {
+      priority,
+      scope_mode: scope.value.mode,
+      scope_cantons: scope.value.cantons,
+      scope_project_ids: scope.value.projectIds,
+      approval_status: "draft",
+      version_no: 1,
+    };
   }
 
-  const tooLong = normTextTooLongMessage(text);
-  if (tooLong) return err(tooLong, 413);
+  const read = await readNormUpload(file);
+  if (!read.ok) return err(read.message, read.status);
+  const { text, bytes, isPdf } = read;
   const title = sourceName || file.name;
 
-  // Org-scoped for now — visible to every project in this organization,
-  // not across organizations (no platform-wide catalog yet).
-  const admin = createAdminClient();
-
-  // Original PDF bytes in Supabase Storage hochladen, damit die Quelle später
-  // angezeigt werden kann — optional, ein Fehlschlag darf das Speichern des
-  // extrahierten Texts nicht blockieren.
-  let pdfUrl: string | null = null;
-  if (isPdf) {
-    try {
-      const storagePath = `norms/${user.org_id}/${crypto.randomUUID()}_${file.name}`;
-      const { data: uploadData } = await admin.storage
-        .from("documents")
-        .upload(storagePath, fileBytes, { contentType: "application/pdf" });
-      if (uploadData) {
-        pdfUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/documents/${storagePath}`;
-      }
-    } catch {
-      pdfUrl = null;
-    }
-  }
+  const pdfUrl = isPdf ? await storeNormPdf(admin, user.org_id, file, bytes) : null;
 
   const { data, error } = await insertNormWithCountry(
     admin as unknown as NormInsertClient,
@@ -98,18 +82,22 @@ async function handleUpload(request: Request) {
       domain,
       layer: LAYER_BY_JURISDICTION[jurisdictionType] ?? 3,
       jurisdiction_type: jurisdictionType,
-      jurisdiction_name: jurisdictionType === "national" ? null : jurisdictionName,
+      jurisdiction_name: NAMELESS_TYPES.has(jurisdictionType) ? null : jurisdictionName,
       org_id: user.org_id,
       category: category.trim(),
       text,
       source_url: sourceName || file.name,
       zone: zone?.trim() || null,
       pdf_url: pdfUrl,
+      ...companyFields,
     },
     uploadCountry(jurisdictionType, jurisdictionName, formData.get("country") as string | null)
   );
 
-  if (error || !data) return err(error?.message ?? "Norm konnte nicht gespeichert werden", 500);
+  if (error || !data) {
+    const missing = company && /approval_status|scope_mode|priority|version_no/.test(error?.message ?? "");
+    return err(missing ? "Unternehmensnormen sind noch nicht eingerichtet (Migration 20261113000003 fehlt)." : error?.message ?? "Norm konnte nicht gespeichert werden", 500);
+  }
 
   await logAudit(admin, {
     orgId: user.org_id,
@@ -117,17 +105,16 @@ async function handleUpload(request: Request) {
     actorEmail: user.email,
     action: "norm_upload",
     targetId: data.id,
-    meta: { title, category, jurisdictionName },
+    meta: { title, category, jurisdictionName, ...(company ? { company: true, ...companyFields } : {}) },
   });
 
-  // Gleicht der Upload dem amtlichen Text, wird er gar nicht erst aktiv. Bleibt serverseitig.
-  await linkUploadToOfficial(admin, { id: data.id, text, jurisdiction_type: jurisdictionType, jurisdiction_name: jurisdictionName }, (canton) =>
-    loadImportFilter(admin, canton)
-  );
+  if (!company) {
+    await linkUploadToOfficial(admin, { id: data.id, text, jurisdiction_type: jurisdictionType, jurisdiction_name: jurisdictionName }, (canton) =>
+      loadImportFilter(admin, canton)
+    );
+  }
 
-  // Attach the new norm to the org's existing projects it applies to — otherwise it
-  // would only ever reach projects created after this upload.
-  const projects_updated = await assignNormsToOrgProjects(user.org_id);
+  const projects_updated = company ? 0 : await assignNormsToOrgProjects(user.org_id);
 
-  return ok({ count: 1, jurisdiction_name: jurisdictionName, category, id: data.id, projects_updated }, 201);
+  return ok({ count: 1, jurisdiction_name: jurisdictionName, category, id: data.id, projects_updated, approval_status: company ? "draft" : "approved" }, 201);
 }

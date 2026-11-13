@@ -9,6 +9,8 @@ const MAX_LIMIT = 500;
 // Ohne Volltext: Globale Reglemente sprengten sonst das Antwortlimit von Vercel (4.5 MB).
 // Den Text liefert GET /standards/{id}.
 const SUPERSESSION_COLUMNS = "superseded_by_norm_id, superseded_similarity, superseded_at, org_authoritative";
+const COMPANY_COLUMNS =
+  "approval_status, version_no, priority, scope_mode, scope_cantons, scope_project_ids, supersedes_norm_id, archived_at, approved_by_email, approved_at";
 const LIST_COLUMNS =
   "id, title, domain, layer, jurisdiction_type, jurisdiction_name, org_id, category, source_url, source_doc, zone, pdf_url, created_at";
 
@@ -52,7 +54,8 @@ export async function GET(request: Request) {
     return query.order("created_at", { ascending: false }).range(offset, offset + limit - 1);
   };
 
-  let { data, error } = await build(true);
+  let { data, error } = await build(true, `${LIST_COLUMNS}, ${SUPERSESSION_COLUMNS}, ${COMPANY_COLUMNS}`);
+  if (error && isMissingSchema(error.message)) ({ data, error } = await build(true));
   // Vor Migration 20261107000001 fehlen die Spalten der Ablösung.
   if (error && isMissingSchema(error.message)) ({ data, error } = await build(true, LIST_COLUMNS));
   // Ohne Geoportal-Migration fehlen die Spalten, dann gibt es auch keine Importe.

@@ -346,7 +346,7 @@ export default function AnleitungPage() {
               <li>
                 <span className={`${s.sourceTag} ${s.sourceTagOwn}`}>Nur Ihre Organisation</span>
                 <strong>Eigene Normen</strong>
-                <p>Weitere Reglemente oder interne Richtlinien, die Sie selbst in die Normen-Datenbank laden.</p>
+                <p>Weitere Reglemente oder interne Richtlinien, die Sie selbst unter Unternehmensnormen hochladen.</p>
               </li>
             </ul>
 
@@ -356,7 +356,7 @@ export default function AnleitungPage() {
               hoch. Es steht danach allen Projekten Ihrer Organisation zur Verfügung.
             </p>
             <ol className={s.steps}>
-              <li><p>Klicken Sie in der linken Navigation auf <Ui>Normen-DB</Ui> und öffnen Sie <Ui>Norm hochladen</Ui>.</p></li>
+              <li><p>Klicken Sie in der linken Navigation auf <Ui>Unternehmensnormen</Ui>. Für interne Richtlinien nutzen Sie <Ui>Unternehmensnorm hochladen</Ui>, für Gesetze oder Reglemente wechseln Sie zu <Ui>Eigene Fassungen</Ui> und öffnen <Ui>Eigene Fassung hochladen</Ui>.</p></li>
               <li><p>Ziehen Sie die Datei in das Feld oder klicken Sie hinein. Erlaubt sind PDF- und Textdateien.</p></li>
               <li><p>Ordnen Sie die Norm mit den Feldern in der Tabelle unten ein.</p></li>
               <li><p>Klicken Sie auf <Ui>Hochladen &amp; speichern</Ui>. Die Norm erscheint rechts in der Liste.</p></li>
