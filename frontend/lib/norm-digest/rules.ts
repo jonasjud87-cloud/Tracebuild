@@ -29,7 +29,7 @@ export function digestEligible(n: DigestCandidate): boolean {
   return (n.text ?? "").length >= DIGEST_MIN_SOURCE_CHARS;
 }
 
-const REF_RE = /\bArt(?:ikel|\.)\s*(\d+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|[a-z])?)(?![a-zäöü0-9])/gi;
+const REF_RE = /\bArt(?:ikel|\.)\s*(\d+(?:bis|ter|quater|quinquies|sexies|septies|octies|novies|decies|[a-z])(?![a-zäöü])|\d+(?![0-9a-zäöü]))/gi;
 
 const SPACED_SUFFIX_RE = /(\bArt(?:ikel|\.)\s*\d+)\s([a-z])(?![a-zäöü0-9])/gi;
 
@@ -95,15 +95,22 @@ export function verbatimRatio(source: string, digest: string): number {
 
 const NUMBER_RE = /\d+(?:[.,\u2019']\d+)*/g;
 
-function numberSet(text: string): Set<string> {
+function numberSet(text: string, allowFootnoteSuffix: boolean): Set<string> {
   const out = new Set<string>();
-  (text.match(NUMBER_RE) ?? []).forEach((n) => out.add(n.replace(/[\u2019']/g, "").replace(",", ".")));
+  (text.match(NUMBER_RE) ?? []).forEach((n) => {
+    const clean = n.replace(/[\u2019']/g, "").replace(",", ".");
+    out.add(clean);
+    if (allowFootnoteSuffix && /^\d{4,}$/.test(clean)) {
+      out.add(clean.slice(0, -1));
+      out.add(clean.slice(0, -2));
+    }
+  });
   return out;
 }
 
 export function missingNumbers(source: string, digest: string): string[] {
-  const known = numberSet(source);
-  return Array.from(numberSet(digest)).filter((n) => !known.has(n));
+  const known = numberSet(source, true);
+  return Array.from(numberSet(digest, false)).filter((n) => !known.has(n));
 }
 
 export interface DigestCheck {

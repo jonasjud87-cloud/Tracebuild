@@ -44,6 +44,8 @@ export default function DigestPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const [viewText, setViewText] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -57,6 +59,21 @@ export default function DigestPanel() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  async function toggleView(normId: string) {
+    if (viewing === normId) {
+      setViewing(null);
+      return;
+    }
+    setViewing(normId);
+    setViewText(null);
+    try {
+      const result = await api.get<{ digest: string | null } | null>(`/admin/norm-digests?normId=${normId}`);
+      setViewText(result?.digest ?? "Kein Text gespeichert.");
+    } catch (e) {
+      setViewText(e instanceof Error ? e.message : "Auszug konnte nicht geladen werden.");
+    }
+  }
 
   async function run(force: boolean, normId?: string) {
     if (!data) return;
@@ -124,10 +141,18 @@ export default function DigestPanel() {
               <span className="text-sm tabular-nums text-[#5f5f64]">
                 {chars(r.sourceChars)} Zeichen{r.digestChars ? ` → ${chars(r.digestChars)} (${share} %)` : ""}
               </span>
+              {(r.state === "ok" || r.digestChars !== null) && (
+                <button type="button" onClick={() => void toggleView(r.normId)} className={BTN} aria-expanded={viewing === r.normId}>
+                  {viewing === r.normId ? "Auszug verbergen" : "Auszug ansehen"}
+                </button>
+              )}
               <button type="button" disabled={busy} onClick={() => void run(true, r.normId)} className={BTN}>
                 Neu erstellen
               </button>
               {r.note && <span className="w-full text-[13px] text-[#5f5f64]" style={{ overflowWrap: "anywhere" }}>{r.note}</span>}
+              {viewing === r.normId && (
+                <pre className="max-h-96 w-full overflow-auto whitespace-pre-wrap rounded-xl bg-[#f6f3ee] p-3 text-[13px] leading-relaxed text-[#151414]">{viewText ?? "Wird geladen…"}</pre>
+              )}
             </li>
           );
         })}

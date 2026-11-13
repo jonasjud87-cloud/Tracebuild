@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAuthUser, ok, err, unauthorized, forbidden } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { digestOverview, ensureAllDigests } from "@/lib/norm-digest/store";
+import { digestOverview, ensureAllDigests, loadDigestText } from "@/lib/norm-digest/store";
 import { UUID_RE } from "@/lib/norm-watch/deps";
 
 export const dynamic = "force-dynamic";
@@ -9,12 +9,16 @@ export const maxDuration = 300;
 
 const RUN_BUDGET_MS = 240_000;
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const user = await getAuthUser();
   if (!user) return unauthorized();
   if (user.role !== "super_admin") return forbidden();
+  const normId = request.nextUrl.searchParams.get("normId");
+  if (normId && !UUID_RE.test(normId)) return err("Ungültige ID.", 400);
   try {
-    return ok(await digestOverview(createAdminClient()));
+    const admin = createAdminClient();
+    if (normId) return ok(await loadDigestText(admin, normId));
+    return ok(await digestOverview(admin));
   } catch (e) {
     console.error("norm-digests", e instanceof Error ? e.message : "unbekannt");
     return err("Prüfauszüge konnten nicht geladen werden.", 500);

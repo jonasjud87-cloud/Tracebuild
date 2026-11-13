@@ -268,3 +268,24 @@ export async function ensureAllDigests(
   }
   return summary;
 }
+
+export interface DigestText {
+  status: string;
+  digest: string | null;
+  note: string | null;
+}
+
+export async function loadDigestText(admin: SupabaseClient, normId: string): Promise<DigestText | null> {
+  const { data, error } = await admin
+    .from("norm_digests")
+    .select("status, digest, note")
+    .eq("norm_id", normId)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) {
+    if (isMissingSchema(error.message)) return null;
+    throw new Error(error.message);
+  }
+  return (data as DigestText | null) ?? null;
+}

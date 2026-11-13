@@ -253,3 +253,12 @@ test("die Kosten früherer Versuche bleiben beim neuen Versuch erhalten", async 
   assert.equal(outcome.status, "created");
   assert.ok(Number(upserts[0].cost_usd) > 0.2);
 });
+
+test("Fussnotenziffer hinter dem Buchstaben und an Jahreszahlen stört nicht", () => {
+  const refs = articleRefs("Art. 16a1 Zonen und Art. 24e2 Anlagen, Art. 12bar, Art. 7");
+  assert.ok(refs.has("16a") && refs.has("24e") && refs.has("7"));
+  assert.ok(!refs.has("12b") && !refs.has("1"));
+  const source = SOURCE.replace("betrifft Bauten und Anlagen. wort7x0", "betrifft Bauten und Anlagen vom 7. Oktober 19831 und wort7x0");
+  const digest = GOOD.replace("betrifft Bauten und Anlagen. wort7x0", "betrifft Bauten und Anlagen vom 7. Oktober 1983 und wort7x0");
+  assert.equal(verifyDigest(source, digest).ok, true);
+});
