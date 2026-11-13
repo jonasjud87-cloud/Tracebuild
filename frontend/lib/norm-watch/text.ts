@@ -1,10 +1,44 @@
 import { createHash } from "node:crypto";
 import type { DraftDiff } from "./types";
 
-const BLOCK_TAGS =
-  "article|chapter|section|title|heading|paragraph|item|blockList|listIntroduction|p|table|tr|td|th|preface|preamble|conclusions|attachment|subsection|level|part";
-const BLOCK_RE = new RegExp(`</?(?:${BLOCK_TAGS})\\b[^>]*>`, "gi");
+export const EXTRACTOR_VERSION = 2;
+
+const BLOCK_NAMES = new Set(
+  [
+    "article",
+    "chapter",
+    "section",
+    "title",
+    "heading",
+    "paragraph",
+    "item",
+    "blockList",
+    "listIntroduction",
+    "p",
+    "table",
+    "tr",
+    "td",
+    "th",
+    "preface",
+    "preamble",
+    "conclusions",
+    "attachment",
+    "subsection",
+    "level",
+    "part",
+  ].map((name) => name.toLowerCase()),
+);
+const TAG_RE = /<\/?([A-Za-z][A-Za-z0-9:._-]*)[^>]*>/g;
 const ENTITY_RE = /&(#x[0-9a-f]+|#\d+|[a-z]+);/gi;
+
+function tagsToBreaks(input: string): string {
+  return input
+    .replace(TAG_RE, (_tag: string, name: string) => {
+      const local = name.slice(name.lastIndexOf(":") + 1).toLowerCase();
+      return BLOCK_NAMES.has(local) ? "\n" : "";
+    })
+    .replace(/<[^>]*>/g, "");
+}
 
 const ENTITIES: Record<string, string> = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
 
@@ -46,16 +80,18 @@ function stripBlocks(input: string, tag: string): string {
 
 export function xmlToText(xml: string): string {
   const stripped = stripBlocks(stripBlocks(stripBlocks(xml.replace(/<\?xml[^>]*\?>/g, ""), "meta"), "authorialNote"), "script");
-  const body = stripped
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/<\/num>/g, " ")
-    .replace(BLOCK_RE, "\n")
-    .replace(/<[^>]+>/g, "");
+  const body = tagsToBreaks(stripped.replace(/<br\s*\/?>/gi, " ").replace(/<\/num>/g, " "));
   return decodeEntities(body)
     .split("\n")
     .map((line) => line.replace(/\s+/g, " ").trim())
     .filter(Boolean)
     .join("\n");
+}
+
+export function looksStructured(text: string): boolean {
+  if (text.length < 2000) return true;
+  const breaks = text.length - text.replace(/\n/g, "").length;
+  return breaks * 400 >= text.length;
 }
 
 const PAGE_MARKER_RE = /^--\s*\d+\s+of\s+\d+\s*--$/i;

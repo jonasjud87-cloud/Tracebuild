@@ -5,7 +5,7 @@ import { updateNormRow } from "./norm-write";
 import { loadSources } from "./overview";
 import { sgCurrent, type PdfTextExtractor } from "./sg";
 import { nextTitle } from "./status";
-import { describeChange, similarity } from "./text";
+import { EXTRACTOR_VERSION, describeChange, looksStructured, similarity } from "./text";
 import type { CheckOutcome, CheckSummary, NormSourceRow, RemoteVersion } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -32,15 +32,22 @@ async function patchSource(deps: WatchDeps, id: string, patch: Record<string, un
   if (error) throw new Error(error.message);
 }
 
-async function openDraftVersion(deps: WatchDeps, sourceId: string): Promise<{ id: string; remote_version: string } | null> {
+interface OpenDraft {
+  id: string;
+  remote_version: string;
+  extractor: number;
+}
+
+async function openDraftVersion(deps: WatchDeps, sourceId: string): Promise<OpenDraft | null> {
   const { data, error } = await deps.admin
     .from("norm_update_drafts")
-    .select("id, remote_version")
+    .select("id, remote_version, diff")
     .eq("source_id", sourceId)
     .eq("status", "draft")
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as { id: string; remote_version: string } | null) ?? null;
+  const row = data as { id: string; remote_version: string; diff: { extractor?: number } | null } | null;
+  return row ? { id: row.id, remote_version: row.remote_version, extractor: row.diff?.extractor ?? 0 } : null;
 }
 
 async function supersedeOpenDraft(deps: WatchDeps, sourceId: string): Promise<void> {
@@ -79,7 +86,7 @@ export async function checkSource(deps: WatchDeps, source: NormSourceRow): Promi
       return { ...base, result: "current" };
     }
 
-    if (open && open.remote_version === remote.version) {
+    if (open && open.remote_version === remote.version && open.extractor >= EXTRACTOR_VERSION) {
       await patchSource(deps, source.id, { ...remoteFields, status: "update_available" });
       return { ...base, result: "draft_exists" };
     }
@@ -87,6 +94,7 @@ export async function checkSource(deps: WatchDeps, source: NormSourceRow): Promi
     const text = await remote.fetchText();
     const tooLong = normTextTooLongMessage(text);
     if (tooLong) throw new Error(tooLong);
+    if (!looksStructured(text)) throw new Error("Der Text der Quelle hat keine erkennbare Zeilenstruktur und wird nicht übernommen.");
 
     const current = source.norm_id ? await loadNormText(deps, source.norm_id) : null;
     const oldText = current?.text ?? "";
@@ -117,7 +125,7 @@ export async function checkSource(deps: WatchDeps, source: NormSourceRow): Promi
       new_chars: text.length,
       old_chars: oldText.length,
       similarity: oldText ? similarity(oldText, text) : null,
-      diff,
+      diff: { ...diff, extractor: EXTRACTOR_VERSION },
     });
     if (error && (error as { code?: string }).code !== UNIQUE_VIOLATION) throw new Error(error.message);
     await patchSource(deps, source.id, { ...remoteFields, status: "update_available" });

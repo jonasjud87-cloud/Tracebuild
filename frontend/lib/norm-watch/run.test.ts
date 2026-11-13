@@ -6,6 +6,7 @@ import { approveDraft, rejectDraft } from "./decide";
 import { fakeAdmin, type FakeTables } from "./fake-admin";
 import type { FetchLike } from "./fedlex";
 import { checkSource, runWatch, type WatchDeps } from "./run";
+import { EXTRACTOR_VERSION } from "./text";
 import type { NormSourceRow } from "./types";
 
 type Admin = ReturnType<typeof createAdminClient>;
@@ -143,13 +144,38 @@ test("eine neuere Fassung ersetzt den offenen Entwurf der älteren", async () =>
 
 test("ein offener Entwurf derselben Fassung wird nicht doppelt angelegt", async () => {
   const t = world({}, {
-    norm_update_drafts: [{ id: "d1", source_id: "s1", norm_id: "n1", remote_version: "2026-08-01", remote_label: "Stand 1. August 2026", status: "draft" }],
+    norm_update_drafts: [
+      { id: "d1", source_id: "s1", norm_id: "n1", remote_version: "2026-08-01", remote_label: "Stand 1. August 2026", status: "draft", diff: { extractor: EXTRACTOR_VERSION } },
+    ],
   });
   const { d, calls } = deps(t, "");
   const outcome = await checkSource(d, sourceOf(t));
   assert.equal(outcome.result, "draft_exists");
   assert.equal(calls.length, 1);
   assert.equal(t.norm_update_drafts.length, 1);
+});
+
+test("ein Entwurf einer älteren Textaufbereitung wird neu erzeugt", async () => {
+  const t = world({}, {
+    norm_update_drafts: [
+      { id: "old", source_id: "s1", norm_id: "n1", remote_version: "2026-08-01", remote_label: "Stand 1. August 2026", status: "draft", diff: { added: 1, removed: 0 } },
+    ],
+  });
+  const { d } = deps(t, xml("Selbst kleine Mengen von Abfällen dürfen nicht ausserhalb der Sammlungen weggeworfen werden."));
+  const outcome = await checkSource(d, sourceOf(t));
+  assert.equal(outcome.result, "draft_created");
+  assert.equal(t.norm_update_drafts.find((r) => r.id === "old")?.status, "superseded");
+  const fresh = t.norm_update_drafts.find((r) => r.status === "draft");
+  assert.equal((fresh?.diff as { extractor?: number }).extractor, EXTRACTOR_VERSION);
+});
+
+test("Text ohne Zeilenstruktur wird nicht als Entwurf gespeichert", async () => {
+  const t = world();
+  const { d } = deps(t, xml("wort ".repeat(3000)));
+  const outcome = await checkSource(d, sourceOf(t));
+  assert.equal(outcome.result, "error");
+  assert.equal(t.norm_update_drafts.length, 0);
+  assert.match(String(t.norm_sources[0].last_error), /Zeilenstruktur/);
 });
 
 test("runWatch prüft nur aktive Quellen und fasst zusammen", async () => {

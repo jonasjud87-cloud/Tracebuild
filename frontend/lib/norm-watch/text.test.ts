@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { cleanPlainText, describeChange, diffTexts, fingerprint, formatStandDate, hasChanges, similarity, wordsOf, xmlToText } from "./text";
+import { cleanPlainText, describeChange, diffTexts, fingerprint, formatStandDate, hasChanges, looksStructured, similarity, wordsOf, xmlToText } from "./text";
 
 const SAMPLE = `<?xml version="1.0" encoding="UTF-8"?><akomaNtoso xmlns="http://docs.oasis-open.org/legaldocml/ns/akn/3.0"><act><meta><identification><FRBRWork><FRBRname value="USG"/></FRBRWork></identification></meta><body><article eId="art_7"><num><b>Art. 7</b></num><heading>Definitionen</heading><paragraph eId="p1"><num>1</num><content><p> Einwirkungen sind Luftverunreinigungen, Lärm &amp; Erschütterungen.<authorialNote><p>Fussnote AS 1995 1234</p></authorialNote></p></content></paragraph></article></body></act></akomaNtoso>`;
 
@@ -90,6 +90,36 @@ test("describeChange: nur Reihenfolge geändert führt zu einem Hinweis statt le
   assert.equal(result.changed, true);
   assert.equal(hasChanges(result.diff), false);
   assert.ok(result.diff.note);
+});
+
+const FEDLEX_LIKE =
+  '<akomaNtoso xmlns="http://docs.oasis-open.org/legaldocml/ns/akn/3.0"><act><meta><identification/></meta><preface><p><docNumber>814.01</docNumber></p><p><docTitle>Bundesgesetz <br/>über den Umweltschutz</docTitle></p><p xmlns:mig="urn:x">(Umweltschutzgesetz, USG)</p><p>vom 7. Oktober 1983 (Stand am 1. August 2026)</p></preface><preamble><p>Die Bundesversammlung der Schweizerischen Eidgenossenschaft,</p><p>gestützt auf Artikel 74</p></preamble><body><chapter><heading>Grundsätze</heading><article><num><b>Art. 2</b></num><heading>Verursacherprinzip</heading><paragraph><content><p>Wer Massnahmen nach diesem Gesetz verursacht, trägt die Kosten dafür.</p></content></paragraph></article></chapter></body></act></akomaNtoso>';
+
+test("xmlToText: Kopf, Überschriften und Absätze stehen auf eigenen Zeilen", () => {
+  const lines = xmlToText(FEDLEX_LIKE).split("\n");
+  assert.deepEqual(lines, [
+    "814.01",
+    "Bundesgesetz über den Umweltschutz",
+    "(Umweltschutzgesetz, USG)",
+    "vom 7. Oktober 1983 (Stand am 1. August 2026)",
+    "Die Bundesversammlung der Schweizerischen Eidgenossenschaft,",
+    "gestützt auf Artikel 74",
+    "Grundsätze",
+    "Art. 2",
+    "Verursacherprinzip",
+    "Wer Massnahmen nach diesem Gesetz verursacht, trägt die Kosten dafür.",
+  ]);
+});
+
+test("xmlToText: Tags mit Namensraum-Präfix und Grossschreibung brechen ebenfalls", () => {
+  const lines = xmlToText("<akn:act><akn:P>Erster Absatz.</akn:P><akn:Paragraph>Zweiter Absatz.</akn:Paragraph></akn:act>").split("\n");
+  assert.deepEqual(lines, ["Erster Absatz.", "Zweiter Absatz."]);
+});
+
+test("looksStructured: erkennt Text ohne Zeilenumbrüche", () => {
+  assert.equal(looksStructured("kurz"), true);
+  assert.equal(looksStructured("wort ".repeat(3000)), false);
+  assert.equal(looksStructured(Array.from({ length: 300 }, () => "Eine ganz normale Zeile Text im Gesetz.").join("\n")), true);
 });
 
 test("Seitenmarker der PDF-Extraktion zählen weder im Vergleich noch im gespeicherten Text", () => {

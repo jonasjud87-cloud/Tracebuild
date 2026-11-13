@@ -31,6 +31,7 @@ export interface DraftDiff {
   samplesAdded: string[];
   samplesRemoved: string[];
   note?: string;
+  extractor?: number;
 }
 
 export interface NormDraftRow {
