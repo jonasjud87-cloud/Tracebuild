@@ -392,3 +392,41 @@
 .textBtn:hover {
   color: var(--ink);
 }
+
+/* Nach Zone ausgeblendete Artikel */
+
+.zoneChip {
+  margin-left: 0.6em;
+  padding: 2px 9px;
+  font-size: 12px;
+  vertical-align: 2px;
+}
+
+.hiddenRun {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 12px;
+  border: 1px dashed rgba(21, 20, 20, 0.2);
+  border-radius: 10px;
+  background: rgba(203, 191, 174, 0.12);
+}
+
+.hiddenRunText {
+  margin: 0;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+.overviewDimmed {
+  color: var(--muted);
+}
+
+.overviewNote {
+  font-size: 13px;
+  font-style: italic;
+}

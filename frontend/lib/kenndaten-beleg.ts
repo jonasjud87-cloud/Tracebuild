@@ -3,6 +3,7 @@
  * darin, und gehört sie zur Zone des Projekts? Rein. Was hier durchfällt, erscheint nicht auf dem Blatt.
  */
 import { parseZoneCode } from "@/lib/oereb/zone-rules";
+import { zoneHits, zoneRegexes, type ZoneHits } from "@/lib/zone-mention";
 import { KENNDATEN_FELDER, type KenndatenAuswertung, type KenndatenFeld, type KenndatenWert, type KenndatenWerte } from "@/lib/kenndaten";
 
 export type ModellEinheit = "m" | "cm" | "mm" | "";
@@ -144,78 +145,19 @@ export function artikelInText(artikel: string, text: string): boolean {
 
 // ── Zone ─────────────────────────────────────────────────────────────────────
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
-const LANGFORM: [RegExp, string, string][] = [
-  [/wohn[\s-]*(?:und[\s-]*)?gewerbe[\s-]*zone\s+(\d+)/i, "WG", "wohn[\\s-]*(?:und[\\s-]*)?gewerbe[\\s-]*zone"],
-  [/dorf(?:kern)?[\s-]*zone\s+(\d+)/i, "D", "dorf(?:kern)?[\\s-]*zone"],
-  [/kern[\s-]*zone\s+(\d+)/i, "K", "kern[\\s-]*zone"],
-  [/wohn[\s-]*zone\s+(\d+)/i, "W", "wohn[\\s-]*zone"],
-];
-
-/** Was alles dieselbe Zone meint: der Eintrag, sein Kürzel und die Langform zum Kürzel. */
-function zoneVariants(zone: string): string[] {
-  const out = new Set<string>();
-  const add = (v: string | null | undefined) => {
-    if (v?.trim()) out.add(v.trim());
-  };
-  add(zone);
-  add(parseZoneCode(zone));
-  for (const [re, prefix] of LANGFORM) {
-    const m = re.exec(zone);
-    if (m) add(`${prefix}${m[1]}`);
-  }
-  return Array.from(out);
-}
-
-/** Tokengrenzen: W2 trifft weder W21 noch W2a noch W2-B oder «W2 - B». */
-function zoneRegexes(zone: string): RegExp[] {
-  const res: RegExp[] = [];
-  for (const v of zoneVariants(zone)) {
-    const pattern = escapeRe(v).replace(/\s+/g, "\\s*").replace(/\\?-/g, "\\s?-\\s?").replace(new RegExp("(\\p{L})(\\d)", "gu"), "$1\\s?$2");
-    // Kurze Kürzel ohne Ziffer («I», «GI») nur in Grossschrift: «i» ist kein Zonenname.
-    const flags = v.length <= 3 && !/\d/.test(v) ? "gu" : "giu";
-    res.push(new RegExp(`(?<![\\p{L}\\p{N}-])${pattern}(?![\\p{L}\\p{N}])(?!\\s?-\\s?[\\p{L}\\p{N}])`, flags));
-    const code = /^([A-Za-z]{1,2})(\d+)$/.exec(v);
-    const lang = code && LANGFORM.find(([, prefix]) => prefix === code[1].toUpperCase());
-    // «Wohnzone 2 Geschosse» ist W2, «Wohnzone b 2 Geschosse» nicht.
-    if (code && lang) res.push(new RegExp(`${lang[2]}\\s+${code[2]}(?:[\\s-]*(?:voll)?gesch\\p{L}*)?(?![\\p{L}\\p{N}])`, "giu"));
-  }
-  return res;
-}
+/** Auf dem Server kennt parseZoneCode das Kürzel aus der ÖREB-Legende. */
+const zoneExtra = (zone: string) => [parseZoneCode(zone)];
 
 /** Im Zweifel nein: W2 passt zu «Wohnzone 2 Geschosse» und «W2, W3», aber nicht zu W3, W21, W2-B oder «Wohnzone». */
 export function zoneMatches(projectZone: string, zoneImText: string): boolean {
-  return zoneRegexes(projectZone).some((re) => {
+  return zoneRegexes(projectZone, zoneExtra(projectZone)).some((re) => {
     re.lastIndex = 0;
     return re.test(zoneImText);
   });
 }
 
-/** Zonenkürzel mit Ziffer in jeder Schreibweise. Kürzel ohne Ziffer sind vom Wortschatz nicht zu trennen. */
-const CODE_SOURCE = "(?<![\\p{L}\\p{N}])\\p{L}{1,3}\\d{1,2}\\p{L}?(?![\\p{L}\\p{N}])(?:\\s?-\\s?\\p{L}(?![\\p{L}\\p{N}]))?";
-/** Flächen und Volumen wie «m2» sind keine Zonen. */
-const KEIN_CODE = /^(?:m|cm|mm|dm|km|ha|co|h)\d$/i;
-/** Langform: «Kernzone», «Wohnzone 3», «Zone 3», «Wohnzone W2 - B». «Zone» allein oder «Bauzone» nennt keine bestimmte Zone. */
-const LANGFORM_SOURCE =
-  "(?<![\\p{L}\\p{N}])(?:(?!bauzone)\\p{L}+zonen?(?![\\p{L}\\p{N}])(?:[\\s-]+(?:\\d{1,2}|\\p{L}{1,3}\\d{0,2}\\p{L}?)(?![\\p{L}\\p{N}]))?|zone\\s+\\d{1,2}(?![\\p{L}\\p{N}]))(?:\\s?-\\s?\\p{L}(?![\\p{L}\\p{N}]))?";
-
-interface Treffer {
-  at: number;
-  end: number;
-}
-
-function zonenTreffer(line: string, zone: string): { eigene: Treffer[]; fremde: Treffer[] } {
-  const eigene: Treffer[] = [];
-  for (const re of zoneRegexes(zone)) {
-    for (const m of Array.from(line.matchAll(re))) eigene.push({ at: m.index!, end: m.index! + m[0].length });
-  }
-  const codes = Array.from(line.matchAll(new RegExp(CODE_SOURCE, "gu"))).filter((m) => !KEIN_CODE.test(m[0]));
-  const langformen = Array.from(line.matchAll(new RegExp(LANGFORM_SOURCE, "giu")));
-  const fremde = [...codes, ...langformen]
-    .map((m) => ({ at: m.index!, end: m.index! + m[0].length }))
-    .filter((c) => !eigene.some((e) => c.at < e.end && e.at < c.end));
-  return { eigene, fremde };
+function zonenTreffer(line: string, zone: string): ZoneHits {
+  return zoneHits(line, zone, zoneExtra(zone));
 }
 
 /**
