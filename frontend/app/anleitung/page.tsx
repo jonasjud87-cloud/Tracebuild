@@ -23,8 +23,8 @@ import imgPlanAnalyse from "./img/plan-analyse.jpg";
 // in der App verlinkt, öffentlich in middleware.ts (PUBLIC_PATHS) und für
 // Suchmaschinen gesperrt. Schwerpunkt sind die Kapitel zur Planprüfung; die
 // Einrichtungsthemen stehen danach unter «Weitere Themen».
-// Beschriftungen in <Ui> stammen wörtlich aus dem Code. Welche Screenshots
-// veraltet sind und wie sie neu aufgenommen werden: docs/anleitung-screenshots.md.
+// Beschriftungen in <Ui> stammen wörtlich aus dem Code. Stand der Screenshots
+// und Aufnahmeregeln: docs/anleitung-screenshots.md.
 
 const FEEDBACK_FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLSesqu-mx6u9mfcJkjfO7VD0_a0ucoCYEd0RpPK2LCsh81yDJQ/viewform";
@@ -116,27 +116,22 @@ function Sub({ id }: { id: string }) {
   return <h3 id={id}>{sectionTitle(id)}</h3>;
 }
 
-/** Abbildung. `frueher`: Aufnahme im früheren Design, Ablauf stimmt noch. */
+/** Abbildung. */
 function Fig({
   src,
   alt,
   caption,
   narrow,
-  frueher,
 }: {
   src: StaticImageData;
   alt: string;
   caption: string;
   narrow?: boolean;
-  frueher?: boolean;
 }) {
   return (
     <figure className={`${s.figure} ${narrow ? s.narrow : ""}`}>
       <Image src={src} alt={alt} sizes="(max-width: 880px) 100vw, 848px" />
-      <figcaption>
-        {frueher && <span className={s.figTag}>Frühere Ansicht</span>}
-        {caption}
-      </figcaption>
+      <figcaption>{caption}</figcaption>
     </figure>
   );
 }
@@ -235,7 +230,7 @@ export default function AnleitungPage() {
                 Bauzone, Abstände, Höhen und mehr. Sie sehen auf einen Blick, was eingehalten ist, wo etwas nicht
                 stimmt und wo es noch Angaben braucht.
               </p>
-              <p className={s.meta}>Handbuch für Organisationen · Stand 19. November 2026</p>
+              <p className={s.meta}>Handbuch für Organisationen · Stand 22. November 2026</p>
             </div>
           </header>
 
@@ -359,22 +354,26 @@ export default function AnleitungPage() {
             </div>
             <Fig
               src={imgProjekte}
-              frueher
-              alt="Projektübersicht mit vier Projektkarten und dem Knopf Neues Projekt"
-              caption="Projektübersicht mit allen Projekten der Organisation."
+              alt="Projektübersicht mit Suchfeld, Knopf Neues Projekt, Kennzahlen und linker Navigation"
+              caption="Projektübersicht: Suche, «+ Neues Projekt» und Kennzahlen zu allen Projekten der Organisation."
             />
 
             <Sub id="grundstueck" />
             <p>
               Im Reiter <Ui>Plan-Analyse</Ui> steht oben der Abschnitt <Ui>Grundstück</Ui>. Er zeigt Parzelle,
               Grundstücksnummer (EGRID), die ermittelte Zone und das Datum des ÖREB-Auszugs. Hinter der Zone steht,
-              woher sie kommt, z.&nbsp;B. <Ui>aus ÖREB</Ui> oder <Ui>manuell</Ui>.
+              woher sie kommt, z.&nbsp;B. <Ui>aus ÖREB-Auszug</Ui> oder <Ui>manuell gesetzt</Ui>.
             </p>
             <ol className={s.steps}>
               <li><p>Steht dort <Ui>Bauzone unsicher, bitte prüfen</Ui> oder <Ui>Bauzone nicht bekannt</Ui>, kontrollieren Sie die Zone. Sie bestimmt, welche Normen geladen werden. Ein Organisations-Admin bestätigt den Vorschlag mit <Ui>Vorschlag bestätigen</Ui> oder trägt die richtige Zone ein und klickt auf <Ui>Speichern</Ui>.</p></li>
               <li><p>Mit <Ui>Neu laden</Ui> holen Sie ÖREB-Auszug und Zusatzdaten neu ab.</p></li>
               <li><p>Unter <Ui>Zusatzdaten und Links</Ui> finden Sie Höhe, ÖV-Güteklasse, ISOS und Gebäude (GWR) sowie Links zum <Ui>Geoportal des Bundes ↗</Ui>, zum <Ui>Kantonales Portal ↗</Ui> und zum <Ui>Amtlicher ÖREB-Auszug (PDF) ↗</Ui>.</p></li>
             </ol>
+            <Fig
+              src={imgPlanAnalyse}
+              alt="Reiter Plan-Analyse mit Abschnitt Grundstück: Zone W2 aus ÖREB-Auszug, Knopf Neu laden; darunter Offene Punkte mit Filtern"
+              caption="Reiter Plan-Analyse: oben das Grundstück mit Zone aus dem ÖREB-Auszug, darunter die offenen Punkte aller Prüfungen."
+            />
             <Note title="Wenn kein Auszug kommt">
               <p>
                 Meldet der Abschnitt z.&nbsp;B. <Ui>Mehrere Grundstücke passen</Ui> oder <Ui>Grundstück nicht gefunden</Ui>,
@@ -401,9 +400,8 @@ export default function AnleitungPage() {
             </Note>
             <Fig
               src={imgUpload}
-              frueher
-              alt="Upload-Feld Pläne hochladen für die Prüfung Baugesuch, links die Versionsliste"
-              caption="Upload-Feld: alle Dateien des Plansatzes zusammen per Drag & Drop."
+              alt="Upload-Feld Pläne hochladen für eine neue Version der Prüfung Grundriss, links die Versionsliste"
+              caption="Upload-Feld, hier für eine neue Version der Prüfung «Grundriss»: alle Dateien des Plansatzes zusammen per Drag & Drop. Bei der ersten Analyse sieht das Feld gleich aus, ohne Versionsliste."
             />
 
             <Sub id="ergebnis" />
@@ -418,16 +416,14 @@ export default function AnleitungPage() {
             </div>
             <Fig
               src={imgErgebnis}
-              frueher
-              alt="Ergebnisansicht mit Plan-Vorschau links und den Zählern 0 Verstösse, 6 unklare Punkte, 7 konforme Punkte rechts"
-              caption="Ergebnis einer Prüfung: Plan-Vorschau links, Prüfpunkte rechts."
+              alt="Ergebnis der Prüfung Grundriss, Version V4: links die Versionen, in der Mitte die Plan-Vorschau, rechts die Zähler 1 Verstoss, 15 unklare Punkte, 22 konforme Punkte und die Prüfpunkte"
+              caption="Ergebnis einer Prüfung: Versionen links, Plan-Vorschau in der Mitte, Zähler und Prüfpunkte rechts."
             />
             <div className={s.two}>
               <Fig
                 src={imgPruefpunkt}
                 narrow
-                frueher
-                alt="Aufgeklappter Prüfpunkt Gebäudehöhe max. 8 m mit Begründung, Seite 8 und Konfidenz Mittel"
+                alt="Aufgeklappter konformer Prüfpunkt Art. 12 BauR Mels, Kleiner Grenzabstand, mit Begründung, Kategorie Grenzabstand und Konfidenz Mittel; die Quellenangabe ist unkenntlich gemacht"
                 caption="Ein Klick auf einen Prüfpunkt zeigt Begründung, Datei, Seite und Konfidenz."
               />
               <div>
@@ -444,12 +440,6 @@ export default function AnleitungPage() {
               <Ui>Ergebnis unvollständig</Ui>, konnte ein Teil nicht geprüft werden; die betroffenen Normen sind
               aufgeführt.
             </p>
-            <Fig
-              src={imgPlanAnalyse}
-              frueher
-              alt="Übersicht Plan-Analyse mit offenen Punkten der Prüfung Baugesuch"
-              caption="Übersicht Plan-Analyse: offene Punkte aller Prüfungen auf einen Blick."
-            />
 
             <Sub id="neue-version" />
             <p>
@@ -546,7 +536,7 @@ export default function AnleitungPage() {
 
             <Sub id="projekt-normen" />
             <ol className={s.steps}>
-              <li><p>Oben stehen Gemeinde, Parzelle und Zone. Darunter fasst eine Zeile den ÖREB-Auszug zusammen: Datum, Anzahl Themen, wie viele die Parzelle betreffen und wie viele <Ui>ohne Norm</Ui> sind. <Ui>Amtlicher PDF-Auszug ↗</Ui> öffnet das amtliche Dokument.</p></li>
+              <li><p>Oben stehen Gemeinde, Parzelle und Zone. Darunter fasst eine Zeile den ÖREB-Auszug zusammen: Datum, Anzahl Themen, wie viele die Parzelle betreffen, wie viele <Ui>ohne Daten</Ui> sind und, falls es Lücken gibt, wie viele <Ui>ohne Norm</Ui>. <Ui>Amtlicher PDF-Auszug ↗</Ui> öffnet das amtliche Dokument.</p></li>
               <li><p>Die Normen sind nach <Ui>Bund</Ui>, <Ui>Kanton</Ui> und <Ui>Gemeinde</Ui> gruppiert. Marken zeigen die Herkunft, z.&nbsp;B. <Ui>ÖREB</Ui>, <Ui>Plattformweit</Ui> oder <Ui>manuell</Ui>.</p></li>
               <li><p>Unter <Ui>Parzellenspezifisch (ÖREB)</Ui> stehen die Themen des Auszugs, die das Grundstück betreffen. Der Hinweis <Ui>Keine Norm in der Bibliothek für dieses Thema.</Ui> zeigt eine Lücke.</p></li>
               <li><p>Normen, die nur für eine andere Zone gelten, stehen eingeklappt unter <Ui>Andere Zonen — nicht zutreffend</Ui>.</p></li>
@@ -554,9 +544,8 @@ export default function AnleitungPage() {
             </ol>
             <Fig
               src={imgProjektNormen}
-              frueher
-              alt="Reiter Normen eines Projekts mit ÖREB-Auszug, Zone W2 und parzellenspezifischen Themen"
-              caption="Reiter Normen: ÖREB-Auszug der Parzelle, ermittelte Zone und offene Lücken."
+              alt="Reiter Normen eines Projekts in Mels SG mit Zone W2 aus ÖREB, Zusammenfassung des ÖREB-Auszugs, Abschnitt Reglemente aus dem ÖREB-Kataster und Beginn der Gruppe Bund"
+              caption="Reiter Normen: Grundstück mit Zone, Zusammenfassung des ÖREB-Auszugs und Reglemente aus dem ÖREB-Kataster."
             />
 
             <Sub id="normtext" />
@@ -775,14 +764,12 @@ export default function AnleitungPage() {
               <div className={s.two}>
                 <Fig
                   src={imgMitglieder}
-                  frueher
-                  alt="Reiter Mitglieder mit der Liste der Organisationsmitglieder und dem Knopf Einladen"
+                  alt="Organisation verwalten, Reiter Mitglieder mit Tabelle Name, E-Mail, Rolle, Beigetreten und dem Knopf Einladen"
                   caption="Organisation → Mitglieder: Liste aller Personen mit ihrer Rolle."
                 />
                 <Fig
                   src={imgEinladen}
-                  frueher
-                  alt="Dialog Mitglied einladen mit den Feldern Name, E-Mail und Rolle"
+                  alt="Dialog Mitglied einladen mit Name Laura Beispiel, E-Mail und Rolle Projektleiter"
                   caption="Dialog «Mitglied einladen» mit Name, E-Mail und Rolle."
                 />
               </div>
@@ -802,8 +789,7 @@ export default function AnleitungPage() {
               </ol>
               <Fig
                 src={imgProjektmitglieder}
-                frueher
-                alt="Seitenleiste Mitglieder eines Projekts mit Auswahlfeld Mitglied hinzufügen"
+                alt="Organisation, Reiter Projekte, Seitenleiste Mitglieder des Projekts Obergasse mit Auswahlfeld Mitglied hinzufügen"
                 caption="Projektmitglieder werden in einer Seitenleiste verwaltet."
               />
 
@@ -828,8 +814,7 @@ export default function AnleitungPage() {
 
           <div className={`${s.wrap} ${s.colophon}`}>
             <p>
-              Screenshots mit Beispieldaten (Musterbau AG). Bilder mit dem Vermerk «Frühere Ansicht» stammen aus dem
-              früheren Design; der Ablauf stimmt, Farben und einzelne Beschriftungen weichen ab.
+              Screenshots aus der App. Namen und E-Mail-Adressen von Personen sind Beispieldaten.
             </p>
           </div>
         </main>

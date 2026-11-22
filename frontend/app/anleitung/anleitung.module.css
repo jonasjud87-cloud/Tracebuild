@@ -421,19 +421,6 @@
   color: var(--muted);
   margin-top: 10px;
 }
-.figTag {
-  display: inline-block;
-  margin-right: 8px;
-  padding: 1px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
-  background: var(--accent-soft);
-  color: var(--accent);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-}
 
 /* Rollentabelle */
 .tableWrap {
