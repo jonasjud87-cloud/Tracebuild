@@ -1,6 +1,7 @@
 import { getAuthUser, ok, unauthorized, forbidden, err } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isBanned } from "@/lib/admin-user-access";
+import { loadLastActivity, withTimeout, TimeoutError, type ActivitySource } from "@/lib/admin-user-activity";
 import type { User as AuthUser } from "@supabase/supabase-js";
 
 export interface OrgUser {
@@ -15,10 +16,13 @@ export interface OrgUser {
   status: "pending" | "active" | "blocked";
 }
 
+// Kern-Zeitlimit 20 s plus Reserve; sonst bricht der Hoster je nach Plan früher ab.
+export const maxDuration = 30;
+
 const AUTH_PAGE_SIZE = 1000;
 const AUTH_MAX_PAGES = 100;
-const AUDIT_PAGE_SIZE = 1000;
-const AUDIT_MAX_PAGES = 10;
+/** Obergrenze für Organisationen, Nutzer und Auth-Konten zusammen; danach Fehler statt Hängen. */
+const CORE_TIMEOUT_MS = 20_000;
 
 type AdminClient = ReturnType<typeof createAdminClient>;
 
@@ -34,27 +38,19 @@ async function listAllAuthUsers(admin: AdminClient): Promise<{ users: AuthUser[]
   return { users: all, error: null };
 }
 
-async function loadLastAuditActivity(admin: AdminClient): Promise<Map<string, string>> {
-  const latest = new Map<string, string>();
-  for (let page = 0; page < AUDIT_MAX_PAGES; page++) {
-    const { data, error } = await admin
-      .from("audit_log")
-      .select("actor_id, created_at")
-      .not("actor_id", "is", null)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(page * AUDIT_PAGE_SIZE, (page + 1) * AUDIT_PAGE_SIZE - 1);
-    if (error) {
-      console.error("all_users_audit", error.code);
-      break;
-    }
-    const batch = (data ?? []) as { actor_id: string; created_at: string }[];
-    for (const r of batch) {
-      if (!latest.has(r.actor_id)) latest.set(r.actor_id, r.created_at);
-    }
-    if (batch.length < AUDIT_PAGE_SIZE) break;
-  }
-  return latest;
+function activitySource(admin: AdminClient): ActivitySource {
+  return {
+    rpc: signal => admin.rpc("admin_last_activity").abortSignal(signal),
+    scanPage: (from, to, signal) =>
+      admin
+        .from("audit_log")
+        .select("actor_id, created_at")
+        .not("actor_id", "is", null)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .range(from, to)
+        .abortSignal(signal),
+  };
 }
 
 function latestIso(a: string | null, b: string | null): string | null {
@@ -86,14 +82,33 @@ export async function GET() {
 
   const admin = createAdminClient();
 
-  const [{ data: orgs, error: orgsError }, { data: users, error: usersError }, authResult, activity] = await Promise.all([
-    admin.from("organizations").select("id, name").is("deleted_at", null),
-    // select("*") statt fester Spaltenliste: bleibt lauffähig, auch wenn die
-    // Migration für users.name noch nicht eingespielt ist.
-    admin.from("users").select("*"),
-    listAllAuthUsers(admin),
-    loadLastAuditActivity(admin),
-  ]);
+  // Aktivität läuft mit eigenem, kurzem Budget und blockiert die Liste nie.
+  const activityPromise = loadLastActivity(activitySource(admin));
+
+  let core;
+  try {
+    core = await withTimeout(
+      Promise.all([
+        admin.from("organizations").select("id, name").is("deleted_at", null),
+        // select("*") statt fester Spaltenliste: bleibt lauffähig, auch wenn die
+        // Migration für users.name noch nicht eingespielt ist.
+        admin.from("users").select("*"),
+        listAllAuthUsers(admin),
+      ]),
+      CORE_TIMEOUT_MS,
+    );
+  } catch (e) {
+    if (e instanceof TimeoutError) {
+      console.error("all_users", "timeout");
+      return err("Benutzer konnten nicht rechtzeitig geladen werden. Bitte erneut versuchen.", 504);
+    }
+    console.error("all_users", "exception");
+    return err("Benutzer konnten nicht geladen werden", 500);
+  }
+  const [{ data: orgs, error: orgsError }, { data: users, error: usersError }, authResult] = core;
+  const { latest: activity, source: activitySourceKind, rpcErrorCode } = await activityPromise;
+  // Nur Quelle und Fehlercode, keine Meldung mit Daten.
+  if (activitySourceKind !== "rpc") console.warn("all_users_activity", activitySourceKind, rpcErrorCode ?? "-");
 
   if (orgsError || usersError || authResult.error) {
     console.error("all_users", orgsError?.code ?? usersError?.code ?? "auth_list");

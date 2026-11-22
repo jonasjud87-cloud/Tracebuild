@@ -14,6 +14,7 @@ import AllUsersView from "@/components/admin/users/AllUsersView";
 import InviteUserModal from "@/components/admin/InviteUserModal";
 import type { SentInvite } from "@/components/admin/InviteUserModal";
 import type { OrgUsersGroup } from "@/app/api/v1/admin/all-users/route";
+import { fetchJson } from "@/lib/fetch-json";
 import ActivityFeed from "@/components/admin/ActivityFeed";
 import CostTable from "@/components/admin/CostTable";
 import CostOverview from "@/components/admin/CostOverview";
@@ -342,18 +343,17 @@ export default function AdminPage({ searchParams }: { searchParams?: { org?: str
     const reqId = ++usersReqId.current;
     setUsersLoading(true);
     try {
-      const res = await fetch("/api/v1/admin/all-users");
-      const json = await res.json().catch(() => null) as { data: OrgUsersGroup[] | null; error: string | null } | null;
+      // Mit Zeitlimit: Ein hängender Server darf nicht zu ewigem Laden führen.
+      const result = await fetchJson<OrgUsersGroup[]>("/api/v1/admin/all-users", {
+        fallbackError: "Nutzer konnten nicht geladen werden.",
+      });
       if (reqId !== usersReqId.current) return;
-      if (res.ok && json?.data) {
-        setUserGroups(json.data);
+      if (result.ok) {
+        setUserGroups(result.data);
         setUsersError(null);
       } else {
-        setUsersError(json?.error || "Nutzer konnten nicht geladen werden.");
+        setUsersError(result.error);
       }
-    } catch {
-      if (reqId !== usersReqId.current) return;
-      setUsersError("Nutzer konnten nicht geladen werden. Netzwerkfehler.");
     } finally {
       if (reqId === usersReqId.current) setUsersLoading(false);
     }

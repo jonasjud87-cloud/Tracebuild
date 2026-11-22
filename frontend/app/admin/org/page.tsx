@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { fetchJson } from "@/lib/fetch-json";
 import LogoMark from "@/components/admin/shell/LogoMark";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -235,13 +236,15 @@ function MembersPanel({
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/admin/projects/${project.id}/members`);
-      const json = await res.json() as { data: ProjectMember[]; error: string | null };
-      if (json.data) setMembers(json.data);
+      const result = await fetchJson<ProjectMember[]>(`/api/v1/admin/projects/${project.id}/members`, {
+        fallbackError: "Projektmitglieder konnten nicht geladen werden.",
+      });
+      if (result.ok) setMembers(result.data);
+      else onToast(result.error);
     } finally {
       setLoading(false);
     }
-  }, [project.id]);
+  }, [project.id, onToast]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -385,6 +388,7 @@ export default function OrgAdminPage() {
   const [users, setUsers]       = useState<OrgUser[]>([]);
   const [projects, setProjects] = useState<OrgProject[]>([]);
   const [loading, setLoading]   = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Modals
   const [inviteOpen, setInviteOpen]         = useState(false);
@@ -395,17 +399,28 @@ export default function OrgAdminPage() {
   // Toast
   const [toast, setToast] = useState("");
 
-  const addToast = (msg: string) => setToast(msg);
+  const addToast = useCallback((msg: string) => setToast(msg), []);
 
   // ── Auth check ──
+  // Jeder Ausgang setzt einen Zustand: Ein Fehler darf nicht im Lade-Spinner enden.
   useEffect(() => {
-    createClient().auth.getUser().then(async ({ data }) => {
-      if (!data.user) { router.replace("/login"); return; }
-      // Fetch role from our users table
-      const res = await fetch("/api/v1/admin/users");
-      if (res.status === 403) { setAuthorized(false); return; }
-      setAuthorized(true);
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await createClient().auth.getUser();
+        if (cancelled) return;
+        if (!data.user) { router.replace("/login"); return; }
+        // Rolle über die Admin-API prüfen
+        const res = await fetchJson<OrgUser[]>("/api/v1/admin/users");
+        if (cancelled) return;
+        if (res.status === 401) { router.replace("/login"); return; }
+        setAuthorized(res.status !== 403);
+      } catch {
+        // Seite freigeben: Die Daten-API prüft die Rolle selbst, ein Fehler erscheint als Hinweis.
+        if (!cancelled) setAuthorized(true);
+      }
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   // ── Load data ──
@@ -413,11 +428,15 @@ export default function OrgAdminPage() {
     setLoading(true);
     try {
       const [usersRes, projectsRes] = await Promise.all([
-        fetch("/api/v1/admin/users").then(r => r.json() as Promise<{ data: OrgUser[] }>),
-        fetch("/api/v1/admin/projects").then(r => r.json() as Promise<{ data: OrgProject[] }>),
+        fetchJson<OrgUser[]>("/api/v1/admin/users", { fallbackError: "Mitglieder konnten nicht geladen werden." }),
+        fetchJson<OrgProject[]>("/api/v1/admin/projects", { fallbackError: "Projekte konnten nicht geladen werden." }),
       ]);
-      setUsers(usersRes.data ?? []);
-      setProjects(projectsRes.data ?? []);
+      // Rolle inzwischen entzogen: Zugriff-verweigert-Ansicht statt Fehlerbanner.
+      if (usersRes.status === 403 || projectsRes.status === 403) { setAuthorized(false); return; }
+      if (usersRes.ok) setUsers(usersRes.data);
+      if (projectsRes.ok) setProjects(projectsRes.data);
+      const errors = [usersRes, projectsRes].flatMap(r => (r.ok ? [] : [r.error]));
+      setLoadError(errors.length > 0 ? errors.join(" ") : null);
     } finally {
       setLoading(false);
     }
@@ -541,6 +560,14 @@ export default function OrgAdminPage() {
       </header>
 
       <main className="max-w-[1680px] mx-auto px-6 py-8">
+        {loadError && !loading && (
+          <div role="alert" className="mb-6 flex items-center justify-between gap-3 rounded-2xl border border-[#D87979]/30 bg-[#fde7e5] px-5 py-3 text-sm text-[#a3201a]">
+            <span>{loadError}</span>
+            <button type="button" onClick={() => { void loadAll(); }} className="rounded font-semibold underline focus:outline-none focus-visible:ring-2 focus-visible:ring-[#D87979]">
+              Erneut versuchen
+            </button>
+          </div>
+        )}
         {/* Tabs */}
         <div className="flex gap-1 mb-6 bg-white rounded-xl p-1 w-fit">
           {(["projects", "members"] as const).map(t => (
