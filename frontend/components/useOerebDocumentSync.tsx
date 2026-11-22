@@ -8,10 +8,12 @@ import {
   documentSummaryLine,
   runDocumentSync,
   summarizeDocuments,
+  visibleDocuments,
   type SyncEnd,
   type SyncProgress,
   type SyncRunResult,
 } from "./geoportal-logic";
+import { useOrgRole } from "./useOrgRole";
 import n from "@/app/projects/[id]/norms/norms.module.css";
 
 export interface OerebSyncState {
@@ -135,6 +137,8 @@ const END_TEXT: Partial<Record<SyncEnd, string>> = {
 /** Kleine Statuszeile über dem Projektinhalt. Ohne Lauf und ohne Fehler bleibt sie weg. */
 export function OerebSyncStatus({ projectId }: { projectId: string }) {
   const { state } = useOerebSync();
+  const { role } = useOrgRole();
+  const platformAdmin = role === "super_admin";
   const [dismissedVersion, setDismissedVersion] = useState(-1);
   const { running, progress, lastEnd, lastError, documents } = state;
 
@@ -143,7 +147,8 @@ export function OerebSyncStatus({ projectId }: { projectId: string }) {
 
   const total = progress?.total ?? 0;
   const done = progress?.processed ?? 0;
-  const summary = documents?.items.length ? documentSummaryLine(summarizeDocuments(documents.items)) : "";
+  const shown = documents ? visibleDocuments(documents.items, platformAdmin) : [];
+  const summary = shown.length ? documentSummaryLine(summarizeDocuments(shown), { showFiltered: platformAdmin }) : "";
   const trouble = !running && lastEnd !== "done";
 
   return (
