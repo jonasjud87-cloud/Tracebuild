@@ -18,6 +18,12 @@ import imgUpload from "./img/upload.jpg";
 import imgErgebnis from "./img/ergebnis.jpg";
 import imgPruefpunkt from "./img/pruefpunkt.png";
 import imgPlanAnalyse from "./img/plan-analyse.jpg";
+import imgProjektErstellen from "./img/projekt-erstellen.jpg";
+import imgAenderungspruefung from "./img/aenderungspruefung.jpg";
+import imgNormenblatt from "./img/normenblatt.jpg";
+import imgKiChat from "./img/ki-chat.jpg";
+import imgUnternehmensnormHochladen from "./img/unternehmensnorm-hochladen.jpg";
+import imgEigeneFassung from "./img/eigene-fassung.jpg";
 
 // Handbuch für Organisationen. Bewusst nur per Direktlink erreichbar: nirgends
 // in der App verlinkt, öffentlich in middleware.ts (PUBLIC_PATHS) und für
@@ -101,7 +107,7 @@ const COMPANY_FIELDS: FieldRow[] = [
 
 const LAW_FIELDS: FieldRow[] = [
   { field: "Ebene", what: "Wer die Norm erlassen hat: Bund, Kanton oder Gemeinde", example: "Gemeinde" },
-  { field: "Kanton", what: "Wo die Norm gilt", example: "SG" },
+  { field: "Kanton", what: "Nur bei Ebene Kanton", example: "SG" },
   { field: "Gemeinde", what: "Nur bei Ebene Gemeinde", example: "Mels" },
   { field: "Kategorie", what: "Das Thema der Norm", example: "Grenzabstand" },
   { field: "Quelle (optional)", what: "Erlass, Artikel oder Paragraf", example: "PBG ZH § 270", optional: true },
@@ -230,7 +236,7 @@ export default function AnleitungPage() {
                 Bauzone, Abstände, Höhen und mehr. Sie sehen auf einen Blick, was eingehalten ist, wo etwas nicht
                 stimmt und wo es noch Angaben braucht.
               </p>
-              <p className={s.meta}>Handbuch für Organisationen · Stand 22. November 2026</p>
+              <p className={s.meta}>Handbuch für Organisationen · Stand 23. November 2026</p>
             </div>
           </header>
 
@@ -323,6 +329,12 @@ export default function AnleitungPage() {
               <li><p>Klicken Sie auf <Ui>Projekt erstellen →</Ui>. Während der ÖREB-Auszug abgerufen wird, steht auf dem Knopf <Ui>ÖREB-Auszug wird abgerufen…</Ui>. Danach öffnet sich das Projekt im Reiter <Ui>Plan-Analyse</Ui>.</p></li>
             </ol>
             <Fields rows={PROJECT_FIELDS} label="Felder im Dialog Projekt erstellen" />
+            <Fig
+              src={imgProjektErstellen}
+              narrow
+              alt="Dialog Projekt erstellen: Suche Herisau 859, grüne Zeile Übernommen: Parzelle 859, Herisau AR, Projektname Neubau Wohnhaus Herisau, Projektnummer 2026-014 mit Hinweis zur Eindeutigkeit"
+              caption="Dialog «Projekt erstellen»: Nach der Suche übernimmt TraceBuild die Parzelle. Die Felder bleiben korrigierbar."
+            />
             <Note title="Liechtenstein">
               <p>
                 Wählen Sie als Kanton <Ui>FL (Liechtenstein)</Ui>. TraceBuild ruft auch dort den ÖREB-Auszug ab und
@@ -479,6 +491,12 @@ export default function AnleitungPage() {
                 </tbody>
               </table>
             </div>
+            <Fig
+              src={imgAenderungspruefung}
+              narrow
+              alt="Zwei Ausschnitte einer Prüfung Baugesuch, Version V2: oben Knöpfe Bericht (PDF), CSV, Neue Version, ÖREB-Stand und Kasten Änderungsprüfung gegenüber Version 1 mit 26 unverändert, 1 neu und gelbem Hinweis; unten der Prüfpunkt Art. 69 PBG, Abstellplätze, mit der Marke Neu"
+              caption="Nach einer Änderungsprüfung: Zusammenfassung oben, geänderte Punkte tragen eine Marke, hier «Neu»."
+            />
             <Note title="Plan stark verändert?">
               <p>
                 Weicht der Plan stark von der Vorversion ab, empfiehlt TraceBuild eine Vollprüfung über{" "}
@@ -589,6 +607,11 @@ export default function AnleitungPage() {
               <li><p>Mit <Ui>PDF herunterladen</Ui> speichern Sie das Blatt als PDF.</p></li>
               <li><p>Ändern sich Normen oder Zone, meldet das Blatt den älteren Stand. Klicken Sie dann auf <Ui>Aktualisieren</Ui>. Mit <Ui>Neu erstellen</Ui> erstellen Sie ein aktuelles Blatt jederzeit neu.</p></li>
             </ol>
+            <Fig
+              src={imgNormenblatt}
+              alt="Normenblatt für Mels, Kanton SG, vom 14.11.2026: Tabelle Kenndaten mit Zone W2, Landfläche, 2 Vollgeschossen, Ausnützungsziffer 0.50, Grenzabständen 8 und 4 m und Gebäudelänge 24 m, je mit Quelle; Projektname, Parzelle und Wert der Landfläche unkenntlich"
+              caption="Normenblatt: Kenndaten mit Wert und Quelle, hier aus dem ÖREB-Auszug und dem Baureglement der Gemeinde."
+            />
             <Note title="Werte am Original prüfen">
               <p>
                 Das Normenblatt ist keine behördliche Auskunft. Ein leeres Feld heisst, dass der Wert in den Normen nicht
@@ -602,6 +625,11 @@ export default function AnleitungPage() {
               <li><p>Stellen Sie Ihre Frage im Eingabefeld und senden Sie sie mit Enter. Shift+Enter fügt eine neue Zeile ein. Für den Anfang bietet TraceBuild Beispielfragen an, z.&nbsp;B. «Welche Normen gelten für dieses Projekt?».</p></li>
               <li><p>Frühere Gespräche stehen links unter <Ui>Verlauf</Ui>. Ein neues Gespräch beginnen Sie mit <Ui>Neuer Chat</Ui>.</p></li>
             </ol>
+            <Fig
+              src={imgKiChat}
+              alt="Reiter KI Chat: links Verlauf mit zwei Gesprächen, rechts die Frage Was ist der Grenzabstand in dieser Bauzone? und die Antwort mit Tabelle kleiner Grenzabstand 4.0 m, grosser 8.0 m für die Zone W2, unten das Eingabefeld"
+              caption="KI Chat: Gespräche links im Verlauf, Antworten mit Bezug auf die Normen des Projekts."
+            />
             <Note title="Nicht rechtsverbindlich">
               <p>Der Chat ersetzt keine Rechtsberatung. Aussagen des Assistenten sind nicht rechtsverbindlich.</p>
             </Note>
@@ -683,6 +711,11 @@ export default function AnleitungPage() {
                 <li><p>Eine überarbeitete Fassung laden Sie mit <Ui>Neue Version hochladen</Ui> hoch. Sie ersetzt die bisherige erst nach ihrer Freigabe; frühere Versionen bleiben sichtbar. Geltungsbereich und Verbindlichkeit ändert ein Organisations-Admin über <Ui>Einstellungen ändern</Ui>.</p></li>
               </ol>
               <Fields rows={COMPANY_FIELDS} label="Felder einer Unternehmensnorm" />
+              <Fig
+                src={imgUnternehmensnormHochladen}
+                alt="Formular Unternehmensnorm hochladen: Ablagefeld für PDF oder TXT, Kategorie Brandschutz, Bezeichnung Brandschutzrichtlinie 2026, Verbindlichkeit Verbindlich mit Hinweis, Gilt für Alle Projekte, Knopf Hochladen & speichern"
+                caption="Formular «Unternehmensnorm hochladen». Der Knopf wird aktiv, sobald eine Datei gewählt ist."
+              />
               <Note title="Rangfolge">
                 <p>
                   Gesetzliche Normen gehen immer vor. Eine Unternehmensnorm darf sie verschärfen, aber nie lockern.
@@ -701,6 +734,11 @@ export default function AnleitungPage() {
                 <li><p>Liegt für dieselbe Gemeinde ein amtlicher Text vor, gilt dieser. Soll trotzdem Ihr Upload gelten, klicken Sie auf <Ui>Meine Fassung als massgebend festlegen</Ui>. Mit <Ui>Festlegung zurücknehmen</Ui> gilt wieder der amtliche Text.</p></li>
               </ol>
               <Fields rows={LAW_FIELDS} label="Felder einer eigenen Fassung" />
+              <Fig
+                src={imgEigeneFassung}
+                alt="Formular Eigene Fassung hochladen: Ebene Gemeinde, Gemeinde Mels, Kategorie Grenzabstand, Quelle Baureglement Mels, Zone W2, Knopf Hochladen & speichern"
+                caption="Formular «Eigene Fassung hochladen» mit Ebene «Gemeinde»: Statt des Kantons tragen Sie die Gemeinde ein."
+              />
             </Chapter>
 
             {/* ── Kapitel 6 ───────────────────────────────────────────── */}
@@ -789,7 +827,7 @@ export default function AnleitungPage() {
               </ol>
               <Fig
                 src={imgProjektmitglieder}
-                alt="Organisation, Reiter Projekte, Seitenleiste Mitglieder des Projekts Obergasse mit Auswahlfeld Mitglied hinzufügen"
+                alt="Organisation, Reiter Projekte, Seitenleiste Mitglieder eines Projekts mit Auswahlfeld Mitglied hinzufügen; Projektnamen unkenntlich"
                 caption="Projektmitglieder werden in einer Seitenleiste verwaltet."
               />
 
