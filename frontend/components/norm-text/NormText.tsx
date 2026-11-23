@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactElement } from "react";
 import {
   isSameHost,
   normSummary,
@@ -10,6 +10,7 @@ import {
   type BodyBlock,
   type NormBlock,
 } from "@/lib/norm-structure";
+import { hiddenRuns, runLabel, runSummary, selectSections, type HiddenRun, type SectionContext } from "@/lib/norm-sections";
 import p from "@/app/projects/project.module.css";
 import s from "./NormText.module.css";
 
@@ -21,6 +22,8 @@ interface NormTextProps {
   pdfUrl: string | null;
   loadingFull: boolean;
   loadError: boolean;
+  /** Zone der Parzelle und Angaben zur Norm: Artikel anderer Zonen eingeklappt. Ohne Angabe ganzes Dokument. */
+  sectionContext?: SectionContext | null;
 }
 
 const STEP = 150;
@@ -94,7 +97,7 @@ function BodyView({ block }: { block: BodyBlock }) {
 }
 
 /** Ohne Kapitelköpfe sind Artikel die oberste Ebene (h3), sonst eine Ebene darunter (h4). */
-function ArticleView({ block, id, nested }: { block: ArticleBlock; id: string; nested: boolean }) {
+function ArticleView({ block, id, nested, ownZone }: { block: ArticleBlock; id: string; nested: boolean; ownZone?: string }) {
   const relabelled = block.label.replace(/\s+/g, "") !== block.rawLabel.replace(/\s+/g, "");
   const Heading = nested ? "h4" : "h3";
   // Kein aria-label: Sonst wird jeder Artikel zur Landmarke (bis zu 180 je Norm).
@@ -105,6 +108,7 @@ function ArticleView({ block, id, nested }: { block: ArticleBlock; id: string; n
           {block.label}
         </span>
         {block.title && <span className={s.articleTitle}>{block.title}</span>}
+        {ownZone && <span className={`${p.chipInfo} ${s.zoneChip}`}>Zone {ownZone}</span>}
       </Heading>
       {block.body.map((b, i) => (
         <BodyView key={i} block={b} />
@@ -113,10 +117,10 @@ function ArticleView({ block, id, nested }: { block: ArticleBlock; id: string; n
   );
 }
 
-function BlockView({ block, id, nested }: { block: NormBlock; id: string; nested: boolean }) {
+function BlockView({ block, id, nested, ownZone }: { block: NormBlock; id: string; nested: boolean; ownZone?: string }) {
   switch (block.kind) {
     case "article":
-      return <ArticleView block={block} id={id} nested={nested} />;
+      return <ArticleView block={block} id={id} nested={nested} ownZone={ownZone} />;
     case "heading":
       return <h3 className={s.heading}>{block.text}</h3>;
     case "toc":
@@ -135,8 +139,30 @@ function BlockView({ block, id, nested }: { block: NormBlock; id: string; nested
   }
 }
 
-export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingFull, loadError }: NormTextProps) {
+/** Platzhalter an der Stelle ausgeblendeter Artikel, damit keine Lücke unbemerkt bleibt. */
+function HiddenRunRow({ run, onShow }: { run: HiddenRun; onShow: () => void }) {
+  const label = runLabel(run.labels);
+  return (
+    <div className={s.hiddenRun}>
+      <p className={s.hiddenRunText}>{runSummary(run)} Automatisch nach Zone ausgeblendet.</p>
+      <button type="button" onClick={onShow} className={s.textBtn} aria-label={label ? `${label} anzeigen` : "Abschnitt anzeigen"}>
+        anzeigen
+      </button>
+    </div>
+  );
+}
+
+export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingFull, loadError, sectionContext }: NormTextProps) {
   const parsed = useMemo(() => parseNormText(text), [text]);
+  const selection = useMemo(() => (sectionContext ? selectSections(parsed, sectionContext) : null), [parsed, sectionContext]);
+  const runs = useMemo(() => (selection ? hiddenRuns(selection, parsed.blocks) : []), [selection, parsed]);
+  const [whole, setWhole] = useState(false);
+  const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set());
+  // Neue Auswahl (z. B. Volltext geladen, Zone geändert): wieder gefiltert, alle Platzhalter zu.
+  useEffect(() => {
+    setWhole(false);
+    setOpened(new Set());
+  }, [selection]);
   const hasMarginals = useMemo(
     () =>
       parsed.blocks.some(
@@ -175,7 +201,35 @@ export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingF
   }, [jumpTo, visible]);
 
   const total = parsed.blocks.length;
-  const remaining = Math.max(0, total - visible);
+  const filterOn = !!selection?.active;
+  const zoneName = sectionContext?.zone?.trim() ?? "";
+  // Indizes, die gerade hinter einem Platzhalter stehen. Paginierung zählt weiter über die Original-Indizes.
+  const collapsed = new Map<number, HiddenRun>();
+  if (filterOn && !whole) {
+    for (const r of runs) {
+      if (opened.has(r.from)) continue;
+      for (let i = r.from; i <= r.to; i++) collapsed.set(i, r);
+    }
+  }
+  const ownZoneAt = (i: number) => {
+    const v = selection?.verdicts[i];
+    return filterOn && v?.show && v.ownZone ? zoneName : undefined;
+  };
+  // `visible` zählt angezeigte Einträge (ein Platzhalter zählt einmal), Ids bleiben bei den Original-Indizes.
+  const rendered: ReactElement[] = [];
+  let next = 0;
+  while (next < total && rendered.length < visible) {
+    const run = collapsed.get(next);
+    if (run) {
+      const from = run.from;
+      rendered.push(<HiddenRunRow key={`run-${from}`} run={run} onShow={() => setOpened((prev) => new Set(prev).add(from))} />);
+      next = run.to + 1;
+      continue;
+    }
+    rendered.push(<BlockView key={next} block={parsed.blocks[next]} id={blockId(next)} nested={nested} ownZone={ownZoneAt(next)} />);
+    next++;
+  }
+  const remaining = total - next;
 
   return (
     <div className={`${s.root} ${hasMarginals ? s.withMarginals : ""}`}>
@@ -192,7 +246,17 @@ export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingF
 
       {(wholeDocument || summary || href || parsed.structured) && (
         <div className={s.toolbar}>
-          {wholeDocument && <span className={p.chipSand}>Ganzes Dokument</span>}
+          {wholeDocument && (!filterOn || whole) && <span className={p.chipSand}>Ganzes Dokument</span>}
+          {filterOn && selection && !raw && !showPdf && (
+            <>
+              <span className={p.chipInfo}>
+                Geltend für Zone {zoneName}: {selection.shownArticles} von {selection.shownArticles + selection.hiddenArticles} Artikeln
+              </span>
+              <button type="button" aria-pressed={whole} onClick={() => setWhole((v) => !v)} className={`${p.btnGhost} ${p.btnSm}`}>
+                {whole ? "Nur geltende Abschnitte" : "Ganzes Dokument anzeigen"}
+              </button>
+            </>
+          )}
           {summary && <span className={p.chip}>{summary}</span>}
           {canEmbed && wide && (
             <div className={s.segmented} role="group" aria-label="Ansicht">
@@ -227,29 +291,33 @@ export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingF
             <details className={s.overview}>
               <summary>Artikelübersicht ({overview.length})</summary>
               <ol role="list" className={s.overviewList}>
-                {overview.map(({ b, i }) => (
-                  <li key={i}>
-                    <a
-                      href={`#${blockId(i)}`}
-                      className={s.overviewLink}
-                      onClick={(e) => {
-                        e.preventDefault();
-                        setVisible(total);
-                        setJumpTo(blockId(i));
-                      }}
-                    >
-                      <strong>{b.label}</strong>
-                      {b.title ? ` ${b.title}` : ""}
-                    </a>
-                  </li>
-                ))}
+                {overview.map(({ b, i }) => {
+                  const hidden = collapsed.has(i);
+                  return (
+                    <li key={i}>
+                      <a
+                        href={`#${blockId(i)}`}
+                        className={hidden ? `${s.overviewLink} ${s.overviewDimmed}` : s.overviewLink}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          // Ziel ist ausgeblendet: ganzes Dokument zeigen, dann springen.
+                          if (hidden) setWhole(true);
+                          setVisible(total);
+                          setJumpTo(blockId(i));
+                        }}
+                      >
+                        <strong>{b.label}</strong>
+                        {b.title ? ` ${b.title}` : ""}
+                        {hidden && <span className={s.overviewNote}> · andere Zone</span>}
+                      </a>
+                    </li>
+                  );
+                })}
               </ol>
             </details>
           )}
           <div className={s.blocks}>
-            {parsed.blocks.slice(0, visible).map((b, i) => (
-              <BlockView key={i} block={b} id={blockId(i)} nested={nested} />
-            ))}
+            {rendered}
           </div>
           {remaining > 0 && (
             <div className={s.more}>

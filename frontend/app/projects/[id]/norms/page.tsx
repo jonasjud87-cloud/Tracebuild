@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { api } from "@/lib/api";
 import { normMatchesZone } from "@/lib/zone-match";
 import { isOerebSupportedCanton } from "@/lib/oereb/cantons";
@@ -11,6 +11,7 @@ import OerebDocumentsPanel from "@/components/OerebDocumentsPanel";
 import ZoneEditor from "@/components/ZoneEditor";
 import NormText from "@/components/norm-text/NormText";
 import { safeHref } from "@/lib/norm-structure";
+import type { SectionContext } from "@/lib/norm-sections";
 import { useOerebSync } from "@/components/useOerebDocumentSync";
 import { useOrgRole } from "@/components/useOrgRole";
 import { oerebReloadNote, zoneNeedsAttention } from "@/components/geoportal-logic";
@@ -186,11 +187,28 @@ function triggerLabel(trigger: string | null | undefined): string {
   return "Über den ÖREB-Auszug zugewiesen";
 }
 
-function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string) => void }) {
+interface NormCardProps {
+  pn: ProjectNorm;
+  onRemove: (normId: string) => void;
+  /** Zone der Parzelle; null zeigt immer das ganze Dokument (z. B. unter «Andere Zonen»). */
+  zone?: string | null;
+  zoneConfidence?: string | null;
+}
+
+function NormCard({ pn, onRemove, zone = null, zoneConfidence = null }: NormCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [fullText, setFullText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const norm = pn.norms;
+  // Gekürzter Text (Vorschau) oder Ladefehler: kein Filter, sonst fehlten Artikel unbemerkt.
+  const fullTextLoaded = !!norm && (!norm.text_truncated || (fullText !== null && !loadError));
+  const sectionContext = useMemo<SectionContext | null>(
+    () =>
+      norm && zone
+        ? { zone, zoneConfidence, layer: norm.layer, normZone: norm.zone, fullTextLoaded }
+        : null,
+    [norm, zone, zoneConfidence, fullTextLoaded],
+  );
   useEffect(() => {
     if (!expanded || !norm?.text_truncated || fullText !== null || loadError) return;
     api
@@ -237,6 +255,7 @@ function NormCard({ pn, onRemove }: { pn: ProjectNorm; onRemove: (normId: string
                 pdfUrl={norm.pdf_url ?? null}
                 loadingFull={loadingFull}
                 loadError={loadError}
+                sectionContext={sectionContext}
               />
               {(sourceLink || sourceText || norm.source_doc) && (
                 <div className={n.normSource}>
@@ -347,7 +366,19 @@ function LegalStatusBadge({ status }: { status: LegalStatus }) {
   return <span className={s.chip}>{s.label}</span>;
 }
 
-function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: boolean; onRemove: (normId: string) => void }) {
+function ThemeBlock({
+  theme,
+  isGap,
+  onRemove,
+  zone,
+  zoneConfidence,
+}: {
+  theme: ThemeGroup;
+  isGap: boolean;
+  onRemove: (normId: string) => void;
+  zone: string | null;
+  zoneConfidence: string | null;
+}) {
   const federal = isFederalTheme(theme.themeCode);
   const showGapCard = isGap;
 
@@ -403,7 +434,7 @@ function ThemeBlock({ theme, isGap, onRemove }: { theme: ThemeGroup; isGap: bool
           {theme.norms.length > 0 && (
             <div className={n.nestedList}>
               {theme.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={onRemove} />
+                <NormCard key={pn.id} pn={pn} onRemove={onRemove} zone={zone} zoneConfidence={zoneConfidence} />
               ))}
             </div>
           )}
@@ -832,7 +863,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <section key={grp.label} className={p.glass}>
               <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
               {grp.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} />
               ))}
             </section>
           ))}
@@ -846,7 +877,14 @@ export default function NormenPage({ params }: { params: { id: string } }) {
                 extra={gapCount > 0 ? <span className={p.chipWarn}>{gapCount} Lücke{gapCount !== 1 ? "n" : ""}</span> : undefined}
               />
               {affectsThemes.map((t) => (
-                <ThemeBlock key={t.themeCode} theme={t} isGap={gapCodes.has(t.themeCode)} onRemove={handleRemove} />
+                <ThemeBlock
+                  key={t.themeCode}
+                  theme={t}
+                  isGap={gapCodes.has(t.themeCode)}
+                  onRemove={handleRemove}
+                  zone={bauzone}
+                  zoneConfidence={zoneConfidence}
+                />
               ))}
 
               {noDataThemes.length > 0 && (
@@ -881,7 +919,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <section key={grp.label} className={p.glass}>
               <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
               {grp.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} />
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} />
               ))}
             </section>
           ))}
