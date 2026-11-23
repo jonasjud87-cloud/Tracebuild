@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { CHAPTERS } from "./chapters";
 import s from "./anleitung.module.css";
 
@@ -11,7 +11,7 @@ const reducedMotion = () =>
 /**
  * Sticky chapter bar + scrollspy for the handbook. Appears once the table of
  * contents (#inhalt) has scrolled out of view, highlights the chapter in view,
- * names the current section and shows reading progress. In-page anchor links
+ * names the current section (reading progress is the bar in the landing header). In-page anchor links
  * scroll smoothly (unless reduced motion is requested) and update the hash, so
  * every chapter and section is linkable — without JS the anchors still work.
  */
@@ -19,7 +19,6 @@ export default function ChapterNav() {
   const [visible, setVisible] = useState(false);
   const [chapterId, setChapterId] = useState<string | null>(null);
   const [sectionId, setSectionId] = useState<string | null>(null);
-  const progressRef = useRef<HTMLDivElement>(null);
 
   // Show the bar once the table of contents is out of view.
   useEffect(() => {
@@ -40,7 +39,9 @@ export default function ChapterNav() {
     let frame = 0;
     const update = () => {
       frame = 0;
-      const line = 120;
+      // Linie knapp unter festem Landing-Kopf (--tbl-header-h) und Kapitelleiste (56px).
+      const header = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--tbl-header-h")) || 72;
+      const line = header + 56 + 16;
       const lastAbove = (els: HTMLElement[]) => {
         let hit: HTMLElement | null = null;
         for (const el of els) if (el.getBoundingClientRect().top <= line) hit = el;
@@ -52,11 +53,6 @@ export default function ChapterNav() {
       // Only keep a section that belongs to the current chapter.
       const owner = CHAPTERS.find((c) => c.id === ch);
       setSectionId(owner?.sections.some((x) => x.id === sec) ? sec : null);
-
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      if (progressRef.current) {
-        progressRef.current.style.transform = `scaleX(${max > 0 ? Math.min(1, window.scrollY / max) : 0})`;
-      }
     };
     const onScroll = () => {
       if (!frame) frame = requestAnimationFrame(update);
@@ -113,7 +109,6 @@ export default function ChapterNav() {
           </span>
         )}
       </div>
-      <div ref={progressRef} className={s.progress} aria-hidden="true" />
     </nav>
   );
 }

@@ -1,6 +1,24 @@
 # Admin-Portal: Ausbaukonzept
 
-Stand: 2026-11-04. Erstellt von einem Agent-Team (UX, Frontend, Backend, Security).
+> **Historisches Dokument.** Konzept vom 4. November 2026, seither nicht nachgeführt. Der «Ist-Zustand» in
+> Abschnitt 1 stimmt nicht mehr. Für den heutigen Stand gilt der Code; der Abgleich unten ist der einzige
+> aktualisierte Teil.
+>
+> **Abgleich mit dem Code, 19. November 2026** (per Suche im Code geprüft, nicht im Betrieb):
+>
+> - Umgesetzt: Sidebar mit Unterseiten (`components/admin/shell/SidebarNav.tsx`): Übersicht, Analysen,
+>   Organisationen, Nutzer, Kosten & Abrechnung, Normen & Richtlinien, ÖREB-Importe, Ankündigungen,
+>   Tools & Dienste, Meldungen, Logs & Monitoring. Ansichten Betrieb/Support/Finanzen (`/admin/manage?view=…`,
+>   gespeichert im localStorage), globales Audit-Log (`/admin/audit`, Route `admin/audit-log`), Meldungen mit
+>   Glocke (`/admin/alerts`, `components/admin/AlertBell.tsx`), globale Suche (`components/admin/GlobalSearch.tsx`),
+>   Analysen-Monitor (`/admin/analyses`), Plattformkosten und `USD_CHF_RATE`, Monitoring «Tools & Dienste»
+>   (`MONITORING_*`), Normabgleich mit Vercel-Cron (`vercel.json`, siehe `docs/normabgleich-checkliste.md`).
+> - Nicht gefunden: `platform_admins`, MFA/AAL2, `admin_mutate_with_audit`, Vier-Augen (`pending_actions`),
+>   Guards für Limits und Budget (`assertWithinLimits`, `assertOrgActive`), serverseitig gespeicherte Ansichten
+>   (`admin_dashboard_views`), `org_month_costs`. Die Sicherheitspunkte aus Abschnitt 2 sind damit weiterhin offen,
+>   sofern sie nicht unter anderem Namen umgesetzt wurden.
+
+Ursprünglicher Stand: 2026-11-04. Erstellt von einem Agent-Team (UX, Frontend, Backend, Security).
 
 Verifikationsstatus der Quellen:
 - **Security- und Backend-Befunde:** im Code geprüft, mit Datei:Zeile.

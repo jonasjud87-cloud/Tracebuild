@@ -19,6 +19,10 @@ zum Wirksamwerden müssen sie manuell eingefügt werden:
 
 Stand 1. November 2026: alle vier Vorlagen samt deutschen Betreffzeilen sind im Dashboard eingespielt.
 
+Am 10. November 2026 (Commit «Neues Logo, … PDFs und E-Mails auf Schwarz/Graphit/Beige») wurden alle vier
+HTML-Dateien und `email-logo.png` auf das neue Farbkonzept umgestellt. Ob die neuen Fassungen im Dashboard
+eingespielt sind, ist hier nicht vermerkt: im Dashboard prüfen und bei Bedarf die Schritte 2 bis 6 wiederholen.
+
 ## URL-Konfiguration
 
 Supabase-Dashboard → **Authentication → URL Configuration**:
@@ -39,10 +43,9 @@ angegebenen DNS-Einträgen (SPF/DKIM) verifiziert sein.
 
 ## Logo
 
-Beide Vorlagen laden das Logo über `{{ .SiteURL }}/email-logo.png` —
+Alle vier Vorlagen laden das Logo über `{{ .SiteURL }}/email-logo.png` —
 das ist die Datei [`frontend/public/email-logo.png`](../../frontend/public/email-logo.png)
-(transparenter Hintergrund, 240×240, ~68 KB). Sie ist erst erreichbar,
-**nachdem** dieser Branch deployt ist, und nur unter der in den
+(transparenter Hintergrund, 240×240, ~3 KB). Die Mail lädt es von der in den
 Auth-Einstellungen hinterlegten Site-URL. Falls dort noch die
 Vercel-Preview-URL statt der echten Domain steht, zeigt das Logo erst nach
 dem Umstellen korrekt an — bis dahin bricht die Mail nicht, das `<img>`

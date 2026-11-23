@@ -2,6 +2,10 @@
 
 Für Admins von Tracebuild. Alles in der Weboberfläche prüfbar, ohne Code.
 
+Erstellt für das erste Deployment des Normabgleichs (13. November 2026). Beschriftungen und Wege am
+19. November 2026 mit dem Code abgeglichen: Der Normabgleich liegt seither im Reiter «Rechtsquellen» der
+Normen-Seite, das Normenblatt zeigt das Kenndatenblatt.
+
 ## Vorher erledigt
 
 - [ ] Migration `20261113000001_norm_watch.sql` in Supabase eingespielt
@@ -19,7 +23,7 @@ left join norms n on n.id = s.norm_id
 order by s.label;
 ```
 
-Stimmt eine Zeile nicht (falsche oder fehlende Norm), im Bereich «Normabgleich» die richtige Norm auswählen und auf «Zuordnen» klicken. Der erste Abgleich würde sonst den Text der falschen Norm ersetzen.
+Stimmt eine Zeile nicht (falsche oder fehlende Norm), in `/admin/norms` → Reiter «Rechtsquellen» die richtige Norm auswählen und auf «Zuordnen» klicken. Der erste Abgleich würde sonst den Text der falschen Norm ersetzen.
 
 ## 1. Vercel
 
@@ -35,9 +39,11 @@ Stimmt eine Zeile nicht (falsche oder fehlende Norm), im Bereich «Normabgleich�
 2. Sie zeigt 5 Quellen. Vor dem ersten Abgleich stehen die Quellen auf «Ungeprüft» oder «Fehlt».
 3. Nach «Aktualisieren» oben rechts lädt die Karte neu, ohne Fehlermeldung.
 
-## 3. Normen-Seite (`/admin/norms`)
+## 3. Normen-Seite (`/admin/norms`, Reiter «Rechtsquellen»)
 
-1. Oben der Bereich **Normabgleich** mit den 5 Quellen:
+1. Die Seite öffnet im Reiter «Bibliothek». Zum Reiter **Rechtsquellen** wechseln (direkt: `/admin/norms#norm-watch`).
+   Dort steht der Bereich **Normabgleich**, die Quellen getrennt nach «Bund» und
+   «Kanton St. Gallen (SG)». Erwartet beim ersten Mal 5 Quellen:
    USG (SR 814.01), LSV (SR 814.41), PBG (sGS 731.1), PBV (sGS 731.11), EG-USG-Verordnung (sGS 672.11).
 2. Unter jeder Quelle steht die zugeordnete Norm. Bei «Fehlt» fehlt die Zuordnung: im Auswahlfeld die passende Norm wählen und auf «Zuordnen» klicken.
 3. Auf **Jetzt prüfen** klicken. Erwartet: Meldung wie «5 Quellen geprüft, 5 neue Entwürfe». Beim ersten Mal ist ein Entwurf pro Quelle normal, weil der gespeicherte Text aus einem PDF stammt und der neue aus dem amtlichen Text.
@@ -47,10 +53,10 @@ Stimmt eine Zeile nicht (falsche oder fehlende Norm), im Bereich «Normabgleich�
    - Beispiele «Neu in der Fassung» und «Nur im bisherigen Text» sind lesbar und sinnvoll (Kopfzeilen und Fussnoten als Unterschied sind beim ersten Mal in Ordnung).
    - Erscheint ein gelbes Feld «Der neue Text ist deutlich kürzer …» oder «stimmt nur zu weniger als der Hälfte überein», den Entwurf nicht blind freigeben: Text des PDFs und der Quelle vergleichen.
 5. Einen Entwurf **freigeben** (zuerst eine unkritische Norm wie die EG-USG-Verordnung). Erwartet:
-   - Meldung «Neue Fassung übernommen».
+   - Meldung «Neue Fassung übernommen. Ein Ankündigungs-Entwurf liegt unter «Ankündigungen» bereit.»
    - Quelle steht auf «Aktuell», «Stand» zeigt die neue Fassung.
    - Unter **Ankündigungen** liegt ein neuer Entwurf «Rechtsgrundlage aktualisiert: …», **nicht aktiv**.
-   - In der Normen-Liste hat die Norm den neuen Text (Titel mit neuem Stand-Datum, falls der Titel nach dem Schema «Bezeichnung, Stand …» aufgebaut war).
+   - Im Reiter «Bibliothek» hat die Norm den neuen Text (Titel mit neuem Stand-Datum, falls der Titel nach dem Schema «Bezeichnung, Stand …» aufgebaut war).
 6. Auf **Jetzt prüfen** erneut klicken. Erwartet: keine neuen Entwürfe für die freigegebene Quelle.
 7. Einen Entwurf **ablehnen** testen. Erwartet: Er verschwindet und kommt beim nächsten Prüfen nicht wieder.
 8. **Quelle hinzufügen**: Bundesnormen, die noch fehlen (Vorschlag, bitte bestätigen):
@@ -68,17 +74,19 @@ Stimmt eine Zeile nicht (falsche oder fehlende Norm), im Bereich «Normabgleich�
 ## 5. Inhalt prüfen (Stichproben)
 
 1. Eine Analyse mit einem Projekt starten. Im Bericht erscheinen die Normen mit ihrem Stand.
-2. In der Normen-Liste die Länge des PBG ansehen: Der amtliche Text hat rund 104'000 Zeichen. Wenn der bisherige Text genau 100'000 Zeichen lang war, fehlten vermutlich die letzten Artikel.
+2. Im Reiter «Bibliothek» die Länge des PBG ansehen: Der amtliche Text hat rund 104'000 Zeichen. Wenn der bisherige Text genau 100'000 Zeichen lang war, fehlten vermutlich die letzten Artikel.
 3. Beim USG liegt der amtliche Text bei rund 105'000 Zeichen. Ist der gespeicherte Text deutlich länger, enthielt er vermutlich Kopf- und Fusszeilen.
 
 ## 5b. Normenblatt nach einer Freigabe
 
-1. Ein Projekt öffnen, dessen Normenblatt Kennwerte aus der freigegebenen Norm zeigt.
-2. Erwartet: Die Kennwerte werden neu berechnet (nicht mehr «aus dem Cache»), weil sich der Text-Stand der Norm geändert hat.
+1. Ein Projekt öffnen, dessen Normenblatt (Kenndatenblatt) Werte aus der freigegebenen Norm zeigt, Reiter «Normenblatt».
+2. Erwartet: Das Blatt meldet «Normen oder Zone haben sich seit der Erstellung geändert …», weil sich der Text der
+   Norm geändert hat. Es wird nicht von selbst neu berechnet.
+3. «Aktualisieren» klicken. Erwartet: neues Blatt, der Hinweis verschwindet. (Löst einen Modellaufruf aus.)
 
 ## 6. Nach der ersten Woche
 
-1. Dienstag nach dem ersten Montag: Im Bereich «Normabgleich» steht «Letzter Abgleich» mit dem Datum vom Montag.
+1. Dienstag nach dem ersten Montag: Im Reiter «Rechtsquellen» steht «Letzter Abgleich» mit dem Datum vom Montag.
 2. Die Glocke zeigt keine Meldung «Normabgleich überfällig».
 3. Bei Fehlern steht in der Zeile der Quelle der Grund (zum Beispiel «Fedlex antwortet mit 503»). Einzelne Fehler sind bei kurzen Ausfällen normal, beim nächsten Lauf verschwinden sie.
 
