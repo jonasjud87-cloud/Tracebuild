@@ -669,7 +669,8 @@ select.previewSelect {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* 8rem hält «VERSTÖSSE» einzeilig und 3 Spalten neben der Plan-Vorschau; sonst bricht die Reihe statt des Worts. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 8rem), 1fr));
   gap: 12px;
 }
 
@@ -677,7 +678,7 @@ select.previewSelect {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  padding: 16px;
+  padding: 16px 12px;
   border-radius: 18px;
   font: inherit;
   text-align: left;
@@ -703,9 +704,9 @@ select.previewSelect {
 .statTitle {
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
 }
 
 .statNr {
