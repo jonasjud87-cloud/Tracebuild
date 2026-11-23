@@ -77,9 +77,10 @@ export async function countOtherActiveSuperAdmins(admin: AdminClient, excludeId:
     (u: { id: string; email: string; role: string }) =>
       u.id !== excludeId && isSuperAdminAccount(u.email, u.role),
   );
+  // Parallel statt nacheinander: Die Sperr-Route ruft das bis zu zweimal auf.
+  const results = await Promise.all(candidates.map(c => admin.auth.admin.getUserById(c.id)));
   let count = 0;
-  for (const c of candidates) {
-    const { data: au, error: auError } = await admin.auth.admin.getUserById(c.id);
+  for (const { data: au, error: auError } of results) {
     if (auError) return null;
     if (au?.user && !isBanned(au.user.banned_until)) count++;
   }
