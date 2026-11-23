@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { OerebDocumentItem } from "@/lib/geoadmin/contract";
 import { api } from "@/lib/api";
 import { AI_READ_LABEL } from "@/lib/oereb/ai-read-label";
-import { REVIEW_LABEL, documentNotices, documentSummaryLine, formatDate, rejectReasonLabel, safeExternalUrl, summarizeDocuments } from "./geoportal-logic";
+import { REVIEW_LABEL, USER_REJECTED_LABEL, documentNotices, documentSummaryLine, formatDate, rejectReasonLabel, safeExternalUrl, summarizeDocuments, visibleDocuments } from "./geoportal-logic";
 import { useOerebSync } from "./useOerebDocumentSync";
 import { useOrgRole } from "./useOrgRole";
 import p from "@/app/projects/project.module.css";
@@ -20,10 +20,11 @@ const STATUS: Record<OerebDocumentItem["status"], { label: string; chip: string 
   review:           { label: REVIEW_LABEL,           chip: p.chipInfo },
 };
 
-function statusFor(item: OerebDocumentItem) {
+function statusFor(item: OerebDocumentItem, platformAdmin: boolean) {
   if (item.status === "rejected" && item.reject_reason === "scan_or_short") {
     return { label: "Scan", chip: p.chipWarn };
   }
+  if (item.status === "rejected" && !platformAdmin) return { label: USER_REJECTED_LABEL, chip: p.chipWarn };
   return STATUS[item.status] ?? STATUS.rejected;
 }
 
@@ -91,7 +92,8 @@ function DocumentActions({ item }: { item: OerebDocumentItem }) {
 /** Gründe, die Nutzer eher überraschen: Hier stehen die Titel gleich offen da. */
 const OPEN_REASONS = new Set(["decision_document"]);
 
-function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
+/** Endnutzern ohne den Kasten «bewusst ausgelassen»: Den brauchen nur Plattform-Admins. */
+function DocumentNoticeBlocks({ items, platformAdmin }: { items: OerebDocumentItem[]; platformAdmin: boolean }) {
   const { scans, review, rejected, skipped, bothKept } = documentNotices(items);
   const rejectedCount = rejected.reduce((sum, group) => sum + group.items.length, 0);
   const skippedCount = skipped.reduce((sum, group) => sum + group.items.length, 0);
@@ -171,7 +173,7 @@ function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
           </div>
         </div>
       )}
-      {skippedCount > 0 && (
+      {platformAdmin && skippedCount > 0 && (
         <div className={`${n.inlineNotice} ${n.toneQuiet}`}>
           <div style={{ minWidth: 0, flex: 1 }}>
             <p className={n.noticeTitle}>
@@ -204,6 +206,8 @@ function DocumentNoticeBlocks({ items }: { items: OerebDocumentItem[] }) {
 /** Reglemente aus dem Auszug dieses Grundstücks. Nur Anzeige: Der Import läuft ohne Bestätigung. */
 export default function OerebDocumentsPanel() {
   const { state } = useOerebSync();
+  const { role } = useOrgRole();
+  const platformAdmin = role === "super_admin";
   const [open, setOpen] = useState(false);
   const { documents, documentsError, running, progress } = state;
 
@@ -222,16 +226,17 @@ export default function OerebDocumentsPanel() {
   if (!documents.available) {
     return shell(null, "Der automatische Import ist noch nicht aktiv. Die Normen des Projekts sind davon nicht betroffen.");
   }
-  if (documents.items.length === 0) {
+  const items = visibleDocuments(documents.items, platformAdmin);
+  if (items.length === 0) {
     return shell(null, running ? "Wird geprüft…" : "Der aktuelle Auszug nennt keine Dokumente für den Import, oder es liegt noch kein Auszug vor.");
   }
 
-  const summary = documentSummaryLine(summarizeDocuments(documents.items));
+  const summary = documentSummaryLine(summarizeDocuments(items), { showFiltered: platformAdmin });
   const runningText = running && progress?.total ? `Import läuft (${progress.processed}/${progress.total}). ` : "";
 
   return shell(
     <>
-      <DocumentNoticeBlocks items={documents.items} />
+      <DocumentNoticeBlocks items={items} platformAdmin={platformAdmin} />
       <button
         type="button"
         aria-expanded={open}
@@ -241,12 +246,12 @@ export default function OerebDocumentsPanel() {
         <svg aria-hidden="true" width="14" height="14" className={`${n.chev} ${open ? n.chevRight : ""}`} fill="none" stroke="currentColor" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
           <path d="M9 5l7 7-7 7" />
         </svg>
-        {open ? "Dokumente ausblenden" : `${documents.items.length} Dokumente anzeigen`}
+        {open ? "Dokumente ausblenden" : `${items.length} Dokumente anzeigen`}
       </button>
       {open && (
         <ul className={n.docList}>
-          {documents.items.map((item) => {
-            const status = statusFor(item);
+          {items.map((item) => {
+            const status = statusFor(item, platformAdmin);
             const checked = formatDate(item.last_checked_at);
             return (
               <li key={item.id} className={n.docItem}>

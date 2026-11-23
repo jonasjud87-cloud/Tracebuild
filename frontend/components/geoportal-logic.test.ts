@@ -18,6 +18,7 @@ import {
   runDocumentSync,
   sortCandidates,
   summarizeDocuments,
+  visibleDocuments,
   zoneNeedsAttention,
   zoneOriginLabel,
 } from "./geoportal-logic";
@@ -187,7 +188,7 @@ test("Zusammenfassung trennt Scans von Filtergründen", () => {
   assert.equal(summary.filtered, 2);
   assert.equal(summary.scans, 1);
   assert.equal(
-    documentSummaryLine(summary),
+    documentSummaryLine(summary, { showFiltered: true }),
     "1 importiert · 2 herausgefiltert (2 × Titel deutet auf Plan, Bericht oder Entscheid) · 1 Scan ohne lesbaren Text · 1 mit Fehler · 1 noch offen",
   );
 });
@@ -307,7 +308,7 @@ test("review: eigene Zeile, nicht unter herausgefiltert, und eigener Hinweis", (
   const summary = summarizeDocuments(items);
   assert.equal(summary.review, 1);
   assert.equal(summary.filtered, 0);
-  assert.match(documentSummaryLine(summary), /1 zur Prüfung vorgemerkt/);
+  assert.match(documentSummaryLine(summary, { showFiltered: true }), /1 zur Prüfung vorgemerkt/);
   assert.equal(documentNotices(items).review.length, 1);
   assert.equal(documentNotices(items).rejected.length, 0);
 });
@@ -335,4 +336,120 @@ test("Hinweise: leere Liste und nur importierte ergeben keine Gruppen", () => {
   assert.deepEqual(documentNotices([]).skipped, []);
   const notices = documentNotices([{ status: "imported" as const, reject_reason: null, norm_id: "n", version_note: null }]);
   assert.equal(notices.rejected.length + notices.skipped.length, 0);
+});
+
+test("Endnutzer: bewusst ausgelassene Dokumente und Filterzeile ausgeblendet, Admins sehen alles", () => {
+  const item = (status: "rejected" | "imported" | "duplicate_manual", reject_reason: string | null, kind: string | null) =>
+    ({ status, reject_reason, kind, reject_detail: null, norm_id: null, version_note: null });
+  const items = [
+    item("imported", null, "LegalProvision"),
+    item("duplicate_manual", null, "LegalProvision"),
+    item("rejected", "doc_type", "Law"),
+    item("rejected", "title_negative", "LegalProvision"),
+    item("rejected", "no_articles", "LegalProvision"),
+    item("rejected", "scan_or_short", "LegalProvision"),
+  ];
+  const user = visibleDocuments(items, false);
+  // Übergeordnetes Recht und Plan weg; echte Ablehnung und Scan bleiben sichtbar.
+  assert.deepEqual(user.map((i) => i.reject_reason), [null, null, "no_articles", "scan_or_short"]);
+  assert.equal(visibleDocuments(items, true).length, items.length);
+
+  const line = documentSummaryLine(summarizeDocuments(user), { showFiltered: false });
+  assert.equal(line, "1 importiert · 1 bereits von Hand erfasst · 1 abgelehnt, bitte prüfen · 1 Scan ohne lesbaren Text");
+  assert.doesNotMatch(line, /herausgefiltert/);
+  assert.match(documentSummaryLine(summarizeDocuments(items), { showFiltered: true }), /3 herausgefiltert/);
+});
+
+// ── Sichtbarkeit für Endnutzer (fix/oereb-hinweis-entfernen) ────────────────
+
+type VisItem = {
+  status: "rejected" | "imported" | "duplicate_manual" | "removed" | "review" | "failed" | "pending";
+  reject_reason: string | null; kind: string | null; reject_detail: string | null;
+  manual_decision: string | null; norm_id: string | null; version_note: string | null;
+};
+const vis = (over: Partial<VisItem> = {}): VisItem => ({
+  status: "rejected", reject_reason: null, kind: "LegalProvision", reject_detail: null,
+  manual_decision: null, norm_id: null, version_note: null, ...over,
+});
+
+test("Endnutzer: jede bewusst ausgelassene Kategorie ist ausgeblendet", () => {
+  const skipped = [
+    vis({ reject_reason: "doc_type", kind: "Law" }),
+    vis({ reject_reason: "doc_type", kind: "LegalProvision" }), // Kanton ohne Freigabe
+    vis({ reject_reason: "doc_type", kind: "Hint" }),
+    vis({ reject_reason: "authority" }),
+    vis({ reject_reason: "title_negative", reject_detail: "Titel enthält «Zonenplan»" }),
+    vis({ reject_reason: "title_negative", reject_detail: "Titel enthält «Genehmigung»" }),
+    vis({ reject_reason: "title_negative" }),
+    vis({ reject_reason: "older_version" }),
+    vis({ reject_reason: "superseded" }),
+    vis({ reject_reason: "title_exact" }),
+    vis({ reject_reason: "not_in_force" }),
+    vis({ reject_reason: "duplicate_content" }),
+    vis({ reject_reason: "manual_exclude" }),
+    vis({ reject_reason: "no_articles", manual_decision: "exclude" }),
+  ];
+  assert.deepEqual(visibleDocuments(skipped, false), []);
+  assert.equal(visibleDocuments(skipped, true).length, skipped.length);
+  // Nach dem Filter bleibt für Endnutzer kein Kasten «bewusst ausgelassen».
+  assert.deepEqual(documentNotices(visibleDocuments(skipped, false)).skipped, []);
+});
+
+test("Endnutzer: echte Ablehnungen, Scans, review, Fehler und Offene bleiben sichtbar", () => {
+  const kept = [
+    vis({ reject_reason: "scan_or_short" }),
+    vis({ reject_reason: "scan_or_short", manual_decision: "exclude" }),
+    vis({ reject_reason: "no_articles" }),
+    vis({ reject_reason: "decision_document" }),
+    vis({ reject_reason: "host_not_allowed" }),
+    vis({ reject_reason: "ganz_neuer_grund" }),
+    vis({ reject_reason: null }),
+    vis({ reject_reason: "doc_type", kind: null }),
+    vis({ reject_reason: "doc_type", kind: "Unbekannt" }),
+    vis({ status: "review", reject_reason: "no_articles" }),
+    vis({ status: "failed" }),
+    vis({ status: "pending" }),
+    vis({ status: "imported", norm_id: "n" }),
+    vis({ status: "imported", norm_id: "n", version_note: "beide Fassungen" }),
+  ];
+  assert.equal(visibleDocuments(kept, false).length, kept.length);
+  const notices = documentNotices(visibleDocuments(kept, false));
+  assert.equal(notices.scans.length, 2);
+  assert.equal(notices.review.length, 1);
+  assert.equal(notices.bothKept.length, 1);
+  assert.equal(notices.rejected.reduce((s, g) => s + g.items.length, 0), 7);
+});
+
+test("Endnutzer: leere Liste und Reihenfolge bleiben erhalten, Eingabe unverändert", () => {
+  assert.deepEqual(visibleDocuments([], false), []);
+  assert.deepEqual(visibleDocuments([], true), []);
+  const items = [vis({ reject_reason: "no_articles" }), vis({ reject_reason: "doc_type", kind: "Law" }), vis({ status: "imported" })];
+  const shown = visibleDocuments(items, false);
+  assert.deepEqual(shown, [items[0], items[2]]);
+  assert.equal(items.length, 3);
+});
+
+test("Endnutzer: Zeile ohne «herausgefiltert» und ohne Filtergründe, auch bei nur Ausgelassenen", () => {
+  const items = [vis({ reject_reason: "doc_type", kind: "Law" }), vis({ reject_reason: "older_version" })];
+  const shown = visibleDocuments(items, false);
+  assert.equal(documentSummaryLine(summarizeDocuments(shown), { showFiltered: false }), "");
+  // Selbst ohne Vorfilter: showFiltered false nennt keine Filtergründe.
+  const line = documentSummaryLine(summarizeDocuments(items), { showFiltered: false });
+  assert.doesNotMatch(line, /herausgefiltert|Gesetz|ältere Fassung/);
+  // Admins: Standard bleibt sichtbar.
+  assert.doesNotMatch(documentSummaryLine(summarizeDocuments(items)), /herausgefiltert/);
+  assert.match(documentSummaryLine(summarizeDocuments(items), { showFiltered: true }), /2 herausgefiltert/);
+});
+
+test("Endnutzer: echte Ablehnung zählt in der Statuszeile mit", () => {
+  const shown = visibleDocuments([vis({ status: "imported" }), vis({ reject_reason: "no_articles" })], false);
+  const line = documentSummaryLine(summarizeDocuments(shown), { showFiltered: false });
+  assert.match(line, /abgelehnt|prüfen/);
+});
+
+test("Endnutzer: vom Admin entfernte Dokumente ausgeblendet, Admins sehen sie", () => {
+  const removed = { status: "removed" as const, reject_reason: null, kind: "LegalProvision", reject_detail: null, norm_id: null, version_note: null };
+  const kept = { ...removed, status: "duplicate_manual" as const };
+  assert.deepEqual(visibleDocuments([removed, kept], false), [kept]);
+  assert.equal(visibleDocuments([removed, kept], true).length, 2);
 });

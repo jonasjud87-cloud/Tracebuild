@@ -204,6 +204,8 @@ export async function runDocumentSync(deps: SyncDeps): Promise<SyncRunResult> {
 
 /** Status `review`: nicht verworfen, ein Mensch soll den Erlass ansehen. */
 export const REVIEW_LABEL = "zur Prüfung vorgemerkt";
+/** Echte Ablehnung, wie Endnutzer sie sehen: ohne Filtergrund. */
+export const USER_REJECTED_LABEL = "abgelehnt, bitte prüfen";
 
 const REJECT_REASON_LABELS: Record<string, string> = {
   manual_exclude: "von einem Admin ausgeschlossen",
@@ -278,14 +280,20 @@ export function summarizeDocuments(items: Pick<OerebDocumentItem, "status" | "re
   return out;
 }
 
-/** Eine Zeile für die Statusleiste. Nur, was tatsächlich vorkommt. */
-export function documentSummaryLine(s: DocumentSummary): string {
+/**
+ * Eine Zeile für die Statusleiste. Nur, was tatsächlich vorkommt.
+ * Filtergründe nur mit `showFiltered: true` (Plattform-Admins). Endnutzer sehen echte Ablehnungen
+ * ohne Gründe; bewusst ausgelassene filtert `visibleDocuments` schon vorher weg.
+ */
+export function documentSummaryLine(s: DocumentSummary, { showFiltered = false }: { showFiltered?: boolean } = {}): string {
   const parts: string[] = [];
   if (s.imported) parts.push(`${s.imported} importiert`);
   if (s.duplicates) parts.push(`${s.duplicates} bereits von Hand erfasst`);
-  if (s.filtered) {
+  if (s.filtered && showFiltered) {
     const reasons = s.filterReasons.map((r) => `${r.count} × ${r.label}`).join(", ");
     parts.push(`${s.filtered} herausgefiltert (${reasons})`);
+  } else if (s.filtered) {
+    parts.push(`${s.filtered} ${USER_REJECTED_LABEL}`);
   }
   if (s.review) parts.push(`${s.review} ${REVIEW_LABEL}`);
   if (s.scans) parts.push(`${s.scans} Scan${s.scans === 1 ? "" : "s"} ohne lesbaren Text`);
@@ -319,6 +327,22 @@ export interface DocumentNotices<T> {
 
 type NoticeItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "norm_id" | "version_note"> &
   Partial<Pick<OerebDocumentItem, "kind" | "reject_detail" | "manual_decision">>;
+
+/** Bewusst ausgelassen (Kategorie-Gruppe `skipped`) oder vom Admin entfernt: für Endnutzer ohne Belang. */
+export function isSkippedDocument(item: NoticeItem): boolean {
+  if (item.status === "removed") return true;
+  if (item.status !== "rejected" || item.reject_reason === "scan_or_short") return false;
+  const category = categorizeDocument({
+    status: item.status, reject_reason: item.reject_reason, doc_type: item.kind ?? null,
+    reject_detail: item.reject_detail ?? null, manual_decision: item.manual_decision ?? null,
+  });
+  return categoryGroup(category) === "skipped";
+}
+
+/** Endnutzer sehen keine bewusst ausgelassenen Dokumente; Plattform-Admins alles. */
+export function visibleDocuments<T extends NoticeItem>(items: T[], platformAdmin: boolean): T[] {
+  return platformAdmin ? items : items.filter((item) => !isSkippedDocument(item));
+}
 
 /** Scan-Hinweis nur, solange kein Text vorliegt: Mit Texterkennung wechselt das Dokument den Status. */
 export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotices<T> {
