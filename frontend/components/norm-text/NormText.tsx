@@ -10,7 +10,16 @@ import {
   type BodyBlock,
   type NormBlock,
 } from "@/lib/norm-structure";
-import { hiddenRuns, runLabel, runSummary, selectSections, type HiddenRun, type SectionContext } from "@/lib/norm-sections";
+import {
+  hiddenRuns,
+  runLabel,
+  runSummary,
+  sectionContextFromKey,
+  sectionContextKey,
+  selectSections,
+  type HiddenRun,
+  type SectionContext,
+} from "@/lib/norm-sections";
 import p from "@/app/projects/project.module.css";
 import s from "./NormText.module.css";
 
@@ -154,7 +163,12 @@ function HiddenRunRow({ run, onShow }: { run: HiddenRun; onShow: () => void }) {
 
 export default function NormText({ normId, text, wholeDocument, pdfUrl, loadingFull, loadError, sectionContext }: NormTextProps) {
   const parsed = useMemo(() => parseNormText(text), [text]);
-  const selection = useMemo(() => (sectionContext ? selectSections(parsed, sectionContext) : null), [parsed, sectionContext]);
+  // An die Werte gebunden, nicht ans Objekt: Neuladen mit gleichen Daten lässt Auswahl und offene Abschnitte stehen.
+  const contextKey = sectionContextKey(sectionContext);
+  const selection = useMemo(() => {
+    const ctx = sectionContextFromKey(contextKey);
+    return ctx ? selectSections(parsed, ctx) : null;
+  }, [parsed, contextKey]);
   const runs = useMemo(() => (selection ? hiddenRuns(selection, parsed.blocks) : []), [selection, parsed]);
   const [whole, setWhole] = useState(false);
   const [opened, setOpened] = useState<ReadonlySet<number>>(() => new Set());

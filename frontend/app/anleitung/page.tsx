@@ -570,6 +570,7 @@ export default function AnleitungPage() {
             <ol className={s.steps}>
               <li><p>Klappen Sie eine Norm mit dem Pfeil rechts auf (<Ui>Volltext anzeigen</Ui>).</p></li>
               <li><p>Gegliederte Texte zeigen die Artikel einzeln, längere zusätzlich eine <Ui>Artikelübersicht</Ui>. Mit <Ui>Als Rohtext anzeigen</Ui> sehen Sie den Text ungegliedert, mit <Ui>Gegliedert anzeigen</Ui> wieder gegliedert.</p></li>
+              <li><p>Bei Gemeindereglementen mit exakt erkannter oder manuell erfasster Zone blendet TraceBuild Artikel aus, die nur für andere Zonen gelten. Ein Chip zeigt das an, z.&nbsp;B. <Ui>Geltend für Zone W2: 12 von 30 Artikeln</Ui>. An Stelle der ausgeblendeten Artikel steht <Ui>Automatisch nach Zone ausgeblendet.</Ui> mit <Ui>anzeigen</Ui>. <Ui>Ganzes Dokument anzeigen</Ui> zeigt alle Artikel, <Ui>Nur geltende Abschnitte</Ui> filtert wieder. Die Analyse prüft immer gegen den ganzen Text.</p></li>
               <li><p>Gibt es ein PDF, wechseln Sie auf breiten Bildschirmen zwischen <Ui>Text</Ui> und <Ui>PDF</Ui>. <Ui>Original-PDF öffnen ↗</Ui> öffnet es in einem neuen Fenster.</p></li>
             </ol>
 
@@ -580,9 +581,9 @@ export default function AnleitungPage() {
             </p>
             <ul className={s.bullets}>
               <li>Ein Zähler zeigt den Fortschritt, solange der Import läuft. Analysen sind davon nicht betroffen.</li>
-              <li>Abgelehnte Dokumente stehen gelb unter «… abgelehnt, bitte prüfen», nach Grund gruppiert.</li>
-              <li>Unter «… bewusst ausgelassen» stehen Dokumente, die nicht in den Import gehören. Das ist kein Fehler.</li>
-              <li>Mit <Ui>Dokumente anzeigen</Ui> sehen Sie alle Dokumente mit Status und Link zum amtlichen PDF.</li>
+              <li>Abgelehnte Dokumente stehen gelb unter «… abgelehnt, bitte prüfen». Bitte das amtliche PDF prüfen.</li>
+              <li>Mit <Ui>Dokumente anzeigen</Ui> sehen Sie die Dokumente mit Status und Link zum amtlichen PDF. Abgelehnte tragen den Status <Ui>abgelehnt, bitte prüfen</Ui>.</li>
+              <li>Die Gründe einer Ablehnung und Dokumente, die bewusst nicht in den Import gehören, sehen nur Plattform-Admins.</li>
             </ul>
 
             <Sub id="spezialnorm" />

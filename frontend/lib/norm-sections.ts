@@ -7,6 +7,7 @@
 import type { ArticleBlock, BodyBlock, NormBlock, ParsedNorm } from "./norm-structure";
 import {
   ALL_ZONES_RE,
+  LANGFORM,
   isOverlayOrGeneric,
   mentionFamilies,
   zoneCodeHint,
@@ -29,6 +30,8 @@ export type SectionInactive =
 export interface SectionContext {
   zone: string | null;
   zoneConfidence: string | null;
+  /** Herkunft der Zone. «oereb» ohne Konfidenz gilt als unsicher; ohne Angabe wie manuell. */
+  zoneSource?: string | null;
   layer: number;
   /** `norms.zone`: Zonenbindung der ganzen Norm (CSV). */
   normZone: string | null;
@@ -140,6 +143,10 @@ export interface Matcher {
   codes: OwnCode[];
   /** Kurzform «Zone 2» zur Projektzone «Wohnzone 2» bzw. «W2». */
   zoneShort: RegExp[];
+  /** Eigene Nummer römisch (1–10): «W II», «Wohnzone II», «Zone II» bei W2. */
+  roman: RegExp[];
+  /** «Zone 2», «Zone II» ohne Familienwort: zählt je Artikel, nicht als Beleg («Grundwasserschutz Zone II»). */
+  weak: ReadonlySet<RegExp>;
   families: ReadonlySet<string> | null;
 }
 
@@ -159,6 +166,96 @@ const SHORT_LIST_RE = new RegExp(
 const STEM_RE = new RegExp("(?<![\\p{L}\\p{N}])\\p{L}*[Zz]onen?[\\s-]+(\\p{Lu}{1,3})(?![\\p{L}\\p{N}])", "gu");
 
 const escapeChar =(c: string) => c.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const ROMAN = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+/** Buchstaben eines Musters gross und klein, Escapes («\s») unverändert: Ersatz für das Flag i. */
+const ESCAPE_OR_LETTER_RE = new RegExp("\\\\.|\\p{L}", "gu");
+const anyCase = (source: string) =>
+  source.replace(ESCAPE_OR_LETTER_RE, (t) => (t.length > 1 ? t : `[${t.toLowerCase()}${t.toUpperCase()}]`));
+
+/**
+ * Römische Schreibweisen der eigenen Nummer. Ziffern nur in Grossschrift (ohne Flag i, sonst träfe «II» in
+ * «III»), beim Kürzel mit Trenner («W II», «W-II»). Unterzone wie bei den Kürzeln: Projekt W2 trifft «IIa»,
+ * Projekt W2b nur «II» und «IIb».
+ */
+function romanRegexes(codes: readonly OwnCode[]): { roman: RegExp[]; weak: RegExp[] } {
+  const roman: RegExp[] = [];
+  const weak: RegExp[] = [];
+  const seen = new Set<string>();
+  for (const c of codes) {
+    const r = ROMAN[c.num];
+    const key = `${c.prefix}${c.num}${c.sub ?? ""}`;
+    if (!r || seen.has(key)) continue;
+    seen.add(key);
+    const sub = c.sub === null ? "\\p{Ll}?" : `(?:${escapeChar(c.sub)})?`;
+    const end = `${r}${sub}(?![\\p{L}\\p{N}])`;
+    roman.push(new RegExp(`(?<![\\p{L}\\p{N}-])${anyCase(c.prefix)}(?:\\s|\\s?-\\s?)${end}`, "gu"));
+    const zoneOnly = new RegExp(`(?<![\\p{L}\\p{N}])Zonen?\\s+${end}`, "gu");
+    roman.push(zoneOnly);
+    weak.push(zoneOnly);
+    // Langform wie bei arabischen Nummern nur zum eigenen Präfix: «Wohnzone II» bei W2, nicht «Kernzone II».
+    const lang = LANGFORM.find(([, prefix]) => prefix === c.prefix);
+    if (lang) roman.push(new RegExp(`${anyCase(lang[2])}[nN]?[\\s-]+${end}`, "gu"));
+  }
+  return { roman, weak };
+}
+
+const LIST_SEP = "(?:–|—|-|bis|/|,|\\+|und|oder)";
+const NOT_ROMAN = "(?![IVX]{1,4}(?![\\p{L}\\p{N}]))";
+const LIST_NUM = "(?:\\d{1,2}|[IVX]{1,4})";
+/**
+ * Bereich oder Aufzählung in Langform, arabisch oder römisch: «Wohnzonen 1–3», «Wohnzonen I bis III»,
+ * «Zonen I und II», «Wohnzonen W I – W III». Gruppen: Stamm, Kürzel (optional), erste Nummer, Rest.
+ */
+const LANG_LIST_RE = new RegExp(
+  `(?<![\\p{L}\\p{N}])(\\p{L}*[Zz]onen?)\\s+(?:${NOT_ROMAN}(\\p{Lu}\\p{L}{0,2})(?:\\s|\\s?-\\s?)?)?(${LIST_NUM})\\p{Ll}?` +
+    `((?:\\s*${LIST_SEP}\\s*(?:\\2(?:\\s|\\s?-\\s?)?)?${LIST_NUM}\\p{Ll}?(?![\\p{L}\\p{N}]))+)`,
+  "gu",
+);
+/** Römischer Bereich mit Kürzel: «W I – W III», «W I/II». Gruppen: Kürzel, erste Nummer, Rest. */
+const ROMAN_CODE_LIST_RE = new RegExp(
+  `(?<![\\p{L}\\p{N}])${NOT_ROMAN}(\\p{Lu}\\p{L}{0,2})(?:\\s|\\s?-\\s?)([IVX]{1,4})\\p{Ll}?` +
+    `((?:\\s*${LIST_SEP}\\s*(?:\\1(?:\\s|\\s?-\\s?)?)?[IVX]{1,4}\\p{Ll}?(?![\\p{L}\\p{N}]))+)`,
+  "gu",
+);
+const ROMAN_TOKEN_RE = new RegExp("(?<![\\p{L}\\p{N}])[IVX]{1,4}(?=\\p{Ll}?(?![\\p{L}\\p{N}]))", "gu");
+const ARABIC_TOKEN_RE = /(?<!\d)\d{1,2}(?!\d)/g;
+const RANGE_SEP_RE = /^\s*(?:–|—|-|bis)/;
+
+/** Nummern einer Liste; bei «–» und «bis» mit allen dazwischen. Unbekannte römische Zahl: übersprungen. */
+function listNumbers(list: string, roman: boolean): number[] {
+  const out: number[] = [];
+  let prev: number | null = null;
+  let prevEnd = 0;
+  for (const t of Array.from(list.matchAll(roman ? ROMAN_TOKEN_RE : ARABIC_TOKEN_RE))) {
+    const n = roman ? ROMAN.indexOf(t[0]) : Number(t[0]);
+    if (n <= 0) continue;
+    if (prev !== null && n > prev && RANGE_SEP_RE.test(list.slice(prevEnd, t.index))) {
+      for (let k = prev + 1; k < n; k++) out.push(k);
+    }
+    out.push(n);
+    prev = n;
+    prevEnd = t.index! + t[0].length;
+  }
+  return out;
+}
+
+/**
+ * Aufzählung mit wiederholtem Kürzel ohne Bereich («W3 und W4», «W I und W III»): wie bei arabischen Kürzeln
+ * kein Bereich, die Kürzel werden einzeln gewertet. `tail`: Rest nach der ersten Nummer.
+ */
+function isPrefixedEnumeration(tail: string, prefix: string | undefined): boolean {
+  if (!prefix || RANGE_SEP_RE.test(tail)) return false;
+  return new RegExp(`${LIST_SEP}\\s*${escapeChar(prefix)}`, "u").test(tail);
+}
+
+/** Gehört ein Stamm wie «Wohnzonen» zum Präfix des eigenen Kürzels? «Zone(n)» allein passt zu jedem. */
+function stemFits(stem: string, prefix: string): boolean {
+  if (/^zonen?$/i.test(stem)) return true;
+  const lang = LANGFORM.find(([, p]) => p === prefix);
+  return !!lang && new RegExp(`^${lang[2]}n?$`, "iu").test(stem);
+}
 
 export function buildMatcher(zone: string): Matcher {
   const variants = zoneVariants(zone, [zoneCodeHint(zone)]);
@@ -180,10 +277,14 @@ export function buildMatcher(zone: string): Matcher {
     codes.push({ prefix, num, sub, re });
   }
   const nums = Array.from(new Set(codes.map((c) => c.num)));
+  const zoneShort = nums.map((n) => new RegExp(`(?<![\\p{L}\\p{N}])[Zz]one\\s+${n}(?![\\p{L}\\p{N}])`, "gu"));
+  const { roman, weak } = romanRegexes(codes);
   return {
     strict: zoneRegexes(zone, [zoneCodeHint(zone)]),
     codes,
-    zoneShort: nums.map((n) => new RegExp(`(?<![\\p{L}\\p{N}])[Zz]one\\s+${n}(?![\\p{L}\\p{N}])`, "gu")),
+    zoneShort,
+    roman,
+    weak: new Set([...zoneShort, ...weak]),
     families: zoneFamilies(zone),
   };
 }
@@ -192,11 +293,17 @@ function spansOf(re: RegExp, text: string): RegExpMatchArray[] {
   return Array.from(text.matchAll(re));
 }
 
-/** Stellen, an denen die eigene Zone genannt ist. Unterzonen: Projekt W2b trifft «W2», «W2b», «W2a/b». */
-function ownSpans(text: string, m: Matcher): Span[] {
+/**
+ * Stellen, an denen die eigene Zone genannt ist. Unterzonen: Projekt W2b trifft «W2», «W2b», «W2a/b».
+ * `beleg`: ohne «Zone 2» bzw. «Zone II» allein, das nennt auch Schutzzonen.
+ */
+function ownSpans(text: string, m: Matcher, beleg = false): Span[] {
   const out: Span[] = [];
   const push = (x: RegExpMatchArray) => out.push({ at: x.index!, end: x.index! + x[0].length });
-  for (const re of [...m.strict, ...m.zoneShort]) spansOf(re, text).forEach(push);
+  for (const re of [...m.strict, ...m.zoneShort, ...m.roman]) {
+    if (beleg && m.weak.has(re)) continue;
+    spansOf(re, text).forEach(push);
+  }
   for (const c of m.codes) {
     for (const x of spansOf(c.re, text)) {
       const letters = new Set(x[1].replace(/[^a-zäöü]/g, ""));
@@ -230,11 +337,29 @@ function rangeSpans(text: string, m: Matcher): (Span & { own: boolean })[] {
     const own = m.codes.some((c) => c.prefix === prefix && nums.includes(c.num));
     out.push({ at: x.index!, end: x.index! + x[0].length, own });
   }
+  // Langform: «Wohnzonen 1–3», «Wohnzonen I bis III», «Zonen I und II».
+  for (const x of spansOf(LANG_LIST_RE, text)) {
+    const stem = x[1];
+    const prefix = x[2]?.toUpperCase() ?? null;
+    const nums = listNumbers(x[0].slice(stem.length), !/\d/.test(x[3]));
+    const own = m.codes.some((c) => (prefix ? c.prefix === prefix : stemFits(stem, c.prefix)) && nums.includes(c.num));
+    // Spanne ab der ersten Nummer: Das Familienwort im Stamm («Wohnzonen W3–W4, Kernzone») zählt weiter.
+    const list = x[0].slice(stem.length);
+    const at = x.index! + stem.length + (list.length - list.trimStart().length);
+    if (own || !isPrefixedEnumeration(x[4], x[2])) out.push({ at, end: x.index! + x[0].length, own });
+  }
+  // Kürzel römisch: «W I – W III», «W I/II».
+  for (const x of spansOf(ROMAN_CODE_LIST_RE, text)) {
+    const prefix = x[1].toUpperCase();
+    const nums = listNumbers(x[0].slice(x[1].length), true);
+    const own = m.codes.some((c) => c.prefix === prefix && nums.includes(c.num));
+    if (own || !isPrefixedEnumeration(x[3], x[1])) out.push({ at: x.index!, end: x.index! + x[0].length, own });
+  }
   return out;
 }
 
-function namesOwn(text: string, m: Matcher): boolean {
-  return ownSpans(text, m).length > 0 || rangeSpans(text, m).some((r) => r.own);
+function namesOwn(text: string, m: Matcher, beleg = false): boolean {
+  return ownSpans(text, m, beleg).length > 0 || rangeSpans(text, m).some((r) => r.own);
 }
 
 const overlaps = (a: Span, list: readonly Span[]) => list.some((b) => a.at < b.end && b.at < a.end);
@@ -312,6 +437,8 @@ export function selectSections(parsed: ParsedNorm, ctx: SectionContext): Section
   if (!zone) return inactive(parsed, "no-zone");
   // Nur exakt erkannt oder manuell erfasst (Konfidenz null). Grob, unsicher oder Unbekanntes: kein Filter.
   if (ctx.zoneConfidence != null && ctx.zoneConfidence !== "exact") return inactive(parsed, "zone-unsure");
+  // Aus ÖREB ohne Konfidenz (Altbestand, Fehler beim Abgleich): nicht belegt, also unsicher.
+  if (ctx.zoneConfidence == null && ctx.zoneSource === "oereb") return inactive(parsed, "zone-unsure");
   if (!(ctx.layers ?? SECTION_LAYERS).has(ctx.layer)) return inactive(parsed, "layer");
   if (ctx.normZone?.trim()) return inactive(parsed, "zone-tagged");
   if (!ctx.fullTextLoaded) return inactive(parsed, "not-loaded");
@@ -321,7 +448,7 @@ export function selectSections(parsed: ParsedNorm, ctx: SectionContext): Section
   const blocks = parsed.blocks;
   const texts = blocks.map(blockText);
   // Beleg der Schreibweise: Nennt das Dokument die eigene Zone nirgends, ist keine Benennung zuzuordnen.
-  if (!texts.some((t) => t && namesOwn(t, m))) return inactive(parsed, "zone-not-named");
+  if (!texts.some((t) => t && namesOwn(t, m, true))) return inactive(parsed, "zone-not-named");
 
   // Nur der Titel des Artikels entscheidet. Kapitelköpfe binden nicht: Der Parser erkennt nicht jeden Kopf,
   // eine Bindung liefe sonst über das Kapitel hinaus.
@@ -377,6 +504,41 @@ export function selectSections(parsed: ParsedNorm, ctx: SectionContext): Section
     verdicts,
     shownArticles: parsed.articleCount - hiddenArticles,
     hiddenArticles,
+  };
+}
+
+type ContextTuple = [string | null, string | null, string | null, number, string | null, boolean, number[] | null];
+
+/**
+ * Schlüssel aus den Werten eines Kontexts. Gleich, solange sich keine Angabe ändert, auch wenn das Objekt nach
+ * einem Neuladen neu ist; so bleiben geöffnete Abschnitte offen.
+ */
+export function sectionContextKey(ctx: SectionContext | null | undefined): string | null {
+  if (!ctx) return null;
+  const tuple: ContextTuple = [
+    ctx.zone,
+    ctx.zoneConfidence,
+    ctx.zoneSource ?? null,
+    ctx.layer,
+    ctx.normZone,
+    ctx.fullTextLoaded,
+    ctx.layers ? Array.from(ctx.layers).sort((a, b) => a - b) : null,
+  ];
+  return JSON.stringify(tuple);
+}
+
+/** Gegenstück zu sectionContextKey. */
+export function sectionContextFromKey(key: string | null): SectionContext | null {
+  if (key === null) return null;
+  const [zone, zoneConfidence, zoneSource, layer, normZone, fullTextLoaded, layers] = JSON.parse(key) as ContextTuple;
+  return {
+    zone,
+    zoneConfidence,
+    zoneSource,
+    layer,
+    normZone,
+    fullTextLoaded,
+    ...(layers ? { layers: new Set(layers) } : {}),
   };
 }
 

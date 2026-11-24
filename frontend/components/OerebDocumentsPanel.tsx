@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { OerebDocumentItem } from "@/lib/geoadmin/contract";
 import { api } from "@/lib/api";
 import { AI_READ_LABEL } from "@/lib/oereb/ai-read-label";
-import { REVIEW_LABEL, USER_REJECTED_LABEL, documentNotices, documentSummaryLine, formatDate, rejectReasonLabel, safeExternalUrl, summarizeDocuments, visibleDocuments } from "./geoportal-logic";
+import { REVIEW_LABEL, USER_REJECTED_LABEL, documentMetaParts, documentNotices, documentSummaryLine, formatDate, rejectedForViewer, safeExternalUrl, summarizeDocuments, visibleDocuments } from "./geoportal-logic";
 import { useOerebSync } from "./useOerebDocumentSync";
 import { useOrgRole } from "./useOrgRole";
 import p from "@/app/projects/project.module.css";
@@ -92,7 +92,7 @@ function DocumentActions({ item }: { item: OerebDocumentItem }) {
 /** Gründe, die Nutzer eher überraschen: Hier stehen die Titel gleich offen da. */
 const OPEN_REASONS = new Set(["decision_document"]);
 
-/** Endnutzern ohne den Kasten «bewusst ausgelassen»: Den brauchen nur Plattform-Admins. */
+/** Endnutzern ohne den Kasten «bewusst ausgelassen» und ohne Ablehnungsgründe: Die brauchen nur Plattform-Admins. */
 function DocumentNoticeBlocks({ items, platformAdmin }: { items: OerebDocumentItem[]; platformAdmin: boolean }) {
   const { scans, review, rejected, skipped, bothKept } = documentNotices(items);
   const rejectedCount = rejected.reduce((sum, group) => sum + group.items.length, 0);
@@ -125,7 +125,7 @@ function DocumentNoticeBlocks({ items, platformAdmin }: { items: OerebDocumentIt
               {review.map((item) => (
                 <li key={item.id}>
                   <DocumentLink item={item} />
-                  {item.reject_detail && <span className={n.noticeDetail}>{item.reject_detail}</span>}
+                  {platformAdmin && item.reject_detail && <span className={n.noticeDetail}>{item.reject_detail}</span>}
                   <DocumentActions item={item} />
                 </li>
               ))}
@@ -155,21 +155,27 @@ function DocumentNoticeBlocks({ items, platformAdmin }: { items: OerebDocumentIt
             <p className={n.noticeTitle}>
               {rejectedCount === 1 ? "1 Dokument abgelehnt, bitte prüfen" : `${rejectedCount} Dokumente abgelehnt, bitte prüfen`}
             </p>
-            {rejected.map((group) => (
-              <details key={group.reason} open={OPEN_REASONS.has(group.reason)} style={{ marginTop: 6 }}>
-                <summary className={n.summaryLine}>
-                  {group.items.length} × {group.label}
-                </summary>
-                <ul className={n.noticeList} style={{ marginLeft: 12 }}>
-                  {group.items.map((item) => (
-                    <li key={item.id}>
-                      <DocumentLink item={item} />
-                      {item.reject_detail && <span className={n.noticeDetail}>{item.reject_detail}</span>}
-                    </li>
-                  ))}
+            {rejectedForViewer(rejected, platformAdmin).map((group) =>
+              group.label === null ? (
+                <ul key="all" className={n.noticeList}>
+                  {group.items.map((item) => <li key={item.id}><DocumentLink item={item} /></li>)}
                 </ul>
-              </details>
-            ))}
+              ) : (
+                <details key={group.reason} open={OPEN_REASONS.has(group.reason)} style={{ marginTop: 6 }}>
+                  <summary className={n.summaryLine}>
+                    {group.items.length} × {group.label}
+                  </summary>
+                  <ul className={n.noticeList} style={{ marginLeft: 12 }}>
+                    {group.items.map((item) => (
+                      <li key={item.id}>
+                        <DocumentLink item={item} />
+                        {item.reject_detail && <span className={n.noticeDetail}>{item.reject_detail}</span>}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              ),
+            )}
           </div>
         </div>
       )}
@@ -262,17 +268,7 @@ export default function OerebDocumentsPanel() {
                     {item.title} <span aria-hidden="true">↗</span>
                   </a>
                 </div>
-                <p className={n.docMeta}>
-                  {[
-                    item.status === "rejected" || item.status === "review" ? `Grund: ${rejectReasonLabel(item.reject_reason)}` : null,
-                    item.status !== "imported" ? item.reject_detail : null,
-                    item.scope === "parcel" ? "gilt nur für dieses Grundstück" : item.scope === "municipal" ? "gilt für die Gemeinde" : null,
-                    item.version_note ?? null,
-                    item.last_update_status === "rejected_shrink" ? "neue Fassung abgelehnt, bisheriger Stand bleibt" : null,
-                    item.last_update_status === "fetch_failed" ? "letzte Prüfung fehlgeschlagen, bisheriger Stand bleibt" : null,
-                    checked ? `Stand ${checked}` : null,
-                  ].filter(Boolean).join(" · ")}
-                </p>
+                <p className={n.docMeta}>{documentMetaParts(item, platformAdmin, checked).join(" · ")}</p>
                 <DocumentActions item={item} />
               </li>
             );

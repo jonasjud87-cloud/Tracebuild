@@ -193,21 +193,26 @@ interface NormCardProps {
   /** Zone der Parzelle; null zeigt immer das ganze Dokument (z. B. unter «Andere Zonen»). */
   zone?: string | null;
   zoneConfidence?: string | null;
+  zoneSource?: string | null;
 }
 
-function NormCard({ pn, onRemove, zone = null, zoneConfidence = null }: NormCardProps) {
+function NormCard({ pn, onRemove, zone = null, zoneConfidence = null, zoneSource = null }: NormCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [fullText, setFullText] = useState<string | null>(null);
   const [loadError, setLoadError] = useState(false);
   const norm = pn.norms;
   // Gekürzter Text (Vorschau) oder Ladefehler: kein Filter, sonst fehlten Artikel unbemerkt.
   const fullTextLoaded = !!norm && (!norm.text_truncated || (fullText !== null && !loadError));
+  // Primitive Abhängigkeiten: Nach load() ist `norm` ein neues Objekt mit gleichen Werten.
+  const hasNorm = !!norm;
+  const normLayer = norm?.layer ?? 0;
+  const normZone = norm?.zone ?? null;
   const sectionContext = useMemo<SectionContext | null>(
     () =>
-      norm && zone
-        ? { zone, zoneConfidence, layer: norm.layer, normZone: norm.zone, fullTextLoaded }
+      hasNorm && zone
+        ? { zone, zoneConfidence, zoneSource, layer: normLayer, normZone, fullTextLoaded }
         : null,
-    [norm, zone, zoneConfidence, fullTextLoaded],
+    [hasNorm, normLayer, normZone, zone, zoneConfidence, zoneSource, fullTextLoaded],
   );
   useEffect(() => {
     if (!expanded || !norm?.text_truncated || fullText !== null || loadError) return;
@@ -372,12 +377,14 @@ function ThemeBlock({
   onRemove,
   zone,
   zoneConfidence,
+  zoneSource,
 }: {
   theme: ThemeGroup;
   isGap: boolean;
   onRemove: (normId: string) => void;
   zone: string | null;
   zoneConfidence: string | null;
+  zoneSource: string | null;
 }) {
   const federal = isFederalTheme(theme.themeCode);
   const showGapCard = isGap;
@@ -434,7 +441,7 @@ function ThemeBlock({
           {theme.norms.length > 0 && (
             <div className={n.nestedList}>
               {theme.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={onRemove} zone={zone} zoneConfidence={zoneConfidence} />
+                <NormCard key={pn.id} pn={pn} onRemove={onRemove} zone={zone} zoneConfidence={zoneConfidence} zoneSource={zoneSource} />
               ))}
             </div>
           )}
@@ -863,7 +870,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <section key={grp.label} className={p.glass}>
               <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
               {grp.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} />
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} zoneSource={zoneSource} />
               ))}
             </section>
           ))}
@@ -884,6 +891,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
                   onRemove={handleRemove}
                   zone={bauzone}
                   zoneConfidence={zoneConfidence}
+                  zoneSource={zoneSource}
                 />
               ))}
 
@@ -919,7 +927,7 @@ export default function NormenPage({ params }: { params: { id: string } }) {
             <section key={grp.label} className={p.glass}>
               <GroupHead color={grp.dot} title={grp.label} count={grp.norms.length} />
               {grp.norms.map((pn) => (
-                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} />
+                <NormCard key={pn.id} pn={pn} onRemove={handleRemove} zone={bauzone} zoneConfidence={zoneConfidence} zoneSource={zoneSource} />
               ))}
             </section>
           ))}
