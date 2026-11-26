@@ -372,6 +372,10 @@
   gap: 14px;
   align-items: start;
 }
+/* Alle Inhalte in die Textspalte; sonst rutscht z. B. eine Unterliste in die 32-px-Nummernspalte. */
+.steps > li > * {
+  grid-column: 2;
+}
 .steps > li::before {
   content: counter(s);
   width: 28px;
