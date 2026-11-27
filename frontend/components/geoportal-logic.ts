@@ -344,6 +344,25 @@ export function visibleDocuments<T extends NoticeItem>(items: T[], platformAdmin
   return platformAdmin ? items : items.filter((item) => !isSkippedDocument(item));
 }
 
+type MetaItem = Pick<OerebDocumentItem, "status" | "reject_reason" | "reject_detail" | "scope" | "last_update_status"> &
+  Partial<Pick<OerebDocumentItem, "version_note">>;
+
+/**
+ * Angaben unter einem Dokument der Liste. Grund und Detail der Ablehnung nur für Plattform-Admins
+ * (Entscheid: Endnutzer brauchen sie nicht, sie sehen den Status «abgelehnt, bitte prüfen»).
+ */
+export function documentMetaParts(item: MetaItem, platformAdmin: boolean, checked: string | null): string[] {
+  return [
+    platformAdmin && (item.status === "rejected" || item.status === "review") ? `Grund: ${rejectReasonLabel(item.reject_reason)}` : null,
+    platformAdmin && item.status !== "imported" ? item.reject_detail : null,
+    item.scope === "parcel" ? "gilt nur für dieses Grundstück" : item.scope === "municipal" ? "gilt für die Gemeinde" : null,
+    item.version_note ?? null,
+    item.last_update_status === "rejected_shrink" ? "neue Fassung abgelehnt, bisheriger Stand bleibt" : null,
+    item.last_update_status === "fetch_failed" ? "letzte Prüfung fehlgeschlagen, bisheriger Stand bleibt" : null,
+    checked ? `Stand ${checked}` : null,
+  ].filter((x): x is string => !!x);
+}
+
 /** Scan-Hinweis nur, solange kein Text vorliegt: Mit Texterkennung wechselt das Dokument den Status. */
 export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotices<T> {
   const out: DocumentNotices<T> = { scans: [], review: [], rejected: [], skipped: [], bothKept: [] };
@@ -374,6 +393,19 @@ export function documentNotices<T extends NoticeItem>(items: T[]): DocumentNotic
     category: c, label: CATEGORY_INFO[c].label, hint: CATEGORY_INFO[c].hint, items: skipped.get(c) ?? [],
   }));
   return out;
+}
+
+/**
+ * Kasten «abgelehnt, bitte prüfen»: Admins je Grund gruppiert, Endnutzer eine Gruppe ohne Grund
+ * (`label` null), nur die Titel.
+ */
+export function rejectedForViewer<T>(
+  groups: DocumentNotices<T>["rejected"],
+  platformAdmin: boolean,
+): { reason: string; label: string | null; items: T[] }[] {
+  if (platformAdmin) return groups;
+  const items = groups.flatMap((g) => g.items);
+  return items.length > 0 ? [{ reason: "", label: null, items }] : [];
 }
 
 // ── Eigene Uploads gegenüber dem amtlichen Text ──────────────────────────────

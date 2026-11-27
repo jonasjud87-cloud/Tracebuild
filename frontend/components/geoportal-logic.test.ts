@@ -4,6 +4,7 @@ import type { DocumentSyncResponse, ParcelCandidate } from "../lib/geoadmin/cont
 import { autoPartsWarning, buildReportCsv, buildReportHtml } from "../lib/analysis-report";
 import {
   candidateToFields,
+  documentMetaParts,
   documentSummaryLine,
   extractStatusInfo,
   oerebReloadNote,
@@ -15,6 +16,7 @@ import {
   nextActiveIndex,
   parcelHitToFields,
   parcelQueryFor,
+  rejectedForViewer,
   runDocumentSync,
   sortCandidates,
   summarizeDocuments,
@@ -452,4 +454,46 @@ test("Endnutzer: vom Admin entfernte Dokumente ausgeblendet, Admins sehen sie", 
   const kept = { ...removed, status: "duplicate_manual" as const };
   assert.deepEqual(visibleDocuments([removed, kept], false), [kept]);
   assert.equal(visibleDocuments([removed, kept], true).length, 2);
+});
+
+// ── Ablehnungsgründe nur für Plattform-Admins (Gesamt-QG) ────────────────────
+
+const meta = (over: Partial<Parameters<typeof documentMetaParts>[0]> = {}): Parameters<typeof documentMetaParts>[0] => ({
+  status: "rejected", reject_reason: "no_articles", reject_detail: "0 Artikel auf 12 Seiten", scope: "municipal",
+  last_update_status: null, version_note: null, ...over,
+});
+
+test("Dokumentliste: Admins sehen Grund und Detail", () => {
+  const parts = documentMetaParts(meta(), true, "01.02.2026");
+  assert.deepEqual(parts, ["Grund: keine Artikel erkannt", "0 Artikel auf 12 Seiten", "gilt für die Gemeinde", "Stand 01.02.2026"]);
+  assert.equal(documentMetaParts(meta({ status: "review" }), true, null)[0], "Grund: keine Artikel erkannt");
+});
+
+test("Dokumentliste: Endnutzer ohne Grund und ohne Detail, übrige Angaben bleiben", () => {
+  for (const status of ["rejected", "review", "failed", "pending"] as const) {
+    const parts = documentMetaParts(meta({ status }), false, "01.02.2026");
+    assert.ok(!parts.some((x) => x.startsWith("Grund:") || x.includes("Artikel auf")), `${status}: ${parts.join(" · ")}`);
+    assert.deepEqual(parts, ["gilt für die Gemeinde", "Stand 01.02.2026"]);
+  }
+  assert.deepEqual(
+    documentMetaParts(meta({ status: "imported", scope: "parcel", last_update_status: "fetch_failed", version_note: "beide Fassungen" }), false, null),
+    ["gilt nur für dieses Grundstück", "beide Fassungen", "letzte Prüfung fehlgeschlagen, bisheriger Stand bleibt"],
+  );
+});
+
+test("Dokumentliste: importiert ohne Detail, auch für Admins", () => {
+  assert.deepEqual(documentMetaParts(meta({ status: "imported", scope: null }), true, null), []);
+});
+
+test("Kasten abgelehnt: Admins je Grund, Endnutzer eine Gruppe ohne Grund", () => {
+  const items = [vis({ reject_reason: "no_articles" }), vis({ reject_reason: "host_not_allowed" }), vis({ reject_reason: "no_articles" })];
+  const groups = documentNotices(items).rejected;
+  assert.equal(groups.length, 2);
+  assert.deepEqual(rejectedForViewer(groups, true), groups);
+  const user = rejectedForViewer(groups, false);
+  assert.equal(user.length, 1);
+  assert.equal(user[0].label, null);
+  assert.equal(user[0].items.length, 3);
+  assert.deepEqual(rejectedForViewer([], false), []);
+  assert.deepEqual(rejectedForViewer([], true), []);
 });
