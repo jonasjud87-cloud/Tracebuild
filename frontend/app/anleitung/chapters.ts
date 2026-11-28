@@ -24,9 +24,10 @@ export const CHAPTERS: HandbookChapter[] = [
     num: 1,
     title: "Pläne analysieren",
     short: "Pläne",
-    desc: "Projekt anlegen, Pläne prüfen lassen, Ergebnis lesen, neue Versionen prüfen",
+    desc: "Projekt anlegen, Parzelle und Normen ansehen, Pläne prüfen lassen, Ergebnis lesen, neue Versionen prüfen",
     sections: [
       { id: "projekt-anlegen", title: "Projekt anlegen" },
+      { id: "vor-der-analyse", title: "Vor der Plan-Analyse: Was TraceBuild zur Parzelle zeigt" },
       { id: "grundstueck", title: "Grundstück und Bauzone kontrollieren" },
       { id: "plan-hochladen", title: "Pläne hochladen und prüfen lassen" },
       { id: "ergebnis", title: "Ergebnis lesen und exportieren" },
@@ -61,11 +62,12 @@ export const CHAPTERS: HandbookChapter[] = [
   {
     id: "einstellungen",
     num: 4,
-    title: "Projekt verwalten",
-    short: "Projekt verwalten",
-    desc: "Projektdaten, Parzelle, Bauzone, Projekt löschen",
+    title: "Übersicht und Projekte verwalten",
+    short: "Verwalten",
+    desc: "Startseite, Projektdaten, Parzelle, Bauzone, Projekt löschen",
     secondary: true,
     sections: [
+      { id: "uebersicht", title: "Startseite «Übersicht»" },
       { id: "projektdaten", title: "Projektdaten und Parzelle ändern" },
       { id: "projekt-loeschen", title: "Projekt löschen" },
     ],
