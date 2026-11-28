@@ -38,7 +38,7 @@ const FEEDBACK_FORM_URL =
 export const metadata: Metadata = {
   title: "Anleitung - TraceBuild",
   description:
-    "Handbuch für Organisationen: Pläne analysieren, Normen eines Projekts, Normenblatt, Unternehmensnormen, Benutzer.",
+    "Handbuch für Organisationen: Parzelle und Normen vor der Analyse, Pläne analysieren, Normen eines Projekts, Normenblatt, Unternehmensnormen, Benutzer.",
   robots: { index: false, follow: false, nocache: true, googleBot: { index: false, follow: false } },
 };
 
@@ -50,6 +50,11 @@ const QUICKSTART = [
     href: "#projekt-anlegen",
     title: "Projekt anlegen",
     text: "Adresse oder Parzelle suchen. TraceBuild füllt die Angaben aus und ermittelt die Bauzone aus dem ÖREB-Kataster.",
+  },
+  {
+    href: "#vor-der-analyse",
+    title: "Parzelle und Normen ansehen",
+    text: "Vor jeder Analyse: Bauzone, geltende Normen, Normenblatt mit Kenndaten und KI Chat zur Parzelle.",
   },
   {
     href: "#plan-hochladen",
@@ -122,6 +127,11 @@ function Sub({ id }: { id: string }) {
   return <h3 id={id}>{sectionTitle(id)}</h3>;
 }
 
+/** Verweis auf einen Abschnitt; ohne eigenen Text mit dessen Titel. */
+function Ref({ id, children }: { id: string; children?: React.ReactNode }) {
+  return <a href={`#${id}`}>{children ?? sectionTitle(id)}</a>;
+}
+
 /** Abbildung. */
 function Fig({
   src,
@@ -161,7 +171,7 @@ function Fields({ rows, label }: { rows: FieldRow[]; label: string }) {
                 {f.optional && <span className={s.optional}>optional</span>}
               </td>
               <td>{f.what}</td>
-              <td className={s.example}>{f.example}</td>
+              <td className={s.example} data-label="Beispiel">{f.example}</td>
             </tr>
           ))}
         </tbody>
@@ -232,11 +242,12 @@ export default function AnleitungPage() {
               <p className={s.pill}>Anleitung</p>
               <h1>Ihr Bauplan, in wenigen Minuten geprüft</h1>
               <p className={s.lead}>
-                Sie laden einen Plan hoch, TraceBuild prüft ihn gegen die Vorschriften, die für Ihre Parzelle gelten:
-                Bauzone, Abstände, Höhen und mehr. Sie sehen auf einen Blick, was eingehalten ist, wo etwas nicht
-                stimmt und wo es noch Angaben braucht.
+                Sie legen ein Projekt mit Parzelle an. Noch bevor Sie einen Plan hochladen, zeigt TraceBuild, was für
+                das Grundstück gilt: Bauzone aus dem ÖREB-Auszug, die zusammengestellten Normen von Bund, Kanton und
+                Gemeinde und ein Normenblatt mit den Kenndaten. Gegen genau diese Vorschriften prüft TraceBuild danach
+                Ihren Plan und zeigt, was eingehalten ist, wo etwas nicht stimmt und wo es noch Angaben braucht.
               </p>
-              <p className={s.meta}>Handbuch für Organisationen · Stand 23. November 2026</p>
+              <p className={s.meta}>Handbuch für Organisationen · Stand 27. November 2026</p>
             </div>
           </header>
 
@@ -260,7 +271,7 @@ export default function AnleitungPage() {
 
             <section className={s.quick} aria-labelledby="schnellstart-titel">
               <h2 id="schnellstart-titel" className={s.quickTitle}>
-                In drei Schritten zur ersten Prüfung
+                In vier Schritten zur ersten Prüfung
               </h2>
               <ol className={s.quickSteps}>
                 {QUICKSTART.map((q, i) => (
@@ -313,7 +324,9 @@ export default function AnleitungPage() {
           {/* ── Kapitel 1 ─────────────────────────────────────────────── */}
           <Chapter id="plaene">
             <p className={s.chapterLead}>
-              Für jede Prüfung braucht es ein Projekt mit Parzelle. Darin laden Sie alle Pläne des Baugesuchs zusammen
+              Für jede Prüfung braucht es ein Projekt mit Parzelle. Schon beim Anlegen stellt TraceBuild zusammen, was
+              für das Grundstück gilt; diese Grundlagen sehen Sie sich vor der ersten Analyse an (siehe{" "}
+              <Ref id="vor-der-analyse">Vor der Plan-Analyse</Ref>). Danach laden Sie alle Pläne des Baugesuchs zusammen
               hoch (Situation, Grundrisse, Schnitte, Fassaden, Berechnungen), denn erst zusammen ist der Plansatz
               vollständig. Geprüft wird gegen den ÖREB-Auszug der Parzelle, die Normen des Projekts (siehe{" "}
               <a href="#normen">Kapitel 2</a>) und die freigegebenen Unternehmensnormen Ihrer Organisation (siehe{" "}
@@ -369,6 +382,28 @@ export default function AnleitungPage() {
               alt="Projektübersicht mit Suchfeld, Knopf Neues Projekt, Kennzahlen und linker Navigation"
               caption="Projektübersicht: Suche, «+ Neues Projekt» und Kennzahlen zu allen Projekten der Organisation."
             />
+
+            <Sub id="vor-der-analyse" />
+            <p>
+              Beim Anlegen ruft TraceBuild den ÖREB-Auszug ab, ermittelt die Bauzone und stellt die Normen für das
+              Grundstück zusammen. Sie sehen also schon vor dem ersten Plan, was für die Parzelle gilt. Gegen genau
+              diese Grundlagen prüft die Analyse später den Plan; kontrollieren Sie sie deshalb zuerst.
+            </p>
+            <ol className={s.steps}>
+              <li><p><strong>Grundstück und Bauzone.</strong> Im Reiter <Ui>Plan-Analyse</Ui> zeigt der Abschnitt <Ui>Grundstück</Ui> Parzelle, EGRID, die Zone aus dem ÖREB-Auszug sowie Zusatzdaten und Links zu Geoportal und amtlichem Auszug. Ist die Zone unsicher, klären Sie sie zuerst: Sie bestimmt, welche Normen gelten. Siehe <Ref id="grundstueck" />.</p></li>
+              <li><p><strong>Zusammengestellte Normen.</strong> Der Reiter <Ui>Normen</Ui> listet die Vorschriften nach Bund, Kanton und Gemeinde, dazu die Themen des ÖREB-Auszugs, die das Grundstück betreffen, und zeigt Lücken. Bei Gemeindereglementen sehen Sie zunächst nur die Artikel, die für Ihre Zone gelten, sofern die Zone gesichert ist; <Ui>Ganzes Dokument anzeigen</Ui> zeigt alles. Siehe <Ref id="projekt-normen" /> und <Ref id="normtext" />.</p></li>
+              <li><p><strong>Reglemente aus dem ÖREB-Kataster.</strong> Baureglemente und weitere Erlasse der Gemeinde übernimmt TraceBuild aus dem ÖREB-Auszug. Solange der Import läuft, zeigt ein Zähler den Fortschritt. Siehe <Ref id="reglemente" />.</p></li>
+              <li><p><strong>Normenblatt.</strong> Im Reiter <Ui>Normenblatt</Ui> fasst TraceBuild mit <Ui>Normenblatt erstellen</Ui> die Kenndaten der Zone zusammen, z.&nbsp;B. Ausnützungsziffer, Vollgeschosse, Grenzabstände und Höhen, je mit Quelle, und berechnet, wo die Werte reichen, die Geschossfläche. Dafür braucht es eine Zone und zugewiesene Normen. Das Erstellen löst eine KI-Auswertung aus, die zum Verbrauch Ihrer Organisation zählt. Siehe <Ref id="normenblatt" />.</p></li>
+              <li><p><strong>KI Chat.</strong> Fragen zur Parzelle stellen Sie im Reiter <Ui>KI Chat</Ui>, z.&nbsp;B. «Was ist der Grenzabstand in dieser Bauzone?». Der Chat kennt die Normen des Projekts schon vor der ersten Analyse. Siehe <Ref id="chat" />.</p></li>
+              <li><p><strong>Dann den Plan prüfen.</strong> Stimmen Zone und Normen, laden Sie die Pläne hoch. Siehe <Ref id="plan-hochladen" />.</p></li>
+            </ol>
+            <Note title="Fehlt eine Vorschrift?">
+              <p>
+                Ergänzen Sie sie vor der Analyse: nur für dieses Projekt als Spezialnorm (siehe{" "}
+                <Ref id="spezialnorm" />) oder für alle Projekte als Unternehmensnorm oder eigene Fassung (siehe{" "}
+                <a href="#unternehmensnormen">Kapitel 5</a>).
+              </p>
+            </Note>
 
             <Sub id="grundstueck" />
             <p>
@@ -570,7 +605,7 @@ export default function AnleitungPage() {
             <ol className={s.steps}>
               <li><p>Klappen Sie eine Norm mit dem Pfeil rechts auf (<Ui>Volltext anzeigen</Ui>).</p></li>
               <li><p>Gegliederte Texte zeigen die Artikel einzeln, längere zusätzlich eine <Ui>Artikelübersicht</Ui>. Mit <Ui>Als Rohtext anzeigen</Ui> sehen Sie den Text ungegliedert, mit <Ui>Gegliedert anzeigen</Ui> wieder gegliedert.</p></li>
-              <li><p>Bei Gemeindereglementen mit exakt erkannter oder manuell erfasster Zone blendet TraceBuild Artikel aus, die nur für andere Zonen gelten. Ein Chip zeigt das an, z.&nbsp;B. <Ui>Geltend für Zone W2: 12 von 30 Artikeln</Ui>. An Stelle der ausgeblendeten Artikel steht <Ui>Automatisch nach Zone ausgeblendet.</Ui> mit <Ui>anzeigen</Ui>. <Ui>Ganzes Dokument anzeigen</Ui> zeigt alle Artikel, <Ui>Nur geltende Abschnitte</Ui> filtert wieder. Die Analyse prüft immer gegen den ganzen Text.</p></li>
+              <li><p>Bei Gemeindereglementen mit exakt erkannter oder manuell erfasster Zone blendet TraceBuild Artikel aus, die nur für andere Zonen gelten. Ein Chip zeigt das an, z.&nbsp;B. <Ui>Geltend für Zone W2: 12 von 30 Artikeln</Ui>. An Stelle der ausgeblendeten Artikel steht <Ui>Automatisch nach Zone ausgeblendet.</Ui> mit <Ui>anzeigen</Ui>. <Ui>Ganzes Dokument anzeigen</Ui> zeigt alle Artikel, <Ui>Nur geltende Abschnitte</Ui> filtert wieder. Ist die Zone unsicher, nur grob bekannt oder ohne Angabe zur Sicherheit aus dem ÖREB-Auszug übernommen, zeigt TraceBuild das ganze Dokument; im Zweifel bleibt ein Artikel sichtbar. Die Analyse prüft immer gegen den ganzen Text.</p></li>
               <li><p>Gibt es ein PDF, wechseln Sie auf breiten Bildschirmen zwischen <Ui>Text</Ui> und <Ui>PDF</Ui>. <Ui>Original-PDF öffnen ↗</Ui> öffnet es in einem neuen Fenster.</p></li>
             </ol>
 
@@ -597,17 +632,25 @@ export default function AnleitungPage() {
           {/* ── Kapitel 3 ─────────────────────────────────────────────── */}
           <Chapter id="werkzeuge">
             <p className={s.chapterLead}>
-              Zwei Hilfen neben der Planprüfung: das Normenblatt fasst die Grundmasse der Bauzone zusammen, der KI Chat
-              beantwortet Fragen zum Projekt.
+              Zwei Hilfen, die schon vor der ersten Planprüfung bereitstehen: Das Normenblatt fasst die Grundmasse der
+              Bauzone zusammen, der KI Chat beantwortet Fragen zur Parzelle und zum Projekt.
             </p>
 
             <Sub id="normenblatt" />
             <ol className={s.steps}>
               <li><p>Öffnen Sie den Reiter <Ui>Normenblatt</Ui> und klicken Sie auf <Ui>Normenblatt erstellen</Ui>. TraceBuild liest die Werte aus den zugewiesenen Normen und dem ÖREB-Auszug.</p></li>
-              <li><p>Das Blatt zeigt Gemeinde, Parzelle und Datum, darunter die <Ui>Kenndaten</Ui> mit Bezeichnung, Wert und Quelle: z.&nbsp;B. Zone, Landfläche, Vollgeschosse, Ausnützungsziffer, Grenzabstände, Gebäude- und Firsthöhe, Dachform, Strassenabstand. Darunter folgen <Ui>Berechnungen</Ui>.</p></li>
+              <li><p>Das Blatt zeigt Gemeinde, Parzelle und Datum, darunter die <Ui>Kenndaten</Ui> mit Bezeichnung, Wert und Quelle: z.&nbsp;B. Zone, Landfläche, Vollgeschosse, Ausnützungsziffer, Grenzabstände, Gebäudelänge, Gebäude- und Firsthöhe, Dachform, Strassenabstand. Regelt das Reglement die Dichte über eine Baumassen- oder Überbauungsziffer, steht diese zusätzlich da. Darunter folgen <Ui>Berechnungen</Ui>: die theoretisch maximale Geschossfläche aus Landfläche und Ausnützungsziffer oder, ohne Ziffer, ein grober Richtwert aus der Gebäudehülle. Fehlen Werte, nennt das Blatt den Grund.</p></li>
               <li><p>Mit <Ui>PDF herunterladen</Ui> speichern Sie das Blatt als PDF.</p></li>
               <li><p>Ändern sich Normen oder Zone, meldet das Blatt den älteren Stand. Klicken Sie dann auf <Ui>Aktualisieren</Ui>. Mit <Ui>Neu erstellen</Ui> erstellen Sie ein aktuelles Blatt jederzeit neu.</p></li>
             </ol>
+            <Note title="Verbrauch">
+              <p>
+                Das Erstellen löst eine KI-Auswertung der Normen aus; ihre Kosten zählen zum Verbrauch Ihrer
+                Organisation. Das Blatt bleibt gespeichert und erscheint beim nächsten Öffnen ohne neue Auswertung.
+                Haben sich Normen und Zone seither nicht geändert, verwendet auch <Ui>Neu erstellen</Ui> in der Regel
+                die gespeicherte Auswertung. Nach einer Änderung löst <Ui>Aktualisieren</Ui> eine neue aus.
+              </p>
+            </Note>
             <Fig
               src={imgNormenblatt}
               alt="Normenblatt für Mels, Kanton SG, vom 14.11.2026: Tabelle Kenndaten mit Zone W2, Landfläche, 2 Vollgeschossen, Ausnützungsziffer 0.50, Grenzabständen 8 und 4 m und Gebäudelänge 24 m, je mit Quelle; Projektname, Parzelle und Wert der Landfläche unkenntlich"
@@ -615,14 +658,14 @@ export default function AnleitungPage() {
             />
             <Note title="Werte am Original prüfen">
               <p>
-                Das Normenblatt ist keine behördliche Auskunft. Ein leeres Feld heisst, dass der Wert in den Normen nicht
+                Das Normenblatt ist keine behördliche Auskunft. Ein Strich (–) heisst, dass der Wert in den Normen nicht
                 sicher gefunden wurde.
               </p>
             </Note>
 
             <Sub id="chat" />
             <ol className={s.steps}>
-              <li><p>Öffnen Sie den Reiter <Ui>KI Chat</Ui>. Der Assistent kennt die Normen des Projekts und die Punkte der letzten Analyse.</p></li>
+              <li><p>Öffnen Sie den Reiter <Ui>KI Chat</Ui>. Der Assistent kennt Gemeinde, Bauzone und Normen des Projekts, nach einer Analyse auch deren Verstösse und unklare Punkte. Fragen zur Parzelle stellen Sie also schon vor der ersten Analyse.</p></li>
               <li><p>Stellen Sie Ihre Frage im Eingabefeld und senden Sie sie mit Enter. Shift+Enter fügt eine neue Zeile ein. Für den Anfang bietet TraceBuild Beispielfragen an, z.&nbsp;B. «Welche Normen gelten für dieses Projekt?».</p></li>
               <li><p>Frühere Gespräche stehen links unter <Ui>Verlauf</Ui>. Ein neues Gespräch beginnen Sie mit <Ui>Neuer Chat</Ui>.</p></li>
             </ol>
@@ -648,9 +691,21 @@ export default function AnleitungPage() {
             {/* ── Kapitel 4 ───────────────────────────────────────────── */}
             <Chapter id="einstellungen">
               <p className={s.chapterLead}>
-                Im Reiter <Ui>Einstellungen</Ui> bearbeiten Organisations-Admins die Daten eines Projekts. Alle anderen
-                sehen die Daten dort nur.
+                Die Startseite gibt einen Überblick über alle Projekte. Im Reiter <Ui>Einstellungen</Ui> eines Projekts
+                bearbeiten Organisations-Admins dessen Daten; alle anderen sehen die Daten dort nur.
               </p>
+
+              <Sub id="uebersicht" />
+              <p>
+                Nach der Anmeldung und über <Ui>Übersicht</Ui> in der linken Navigation öffnet sich die Startseite Ihrer
+                Organisation. Sie zählt über alle Projekte und alle abgeschlossenen Prüfungen.
+              </p>
+              <ul className={s.bullets}>
+                <li><Ui>Projekte</Ui>: Anzahl Projekte der Organisation. <Ui>Geprüfte Pläne</Ui>: Anzahl abgeschlossener Analysen, jede Version einzeln. <Ui>Gefundene Fehler</Ui>: Anzahl Verstösse in diesen Analysen. <Ui>Normen geprüft</Ui>: Anteil der konformen Prüfpunkte in Prozent.</li>
+                <li><Ui>Fehler nach Kategorie</Ui> zeigt die Zahl der Verstösse als <Ui>Gesamtfehler</Ui>. Die Aufteilung nach Kategorien ist zurzeit eine <Ui>Beispielverteilung</Ui> und nicht aus Ihren Daten berechnet.</li>
+                <li><Ui>Letzte Aktivitäten</Ui> listet bis zu fünf Verstösse und unklare Punkte aus den jüngsten Analysen mit dem Zeitpunkt, z.&nbsp;B. «vor 2 Std.». Die Einträge sind nicht anklickbar; den Punkt finden Sie im Projekt unter <Ui>Offene Punkte</Ui>.</li>
+                <li>Mit <Ui>Zu den Projekten</Ui> wechseln Sie zur Projektübersicht.</li>
+              </ul>
 
               <Sub id="projektdaten" />
               <ol className={s.steps}>
@@ -746,11 +801,12 @@ export default function AnleitungPage() {
             <Chapter id="benutzer">
               <p className={s.chapterLead}>
                 Neue Personen kommen per Einladung in Ihre Organisation. Einladen und Rechte vergeben kann nur, wer die
-                Rolle Org Admin hat. Sie finden die Verwaltung in der linken Navigation unter <Ui>Organisation</Ui>.
+                Rolle Org Admin hat. Sie finden die Verwaltung in der linken Navigation unter <Ui>Organisation</Ui>; der
+                Eintrag erscheint nur für Org Admins.
               </p>
 
               <Sub id="rollen" />
-              <div className={s.tableWrap}>
+              <div className={`${s.tableWrap} ${s.roleTable}`}>
                 <table aria-label="Rechte der Rollen">
                   <thead>
                     <tr>
@@ -764,24 +820,24 @@ export default function AnleitungPage() {
                   <tbody>
                     <tr>
                       <td>Org Admin</td>
-                      <td className={s.yes}>Ja</td>
-                      <td className={s.yes}>Ja</td>
-                      <td className={s.yes}>Ja</td>
-                      <td className={s.yes}>Ja</td>
+                      <td className={s.yes} data-label="Pläne prüfen, Normen hochladen, Chat">Ja</td>
+                      <td className={s.yes} data-label="Bauzone bestätigen, Projekteinstellungen, Projekte löschen">Ja</td>
+                      <td className={s.yes} data-label="Unternehmensnormen freigeben">Ja</td>
+                      <td className={s.yes} data-label="Personen einladen, Rollen ändern, Projektmitglieder">Ja</td>
                     </tr>
                     <tr>
                       <td>Projektleiter</td>
-                      <td className={s.yes}>Ja</td>
-                      <td className={s.no}>Nein</td>
-                      <td className={s.no}>Nein</td>
-                      <td className={s.no}>Nein</td>
+                      <td className={s.yes} data-label="Pläne prüfen, Normen hochladen, Chat">Ja</td>
+                      <td className={s.no} data-label="Bauzone bestätigen, Projekteinstellungen, Projekte löschen">Nein</td>
+                      <td className={s.no} data-label="Unternehmensnormen freigeben">Nein</td>
+                      <td className={s.no} data-label="Personen einladen, Rollen ändern, Projektmitglieder">Nein</td>
                     </tr>
                     <tr>
                       <td>Mitglied</td>
-                      <td className={s.yes}>Ja</td>
-                      <td className={s.no}>Nein</td>
-                      <td className={s.no}>Nein</td>
-                      <td className={s.no}>Nein</td>
+                      <td className={s.yes} data-label="Pläne prüfen, Normen hochladen, Chat">Ja</td>
+                      <td className={s.no} data-label="Bauzone bestätigen, Projekteinstellungen, Projekte löschen">Nein</td>
+                      <td className={s.no} data-label="Unternehmensnormen freigeben">Nein</td>
+                      <td className={s.no} data-label="Personen einladen, Rollen ändern, Projektmitglieder">Nein</td>
                     </tr>
                   </tbody>
                 </table>
